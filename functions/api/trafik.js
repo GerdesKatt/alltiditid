@@ -1,3 +1,35 @@
+function parseTimeToMinutes(timeStr) {
+  if (!timeStr || typeof timeStr !== 'string') return null;
+  const parts = timeStr.trim().split(':');
+  if (parts.length < 2) return null;
+  const hours = Number(parts[0]);
+  const minutes = Number(parts[1]);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  return hours * 60 + minutes;
+}
+
+function getDelayMinutes(scheduledTime, estimatedTime, scheduledDate, rtDate) {
+  const schedMin = parseTimeToMinutes(scheduledTime);
+  const estMin = parseTimeToMinutes(estimatedTime);
+  if (schedMin === null || estMin === null) return null;
+
+  let diff = estMin - schedMin;
+  // Hantera midnattspassage (t.ex. 23:55 -> 00:10)
+  if (scheduledDate && rtDate && scheduledDate !== rtDate) {
+    if (rtDate > scheduledDate) {
+      diff += 24 * 60;
+    } else if (rtDate < scheduledDate) {
+      diff -= 24 * 60;
+    }
+  } else if (diff < -12 * 60) {
+    diff += 24 * 60;
+  } else if (diff > 12 * 60) {
+    diff -= 24 * 60;
+  }
+
+  return diff;
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -109,10 +141,24 @@ export async function onRequest(context) {
         if (mode === 'bus' && !isBus) return null;
 
         const scheduledTime = String(item.time || '').slice(0, 5);
-        const estimatedTime = String(item.rtTime || item.time || '').slice(0, 5);
+        const rtTimeRaw = String(item.rtTime || '').slice(0, 5);
+        const estimatedTime = rtTimeRaw || scheduledTime;
+
+        const delayMin = getDelayMinutes(
+          scheduledTime,
+          estimatedTime,
+          item.date,
+          item.rtDate
+        );
+
         const isCancelled = Boolean(item.cancelled);
-        const isDelayed =
-          !isCancelled && Boolean(item.rtTime) && estimatedTime !== scheduledTime;
+        const hasTimeChange =
+          Boolean(rtTimeRaw) &&
+          estimatedTime !== scheduledTime &&
+          delayMin !== null &&
+          Math.abs(delayMin) >= 1;
+
+        const isDelayed = !isCancelled && hasTimeChange && delayMin > 0;
 
         const trainNumber = String(prod.num || prod.displayNumber || '').trim();
         const lineName = String(prod.name || prod.line || trainNumber || 'Avgang').trim();
@@ -146,6 +192,7 @@ export async function onRequest(context) {
           destination: title,
           scheduledTime,
           estimatedTime,
+          delayMinutes: isDelayed && delayMin !== null ? delayMin : 0,
           status: isCancelled ? 'cancelled' : isDelayed ? 'delayed' : 'on-time',
           track: trackLabel,
           viaStops,
