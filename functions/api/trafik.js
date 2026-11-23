@@ -120,13 +120,11 @@ async function fetchTrafikverketTrainUpdates(trafikverketKey, trainNumbers, acti
         current.track = String(ann.TrackAtLocation).trim();
       }
 
-      if (estClock) {
-        const diff = getDelayMinutes(advClock || estClock, estClock);
-        if (diff !== null && diff > current.delayMinutes) {
+      if (estClock && advClock) {
+        const diff = getDelayMinutes(advClock, estClock);
+        if (diff !== null && diff > 0 && diff > current.delayMinutes) {
           current.newTime = estClock;
           current.delayMinutes = diff;
-        } else if (!current.newTime && estClock !== advClock) {
-          current.newTime = estClock;
         }
       }
 
@@ -262,10 +260,13 @@ export async function onRequest(context) {
         const scheduledTime = String(item.time || '').slice(0, 5);
         const rtTimeRaw = String(item.rtTime || '').slice(0, 5);
 
-        let newTime = rtTimeRaw && rtTimeRaw !== scheduledTime ? rtTimeRaw : '';
-        let delayMin = newTime
-          ? getDelayMinutes(scheduledTime, newTime, item.date, item.rtDate)
-          : 0;
+        const rawDiff = rtTimeRaw
+          ? getDelayMinutes(scheduledTime, rtTimeRaw, item.date, item.rtDate)
+          : null;
+
+        let newTime =
+          rtTimeRaw && rawDiff !== null && rawDiff > 0 ? rtTimeRaw : '';
+        let delayMin = newTime && rawDiff !== null ? rawDiff : 0;
         let isCancelled = Boolean(item.cancelled);
 
         const trainNumber = String(prod.num || prod.displayNumber || '').trim();
@@ -277,17 +278,18 @@ export async function onRequest(context) {
           }
           if (tvMatch.newTime && tvMatch.newTime !== scheduledTime) {
             const tvDiff = getDelayMinutes(scheduledTime, tvMatch.newTime);
-            if (!newTime || (tvDiff !== null && tvDiff > (delayMin || 0))) {
+            if (tvDiff !== null && tvDiff > 0 && tvDiff > delayMin) {
               newTime = tvMatch.newTime;
-              delayMin = tvDiff !== null ? tvDiff : tvMatch.delayMinutes;
+              delayMin = tvDiff;
             }
           }
         }
 
-        const isDelayed =
-          !isCancelled &&
-          Boolean(newTime) &&
-          (delayMin === null || delayMin > 0);
+        const isDelayed = !isCancelled && Boolean(newTime) && delayMin > 0;
+        if (!isDelayed) {
+          newTime = '';
+          delayMin = 0;
+        }
 
         const estimatedTime = newTime || scheduledTime;
 
@@ -324,7 +326,7 @@ export async function onRequest(context) {
           scheduledTime,
           newTime,
           estimatedTime,
-          delayMinutes: isDelayed && delayMin !== null && delayMin > 0 ? delayMin : 0,
+          delayMinutes: isDelayed && delayMin > 0 ? delayMin : 0,
           status: isCancelled ? 'cancelled' : isDelayed ? 'delayed' : 'on-time',
           track: trackLabel,
           viaStops,
