@@ -3,8 +3,8 @@ export async function onRequest(context) {
   const url = new URL(request.url);
   const action = url.searchParams.get('action') || 'departures';
   const apiKey =
-    env.TRAFIKLAB_API_KEY ||
     env.TRAFIKLAB_RESROBOT_KEY ||
+    env.TRAFIKLAB_API_KEY ||
     env.TRAFIKLAB_REALTIME_KEY;
 
   const headers = {
@@ -16,7 +16,7 @@ export async function onRequest(context) {
     return new Response(
       JSON.stringify({
         error:
-          'Ingen Trafiklab-nyckel hittades i Cloudflare (TRAFIKLAB_API_KEY eller TRAFIKLAB_RESROBOT_KEY).',
+          'Ingen Trafiklab-nyckel hittades i Cloudflare (TRAFIKLAB_RESROBOT_KEY eller TRAFIKLAB_API_KEY).',
       }),
       { status: 500, headers }
     );
@@ -36,7 +36,7 @@ export async function onRequest(context) {
       const res = await fetch(stopUrl);
       if (!res.ok) {
         return new Response(
-          JSON.stringify({ error: `Trafiklab sökfel (status ${res.status})` }),
+          JSON.stringify({ error: `Trafiklab sokfel (status ${res.status})` }),
           { status: 502, headers }
         );
       }
@@ -59,25 +59,34 @@ export async function onRequest(context) {
 
     const stopId = url.searchParams.get('stopId') || '740000001';
     const mode = url.searchParams.get('mode') || 'all';
+    const direction = url.searchParams.get('direction') || 'departures';
 
     if (mode === 'flight') {
       return new Response(JSON.stringify({ departures: [] }), { status: 200, headers });
     }
 
-    const boardUrl = `https://api.resrobot.se/v2.1/departureBoard?id=${encodeURIComponent(
+    const endpoint = direction === 'arrivals' ? 'arrivalBoard' : 'departureBoard';
+    const boardUrl = `https://api.resrobot.se/v2.1/${endpoint}?id=${encodeURIComponent(
       stopId
-    )}&format=json&accessId=${encodeURIComponent(apiKey)}`;
+    )}&duration=180&passlist=1&format=json&accessId=${encodeURIComponent(apiKey)}`;
 
     const res = await fetch(boardUrl);
     if (!res.ok) {
       return new Response(
-        JSON.stringify({ error: `Trafiklab avgångsfel (status ${res.status})` }),
+        JSON.stringify({ error: `Trafiklab svarade med status ${res.status}` }),
         { status: 502, headers }
       );
     }
 
     const data = await res.json();
-    const rawList = Array.isArray(data.Departure) ? data.Departure : [];
+    const rawList =
+      direction === 'arrivals'
+        ? Array.isArray(data.Arrival)
+          ? data.Arrival
+          : []
+        : Array.isArray(data.Departure)
+        ? data.Departure
+        : [];
 
     const mapped = rawList
       .map((item, idx) => {
@@ -87,6 +96,7 @@ export async function onRequest(context) {
 
         const isTrain =
           ['1', '2', '3', '4'].includes(catCode) ||
+          catOut.includes('tag') ||
           catOut.includes('tåg') ||
           catOut.includes('train') ||
           catOut.includes('pendel');
@@ -104,25 +114,42 @@ export async function onRequest(context) {
         const isDelayed =
           !isCancelled && Boolean(item.rtTime) && estimatedTime !== scheduledTime;
 
-        const lineName = String(prod.name || prod.line || prod.num || 'Avgång').trim();
+        const trainNumber = String(prod.num || prod.displayNumber || '').trim();
+        const lineName = String(prod.name || prod.line || trainNumber || 'Avgang').trim();
         const operator = String(
-          prod.operator || prod.operatorInfo?.name || 'Trafikoperatör'
+          prod.operator || prod.operatorInfo?.name || 'Trafikoperator'
         ).trim();
+
+        const stopsRaw = item.Stops?.Stop;
+        const viaStops = Array.isArray(stopsRaw)
+          ? stopsRaw.map((s) => s && s.name).filter(Boolean)
+          : [];
+
+        const title =
+          direction === 'arrivals'
+            ? String(item.origin || 'Okand avgangsort')
+            : String(item.direction || 'Okand destination');
 
         const trackLabel =
           item.rtTrack || item.track
-            ? `Spår/Läge ${item.rtTrack || item.track}`
-            : 'Spår ej angivet';
+            ? `Spar/Lage ${item.rtTrack || item.track}`
+            : 'Spar ej angivet';
 
         return {
-          id: `${idx}-${scheduledTime}-${lineName}`,
-          line: lineName,
+          id: `${idx}-${scheduledTime}-${trainNumber}`,
+          line:
+            trainNumber && !lineName.includes(trainNumber)
+              ? `${lineName} (${trainNumber})`
+              : lineName,
+          trainNumber,
           operator,
-          destination: String(item.direction || 'Okänd destination'),
+          destination: title,
           scheduledTime,
           estimatedTime,
           status: isCancelled ? 'cancelled' : isDelayed ? 'delayed' : 'on-time',
           track: trackLabel,
+          viaStops,
+          directionType: direction,
         };
       })
       .filter(Boolean);
@@ -133,7 +160,7 @@ export async function onRequest(context) {
     });
   } catch (err) {
     return new Response(
-      JSON.stringify({ error: 'Ett fel uppstod vid hämtning av trafikdata.' }),
+      JSON.stringify({ error: 'Ett fel uppstod vid hamtning av trafikdata.' }),
       { status: 500, headers }
     );
   }
