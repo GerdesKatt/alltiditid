@@ -11,56 +11,89 @@ type Departure = {
   estimatedTime: string;
   status: 'on-time' | 'delayed' | 'cancelled';
   track: string;
-  type: 'train' | 'bus' | 'flight';
 };
 
-const POPULAR_STATIONS = ['Stockholm C', 'Göteborg C', 'Malmö C', 'Arlanda'];
-
-const MOCK_DATA: Record<string, Departure[]> = {
-  'Stockholm C': [
-    { id: '1', line: 'SJ 425', operator: 'SJ Snabbtåg', destination: 'Göteborg C', scheduledTime: '14:15', estimatedTime: '14:15', status: 'on-time', track: 'Spår 10', type: 'train' },
-    { id: '2', line: 'SL 43', operator: 'SL Pendeltåg', destination: 'Bålsta', scheduledTime: '14:18', estimatedTime: '14:26', status: 'delayed', track: 'Spår 1', type: 'train' },
-    { id: '3', line: 'Mälartåg 237', operator: 'Mälartåg', destination: 'Uppsala C', scheduledTime: '14:22', estimatedTime: '14:22', status: 'on-time', track: 'Spår 4', type: 'train' },
-    { id: '4', line: 'SJ 533', operator: 'SJ Snabbtåg', destination: 'Malmö C', scheduledTime: '14:30', estimatedTime: '14:30', status: 'cancelled', track: 'Spår 12', type: 'train' },
-    { id: '5', line: 'Arlanda Express', operator: 'A-Train', destination: 'Arlanda Södra/Norra', scheduledTime: '14:35', estimatedTime: '14:35', status: 'on-time', track: 'Spår 1', type: 'train' },
-  ],
-  'Göteborg C': [
-    { id: '6', line: 'SJ 428', operator: 'SJ Snabbtåg', destination: 'Stockholm C', scheduledTime: '14:20', estimatedTime: '14:20', status: 'on-time', track: 'Spår 4', type: 'train' },
-    { id: '7', line: 'Västtåg 3214', operator: 'Västtrafik', destination: 'Alingsås', scheduledTime: '14:25', estimatedTime: '14:34', status: 'delayed', track: 'Spår 9', type: 'train' },
-    { id: '8', line: 'Öresundståg 1045', operator: 'Öresundståg', destination: 'Köpenhamn H', scheduledTime: '14:40', estimatedTime: '14:40', status: 'on-time', track: 'Spår 2', type: 'train' },
-  ],
-  'Malmö C': [
-    { id: '9', line: 'Öresundståg 1052', operator: 'Öresundståg', destination: 'Köpenhamn H', scheduledTime: '14:16', estimatedTime: '14:16', status: 'on-time', track: 'Spår 1', type: 'train' },
-    { id: '10', line: 'Pågatåg 1642', operator: 'Skånetrafiken', destination: 'Lund C', scheduledTime: '14:21', estimatedTime: '14:29', status: 'delayed', track: 'Spår 3', type: 'train' },
-    { id: '11', line: 'SJ 536', operator: 'SJ Snabbtåg', destination: 'Stockholm C', scheduledTime: '14:45', estimatedTime: '14:45', status: 'on-time', track: 'Spår 6', type: 'train' },
-  ],
-  'Arlanda': [
-    { id: '12', line: 'SK 152', operator: 'SAS', destination: 'Göteborg (GOT)', scheduledTime: '15:05', estimatedTime: '15:05', status: 'on-time', track: 'Gate F32', type: 'flight' },
-    { id: '13', line: 'DY 4311', operator: 'Norwegian', destination: 'Malmö (MMX)', scheduledTime: '15:20', estimatedTime: '15:55', status: 'delayed', track: 'Gate D14', type: 'flight' },
-    { id: '14', line: 'LH 2417', operator: 'Lufthansa', destination: 'München (MUC)', scheduledTime: '15:40', estimatedTime: '15:40', status: 'on-time', track: 'Gate F60', type: 'flight' },
-  ],
+type StopOption = {
+  id: string;
+  name: string;
 };
+
+const QUICK_STATIONS: StopOption[] = [
+  { id: '740000001', name: 'Stockholm Centralstation' },
+  { id: '740000002', name: 'Göteborg Centralstation' },
+  { id: '740000003', name: 'Malmö Centralstation' },
+  { id: '740000072', name: 'Karlstad Centralstation' },
+  { id: '740000005', name: 'Uppsala Centralstation' },
+];
 
 export default function HomePage() {
-  const [station, setStation] = useState('Stockholm C');
-  const [search, setSearch] = useState('');
+  const [selectedStop, setSelectedStop] = useState<StopOption>(QUICK_STATIONS[0]);
+  const [stationQuery, setStationQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<StopOption[]>([]);
+  const [searchingStops, setSearchingStops] = useState(false);
+
+  const [filterText, setFilterText] = useState('');
   const [departures, setDepartures] = useState<Departure[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Sök hållplatser i hela Sverige när man skriver i stationsrutan
   useEffect(() => {
-    setLoading(true);
+    const q = stationQuery.trim();
+    if (q.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+
     const timer = setTimeout(() => {
-      setDepartures(MOCK_DATA[station] || MOCK_DATA['Stockholm C']);
-      setLoading(false);
-    }, 150);
+      setSearchingStops(true);
+      fetch(`/api/trafik?action=search&q=${encodeURIComponent(q)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          setSuggestions(data.stops || []);
+          setSearchingStops(false);
+        })
+        .catch(() => {
+          setSearchingStops(false);
+        });
+    }, 250);
+
     return () => clearTimeout(timer);
-  }, [station]);
+  }, [stationQuery]);
+
+  // Hämta realtidsavgångar för vald station
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setErrorMsg(null);
+
+    fetch(`/api/trafik?action=departures&stopId=${encodeURIComponent(selectedStop.id)}`)
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Fel vid hämtning');
+        return data;
+      })
+      .then((data) => {
+        if (!active) return;
+        setDepartures(data.departures || []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (!active) return;
+        setErrorMsg(err.message || 'Kunde inte hämta avgångar just nu.');
+        setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedStop]);
 
   const filtered = departures.filter(
     (d) =>
-      d.destination.toLowerCase().includes(search.toLowerCase()) ||
-      d.line.toLowerCase().includes(search.toLowerCase()) ||
-      d.operator.toLowerCase().includes(search.toLowerCase())
+      d.destination.toLowerCase().includes(filterText.toLowerCase()) ||
+      d.line.toLowerCase().includes(filterText.toLowerCase()) ||
+      d.operator.toLowerCase().includes(filterText.toLowerCase())
   );
 
   const hasDisruptions = filtered.some(
@@ -71,50 +104,125 @@ export default function HomePage() {
     <div>
       <section style={{ marginBottom: '24px' }}>
         <h1 style={{ fontSize: '28px', fontWeight: 800, margin: '0 0 8px 0' }}>
-          Avgångar i realtid
+          Avgångar i realtid i hela Sverige
         </h1>
         <p style={{ color: '#94a3b8', margin: '0 0 16px 0', fontSize: '15px' }}>
-          Välj station eller flygplats nedan för att se aktuella avgångar och eventuella förseningar.
+          Sök på valfri tågstation eller busshållplats nedan för att se aktuella avgångar och förseningar.
         </p>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
-          {POPULAR_STATIONS.map((name) => {
-            const selected = station === name;
+        {/* Snabbval */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
+          {QUICK_STATIONS.map((stop) => {
+            const active = selectedStop.id === stop.id;
             return (
               <button
-                key={name}
-                onClick={() => setStation(name)}
+                key={stop.id}
+                onClick={() => {
+                  setSelectedStop(stop);
+                  setStationQuery('');
+                  setSuggestions([]);
+                }}
                 style={{
                   padding: '8px 14px',
                   borderRadius: '999px',
-                  border: selected ? '1px solid #38bdf8' : '1px solid #334155',
-                  backgroundColor: selected ? '#0284c7' : '#1e293b',
+                  border: active ? '1px solid #38bdf8' : '1px solid #334155',
+                  backgroundColor: active ? '#0284c7' : '#1e293b',
                   color: '#f8fafc',
                   fontWeight: 600,
-                  fontSize: '14px',
+                  fontSize: '13px',
                   cursor: 'pointer',
                 }}
               >
-                {name}
+                {stop.name.replace(' Centralstation', ' C')}
               </button>
             );
           })}
         </div>
 
+        {/* Sök valfri station i Sverige */}
+        <div style={{ position: 'relative', marginBottom: '12px' }}>
+          <input
+            type="text"
+            value={stationQuery}
+            onChange={(e) => setStationQuery(e.target.value)}
+            placeholder="Sök station eller hållplats (t.ex. Karlstad, Sundsvall, Slussen)..."
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              padding: '13px 14px',
+              borderRadius: '10px',
+              border: '1px solid #38bdf8',
+              backgroundColor: '#1e293b',
+              color: '#f8fafc',
+              fontSize: '15px',
+            }}
+          />
+
+          {(searchingStops || suggestions.length > 0) && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                marginTop: '4px',
+                backgroundColor: '#0f172a',
+                border: '1px solid #334155',
+                borderRadius: '10px',
+                zIndex: 20,
+                overflow: 'hidden',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+              }}
+            >
+              {searchingStops ? (
+                <div style={{ padding: '12px 14px', color: '#94a3b8', fontSize: '14px' }}>
+                  Söker hållplatser...
+                </div>
+              ) : (
+                suggestions.map((stop) => (
+                  <button
+                    key={stop.id}
+                    onClick={() => {
+                      setSelectedStop(stop);
+                      setStationQuery('');
+                      setSuggestions([]);
+                    }}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '12px 14px',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      borderBottom: '1px solid #1e293b',
+                      color: '#f8fafc',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {stop.name}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Filtrera avgångar från vald station */}
         <input
           type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Filtrera på destination, linje eller bolag..."
+          value={filterText}
+          onChange={(e) => setFilterText(e.target.value)}
+          placeholder={`Filtrera avgångar från ${selectedStop.name} på destination eller linje...`}
           style={{
             width: '100%',
             boxSizing: 'border-box',
-            padding: '12px 14px',
+            padding: '10px 14px',
             borderRadius: '10px',
             border: '1px solid #334155',
             backgroundColor: '#1e293b',
             color: '#f8fafc',
-            fontSize: '15px',
+            fontSize: '14px',
           }}
         />
       </section>
@@ -164,24 +272,36 @@ export default function HomePage() {
           marginBottom: '12px',
         }}
       >
-        <h2 style={{ fontSize: '18px', margin: 0 }}>{station}</h2>
+        <h2 style={{ fontSize: '18px', margin: 0 }}>{selectedStop.name}</h2>
         <span
           style={{
             fontSize: '12px',
             padding: '3px 8px',
             borderRadius: '6px',
-            backgroundColor: '#1e293b',
-            color: '#94a3b8',
+            backgroundColor: '#064e3b',
+            color: '#6ee7b7',
           }}
         >
-          ● Avgångstavla
+          ● Live från Trafiklab
         </span>
       </div>
 
-      {loading ? (
-        <p style={{ color: '#94a3b8' }}>Hämtar avgångar...</p>
+      {errorMsg ? (
+        <div
+          style={{
+            backgroundColor: '#7f1d1d',
+            color: '#fecaca',
+            padding: '14px',
+            borderRadius: '10px',
+            fontSize: '14px',
+          }}
+        >
+          {errorMsg}
+        </div>
+      ) : loading ? (
+        <p style={{ color: '#94a3b8' }}>Hämtar avgångar i realtid...</p>
       ) : filtered.length === 0 ? (
-        <p style={{ color: '#94a3b8' }}>Inga avgångar matchade din filtrering.</p>
+        <p style={{ color: '#94a3b8' }}>Inga avgångar hittades för denna filtrering.</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {filtered.map((item) => {
