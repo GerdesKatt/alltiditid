@@ -2,7 +2,10 @@ export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const action = url.searchParams.get('action') || 'departures';
-  const apiKey = env.TRAFIKLAB_API_KEY;
+  const apiKey =
+    env.TRAFIKLAB_API_KEY ||
+    env.TRAFIKLAB_RESROBOT_KEY ||
+    env.TRAFIKLAB_REALTIME_KEY;
 
   const headers = {
     'Content-Type': 'application/json; charset=utf-8',
@@ -11,7 +14,10 @@ export async function onRequest(context) {
 
   if (!apiKey) {
     return new Response(
-      JSON.stringify({ error: 'TRAFIKLAB_API_KEY saknas i Cloudflare.' }),
+      JSON.stringify({
+        error:
+          'Ingen Trafiklab-nyckel hittades i Cloudflare (TRAFIKLAB_API_KEY eller TRAFIKLAB_RESROBOT_KEY).',
+      }),
       { status: 500, headers }
     );
   }
