@@ -28,14 +28,24 @@ export async function onRequest(context) {
       )}&format=json&accessId=${encodeURIComponent(apiKey)}`;
 
       const res = await fetch(stopUrl);
+      if (!res.ok) {
+        return new Response(
+          JSON.stringify({ error: `Trafiklab sökfel (status ${res.status})` }),
+          { status: 502, headers }
+        );
+      }
+
       const data = await res.json();
-      const rawStops = data.stopLocationOrCoordLocation || [];
+      const rawStops = Array.isArray(data.stopLocationOrCoordLocation)
+        ? data.stopLocationOrCoordLocation
+        : [];
+
       const stops = rawStops
-        .filter((item) => item.StopLocation)
+        .filter((item) => item && item.StopLocation)
         .slice(0, 8)
         .map((item) => ({
-          id: item.StopLocation.extId,
-          name: item.StopLocation.name,
+          id: String(item.StopLocation.extId),
+          name: String(item.StopLocation.name),
         }));
 
       return new Response(JSON.stringify({ stops }), { status: 200, headers });
@@ -43,21 +53,25 @@ export async function onRequest(context) {
 
     const stopId = url.searchParams.get('stopId') || '740000001';
     const mode = url.searchParams.get('mode') || 'all';
-    const direction = url.searchParams.get('direction') || 'departures';
 
     if (mode === 'flight') {
       return new Response(JSON.stringify({ departures: [] }), { status: 200, headers });
     }
 
-    const endpoint = direction === 'arrivals' ? 'arrivalBoard' : 'departureBoard';
-    const boardUrl = `https://api.resrobot.se/v2.1/${endpoint}?id=${encodeURIComponent(
+    const boardUrl = `https://api.resrobot.se/v2.1/departureBoard?id=${encodeURIComponent(
       stopId
     )}&format=json&accessId=${encodeURIComponent(apiKey)}`;
 
     const res = await fetch(boardUrl);
+    if (!res.ok) {
+      return new Response(
+        JSON.stringify({ error: `Trafiklab avgångsfel (status ${res.status})` }),
+        { status: 502, headers }
+      );
+    }
+
     const data = await res.json();
-    const rawList =
-      direction === 'arrivals' ? data.Arrival || [] : data.Departure || [];
+    const rawList = Array.isArray(data.Departure) ? data.Departure : [];
 
     const mapped = rawList
       .map((item, idx) => {
@@ -78,24 +92,16 @@ export async function onRequest(context) {
         if (mode === 'train' && !isTrain) return null;
         if (mode === 'bus' && !isBus) return null;
 
-        const scheduledTime = (item.time || '').slice(0, 5);
-        const estimatedTime = (item.rtTime || item.time || '').slice(0, 5);
+        const scheduledTime = String(item.time || '').slice(0, 5);
+        const estimatedTime = String(item.rtTime || item.time || '').slice(0, 5);
         const isCancelled = Boolean(item.cancelled);
         const isDelayed =
-          !isCancelled &&
-          Boolean(item.rtTime) &&
-          estimatedTime !== scheduledTime;
+          !isCancelled && Boolean(item.rtTime) && estimatedTime !== scheduledTime;
 
-        const trainNumber = String(prod.num || prod.displayNumber || '').trim();
-        const lineName = String(prod.name || prod.line || trainNumber || 'Avgång').trim();
+        const lineName = String(prod.name || prod.line || prod.num || 'Avgång').trim();
         const operator = String(
           prod.operator || prod.operatorInfo?.name || 'Trafikoperatör'
         ).trim();
-
-        const title =
-          direction === 'arrivals'
-            ? item.origin || 'Okänd avgångsort'
-            : item.direction || 'Okänd destination';
 
         const trackLabel =
           item.rtTrack || item.track
@@ -103,16 +109,14 @@ export async function onRequest(context) {
             : 'Spår ej angivet';
 
         return {
-          id: `${idx}-${scheduledTime}-${trainNumber}`,
-          line: trainNumber && !lineName.includes(trainNumber) ? `${lineName} (${trainNumber})` : lineName,
-          trainNumber,
+          id: `${idx}-${scheduledTime}-${lineName}`,
+          line: lineName,
           operator,
-          destination: title,
+          destination: String(item.direction || 'Okänd destination'),
           scheduledTime,
           estimatedTime,
           status: isCancelled ? 'cancelled' : isDelayed ? 'delayed' : 'on-time',
           track: trackLabel,
-          directionType: direction,
         };
       })
       .filter(Boolean);
