@@ -47,11 +47,24 @@ export async function onRequestGet(context) {
       });
     }
 
-    // 2. Hämta avgångar för vald station
+    // 2. Hämta avgångar med valfritt trafikslag (all, train, bus, flight)
     const stopId = url.searchParams.get('stopId') || '740000001';
+    const mode = url.searchParams.get('mode') || 'all';
+
+    // ResRobot bitmask för trafikslag:
+    // 1=Flyg, 2=Snabbtåg/SJ, 4=Regionaltåg, 8=Expressbuss, 16=Pendeltåg, 32=Tunnelbana, 64=Spårvagn, 128=Buss, 256=Färja
+    let productsParam = '';
+    if (mode === 'train') {
+      productsParam = `&products=${2 + 4 + 16}`; // Snabbtåg, regionaltåg och pendeltåg
+    } else if (mode === 'bus') {
+      productsParam = `&products=${8 + 128}`; // Expressbuss och lokalbuss
+    } else if (mode === 'flight') {
+      productsParam = `&products=${1}`; // Flyg
+    }
+
     const boardUrl = `https://api.resrobot.se/v2.1/departureBoard?id=${encodeURIComponent(
       stopId
-    )}&format=json&accessId=${apiKey}&maxJourneys=20`;
+    )}&format=json&accessId=${apiKey}&maxJourneys=30${productsParam}`;
 
     const res = await fetch(boardUrl);
     const data = await res.json();
@@ -62,6 +75,16 @@ export async function onRequestGet(context) {
       const rt = (item.rtTime || item.time || '').slice(0, 5);
       const isDelayed = Boolean(rt && sched && rt !== sched);
       const isCancelled = Boolean(item.cancelled);
+      const cat = String(item.ProductAtStop?.catOut || '').toUpperCase();
+
+      let vehicleType = 'other';
+      if (['ULT', 'JAX', 'JLT', 'JBL', 'JRE', 'JIC', 'JST'].includes(cat)) {
+        vehicleType = 'train';
+      } else if (['BLT', 'BXB', 'BAX'].includes(cat)) {
+        vehicleType = 'bus';
+      } else if (['FLT'].includes(cat)) {
+        vehicleType = 'flight';
+      }
 
       return {
         id: item.journeyDetailRef?.ref || `${stopId}-${idx}`,
@@ -75,6 +98,7 @@ export async function onRequestGet(context) {
           item.rtTrack || item.track
             ? `Spår/Läge ${item.rtTrack || item.track}`
             : '—',
+        vehicleType,
       };
     });
 
