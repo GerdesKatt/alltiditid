@@ -5,13 +5,15 @@ import React, { useEffect, useState } from 'react';
 type Departure = {
   id: string;
   line: string;
+  trainNumber?: string;
   operator: string;
   destination: string;
   scheduledTime: string;
   estimatedTime: string;
   status: 'on-time' | 'delayed' | 'cancelled';
   track: string;
-  vehicleType?: string;
+  viaStops?: string[];
+  directionType?: 'departures' | 'arrivals';
 };
 
 type StopOption = {
@@ -20,12 +22,14 @@ type StopOption = {
 };
 
 type TransportMode = 'all' | 'train' | 'bus' | 'flight';
+type BoardDirection = 'departures' | 'arrivals';
 type RiderMood = 'on-time' | 'slightly-late' | 'delayed';
 
 const QUICK_STATIONS: StopOption[] = [
   { id: '740000001', name: 'Stockholm Centralstation' },
   { id: '740000002', name: 'Göteborg Centralstation' },
   { id: '740000003', name: 'Malmö Centralstation' },
+  { id: '740000120', name: 'Lund Centralstation' },
   { id: '740000072', name: 'Karlstad Centralstation' },
   { id: '740000556', name: 'Stockholm Arlanda Airport' },
 ];
@@ -39,6 +43,7 @@ const MODES: { key: TransportMode; label: string }[] = [
 
 export default function HomePage() {
   const [selectedStop, setSelectedStop] = useState<StopOption>(QUICK_STATIONS[0]);
+  const [direction, setDirection] = useState<BoardDirection>('departures');
   const [mode, setMode] = useState<TransportMode>('all');
   const [stationQuery, setStationQuery] = useState('');
   const [suggestions, setSuggestions] = useState<StopOption[]>([]);
@@ -50,7 +55,7 @@ export default function HomePage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [activeInfoTab, setActiveInfoTab] = useState<'about' | 'privacy' | 'terms' | 'contact'>('about');
 
-  // "Jag är på tåget eller bussen"-läge
+  // "Jag är ombord"-läge
   const [onBoardTrip, setOnBoardTrip] = useState<Departure | null>(null);
   const [riderStatus, setRiderStatus] = useState<RiderMood>('on-time');
   const [riderNote, setRiderNote] = useState('');
@@ -87,7 +92,7 @@ export default function HomePage() {
     fetch(
       `/api/trafik?action=departures&stopId=${encodeURIComponent(
         selectedStop.id
-      )}&mode=${mode}`
+      )}&mode=${mode}&direction=${direction}`
     )
       .then(async (res) => {
         const data = await res.json();
@@ -100,7 +105,6 @@ export default function HomePage() {
         setDepartures(list);
         setLoading(false);
 
-        // Synka vald avgång om den finns i nya listan
         setOnBoardTrip((prev) => {
           if (!prev) return null;
           const match = list.find((item) => item.id === prev.id);
@@ -109,24 +113,27 @@ export default function HomePage() {
       })
       .catch((err) => {
         if (!active) return;
-        setErrorMsg(err.message || 'Kunde inte hämta avgångar just nu.');
+        setErrorMsg(err.message || 'Kunde inte hämta trafikinformation just nu.');
         setLoading(false);
       });
 
     return () => {
       active = false;
     };
-  }, [selectedStop, mode]);
+  }, [selectedStop, mode, direction]);
 
   const queryLower = filterText.trim().toLowerCase();
   const filtered = departures.filter((d) => {
     if (!queryLower) return true;
+    const viaMatch = (d.viaStops || []).some((stopName) =>
+      stopName.toLowerCase().includes(queryLower)
+    );
     return (
       d.destination.toLowerCase().includes(queryLower) ||
       d.line.toLowerCase().includes(queryLower) ||
+      (d.trainNumber && d.trainNumber.toLowerCase().includes(queryLower)) ||
       d.operator.toLowerCase().includes(queryLower) ||
-      d.id.toLowerCase().includes(queryLower) ||
-      (d.track && d.track.toLowerCase().includes(queryLower))
+      viaMatch
     );
   });
 
@@ -155,14 +162,20 @@ export default function HomePage() {
         ? 'är lite sen'
         : 'är försenad';
 
+    const isArrival = trip.directionType === 'arrivals';
+    const timeLabel = isArrival ? 'ankomst' : 'avgång';
     const timePart =
       trip.status === 'delayed' && trip.estimatedTime
-        ? `ord. ${trip.scheduledTime}, ny tid ${trip.estimatedTime}`
-        : `avgång ${trip.scheduledTime}`;
+        ? `ord. ${timeLabel} ${trip.scheduledTime}, ny tid ${trip.estimatedTime}`
+        : `${timeLabel} ${trip.scheduledTime}`;
+
+    const routePart = isArrival
+      ? `till ${selectedStop.name} (från ${trip.destination})`
+      : `från ${selectedStop.name} mot ${trip.destination}`;
 
     const notePart = riderNote.trim() ? ` (${riderNote.trim()})` : '';
 
-    return `Jag sitter på ${trip.operator} ${trip.line} mot ${trip.destination} från ${selectedStop.name} (${timePart}) – ${statusText}${notePart}.`;
+    return `Jag sitter på ${trip.operator} ${trip.line} ${routePart} (${timePart}) – ${statusText}${notePart}.`;
   }
 
   async function handleShareTrip(trip: Departure) {
@@ -170,14 +183,14 @@ export default function HomePage() {
     try {
       if (typeof navigator !== 'undefined' && navigator.share) {
         await navigator.share({
-          title: `Status: ${trip.destination}`,
+          title: `Resestatus: ${selectedStop.name}`,
           text,
           url: 'https://alltiditid.se',
         });
         return;
       }
     } catch {
-      // Faller tillbaka på urklipp om delning avbryts eller ej stöds
+      // Faller tillbaka på urklipp
     }
 
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -263,14 +276,14 @@ export default function HomePage() {
                 marginTop: '2px',
               }}
             >
-              Avgångar i realtid
+              Avgångar &amp; ankomster i realtid
             </span>
           </span>
         </a>
 
         <nav style={{ display: 'flex', gap: '18px', fontSize: '13px', fontWeight: 600 }}>
           <a href="#avgangstavla" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
-            Avgångstavla
+            Tidtabell
           </a>
           <a href="#om-tjansten" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
             Om tjänsten
@@ -285,7 +298,7 @@ export default function HomePage() {
         </nav>
       </header>
 
-      {/* Aktivt resenärskort när man valt "Jag är på tåget eller bussen" */}
+      {/* Aktivt resenärskort när man valt "Jag är ombord" */}
       {onBoardTrip && (
         <section
           id="resenar-lage"
@@ -293,7 +306,8 @@ export default function HomePage() {
             marginBottom: '22px',
             padding: '20px',
             borderRadius: '18px',
-            background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.22) 0%, rgba(15, 23, 42, 0.96) 100%)',
+            background:
+              'linear-gradient(135deg, rgba(2, 132, 199, 0.22) 0%, rgba(15, 23, 42, 0.96) 100%)',
             border: '1px solid #38bdf8',
             boxShadow: '0 12px 28px rgba(2, 132, 199, 0.18)',
           }}
@@ -320,16 +334,28 @@ export default function HomePage() {
               >
                 Jag är på tåget eller bussen
               </span>
-              <h2 style={{ fontSize: '20px', fontWeight: 800, margin: '4px 0 0 0', color: '#f8fafc' }}>
-                {onBoardTrip.destination} ({onBoardTrip.scheduledTime}
+              <h2
+                style={{
+                  fontSize: '20px',
+                  fontWeight: 800,
+                  margin: '4px 0 0 0',
+                  color: '#f8fafc',
+                }}
+              >
+                {onBoardTrip.directionType === 'arrivals'
+                  ? `Ankomst ${selectedStop.name}`
+                  : onBoardTrip.destination}{' '}
+                ({onBoardTrip.scheduledTime}
                 {onBoardTrip.status === 'delayed' && onBoardTrip.estimatedTime
                   ? ` → ${onBoardTrip.estimatedTime}`
                   : ''}
                 )
               </h2>
               <div style={{ fontSize: '13px', color: '#cbd5e1', marginTop: '2px' }}>
-                Från {selectedStop.name} • {onBoardTrip.line} • {onBoardTrip.operator} •{' '}
-                {onBoardTrip.track}
+                {onBoardTrip.directionType === 'arrivals'
+                  ? `Från ${onBoardTrip.destination}`
+                  : `Från ${selectedStop.name}`}{' '}
+                • {onBoardTrip.line} • {onBoardTrip.operator} • {onBoardTrip.track}
               </div>
             </div>
 
@@ -414,7 +440,14 @@ export default function HomePage() {
               lineHeight: 1.5,
             }}
           >
-            <strong style={{ color: '#94a3b8', display: 'block', fontSize: '11px', marginBottom: '4px' }}>
+            <strong
+              style={{
+                color: '#94a3b8',
+                display: 'block',
+                fontSize: '11px',
+                marginBottom: '4px',
+              }}
+            >
               Färdigt statusmeddelande:
             </strong>
             {buildShareMessage(onBoardTrip)}
@@ -467,36 +500,82 @@ export default function HomePage() {
             color: '#f8fafc',
           }}
         >
-          Koll på avgången i realtid
+          Koll på resan i realtid
         </h1>
         <p style={{ color: '#94a3b8', margin: '0 0 20px 0', fontSize: '15px', lineHeight: 1.55 }}>
-          Sök på valfri station, hållplats eller flygplats i Sverige och se tider, spår och
-          förseningar direkt.
+          Välj station för att se <strong>avgångar</strong> eller <strong>ankomster</strong> –
+          perfekt när du redan sitter på tåget och vill se när du rullar in.
         </p>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
-          {MODES.map((m) => {
-            const active = mode === m.key;
-            return (
-              <button
-                key={m.key}
-                type="button"
-                onClick={() => setMode(m.key)}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '10px',
-                  border: active ? '1px solid #38bdf8' : '1px solid #334155',
-                  backgroundColor: active ? '#0284c7' : '#0f172a',
-                  color: '#f8fafc',
-                  fontWeight: 700,
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                }}
-              >
-                {m.label}
-              </button>
-            );
-          })}
+        {/* Växel: Avgångar / Ankomster + Trafikslag */}
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'space-between',
+            gap: '10px',
+            marginBottom: '14px',
+          }}
+        >
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => setDirection('departures')}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '10px',
+                border: direction === 'departures' ? '1px solid #38bdf8' : '1px solid #334155',
+                backgroundColor: direction === 'departures' ? '#0369a1' : '#0f172a',
+                color: '#f8fafc',
+                fontWeight: 800,
+                fontSize: '13px',
+                cursor: 'pointer',
+              }}
+            >
+              Avgångar
+            </button>
+            <button
+              type="button"
+              onClick={() => setDirection('arrivals')}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '10px',
+                border: direction === 'arrivals' ? '1px solid #10b981' : '1px solid #334155',
+                backgroundColor: direction === 'arrivals' ? '#047857' : '#0f172a',
+                color: '#f8fafc',
+                fontWeight: 800,
+                fontSize: '13px',
+                cursor: 'pointer',
+              }}
+            >
+              Ankomster (Jag är på väg hit)
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {MODES.map((m) => {
+              const active = mode === m.key;
+              return (
+                <button
+                  key={m.key}
+                  type="button"
+                  onClick={() => setMode(m.key)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '10px',
+                    border: active ? '1px solid #38bdf8' : '1px solid #334155',
+                    backgroundColor: active ? '#0284c7' : '#0f172a',
+                    color: '#f8fafc',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {m.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
@@ -545,7 +624,7 @@ export default function HomePage() {
               type="text"
               value={stationQuery}
               onChange={(e) => setStationQuery(e.target.value)}
-              placeholder="Sök station eller hållplats (t.ex. Uppsala, Lund)..."
+              placeholder="Sök station eller hållplats (t.ex. Lund, Uppsala)..."
               style={{
                 width: '100%',
                 boxSizing: 'border-box',
@@ -613,7 +692,7 @@ export default function HomePage() {
             type="text"
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
-            placeholder="Filtrera destination, linje, tågnummer eller bolag..."
+            placeholder="Filtrera tågnummer (t.ex. 535), destination, stopp eller bolag..."
             style={{
               width: '100%',
               boxSizing: 'border-box',
@@ -679,7 +758,7 @@ export default function HomePage() {
         >
           <div>
             <span style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>
-              Visar avgångar från
+              {direction === 'arrivals' ? 'Visar ankomster till' : 'Visar avgångar från'}
             </span>
             <h2 style={{ fontSize: '21px', fontWeight: 800, margin: 0, color: '#f8fafc' }}>
               {selectedStop.name}
@@ -724,7 +803,7 @@ export default function HomePage() {
               color: '#94a3b8',
             }}
           >
-            Hämtar avgångar i realtid...
+            Hämtar tidtabell i realtid...
           </div>
         ) : filtered.length === 0 ? (
           <div
@@ -737,7 +816,8 @@ export default function HomePage() {
               color: '#94a3b8',
             }}
           >
-            Inga avgångar hittades för valt trafikslag eller filter.
+            Inga träffar hittades för valt trafikslag eller filter. Prova att växla mellan
+            Avgångar och Ankomster.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -817,7 +897,7 @@ export default function HomePage() {
 
                     <div>
                       <div style={{ fontSize: '16px', fontWeight: 700, color: '#f8fafc' }}>
-                        {item.destination}
+                        {direction === 'arrivals' ? `Från ${item.destination}` : item.destination}
                       </div>
                       <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '3px' }}>
                         <span style={{ color: '#38bdf8', fontWeight: 600 }}>{item.line}</span>{' '}
@@ -841,7 +921,7 @@ export default function HomePage() {
                         cursor: 'pointer',
                       }}
                     >
-                      {isSelectedTrip ? 'Vald avgång' : 'Jag är ombord'}
+                      {isSelectedTrip ? 'Vald resa' : 'Jag är ombord'}
                     </button>
 
                     <span
@@ -882,12 +962,13 @@ export default function HomePage() {
         <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: 1.65, margin: '0 0 12px 0' }}>
           På <strong style={{ color: '#e2e8f0' }}>alltiditid.se</strong> samlar vi realtidsinformation
           om kollektivtrafik i Sverige så att du snabbt kan se när nästa tåg, buss eller
-          förbindelse avgår, om den är i tid eller försenad samt vilket spår eller läge som gäller.
+          förbindelse avgår eller ankommer, om den är i tid eller försenad samt vilket spår eller
+          läge som gäller.
         </p>
         <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: 1.65, margin: 0 }}>
-          Klicka på <strong>Jag är ombord</strong> på valfri avgång för att enkelt sätta din status
-          och skicka ett färdigt meddelande till den som väntar på dig vid stationen eller
-          hållplatsen.
+          Sitter du redan ombord? Växla till <strong>Ankomster</strong> på din avstigningsstation
+          (t.ex. Lund C), filtrera på tågnummer som <strong>535</strong> och klicka på{' '}
+          <strong>Jag är ombord</strong> för att skicka din ankomsttid till den som väntar på dig.
         </p>
       </section>
 
@@ -970,56 +1051,10 @@ export default function HomePage() {
 
         {activeInfoTab === 'about' && (
           <p style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
-            alltiditid.se är en oberoende informationstjänst som visar aktuella avgångstider och
-            förseningar baserat på öppna trafikdata.
+            alltiditid.se är en oberoende informationstjänst som visar aktuella avgångstider,
+            ankomster och förseningar baserat på öppna trafikdata.
           </p>
         )}
         {activeInfoTab === 'privacy' && (
           <p style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
-            Vi samlar inte in personuppgifter genom stationssökningar. Vid annonsering via tredje
-            part (såsom Google AdSense) kan cookies eller liknande tekniker användas för att visa
-            relevanta annonser och mäta trafik.
-          </p>
-        )}
-        {activeInfoTab === 'terms' && (
-          <p style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
-            Realtidsdata kan ändras med kort varsel vid trafikstörningar. Kontrollera alltid
-            operatörens officiella information på plats innan avresa.
-          </p>
-        )}
-        {activeInfoTab === 'contact' && (
-          <p style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
-            Har du frågor, synpunkter eller förslag på förbättringar? Kontakta oss via e-post på{' '}
-            <a
-              href="mailto:kontakt@alltiditid.se"
-              style={{ color: '#38bdf8', textDecoration: 'underline' }}
-            >
-              kontakt@alltiditid.se
-            </a>
-            .
-          </p>
-        )}
-
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '8px',
-            fontSize: '12px',
-            color: '#64748b',
-          }}
-        >
-          <span>© {new Date().getFullYear()} alltiditid.se – Alla rättigheter förbehållna.</span>
-          <a
-            href="mailto:kontakt@alltiditid.se"
-            style={{ color: '#94a3b8', textDecoration: 'none' }}
-          >
-            kontakt@alltiditid.se
-          </a>
-        </div>
-      </footer>
-    </main>
-  );
-}
+            Vi samlar inte in personuppgifter genom stationssökningar. Vid annonser
