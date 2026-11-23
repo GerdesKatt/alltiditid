@@ -10,6 +10,7 @@ type Departure = {
   destination: string;
   scheduledTime: string;
   estimatedTime: string;
+  delayMinutes?: number;
   status: 'on-time' | 'delayed' | 'cancelled';
   track: string;
   viaStops?: string[];
@@ -156,18 +157,21 @@ export default function HomePage() {
   }
 
   function buildShareMessage(trip: Departure): string {
+    const delayLabel =
+      trip.delayMinutes && trip.delayMinutes > 0 ? ` (+${trip.delayMinutes} min)` : '';
+
     const statusText =
       riderStatus === 'on-time'
         ? 'ar i tid'
         : riderStatus === 'slightly-late'
-        ? 'ar lite sen'
-        : 'ar forsenad';
+        ? `ar lite sen${delayLabel}`
+        : `ar forsenad${delayLabel}`;
 
     const isArrival = trip.directionType === 'arrivals';
     const timeLabel = isArrival ? 'ankomst' : 'avgang';
     const timePart =
       trip.status === 'delayed' && trip.estimatedTime
-        ? `ord. ${timeLabel} ${trip.scheduledTime}, ny tid ${trip.estimatedTime}`
+        ? `ord. ${timeLabel} ${trip.scheduledTime}, ny tid ${trip.estimatedTime}${delayLabel}`
         : `${timeLabel} ${trip.scheduledTime}`;
 
     const routePart = isArrival
@@ -347,7 +351,9 @@ export default function HomePage() {
                   : onBoardTrip.destination}{' '}
                 ({onBoardTrip.scheduledTime}
                 {onBoardTrip.status === 'delayed' && onBoardTrip.estimatedTime
-                  ? ` -> ${onBoardTrip.estimatedTime}`
+                  ? ` -> ${onBoardTrip.estimatedTime}${
+                      onBoardTrip.delayMinutes ? ` (+${onBoardTrip.delayMinutes} min)` : ''
+                    }`
                   : ''}
                 )
               </h2>
@@ -843,7 +849,9 @@ export default function HomePage() {
               const statusLabel = isCancelled
                 ? 'Installd'
                 : isDelayed
-                ? `Ny tid ${item.estimatedTime}`
+                ? `Ny tid ${item.estimatedTime}${
+                    item.delayMinutes ? ` (+${item.delayMinutes} min)` : ''
+                  }`
                 : 'I tid';
 
               return (
