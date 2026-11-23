@@ -17,7 +17,6 @@ export async function onRequest(context) {
   }
 
   try {
-    // 1. Sök stationer/hållplatser i hela Sverige
     if (action === 'search') {
       const q = (url.searchParams.get('q') || '').trim();
       if (q.length < 2) {
@@ -29,8 +28,14 @@ export async function onRequest(context) {
       )}&format=json&accessId=${encodeURIComponent(apiKey)}`;
 
       const res = await fetch(stopUrl);
-      const data = await res.json();
+      if (!res.ok) {
+        return new Response(
+          JSON.stringify({ error: `Trafiklab sökfel (${res.status})` }),
+          { status: 502, headers }
+        );
+      }
 
+      const data = await res.json();
       const rawStops = data.stopLocationOrCoordLocation || [];
       const stops = rawStops
         .filter((item) => item.StopLocation)
@@ -43,23 +48,18 @@ export async function onRequest(context) {
       return new Response(JSON.stringify({ stops }), { status: 200, headers });
     }
 
-    // 2. Hämta avgångar ELLER ankomster (inkl. tågnummer och mellanliggande stopp)
     const stopId = url.searchParams.get('stopId') || '740000001';
     const mode = url.searchParams.get('mode') || 'all';
     const direction = url.searchParams.get('direction') || 'departures';
 
-    // Om användaren väljer Flyg och vi saknar separat flyg-API just nu
     if (mode === 'flight') {
       return new Response(JSON.stringify({ departures: [] }), { status: 200, headers });
     }
 
-    const endpoint =
-      direction === 'arrivals' ? 'arrivalBoard' : 'departureBoard';
-
-    // duration=180 ger 3 timmars fönster framåt och passlist=1 ger mellanliggande stopp
+    const endpoint = direction === 'arrivals' ? 'arrivalBoard' : 'departureBoard';
     const boardUrl = `https://api.resrobot.se/v2.1/${endpoint}?id=${encodeURIComponent(
       stopId
-    )}&duration=180&passlist=1&format=json&accessId=${encodeURIComponent(apiKey)}`;
+    )}&duration=120&format=json&accessId=${encodeURIComponent(apiKey)}`;
 
     const res = await fetch(boardUrl);
     if (!res.ok) {
@@ -79,7 +79,6 @@ export async function onRequest(context) {
         const catCode = String(prod.catCode || '');
         const catOut = String(prod.catOut || prod.catOutL || '').toLowerCase();
 
-        // ResRobot catCode 1–4 är tåg (X2000, IC, Regional, Pendeltåg), 5–8 är buss/tunnelbana/spårvagn
         const isTrain =
           ['1', '2', '3', '4'].includes(catCode) ||
           catOut.includes('tåg') ||
@@ -107,12 +106,6 @@ export async function onRequest(context) {
           prod.operator || prod.operatorInfo?.name || 'Trafikoperatör'
         ).trim();
 
-        // Samla mellanliggande hållplatser så man kan söka på t.ex. "Lund"
-        const stopsRaw = item.Stops?.Stop || [];
-        const viaStops = Array.isArray(stopsRaw)
-          ? stopsRaw.map((s) => s.name).filter(Boolean)
-          : [];
-
         const title =
           direction === 'arrivals'
             ? item.origin || 'Okänd avgångsort'
@@ -124,7 +117,7 @@ export async function onRequest(context) {
             : 'Spår ej angivet';
 
         return {
-          id: `${item.JourneyDetailRef?.ref || idx}-${scheduledTime}-${trainNumber}`,
+          id: `${idx}-${scheduledTime}-${trainNumber}`,
           line: trainNumber && !lineName.includes(trainNumber) ? `${lineName} (${trainNumber})` : lineName,
           trainNumber,
           operator,
@@ -133,7 +126,6 @@ export async function onRequest(context) {
           estimatedTime,
           status: isCancelled ? 'cancelled' : isDelayed ? 'delayed' : 'on-time',
           track: trackLabel,
-          viaStops,
           directionType: direction,
         };
       })
