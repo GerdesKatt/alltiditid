@@ -158,9 +158,12 @@ export default function HomePage() {
   }
 
   function buildShareMessage(trip: Departure): string {
-    const effectiveNewTime = trip.newTime || (trip.status === 'delayed' ? trip.estimatedTime : '');
+    const effectiveNewTime =
+      trip.status === 'delayed' ? trip.newTime || trip.estimatedTime || '' : '';
     const delayLabel =
-      trip.delayMinutes && trip.delayMinutes > 0 ? ` (+${trip.delayMinutes} min)` : '';
+      trip.status === 'delayed' && trip.delayMinutes && trip.delayMinutes > 0
+        ? ` (+${trip.delayMinutes} min)`
+        : '';
 
     const statusText =
       riderStatus === 'on-time'
@@ -351,8 +354,12 @@ export default function HomePage() {
                   ? `Ankomst ${selectedStop.name}`
                   : onBoardTrip.destination}{' '}
                 (Ord. {onBoardTrip.scheduledTime}
-                {onBoardTrip.newTime ? ` • Ny tid ${onBoardTrip.newTime}` : ''}
-                {onBoardTrip.delayMinutes ? ` (+${onBoardTrip.delayMinutes} min)` : ''})
+                {onBoardTrip.status === 'delayed' && (onBoardTrip.newTime || onBoardTrip.estimatedTime)
+                  ? ` • Ny tid ${onBoardTrip.newTime || onBoardTrip.estimatedTime}${
+                      onBoardTrip.delayMinutes ? ` (+${onBoardTrip.delayMinutes} min)` : ''
+                    }`
+                  : ''}
+                )
               </h2>
               <div style={{ fontSize: '13px', color: '#cbd5e1', marginTop: '2px' }}>
                 {onBoardTrip.directionType === 'arrivals'
@@ -827,8 +834,7 @@ export default function HomePage() {
               const isDelayed = item.status === 'delayed';
               const isCancelled = item.status === 'cancelled';
               const isSelectedTrip = onBoardTrip ? onBoardTrip.id === item.id : false;
-              const displayedNewTime =
-                item.newTime || (isDelayed ? item.estimatedTime : '');
+              const displayedNewTime = isDelayed ? item.newTime || item.estimatedTime : '';
 
               const badgeBg = isCancelled
                 ? 'rgba(127, 29, 29, 0.8)'
@@ -848,7 +854,7 @@ export default function HomePage() {
               const statusLabel = isCancelled
                 ? 'Installd'
                 : isDelayed
-                ? `Ny tid ${displayedNewTime || item.estimatedTime}${
+                ? `Ny tid ${displayedNewTime}${
                     item.delayMinutes ? ` (+${item.delayMinutes} min)` : ''
                   }`
                 : 'I tid';
@@ -885,13 +891,9 @@ export default function HomePage() {
                           fontWeight: 800,
                           fontVariantNumeric: 'tabular-nums',
                           textDecoration:
-                            isDelayed || isCancelled || displayedNewTime
-                              ? 'line-through'
-                              : 'none',
+                            isDelayed || isCancelled ? 'line-through' : 'none',
                           color:
-                            isDelayed || isCancelled || displayedNewTime
-                              ? '#64748b'
-                              : '#f8fafc',
+                            isDelayed || isCancelled ? '#64748b' : '#f8fafc',
                         }}
                       >
                         {item.scheduledTime}
