@@ -130,7 +130,7 @@ export default function HomePage() {
     return (
       d.destination.toLowerCase().includes(queryLower) ||
       d.line.toLowerCase().includes(queryLower) ||
-      (d.trainNumber && d.trainNumber.toLowerCase().includes(queryLower)) ||
+      Boolean(d.trainNumber && d.trainNumber.toLowerCase().includes(queryLower)) ||
       d.operator.toLowerCase().includes(queryLower) ||
       viaMatch
     );
@@ -199,7 +199,7 @@ export default function HomePage() {
     }
   }
 
-  return (
+  const pageContent = (
     <main id="alltiditid-app" style={{ maxWidth: '860px', margin: '0 auto' }}>
       <header
         id="sidhuvud"
@@ -671,99 +671,4 @@ export default function HomePage() {
                         padding: '12px 14px',
                         backgroundColor: 'transparent',
                         border: 'none',
-                        borderBottom: '1px solid #1e293b',
-                        color: '#f8fafc',
-                        fontSize: '14px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {stop.name}
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-
-          <input
-            type="text"
-            value={filterText}
-            onChange={(e) => setFilterText(e.target.value)}
-            placeholder="Filtrera tågnummer (t.ex. 535), destination, stopp eller bolag..."
-            style={{
-              width: '100%',
-              boxSizing: 'border-box',
-              padding: '13px 15px',
-              borderRadius: '12px',
-              border: '1px solid #334155',
-              backgroundColor: '#0f172a',
-              color: '#f8fafc',
-              fontSize: '14px',
-            }}
-          />
-        </div>
-      </section>
-
-      {hasDisruptions && (
-        <div
-          id="storningsruta"
-          style={{
-            backgroundColor: 'rgba(120, 53, 15, 0.35)',
-            border: '1px solid #d97706',
-            borderRadius: '14px',
-            padding: '14px 18px',
-            marginBottom: '22px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '12px',
-            flexWrap: 'wrap',
-          }}
-        >
-          <span style={{ fontSize: '14px', color: '#fde68a', fontWeight: 500 }}>
-            Försenad eller inställd avgång? Se vilka rättigheter du har vid trafikstörningar.
-          </span>
-          <a
-            href="https://www.hallakonsument.se/varor-och-tjanster/resor/"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              backgroundColor: '#f59e0b',
-              color: '#0f172a',
-              fontWeight: 800,
-              fontSize: '13px',
-              padding: '7px 14px',
-              borderRadius: '8px',
-              textDecoration: 'none',
-            }}
-          >
-            Läs om reseersättning →
-          </a>
-        </div>
-      )}
-
-      <section id="avgangstavla" style={{ marginBottom: '40px' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '14px',
-            flexWrap: 'wrap',
-            gap: '8px',
-          }}
-        >
-          <div>
-            <span style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>
-              {direction === 'arrivals' ? 'Visar ankomster till' : 'Visar avgångar från'}
-            </span>
-            <h2 style={{ fontSize: '21px', fontWeight: 800, margin: 0, color: '#f8fafc' }}>
-              {selectedStop.name}
-            </h2>
-          </div>
-
-          <span
-            style={{
-              fontSize: '12px',
-              fontWeight: 700,
-              padding: '5px 11px',
+                        borderBottom: '1px solid #1e
