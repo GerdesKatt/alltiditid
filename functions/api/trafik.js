@@ -28,13 +28,6 @@ export async function onRequest(context) {
       )}&format=json&accessId=${encodeURIComponent(apiKey)}`;
 
       const res = await fetch(stopUrl);
-      if (!res.ok) {
-        return new Response(
-          JSON.stringify({ error: `Trafiklab sökfel (${res.status})` }),
-          { status: 502, headers }
-        );
-      }
-
       const data = await res.json();
       const rawStops = data.stopLocationOrCoordLocation || [];
       const stops = rawStops
@@ -59,16 +52,9 @@ export async function onRequest(context) {
     const endpoint = direction === 'arrivals' ? 'arrivalBoard' : 'departureBoard';
     const boardUrl = `https://api.resrobot.se/v2.1/${endpoint}?id=${encodeURIComponent(
       stopId
-    )}&duration=120&format=json&accessId=${encodeURIComponent(apiKey)}`;
+    )}&format=json&accessId=${encodeURIComponent(apiKey)}`;
 
     const res = await fetch(boardUrl);
-    if (!res.ok) {
-      return new Response(
-        JSON.stringify({ error: `Trafiklab svarade med status ${res.status}` }),
-        { status: 502, headers }
-      );
-    }
-
     const data = await res.json();
     const rawList =
       direction === 'arrivals' ? data.Arrival || [] : data.Departure || [];
