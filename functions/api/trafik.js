@@ -29,6 +29,39 @@ function getDelayMinutes(scheduledTime, estimatedTime, scheduledDate, rtDate) {
   return diff;
 }
 
+function getNowStockholmMinutes() {
+  try {
+    const parts = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Europe/Stockholm',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(new Date());
+
+    const h = Number(parts.find((p) => p.type === 'hour')?.value);
+    const m = Number(parts.find((p) => p.type === 'minute')?.value);
+    if (!Number.isNaN(h) && !Number.isNaN(m)) {
+      return h * 60 + m;
+    }
+  } catch {
+    // Fallback till UTC+1
+  }
+  const now = new Date();
+  return ((now.getUTCHours() + 1) % 24) * 60 + now.getUTCMinutes();
+}
+
+function hasPassedEffectiveTime(effectiveTimeStr, graceMinutes = 2) {
+  const effMin = parseTimeToMinutes(effectiveTimeStr);
+  if (effMin === null) return false;
+
+  const nowMin = getNowStockholmMinutes();
+  let diff = effMin - nowMin;
+  if (diff < -12 * 60) diff += 24 * 60;
+  if (diff > 12 * 60) diff -= 24 * 60;
+
+  return diff < -graceMinutes;
+}
+
 function extractClockTime(isoOrDateTimeStr) {
   if (!isoOrDateTimeStr || typeof isoOrDateTimeStr !== 'string') return '';
   const match = isoOrDateTimeStr.match(/T(\d{2}:\d{2})/);
@@ -292,6 +325,11 @@ export async function onRequest(context) {
         }
 
         const estimatedTime = newTime || scheduledTime;
+        const effectiveTime = isDelayed ? newTime : scheduledTime;
+
+        if (hasPassedEffectiveTime(effectiveTime, 2)) {
+          return null;
+        }
 
         const lineName = String(prod.name || prod.line || trainNumber || 'Avgang').trim();
         const operator = String(
