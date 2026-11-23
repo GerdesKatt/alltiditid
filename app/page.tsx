@@ -9,6 +9,7 @@ type Departure = {
   operator: string;
   destination: string;
   scheduledTime: string;
+  newTime?: string;
   estimatedTime: string;
   delayMinutes?: number;
   status: 'on-time' | 'delayed' | 'cancelled';
@@ -157,6 +158,7 @@ export default function HomePage() {
   }
 
   function buildShareMessage(trip: Departure): string {
+    const effectiveNewTime = trip.newTime || (trip.status === 'delayed' ? trip.estimatedTime : '');
     const delayLabel =
       trip.delayMinutes && trip.delayMinutes > 0 ? ` (+${trip.delayMinutes} min)` : '';
 
@@ -169,10 +171,9 @@ export default function HomePage() {
 
     const isArrival = trip.directionType === 'arrivals';
     const timeLabel = isArrival ? 'ankomst' : 'avgang';
-    const timePart =
-      trip.status === 'delayed' && trip.estimatedTime
-        ? `ord. ${timeLabel} ${trip.scheduledTime}, ny tid ${trip.estimatedTime}${delayLabel}`
-        : `${timeLabel} ${trip.scheduledTime}`;
+    const timePart = effectiveNewTime
+      ? `ord. ${timeLabel} ${trip.scheduledTime}, ny tid ${effectiveNewTime}${delayLabel}`
+      : `${timeLabel} ${trip.scheduledTime}`;
 
     const routePart = isArrival
       ? `till ${selectedStop.name} (fran ${trip.destination})`
@@ -349,13 +350,9 @@ export default function HomePage() {
                 {onBoardTrip.directionType === 'arrivals'
                   ? `Ankomst ${selectedStop.name}`
                   : onBoardTrip.destination}{' '}
-                ({onBoardTrip.scheduledTime}
-                {onBoardTrip.status === 'delayed' && onBoardTrip.estimatedTime
-                  ? ` -> ${onBoardTrip.estimatedTime}${
-                      onBoardTrip.delayMinutes ? ` (+${onBoardTrip.delayMinutes} min)` : ''
-                    }`
-                  : ''}
-                )
+                (Ord. {onBoardTrip.scheduledTime}
+                {onBoardTrip.newTime ? ` • Ny tid ${onBoardTrip.newTime}` : ''}
+                {onBoardTrip.delayMinutes ? ` (+${onBoardTrip.delayMinutes} min)` : ''})
               </h2>
               <div style={{ fontSize: '13px', color: '#cbd5e1', marginTop: '2px' }}>
                 {onBoardTrip.directionType === 'arrivals'
@@ -830,6 +827,8 @@ export default function HomePage() {
               const isDelayed = item.status === 'delayed';
               const isCancelled = item.status === 'cancelled';
               const isSelectedTrip = onBoardTrip ? onBoardTrip.id === item.id : false;
+              const displayedNewTime =
+                item.newTime || (isDelayed ? item.estimatedTime : '');
 
               const badgeBg = isCancelled
                 ? 'rgba(127, 29, 29, 0.8)'
@@ -849,7 +848,7 @@ export default function HomePage() {
               const statusLabel = isCancelled
                 ? 'Installd'
                 : isDelayed
-                ? `Ny tid ${item.estimatedTime}${
+                ? `Ny tid ${displayedNewTime || item.estimatedTime}${
                     item.delayMinutes ? ` (+${item.delayMinutes} min)` : ''
                   }`
                 : 'I tid';
@@ -872,32 +871,53 @@ export default function HomePage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <div
                       style={{
-                        minWidth: '62px',
+                        minWidth: '88px',
                         paddingRight: '14px',
                         borderRight: '1px solid #1e293b',
                       }}
                     >
+                      <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 700 }}>
+                        ORD. TID
+                      </div>
                       <div
                         style={{
                           fontSize: '19px',
                           fontWeight: 800,
                           fontVariantNumeric: 'tabular-nums',
-                          textDecoration: isDelayed || isCancelled ? 'line-through' : 'none',
-                          color: isDelayed || isCancelled ? '#64748b' : '#f8fafc',
+                          textDecoration:
+                            isDelayed || isCancelled || displayedNewTime
+                              ? 'line-through'
+                              : 'none',
+                          color:
+                            isDelayed || isCancelled || displayedNewTime
+                              ? '#64748b'
+                              : '#f8fafc',
                         }}
                       >
                         {item.scheduledTime}
                       </div>
-                      {isDelayed ? (
-                        <div
-                          style={{
-                            fontSize: '16px',
-                            fontWeight: 800,
-                            fontVariantNumeric: 'tabular-nums',
-                            color: '#fbbf24',
-                          }}
-                        >
-                          {item.estimatedTime}
+                      {displayedNewTime ? (
+                        <div style={{ marginTop: '4px' }}>
+                          <span
+                            style={{
+                              display: 'block',
+                              fontSize: '10px',
+                              color: '#fbbf24',
+                              fontWeight: 800,
+                            }}
+                          >
+                            NY TID
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '16px',
+                              fontWeight: 800,
+                              fontVariantNumeric: 'tabular-nums',
+                              color: '#fbbf24',
+                            }}
+                          >
+                            {displayedNewTime}
+                          </span>
                         </div>
                       ) : null}
                     </div>
