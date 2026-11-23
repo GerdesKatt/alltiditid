@@ -47,6 +47,7 @@ export default function HomePage() {
   const [departures, setDepartures] = useState<Departure[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [activeInfoTab, setActiveInfoTab] = useState<'about' | 'privacy' | 'terms'>('about');
 
   useEffect(() => {
     const q = stationQuery.trim();
@@ -114,13 +115,49 @@ export default function HomePage() {
   );
 
   return (
-    <div>
-      <section style={{ marginBottom: '24px' }}>
+    <div id="alltiditid-app">
+      {/* Toppmeny / Varumärkesrad */}
+      <header
+        id="sidhuvud"
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingBottom: '16px',
+          marginBottom: '20px',
+          borderBottom: '1px solid #1e293b',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}
+      >
+        <div>
+          <span style={{ fontSize: '20px', fontWeight: 900, letterSpacing: '-0.02em', color: '#38bdf8' }}>
+            alltiditid.se
+          </span>
+          <span style={{ marginLeft: '10px', fontSize: '13px', color: '#94a3b8' }}>
+            Realtidsinformation för resenärer i Sverige
+          </span>
+        </div>
+        <nav style={{ display: 'flex', gap: '16px', fontSize: '13px' }}>
+          <a href="#avgangstavla" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
+            Avgångstavla
+          </a>
+          <a href="#om-tjansten" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
+            Om tjänsten
+          </a>
+          <a href="#sidfot" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
+            Integritet &amp; Villkor
+          </a>
+        </nav>
+      </header>
+
+      <section id="sok-och-filter" style={{ marginBottom: '24px' }}>
         <h1 style={{ fontSize: '28px', fontWeight: 800, margin: '0 0 8px 0' }}>
           Avgångar i realtid i hela Sverige
         </h1>
-        <p style={{ color: '#94a3b8', margin: '0 0 16px 0', fontSize: '15px' }}>
-          Välj trafikslag och sök på valfri station, hållplats eller flygplats i Sverige.
+        <p style={{ color: '#94a3b8', margin: '0 0 16px 0', fontSize: '15px', lineHeight: 1.5 }}>
+          Följ aktuella avgångar, spår och eventuella förseningar för tåg, buss och flyg på
+          stationer och hållplatser i hela landet.
         </p>
 
         {/* Trafikslagsfilter: Alla / Tåg / Buss / Flyg */}
@@ -256,7 +293,7 @@ export default function HomePage() {
           type="text"
           value={filterText}
           onChange={(e) => setFilterText(e.target.value)}
-          placeholder={`Filtrera på destination, linje eller bolag (t.ex. SJ, SAS, Göteborg)...`}
+          placeholder="Filtrera på destination, linje eller bolag (t.ex. SJ, Västtrafik, Göteborg)..."
           style={{
             width: '100%',
             boxSizing: 'border-box',
@@ -272,6 +309,7 @@ export default function HomePage() {
 
       {hasDisruptions && (
         <div
+          id="storningsruta"
           style={{
             backgroundColor: '#422006',
             border: '1px solid #ca8a04',
@@ -286,7 +324,7 @@ export default function HomePage() {
           }}
         >
           <span style={{ fontSize: '14px', color: '#fef08a' }}>
-            Försenad eller inställd avgång? Du kan ha rätt till reseersättning.
+            Försenad eller inställd avgång? Kontrollera dina rättigheter vid trafikstörningar.
           </span>
           <a
             href="https://www.hallakonsument.se/varor-och-tjanster/resor/"
@@ -302,134 +340,245 @@ export default function HomePage() {
               textDecoration: 'none',
             }}
           >
-            Kolla dina rättigheter &rarr;
+            Läs om reseersättning &rarr;
           </a>
         </div>
       )}
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '12px',
-        }}
-      >
-        <h2 style={{ fontSize: '18px', margin: 0 }}>{selectedStop.name}</h2>
-        <span
-          style={{
-            fontSize: '12px',
-            padding: '3px 8px',
-            borderRadius: '6px',
-            backgroundColor: '#064e3b',
-            color: '#6ee7b7',
-          }}
-        >
-          ● Live från Trafiklab
-        </span>
-      </div>
-
-      {errorMsg ? (
+      <section id="avgangstavla" style={{ marginBottom: '36px' }}>
         <div
           style={{
-            backgroundColor: '#7f1d1d',
-            color: '#fecaca',
-            padding: '14px',
-            borderRadius: '10px',
-            fontSize: '14px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '12px',
           }}
         >
-          {errorMsg}
+          <h2 style={{ fontSize: '18px', margin: 0 }}>{selectedStop.name}</h2>
+          <span
+            style={{
+              fontSize: '12px',
+              padding: '3px 8px',
+              borderRadius: '6px',
+              backgroundColor: '#064e3b',
+              color: '#6ee7b7',
+            }}
+          >
+            ● Live från Trafiklab
+          </span>
         </div>
-      ) : loading ? (
-        <p style={{ color: '#94a3b8' }}>Hämtar avgångar i realtid...</p>
-      ) : filtered.length === 0 ? (
-        <p style={{ color: '#94a3b8' }}>
-          Inga avgångar hittades för valt trafikslag eller filter.
-        </p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {filtered.map((item) => {
-            const isDelayed = item.status === 'delayed';
-            const isCancelled = item.status === 'cancelled';
 
-            const badgeBg = isCancelled
-              ? '#7f1d1d'
-              : isDelayed
-              ? '#78350f'
-              : '#064e3b';
-            const badgeColor = isCancelled
-              ? '#fca5a5'
-              : isDelayed
-              ? '#fcd34d'
-              : '#6ee7b7';
-            const statusLabel = isCancelled
-              ? 'Inställd'
-              : isDelayed
-              ? `Ny tid ${item.estimatedTime}`
-              : 'I tid';
+        {errorMsg ? (
+          <div
+            style={{
+              backgroundColor: '#7f1d1d',
+              color: '#fecaca',
+              padding: '14px',
+              borderRadius: '10px',
+              fontSize: '14px',
+            }}
+          >
+            {errorMsg}
+          </div>
+        ) : loading ? (
+          <p style={{ color: '#94a3b8' }}>Hämtar avgångar i realtid...</p>
+        ) : filtered.length === 0 ? (
+          <p style={{ color: '#94a3b8' }}>
+            Inga avgångar hittades för valt trafikslag eller filter.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {filtered.map((item) => {
+              const isDelayed = item.status === 'delayed';
+              const isCancelled = item.status === 'cancelled';
 
-            return (
-              <div
-                key={item.id}
-                style={{
-                  backgroundColor: '#1e293b',
-                  border: '1px solid #334155',
-                  borderRadius: '12px',
-                  padding: '14px 16px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: '12px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{ minWidth: '54px' }}>
-                    <div
-                      style={{
-                        fontSize: '18px',
-                        fontWeight: 800,
-                        textDecoration: isDelayed || isCancelled ? 'line-through' : 'none',
-                        color: isDelayed || isCancelled ? '#94a3b8' : '#f8fafc',
-                      }}
-                    >
-                      {item.scheduledTime}
-                    </div>
-                    {isDelayed && (
-                      <div style={{ fontSize: '16px', fontWeight: 800, color: '#fbbf24' }}>
-                        {item.estimatedTime}
-                      </div>
-                    )}
-                  </div>
+              const badgeBg = isCancelled
+                ? '#7f1d1d'
+                : isDelayed
+                ? '#78350f'
+                : '#064e3b';
+              const badgeColor = isCancelled
+                ? '#fca5a5'
+                : isDelayed
+                ? '#fcd34d'
+                : '#6ee7b7';
+              const statusLabel = isCancelled
+                ? 'Inställd'
+                : isDelayed
+                ? `Ny tid ${item.estimatedTime}`
+                : 'I tid';
 
-                  <div>
-                    <div style={{ fontSize: '16px', fontWeight: 700 }}>
-                      {item.destination}
-                    </div>
-                    <div style={{ fontSize: '13px', color: '#94a3b8' }}>
-                      {item.line} &bull; {item.operator} &bull; {item.track}
-                    </div>
-                  </div>
-                </div>
-
-                <span
+              return (
+                <div
+                  key={item.id}
                   style={{
-                    backgroundColor: badgeBg,
-                    color: badgeColor,
-                    padding: '5px 10px',
-                    borderRadius: '8px',
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    whiteSpace: 'nowrap',
+                    backgroundColor: '#1e293b',
+                    border: '1px solid #334155',
+                    borderRadius: '12px',
+                    padding: '14px 16px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '12px',
                   }}
                 >
-                  {statusLabel}
-                </span>
-              </div>
-            );
-          })}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div style={{ minWidth: '54px' }}>
+                      <div
+                        style={{
+                          fontSize: '18px',
+                          fontWeight: 800,
+                          textDecoration: isDelayed || isCancelled ? 'line-through' : 'none',
+                          color: isDelayed || isCancelled ? '#94a3b8' : '#f8fafc',
+                        }}
+                      >
+                        {item.scheduledTime}
+                      </div>
+                      {isDelayed && (
+                        <div style={{ fontSize: '16px', fontWeight: 800, color: '#fbbf24' }}>
+                          {item.estimatedTime}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '16px', fontWeight: 700 }}>
+                        {item.destination}
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#94a3b8' }}>
+                        {item.line} &bull; {item.operator} &bull; {item.track}
+                      </div>
+                    </div>
+                  </div>
+
+                  <span
+                    style={{
+                      backgroundColor: badgeBg,
+                      color: badgeColor,
+                      padding: '5px 10px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {statusLabel}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* Redaktionellt innehåll som ger tydligt värde och text för besökare och sökmotorer */}
+      <section
+        id="om-tjansten"
+        style={{
+          backgroundColor: '#0f172a',
+          border: '1px solid #1e293b',
+          borderRadius: '12px',
+          padding: '20px',
+          marginBottom: '28px',
+        }}
+      >
+        <h2 style={{ fontSize: '18px', margin: '0 0 10px 0' }}>
+          Så fungerar avgångstavlan på alltiditid.se
+        </h2>
+        <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: 1.6, margin: '0 0 12px 0' }}>
+          På <strong style={{ color: '#e2e8f0' }}>alltiditid.se</strong> samlar vi realtidsinformation
+          om kollektivtrafik i Sverige så att du snabbt kan se när nästa tåg, buss eller
+          förbindelse avgår, om den är i tid eller försenad samt vilket spår eller läge som gäller.
+        </p>
+        <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: 1.6, margin: 0 }}>
+          Börja med att välja en av snabbknapparna eller sök fram valfri hållplats och station i
+          Sverige. Du kan därefter filtrera på destination, linjenummer eller operatör för att
+          snabbare hitta rätt resa i vardagen eller vid längre resor.
+        </p>
+      </section>
+
+      {/* Sidfot med flikar för Om oss, Integritetspolicy och Villkor */}
+      <footer
+        id="sidfot"
+        style={{
+          borderTop: '1px solid #1e293b',
+          paddingTop: '20px',
+          color: '#94a3b8',
+          fontSize: '13px',
+        }}
+      >
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => setActiveInfoTab('about')}
+            style={{
+              padding: '5px 10px',
+              borderRadius: '6px',
+              border: '1px solid #334155',
+              backgroundColor: activeInfoTab === 'about' ? '#1e293b' : 'transparent',
+              color: '#f8fafc',
+              cursor: 'pointer',
+              fontSize: '12px',
+            }}
+          >
+            Om alltiditid.se
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveInfoTab('privacy')}
+            style={{
+              padding: '5px 10px',
+              borderRadius: '6px',
+              border: '1px solid #334155',
+              backgroundColor: activeInfoTab === 'privacy' ? '#1e293b' : 'transparent',
+              color: '#f8fafc',
+              cursor: 'pointer',
+              fontSize: '12px',
+            }}
+          >
+            Integritetspolicy &amp; cookies
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveInfoTab('terms')}
+            style={{
+              padding: '5px 10px',
+              borderRadius: '6px',
+              border: '1px solid #334155',
+              backgroundColor: activeInfoTab === 'terms' ? '#1e293b' : 'transparent',
+              color: '#f8fafc',
+              cursor: 'pointer',
+              fontSize: '12px',
+            }}
+          >
+            Ansvarsfriskrivning
+          </button>
         </div>
-      )}
+
+        {activeInfoTab === 'about' && (
+          <p style={{ lineHeight: 1.6, margin: '0 0 12px 0' }}>
+            alltiditid.se är en oberoende informationstjänst som visar aktuella avgångstider och
+            förseningar baserat på öppna trafikdata.
+          </p>
+        )}
+        {activeInfoTab === 'privacy' && (
+          <p style={{ lineHeight: 1.6, margin: '0 0 12px 0' }}>
+            Vi samlar inte in personuppgifter genom stationssökningar. Vid annonsering via tredje
+            part (såsom Google AdSense) kan cookies eller liknande tekniker användas för att visa
+            relevanta annonser och mäta trafik.
+          </p>
+        )}
+        {activeInfoTab === 'terms' && (
+          <p style={{ lineHeight: 1.6, margin: '0 0 12px 0' }}>
+            Realtidsdata kan ändras med kort varsel vid trafikstörningar. Kontrollera alltid
+            operatörens officiella information på plats innan avresa.
+          </p>
+        )}
+
+        <div style={{ fontSize: '12px', color: '#64748b' }}>
+          © {new Date().getFullYear()} alltiditid.se – Alla rättigheter förbehållna.
+        </div>
+      </footer>
     </div>
   );
 }
