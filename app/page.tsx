@@ -130,7 +130,7 @@ export default function HomePage() {
     return (
       d.destination.toLowerCase().includes(queryLower) ||
       d.line.toLowerCase().includes(queryLower) ||
-      Boolean(d.trainNumber && d.trainNumber.toLowerCase().includes(queryLower)) ||
+      (d.trainNumber ? d.trainNumber.toLowerCase().includes(queryLower) : false) ||
       d.operator.toLowerCase().includes(queryLower) ||
       viaMatch
     );
@@ -156,25 +156,25 @@ export default function HomePage() {
   function buildShareMessage(trip: Departure): string {
     const statusText =
       riderStatus === 'on-time'
-        ? 'är i tid'
+        ? 'ar i tid'
         : riderStatus === 'slightly-late'
-        ? 'är lite sen'
-        : 'är försenad';
+        ? 'ar lite sen'
+        : 'ar forsenad';
 
     const isArrival = trip.directionType === 'arrivals';
-    const timeLabel = isArrival ? 'ankomst' : 'avgång';
+    const timeLabel = isArrival ? 'ankomst' : 'avgang';
     const timePart =
       trip.status === 'delayed' && trip.estimatedTime
         ? `ord. ${timeLabel} ${trip.scheduledTime}, ny tid ${trip.estimatedTime}`
         : `${timeLabel} ${trip.scheduledTime}`;
 
     const routePart = isArrival
-      ? `till ${selectedStop.name} (från ${trip.destination})`
-      : `från ${selectedStop.name} mot ${trip.destination}`;
+      ? `till ${selectedStop.name} (fran ${trip.destination})`
+      : `fran ${selectedStop.name} mot ${trip.destination}`;
 
     const notePart = riderNote.trim() ? ` (${riderNote.trim()})` : '';
 
-    return `Jag sitter på ${trip.operator} ${trip.line} ${routePart} (${timePart}) – ${statusText}${notePart}.`;
+    return `Jag sitter pa ${trip.operator} ${trip.line} ${routePart} (${timePart}) - ${statusText}${notePart}.`;
   }
 
   async function handleShareTrip(trip: Departure) {
@@ -189,7 +189,7 @@ export default function HomePage() {
         return;
       }
     } catch {
-      // Faller tillbaka på urklipp
+      // Fallback till urklipp
     }
 
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -199,8 +199,8 @@ export default function HomePage() {
     }
   }
 
-  const pageContent = (
-    <main id="alltiditid-app" style={{ maxWidth: '860px', margin: '0 auto' }}>
+  return (
+    <div id="alltiditid-app" style={{ maxWidth: '860px', margin: '0 auto' }}>
       <header
         id="sidhuvud"
         style={{
@@ -275,7 +275,7 @@ export default function HomePage() {
                 marginTop: '2px',
               }}
             >
-              Avgångar &amp; ankomster i realtid
+              Avgangar och ankomster i realtid
             </span>
           </span>
         </a>
@@ -285,7 +285,7 @@ export default function HomePage() {
             Tidtabell
           </a>
           <a href="#om-tjansten" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
-            Om tjänsten
+            Om tjansten
           </a>
           <a
             href="#sidfot"
@@ -297,7 +297,7 @@ export default function HomePage() {
         </nav>
       </header>
 
-      {onBoardTrip && (
+      {onBoardTrip ? (
         <section
           id="resenar-lage"
           style={{
@@ -330,7 +330,7 @@ export default function HomePage() {
                   color: '#7dd3fc',
                 }}
               >
-                Jag är på tåget eller bussen
+                Jag ar pa taget eller bussen
               </span>
               <h2
                 style={{
@@ -345,15 +345,15 @@ export default function HomePage() {
                   : onBoardTrip.destination}{' '}
                 ({onBoardTrip.scheduledTime}
                 {onBoardTrip.status === 'delayed' && onBoardTrip.estimatedTime
-                  ? ` → ${onBoardTrip.estimatedTime}`
+                  ? ` -> ${onBoardTrip.estimatedTime}`
                   : ''}
                 )
               </h2>
               <div style={{ fontSize: '13px', color: '#cbd5e1', marginTop: '2px' }}>
                 {onBoardTrip.directionType === 'arrivals'
-                  ? `Från ${onBoardTrip.destination}`
-                  : `Från ${selectedStop.name}`}{' '}
-                • {onBoardTrip.line} • {onBoardTrip.operator} • {onBoardTrip.track}
+                  ? `Fran ${onBoardTrip.destination}`
+                  : `Fran ${selectedStop.name}`}{' '}
+                | {onBoardTrip.line} | {onBoardTrip.operator} | {onBoardTrip.track}
               </div>
             </div>
 
@@ -375,15 +375,15 @@ export default function HomePage() {
                 cursor: 'pointer',
               }}
             >
-              Avsluta läge
+              Avsluta lage
             </button>
           </div>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
             {[
-              { key: 'on-time', label: 'Jag är i tid' },
+              { key: 'on-time', label: 'Jag ar i tid' },
               { key: 'slightly-late', label: 'Lite sen' },
-              { key: 'delayed', label: 'Försenad' },
+              { key: 'delayed', label: 'Forsenad' },
             ].map((opt) => {
               const active = riderStatus === opt.key;
               return (
@@ -412,7 +412,7 @@ export default function HomePage() {
             type="text"
             value={riderNote}
             onChange={(e) => setRiderNote(e.target.value)}
-            placeholder="Valfri notis till den som hämtar (t.ex. Sitter i vagn 2, Framför stationen om ca 10 min)..."
+            placeholder="Valfri notis till den som hamtar (t.ex. Sitter i vagn 2)..."
             style={{
               width: '100%',
               boxSizing: 'border-box',
@@ -446,7 +446,7 @@ export default function HomePage() {
                 marginBottom: '4px',
               }}
             >
-              Färdigt statusmeddelande:
+              Fardigt statusmeddelande:
             </strong>
             {buildShareMessage(onBoardTrip)}
           </div>
@@ -466,17 +466,17 @@ export default function HomePage() {
                 cursor: 'pointer',
               }}
             >
-              Skicka / kopiera status till den som hämtar
+              Skicka / kopiera status till den som hamtar
             </button>
 
-            {copiedMsg && (
+            {copiedMsg ? (
               <span style={{ fontSize: '13px', fontWeight: 700, color: '#6ee7b7' }}>
-                Meddelandet är kopierat – klistra in i SMS eller chatt!
+                Meddelandet ar kopierat!
               </span>
-            )}
+            ) : null}
           </div>
         </section>
-      )}
+      ) : null}
 
       <section
         id="sok-och-filter"
@@ -498,11 +498,11 @@ export default function HomePage() {
             color: '#f8fafc',
           }}
         >
-          Koll på resan i realtid
+          Koll pa resan i realtid
         </h1>
         <p style={{ color: '#94a3b8', margin: '0 0 20px 0', fontSize: '15px', lineHeight: 1.55 }}>
-          Välj station för att se <strong>avgångar</strong> eller <strong>ankomster</strong> –
-          perfekt när du redan sitter på tåget och vill se när du rullar in.
+          Valj station for att se avgangar eller ankomster - perfekt nar du redan sitter pa taget
+          och vill se nar du rullar in.
         </p>
 
         <div
@@ -514,7 +514,7 @@ export default function HomePage() {
             marginBottom: '14px',
           }}
         >
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button
               type="button"
               onClick={() => setDirection('departures')}
@@ -529,7 +529,7 @@ export default function HomePage() {
                 cursor: 'pointer',
               }}
             >
-              Avgångar
+              Avgangar
             </button>
             <button
               type="button"
@@ -545,7 +545,7 @@ export default function HomePage() {
                 cursor: 'pointer',
               }}
             >
-              Ankomster (Jag är på väg hit)
+              Ankomster (Jag ar pa vag hit)
             </button>
           </div>
 
@@ -621,7 +621,7 @@ export default function HomePage() {
               type="text"
               value={stationQuery}
               onChange={(e) => setStationQuery(e.target.value)}
-              placeholder="Sök station eller hållplats (t.ex. Lund, Uppsala)..."
+              placeholder="Sok station eller hallplats (t.ex. Lund, Uppsala)..."
               style={{
                 width: '100%',
                 boxSizing: 'border-box',
@@ -634,7 +634,7 @@ export default function HomePage() {
               }}
             />
 
-            {(searchingStops || suggestions.length > 0) && (
+            {searchingStops || suggestions.length > 0 ? (
               <div
                 style={{
                   position: 'absolute',
@@ -652,7 +652,7 @@ export default function HomePage() {
               >
                 {searchingStops ? (
                   <div style={{ padding: '12px 14px', color: '#94a3b8', fontSize: '14px' }}>
-                    Söker platser...
+                    Soker platser...
                   </div>
                 ) : (
                   suggestions.map((stop) => (
@@ -671,4 +671,433 @@ export default function HomePage() {
                         padding: '12px 14px',
                         backgroundColor: 'transparent',
                         border: 'none',
-                        borderBottom: '1px solid #1e
+                        borderBottom: '1px solid #1e293b',
+                        color: '#f8fafc',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {stop.name}
+                    </button>
+                  ))
+                )}
+              </div>
+            ) : null}
+          </div>
+
+          <input
+            type="text"
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+            placeholder="Filtrera tagnummer (t.ex. 535), destination, stopp eller bolag..."
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              padding: '13px 15px',
+              borderRadius: '12px',
+              border: '1px solid #334155',
+              backgroundColor: '#0f172a',
+              color: '#f8fafc',
+              fontSize: '14px',
+            }}
+          />
+        </div>
+      </section>
+
+      {hasDisruptions ? (
+        <div
+          id="storningsruta"
+          style={{
+            backgroundColor: 'rgba(120, 53, 15, 0.35)',
+            border: '1px solid #d97706',
+            borderRadius: '14px',
+            padding: '14px 18px',
+            marginBottom: '22px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '12px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <span style={{ fontSize: '14px', color: '#fde68a', fontWeight: 500 }}>
+            Forsenad eller installd avgang? Se vilka rattigheter du har vid trafikstorningar.
+          </span>
+          <a
+            href="https://www.hallakonsument.se/varor-och-tjanster/resor/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              backgroundColor: '#f59e0b',
+              color: '#0f172a',
+              fontWeight: 800,
+              fontSize: '13px',
+              padding: '7px 14px',
+              borderRadius: '8px',
+              textDecoration: 'none',
+            }}
+          >
+            Las om reseersattning
+          </a>
+        </div>
+      ) : null}
+
+      <section id="avgangstavla" style={{ marginBottom: '40px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '14px',
+            flexWrap: 'wrap',
+            gap: '8px',
+          }}
+        >
+          <div>
+            <span style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>
+              {direction === 'arrivals' ? 'Visar ankomster till' : 'Visar avgangar fran'}
+            </span>
+            <h2 style={{ fontSize: '21px', fontWeight: 800, margin: 0, color: '#f8fafc' }}>
+              {selectedStop.name}
+            </h2>
+          </div>
+
+          <span
+            style={{
+              fontSize: '12px',
+              fontWeight: 700,
+              padding: '5px 11px',
+              borderRadius: '999px',
+              backgroundColor: 'rgba(6, 78, 59, 0.75)',
+              border: '1px solid #059669',
+              color: '#6ee7b7',
+            }}
+          >
+            Live fran Trafiklab
+          </span>
+        </div>
+
+        {errorMsg ? (
+          <div
+            style={{
+              backgroundColor: '#7f1d1d',
+              color: '#fecaca',
+              padding: '16px',
+              borderRadius: '12px',
+              fontSize: '14px',
+            }}
+          >
+            {errorMsg}
+          </div>
+        ) : loading ? (
+          <div
+            style={{
+              padding: '28px',
+              textAlign: 'center',
+              borderRadius: '14px',
+              backgroundColor: '#0f172a',
+              border: '1px solid #1e293b',
+              color: '#94a3b8',
+            }}
+          >
+            Hamtar tidtabell i realtid...
+          </div>
+        ) : filtered.length === 0 ? (
+          <div
+            style={{
+              padding: '28px',
+              textAlign: 'center',
+              borderRadius: '14px',
+              backgroundColor: '#0f172a',
+              border: '1px solid #1e293b',
+              color: '#94a3b8',
+            }}
+          >
+            Inga traffar hittades for valt trafikslag eller filter. Prova att vaxla mellan
+            Avgangar och Ankomster.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {filtered.map((item) => {
+              const isDelayed = item.status === 'delayed';
+              const isCancelled = item.status === 'cancelled';
+              const isSelectedTrip = onBoardTrip ? onBoardTrip.id === item.id : false;
+
+              const badgeBg = isCancelled
+                ? 'rgba(127, 29, 29, 0.8)'
+                : isDelayed
+                ? 'rgba(120, 53, 15, 0.85)'
+                : 'rgba(6, 78, 59, 0.7)';
+              const badgeBorder = isCancelled
+                ? '#dc2626'
+                : isDelayed
+                ? '#d97706'
+                : '#059669';
+              const badgeColor = isCancelled
+                ? '#fca5a5'
+                : isDelayed
+                ? '#fcd34d'
+                : '#6ee7b7';
+              const statusLabel = isCancelled
+                ? 'Installd'
+                : isDelayed
+                ? `Ny tid ${item.estimatedTime}`
+                : 'I tid';
+
+              return (
+                <div
+                  key={item.id}
+                  style={{
+                    backgroundColor: isSelectedTrip ? 'rgba(2, 132, 199, 0.14)' : '#0f172a',
+                    border: isSelectedTrip ? '1px solid #38bdf8' : '1px solid #1e293b',
+                    borderRadius: '14px',
+                    padding: '15px 18px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '14px',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div
+                      style={{
+                        minWidth: '62px',
+                        paddingRight: '14px',
+                        borderRight: '1px solid #1e293b',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: '19px',
+                          fontWeight: 800,
+                          fontVariantNumeric: 'tabular-nums',
+                          textDecoration: isDelayed || isCancelled ? 'line-through' : 'none',
+                          color: isDelayed || isCancelled ? '#64748b' : '#f8fafc',
+                        }}
+                      >
+                        {item.scheduledTime}
+                      </div>
+                      {isDelayed ? (
+                        <div
+                          style={{
+                            fontSize: '16px',
+                            fontWeight: 800,
+                            fontVariantNumeric: 'tabular-nums',
+                            color: '#fbbf24',
+                          }}
+                        >
+                          {item.estimatedTime}
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '16px', fontWeight: 700, color: '#f8fafc' }}>
+                        {direction === 'arrivals' ? `Fran ${item.destination}` : item.destination}
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '3px' }}>
+                        <span style={{ color: '#38bdf8', fontWeight: 600 }}>{item.line}</span>{' '}
+                        | {item.operator} | {item.track}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectOnBoard(item)}
+                      style={{
+                        padding: '6px 11px',
+                        borderRadius: '8px',
+                        border: isSelectedTrip ? '1px solid #38bdf8' : '1px solid #334155',
+                        backgroundColor: isSelectedTrip ? '#0284c7' : '#1e293b',
+                        color: '#f8fafc',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {isSelectedTrip ? 'Vald resa' : 'Jag ar ombord'}
+                    </button>
+
+                    <span
+                      style={{
+                        backgroundColor: badgeBg,
+                        border: `1px solid ${badgeBorder}`,
+                        color: badgeColor,
+                        padding: '6px 12px',
+                        borderRadius: '999px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {statusLabel}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <section
+        id="om-tjansten"
+        style={{
+          backgroundColor: '#0f172a',
+          border: '1px solid #1e293b',
+          borderRadius: '16px',
+          padding: '22px',
+          marginBottom: '28px',
+        }}
+      >
+        <h2 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 10px 0', color: '#f8fafc' }}>
+          Sa fungerar avgangstavlan pa alltiditid.se
+        </h2>
+        <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: 1.65, margin: '0 0 12px 0' }}>
+          Pa <strong style={{ color: '#e2e8f0' }}>alltiditid.se</strong> samlar vi realtidsinformation
+          om kollektivtrafik i Sverige sa att du snabbt kan se nar nasta tag, buss eller
+          forbindelse avgår eller ankommer, om den ar i tid eller forsenad samt vilket spar eller
+          lage som galler.
+        </p>
+        <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: 1.65, margin: 0 }}>
+          Sitter du redan ombord? Vaxla till <strong>Ankomster</strong> pa din avstigningsstation
+          (t.ex. Lund C), filtrera pa tagnummer som <strong>535</strong> och klicka pa{' '}
+          <strong>Jag ar ombord</strong> for att skicka din ankomsttid till den som vantar pa dig.
+        </p>
+      </section>
+
+      <footer
+        id="sidfot"
+        style={{
+          borderTop: '1px solid #1e293b',
+          paddingTop: '22px',
+          paddingBottom: '24px',
+          color: '#94a3b8',
+          fontSize: '13px',
+        }}
+      >
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => setActiveInfoTab('about')}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '8px',
+              border: '1px solid #334155',
+              backgroundColor: activeInfoTab === 'about' ? '#1e293b' : 'transparent',
+              color: '#f8fafc',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 600,
+            }}
+          >
+            Om alltiditid.se
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveInfoTab('privacy')}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '8px',
+              border: '1px solid #334155',
+              backgroundColor: activeInfoTab === 'privacy' ? '#1e293b' : 'transparent',
+              color: '#f8fafc',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 600,
+            }}
+          >
+            Integritetspolicy &amp; cookies
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveInfoTab('terms')}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '8px',
+              border: '1px solid #334155',
+              backgroundColor: activeInfoTab === 'terms' ? '#1e293b' : 'transparent',
+              color: '#f8fafc',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 600,
+            }}
+          >
+            Ansvarsfriskrivning
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveInfoTab('contact')}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '8px',
+              border: '1px solid #334155',
+              backgroundColor: activeInfoTab === 'contact' ? '#1e293b' : 'transparent',
+              color: '#f8fafc',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 600,
+            }}
+          >
+            Kontakt
+          </button>
+        </div>
+
+        {activeInfoTab === 'about' ? (
+          <p style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
+            alltiditid.se ar en oberoende informationstjanst som visar aktuella avgangstider,
+            ankomster och forseningsdata baserat pa oppna trafikdata.
+          </p>
+        ) : null}
+        {activeInfoTab === 'privacy' ? (
+          <p style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
+            Vi samlar inte in personuppgifter genom stationssokningar. Vid annonsering via tredje
+            part (sasom Google AdSense) kan cookies eller liknande tekniker anvandas for att visa
+            relevanta annonser och mata trafik.
+          </p>
+        ) : null}
+        {activeInfoTab === 'terms' ? (
+          <p style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
+            Realtidsdata kan andras med kort varsel vid trafikstorningar. Kontrollera alltid
+            operatorens officiella information pa plats innan avresa.
+          </p>
+        ) : null}
+        {activeInfoTab === 'contact' ? (
+          <p style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
+            Har du fragor, synpunkter eller forslag pa forbattringar? Kontakta oss via e-post pa{' '}
+            <a
+              href="mailto:kontakt@alltiditid.se"
+              style={{ color: '#38bdf8', textDecoration: 'underline' }}
+            >
+              kontakt@alltiditid.se
+            </a>
+            .
+          </p>
+        ) : null}
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '8px',
+            fontSize: '12px',
+            color: '#64748b',
+          }}
+        >
+          <span>2026 alltiditid.se - Alla rattigheter forbehallna.</span>
+          <a
+            href="mailto:kontakt@alltiditid.se"
+            style={{ color: '#94a3b8', textDecoration: 'none' }}
+          >
+            kontakt@alltiditid.se
+          </a>
+        </div>
+      </footer>
+    </div>
+  );
+}
