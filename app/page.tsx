@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 type Departure = {
   id: string;
@@ -35,88 +35,6 @@ const MODES: { key: TransportMode; label: string }[] = [
   { key: 'bus', label: 'Buss' },
   { key: 'flight', label: 'Flyg' },
 ];
-
-function BrandLogo() {
-  return (
-    <a
-      href="#alltiditid-app"
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '12px',
-        textDecoration: 'none',
-      }}
-    >
-      <div
-        style={{
-          width: '40px',
-          height: '40px',
-          borderRadius: '12px',
-          background: 'linear-gradient(135deg, #0284c7 0%, #0f172a 100%)',
-          border: '1px solid rgba(56, 189, 248, 0.45)',
-          boxShadow: '0 6px 18px rgba(2, 132, 199, 0.28)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-        }}
-      >
-        <svg
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
-          <circle
-            cx="12"
-            cy="12"
-            r="8.5"
-            stroke="#38bdf8"
-            strokeWidth="2.2"
-            strokeDasharray="42 10"
-          />
-          <path
-            d="M12 7.5V12L15.2 14.2"
-            stroke="#f8fafc"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <circle cx="18.5" cy="6" r="2.5" fill="#10b981" />
-        </svg>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <span
-          style={{
-            fontSize: '21px',
-            fontWeight: 900,
-            letterSpacing: '-0.03em',
-            lineHeight: 1.1,
-            color: '#f8fafc',
-          }}
-        >
-          alltid<span style={{ color: '#38bdf8' }}>itid</span>
-          <span style={{ color: '#64748b', fontWeight: 700, fontSize: '16px' }}>.se</span>
-        </span>
-        <span
-          style={{
-            fontSize: '11px',
-            fontWeight: 600,
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-            color: '#94a3b8',
-            marginTop: '2px',
-          }}
-        >
-          Avgångar i realtid
-        </span>
-      </div>
-    </a>
-  );
-}
 
 export default function HomePage() {
   const [selectedStop, setSelectedStop] = useState<StopOption>(QUICK_STATIONS[0]);
@@ -197,7 +115,7 @@ export default function HomePage() {
   );
 
   return (
-    <div id="alltiditid-app" style={{ maxWidth: '860px', margin: '0 auto' }}>
+    <main id="alltiditid-app" style={{ maxWidth: '860px', margin: '0 auto' }}>
       <header
         id="sidhuvud"
         style={{
@@ -213,7 +131,69 @@ export default function HomePage() {
           gap: '14px',
         }}
       >
-        <BrandLogo />
+        <a
+          href="#alltiditid-app"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '12px',
+            textDecoration: 'none',
+          }}
+        >
+          <span
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #0284c7 0%, #0f172a 100%)',
+              border: '1px solid rgba(56, 189, 248, 0.45)',
+              boxShadow: '0 6px 18px rgba(2, 132, 199, 0.28)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="8.5" stroke="#38bdf8" strokeWidth="2.2" />
+              <path
+                d="M12 7.5V12L15.2 14.2"
+                stroke="#f8fafc"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <circle cx="18.5" cy="6" r="2.5" fill="#10b981" />
+            </svg>
+          </span>
+
+          <span style={{ display: 'flex', flexDirection: 'column' }}>
+            <span
+              style={{
+                fontSize: '21px',
+                fontWeight: 900,
+                letterSpacing: '-0.03em',
+                lineHeight: 1.1,
+                color: '#f8fafc',
+              }}
+            >
+              alltid<span style={{ color: '#38bdf8' }}>itid</span>
+              <span style={{ color: '#64748b', fontWeight: 700, fontSize: '16px' }}>.se</span>
+            </span>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                color: '#94a3b8',
+                marginTop: '2px',
+              }}
+            >
+              Avgångar i realtid
+            </span>
+          </span>
+        </a>
 
         <nav style={{ display: 'flex', gap: '18px', fontSize: '13px', fontWeight: 600 }}>
           <a href="#avgangstavla" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
@@ -265,6 +245,7 @@ export default function HomePage() {
             return (
               <button
                 key={m.key}
+                type="button"
                 onClick={() => setMode(m.key)}
                 style={{
                   padding: '8px 16px',
@@ -289,6 +270,7 @@ export default function HomePage() {
             return (
               <button
                 key={stop.id}
+                type="button"
                 onClick={() => {
                   setSelectedStop(stop);
                   setStationQuery('');
@@ -365,6 +347,7 @@ export default function HomePage() {
                   suggestions.map((stop) => (
                     <button
                       key={stop.id}
+                      type="button"
                       onClick={() => {
                         setSelectedStop(stop);
                         setStationQuery('');
@@ -443,7 +426,7 @@ export default function HomePage() {
               textDecoration: 'none',
             }}
           >
-            Läs om reseersättning &rarr;
+            Läs om reseersättning →
           </a>
         </div>
       )}
@@ -601,7 +584,7 @@ export default function HomePage() {
                       </div>
                       <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '3px' }}>
                         <span style={{ color: '#38bdf8', fontWeight: 600 }}>{item.line}</span>{' '}
-                        &bull; {item.operator} &bull; {item.track}
+                        • {item.operator} • {item.track}
                       </div>
                     </div>
                   </div>
@@ -693,7 +676,7 @@ export default function HomePage() {
               fontWeight: 600,
             }}
           >
-            Integritetspolicy &amp; cookies
+            Integritetspolicy & cookies
           </button>
           <button
             type="button"
@@ -755,4 +738,32 @@ export default function HomePage() {
               href="mailto:kontakt@alltiditid.se"
               style={{ color: '#38bdf8', textDecoration: 'underline' }}
             >
-              kontakt@alltidit
+              kontakt@alltiditid.se
+            </a>
+            .
+          </p>
+        )}
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '8px',
+            fontSize: '12px',
+            color: '#64748b',
+          }}
+        >
+          <span>© {new Date().getFullYear()} alltiditid.se – Alla rättigheter förbehållna.</span>
+          <a
+            href="mailto:kontakt@alltiditid.se"
+            style={{ color: '#94a3b8', textDecoration: 'none' }}
+          >
+            kontakt@alltiditid.se
+          </a>
+        </div>
+      </footer>
+    </main>
+  );
+}
