@@ -30,11 +30,93 @@ const QUICK_STATIONS: StopOption[] = [
 ];
 
 const MODES: { key: TransportMode; label: string }[] = [
-  { key: 'all', label: 'Alla' },
+  { key: 'all', label: 'Alla trafikslag' },
   { key: 'train', label: 'Tåg' },
   { key: 'bus', label: 'Buss' },
   { key: 'flight', label: 'Flyg' },
 ];
+
+function BrandLogo() {
+  return (
+    <a
+      href="#alltiditid-app"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '12px',
+        textDecoration: 'none',
+      }}
+    >
+      <div
+        style={{
+          width: '40px',
+          height: '40px',
+          borderRadius: '12px',
+          background: 'linear-gradient(135deg, #0284c7 0%, #0f172a 100%)',
+          border: '1px solid rgba(56, 189, 248, 0.45)',
+          boxShadow: '0 6px 18px rgba(2, 132, 199, 0.28)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <circle
+            cx="12"
+            cy="12"
+            r="8.5"
+            stroke="#38bdf8"
+            strokeWidth="2.2"
+            strokeDasharray="42 10"
+          />
+          <path
+            d="M12 7.5V12L15.2 14.2"
+            stroke="#f8fafc"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <circle cx="18.5" cy="6" r="2.5" fill="#10b981" />
+        </svg>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <span
+          style={{
+            fontSize: '21px',
+            fontWeight: 900,
+            letterSpacing: '-0.03em',
+            lineHeight: 1.1,
+            color: '#f8fafc',
+          }}
+        >
+          alltid<span style={{ color: '#38bdf8' }}>itid</span>
+          <span style={{ color: '#64748b', fontWeight: 700, fontSize: '16px' }}>.se</span>
+        </span>
+        <span
+          style={{
+            fontSize: '11px',
+            fontWeight: 600,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            color: '#94a3b8',
+            marginTop: '2px',
+          }}
+        >
+          Avgångar i realtid
+        </span>
+      </div>
+    </a>
+  );
+}
 
 export default function HomePage() {
   const [selectedStop, setSelectedStop] = useState<StopOption>(QUICK_STATIONS[0]);
@@ -115,30 +197,26 @@ export default function HomePage() {
   );
 
   return (
-    <div id="alltiditid-app">
-      {/* Toppmeny / Varumärkesrad */}
+    <div id="alltiditid-app" style={{ maxWidth: '860px', margin: '0 auto' }}>
+      {/* Toppmeny med logotyp */}
       <header
         id="sidhuvud"
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          paddingBottom: '16px',
-          marginBottom: '20px',
-          borderBottom: '1px solid #1e293b',
+          padding: '14px 18px',
+          marginBottom: '24px',
+          borderRadius: '16px',
+          backgroundColor: 'rgba(15, 23, 42, 0.85)',
+          border: '1px solid #1e293b',
           flexWrap: 'wrap',
-          gap: '12px',
+          gap: '14px',
         }}
       >
-        <div>
-          <span style={{ fontSize: '20px', fontWeight: 900, letterSpacing: '-0.02em', color: '#38bdf8' }}>
-            alltiditid.se
-          </span>
-          <span style={{ marginLeft: '10px', fontSize: '13px', color: '#94a3b8' }}>
-            Realtidsinformation för resenärer i Sverige
-          </span>
-        </div>
-        <nav style={{ display: 'flex', gap: '16px', fontSize: '13px' }}>
+        <BrandLogo />
+
+        <nav style={{ display: 'flex', gap: '18px', fontSize: '13px', fontWeight: 600 }}>
           <a href="#avgangstavla" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
             Avgångstavla
           </a>
@@ -148,24 +226,43 @@ export default function HomePage() {
           <a
             href="#sidfot"
             onClick={() => setActiveInfoTab('contact')}
-            style={{ color: '#cbd5e1', textDecoration: 'none' }}
+            style={{ color: '#38bdf8', textDecoration: 'none' }}
           >
             Kontakt
           </a>
         </nav>
       </header>
 
-      <section id="sok-och-filter" style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: 800, margin: '0 0 8px 0' }}>
-          Avgångar i realtid i hela Sverige
+      {/* Hero & Sökkort */}
+      <section
+        id="sok-och-filter"
+        style={{
+          marginBottom: '26px',
+          padding: '24px',
+          borderRadius: '20px',
+          background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)',
+          border: '1px solid #334155',
+          boxShadow: '0 14px 35px rgba(2, 6, 23, 0.45)',
+        }}
+      >
+        <h1
+          style={{
+            fontSize: '30px',
+            fontWeight: 900,
+            letterSpacing: '-0.02em',
+            margin: '0 0 8px 0',
+            color: '#f8fafc',
+          }}
+        >
+          Koll på avgången i realtid
         </h1>
-        <p style={{ color: '#94a3b8', margin: '0 0 16px 0', fontSize: '15px', lineHeight: 1.5 }}>
-          Följ aktuella avgångar, spår och eventuella förseningar för tåg, buss och flyg på
-          stationer och hållplatser i hela landet.
+        <p style={{ color: '#94a3b8', margin: '0 0 20px 0', fontSize: '15px', lineHeight: 1.55 }}>
+          Sök på valfri station, hållplats eller flygplats i Sverige och se tider, spår och
+          förseningar direkt.
         </p>
 
-        {/* Trafikslagsfilter: Alla / Tåg / Buss / Flyg */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+        {/* Trafikslagsfilter */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
           {MODES.map((m) => {
             const active = mode === m.key;
             return (
@@ -174,13 +271,14 @@ export default function HomePage() {
                 onClick={() => setMode(m.key)}
                 style={{
                   padding: '8px 16px',
-                  borderRadius: '8px',
+                  borderRadius: '10px',
                   border: active ? '1px solid #38bdf8' : '1px solid #334155',
-                  backgroundColor: active ? '#0369a1' : '#0f172a',
+                  backgroundColor: active ? '#0284c7' : '#0f172a',
                   color: '#f8fafc',
                   fontWeight: 700,
-                  fontSize: '14px',
+                  fontSize: '13px',
                   cursor: 'pointer',
+                  transition: 'all 0.15s ease',
                 }}
               >
                 {m.label}
@@ -190,7 +288,7 @@ export default function HomePage() {
         </div>
 
         {/* Snabbval av platser */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
           {QUICK_STATIONS.map((stop) => {
             const active = selectedStop.id === stop.id;
             return (
@@ -205,11 +303,11 @@ export default function HomePage() {
                   }
                 }}
                 style={{
-                  padding: '7px 13px',
+                  padding: '6px 13px',
                   borderRadius: '999px',
                   border: active ? '1px solid #38bdf8' : '1px solid #334155',
-                  backgroundColor: active ? '#0284c7' : '#1e293b',
-                  color: '#f8fafc',
+                  backgroundColor: active ? 'rgba(56, 189, 248, 0.18)' : 'rgba(15, 23, 42, 0.7)',
+                  color: active ? '#7dd3fc' : '#cbd5e1',
                   fontWeight: 600,
                   fontSize: '13px',
                   cursor: 'pointer',
@@ -223,103 +321,112 @@ export default function HomePage() {
           })}
         </div>
 
-        {/* Sök valfri station/flygplats i Sverige */}
-        <div style={{ position: 'relative', marginBottom: '12px' }}>
+        {/* Två fält bredvid varandra på bred skärm, staplade på mobil */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: '12px',
+          }}
+        >
+          {/* Sök station */}
+          <div style={{ position: 'relative' }}>
+            <input
+              type="text"
+              value={stationQuery}
+              onChange={(e) => setStationQuery(e.target.value)}
+              placeholder="Sök station eller hållplats (t.ex. Uppsala, Lund)..."
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                padding: '13px 15px',
+                borderRadius: '12px',
+                border: '1px solid #38bdf8',
+                backgroundColor: '#0f172a',
+                color: '#f8fafc',
+                fontSize: '14px',
+              }}
+            />
+
+            {(searchingStops || suggestions.length > 0) && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  marginTop: '6px',
+                  backgroundColor: '#0f172a',
+                  border: '1px solid #38bdf8',
+                  borderRadius: '12px',
+                  zIndex: 20,
+                  overflow: 'hidden',
+                  boxShadow: '0 14px 30px rgba(0,0,0,0.65)',
+                }}
+              >
+                {searchingStops ? (
+                  <div style={{ padding: '12px 14px', color: '#94a3b8', fontSize: '14px' }}>
+                    Söker platser...
+                  </div>
+                ) : (
+                  suggestions.map((stop) => (
+                    <button
+                      key={stop.id}
+                      onClick={() => {
+                        setSelectedStop(stop);
+                        setStationQuery('');
+                        setSuggestions([]);
+                      }}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '12px 14px',
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        borderBottom: '1px solid #1e293b',
+                        color: '#f8fafc',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {stop.name}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Filtrera avgångar */}
           <input
             type="text"
-            value={stationQuery}
-            onChange={(e) => setStationQuery(e.target.value)}
-            placeholder="Sök station, hållplats eller flygplats (t.ex. Karlstad, Landvetter, Sundsvall)..."
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+            placeholder="Filtrera destination, linje eller bolag..."
             style={{
               width: '100%',
               boxSizing: 'border-box',
-              padding: '13px 14px',
-              borderRadius: '10px',
-              border: '1px solid #38bdf8',
-              backgroundColor: '#1e293b',
+              padding: '13px 15px',
+              borderRadius: '12px',
+              border: '1px solid #334155',
+              backgroundColor: '#0f172a',
               color: '#f8fafc',
-              fontSize: '15px',
+              fontSize: '14px',
             }}
           />
-
-          {(searchingStops || suggestions.length > 0) && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                right: 0,
-                marginTop: '4px',
-                backgroundColor: '#0f172a',
-                border: '1px solid #334155',
-                borderRadius: '10px',
-                zIndex: 20,
-                overflow: 'hidden',
-                boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-              }}
-            >
-              {searchingStops ? (
-                <div style={{ padding: '12px 14px', color: '#94a3b8', fontSize: '14px' }}>
-                  Söker platser...
-                </div>
-              ) : (
-                suggestions.map((stop) => (
-                  <button
-                    key={stop.id}
-                    onClick={() => {
-                      setSelectedStop(stop);
-                      setStationQuery('');
-                      setSuggestions([]);
-                    }}
-                    style={{
-                      display: 'block',
-                      width: '100%',
-                      textAlign: 'left',
-                      padding: '12px 14px',
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      borderBottom: '1px solid #1e293b',
-                      color: '#f8fafc',
-                      fontSize: '14px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {stop.name}
-                  </button>
-                ))
-              )}
-            </div>
-          )}
         </div>
-
-        {/* Filtrera avgångar */}
-        <input
-          type="text"
-          value={filterText}
-          onChange={(e) => setFilterText(e.target.value)}
-          placeholder="Filtrera på destination, linje eller bolag (t.ex. SJ, Västtrafik, Göteborg)..."
-          style={{
-            width: '100%',
-            boxSizing: 'border-box',
-            padding: '10px 14px',
-            borderRadius: '10px',
-            border: '1px solid #334155',
-            backgroundColor: '#1e293b',
-            color: '#f8fafc',
-            fontSize: '14px',
-          }}
-        />
       </section>
 
       {hasDisruptions && (
         <div
           id="storningsruta"
           style={{
-            backgroundColor: '#422006',
-            border: '1px solid #ca8a04',
-            borderRadius: '10px',
-            padding: '12px 16px',
-            marginBottom: '20px',
+            backgroundColor: 'rgba(120, 53, 15, 0.35)',
+            border: '1px solid #d97706',
+            borderRadius: '14px',
+            padding: '14px 18px',
+            marginBottom: '22px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -327,76 +434,6 @@ export default function HomePage() {
             flexWrap: 'wrap',
           }}
         >
-          <span style={{ fontSize: '14px', color: '#fef08a' }}>
-            Försenad eller inställd avgång? Kontrollera dina rättigheter vid trafikstörningar.
+          <span style={{ fontSize: '14px', color: '#fde68a', fontWeight: 500 }}>
+            Försenad eller inställd avgång? Se vilka rättigheter du har vid trafikstörningar.
           </span>
-          <a
-            href="https://www.hallakonsument.se/varor-och-tjanster/resor/"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              backgroundColor: '#eab308',
-              color: '#0f172a',
-              fontWeight: 700,
-              fontSize: '13px',
-              padding: '6px 12px',
-              borderRadius: '6px',
-              textDecoration: 'none',
-            }}
-          >
-            Läs om reseersättning &rarr;
-          </a>
-        </div>
-      )}
-
-      <section id="avgangstavla" style={{ marginBottom: '36px' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '12px',
-          }}
-        >
-          <h2 style={{ fontSize: '18px', margin: 0 }}>{selectedStop.name}</h2>
-          <span
-            style={{
-              fontSize: '12px',
-              padding: '3px 8px',
-              borderRadius: '6px',
-              backgroundColor: '#064e3b',
-              color: '#6ee7b7',
-            }}
-          >
-            ● Live från Trafiklab
-          </span>
-        </div>
-
-        {errorMsg ? (
-          <div
-            style={{
-              backgroundColor: '#7f1d1d',
-              color: '#fecaca',
-              padding: '14px',
-              borderRadius: '10px',
-              fontSize: '14px',
-            }}
-          >
-            {errorMsg}
-          </div>
-        ) : loading ? (
-          <p style={{ color: '#94a3b8' }}>Hämtar avgångar i realtid...</p>
-        ) : filtered.length === 0 ? (
-          <p style={{ color: '#94a3b8' }}>
-            Inga avgångar hittades för valt trafikslag eller filter.
-          </p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {filtered.map((item) => {
-              const isDelayed = item.status === 'delayed';
-              const isCancelled = item.status === 'cancelled';
-
-              const badgeBg = isCancelled
-                ? '#7f1d1d'
-                : isDelayed
-                ? '#78350f
