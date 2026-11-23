@@ -14,7 +14,6 @@ function getDelayMinutes(scheduledTime, estimatedTime, scheduledDate, rtDate) {
   if (schedMin === null || estMin === null) return null;
 
   let diff = estMin - schedMin;
-  // Hantera midnattspassage (t.ex. 23:55 -> 00:10)
   if (scheduledDate && rtDate && scheduledDate !== rtDate) {
     if (rtDate > scheduledDate) {
       diff += 24 * 60;
@@ -30,6 +29,109 @@ function getDelayMinutes(scheduledTime, estimatedTime, scheduledDate, rtDate) {
   return diff;
 }
 
+function extractClockTime(isoOrDateTimeStr) {
+  if (!isoOrDateTimeStr || typeof isoOrDateTimeStr !== 'string') return '';
+  const match = isoOrDateTimeStr.match(/T(\d{2}:\d{2})/);
+  if (match && match[1]) return match[1];
+  const hhmm = isoOrDateTimeStr.match(/(\d{2}:\d{2})/);
+  return hhmm ? hhmm[1] : '';
+}
+
+async function fetchTrafikverketTrainUpdates(trafikverketKey, trainNumbers, activityType) {
+  const updatesByTrain = new Map();
+  if (!trafikverketKey || !Array.isArray(trainNumbers) || trainNumbers.length === 0) {
+    return updatesByTrain;
+  }
+
+  const uniqueTrains = Array.from(
+    new Set(trainNumbers.map((n) => String(n || '').trim()).filter(Boolean))
+  ).slice(0, 20);
+
+  if (uniqueTrains.length === 0) return updatesByTrain;
+
+  const tvActivity = activityType === 'arrivals' ? 'Ankomst' : 'Avgang';
+  const trainCriteria = uniqueTrains
+    .map((num) => `<EQ name="AdvertisedTrainIdent" value="${num.replace(/[^a-zA-Z0-9_-]/g, '')}" />`)
+    .join('');
+
+  const xmlBody = `<REQUEST>
+  <LOGIN authenticationkey="${trafikverketKey}" />
+  <QUERY objecttype="TrainAnnouncement" schemaversion="1.9" limit="100">
+    <FILTER>
+      <AND>
+        <EQ name="ActivityType" value="${tvActivity}" />
+        <OR>${trainCriteria}</OR>
+      </AND>
+    </FILTER>
+    <INCLUDE>AdvertisedTrainIdent</INCLUDE>
+    <INCLUDE>AdvertisedTimeAtLocation</INCLUDE>
+    <INCLUDE>EstimatedTimeAtLocation</INCLUDE>
+    <INCLUDE>TimeAtLocation</INCLUDE>
+    <INCLUDE>Canceled</INCLUDE>
+    <INCLUDE>TrackAtLocation</INCLUDE>
+  </QUERY>
+</REQUEST>`;
+
+  try {
+    const tvRes = await fetch('https://api.trafikinfo.trafikverket.se/v2/data.json', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/xml; charset=utf-8',
+      },
+      body: xmlBody,
+    });
+
+    if (!tvRes.ok) return updatesByTrain;
+
+    const tvData = await tvRes.json();
+    const announcements =
+      tvData?.RESPONSE?.RESULT?.[0]?.TrainAnnouncement || [];
+
+    for (const ann of announcements) {
+      const ident = String(ann.AdvertisedTrainIdent || '').trim();
+      if (!ident) continue;
+
+      const advClock = extractClockTime(ann.AdvertisedTimeAtLocation);
+      const estClock = extractClockTime(
+        ann.EstimatedTimeAtLocation || ann.TimeAtLocation || ''
+      );
+      const isCanceled = Boolean(ann.Canceled);
+
+      const current = updatesByTrain.get(ident) || {
+        estimatedTime: '',
+        delayMinutes: 0,
+        cancelled: false,
+        track: '',
+        scheduledTime: advClock,
+      };
+
+      if (isCanceled) {
+        current.cancelled = true;
+      }
+
+      if (ann.TrackAtLocation) {
+        current.track = String(ann.TrackAtLocation).trim();
+      }
+
+      if (estClock) {
+        const diff = getDelayMinutes(advClock || estClock, estClock);
+        if (diff !== null && diff > current.delayMinutes) {
+          current.estimatedTime = estClock;
+          current.delayMinutes = diff;
+        } else if (!current.estimatedTime) {
+          current.estimatedTime = estClock;
+        }
+      }
+
+      updatesByTrain.set(ident, current);
+    }
+  } catch {
+    // Ignorera Trafikverket-fel så ResRobot-tavlan alltid fungerar
+  }
+
+  return updatesByTrain;
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -38,6 +140,7 @@ export async function onRequest(context) {
     env.TRAFIKLAB_RESROBOT_KEY ||
     env.TRAFIKLAB_API_KEY ||
     env.TRAFIKLAB_REALTIME_KEY;
+  const trafikverketKey = env.TRAFIKVERKET_API_KEY;
 
   const headers = {
     'Content-Type': 'application/json; charset=utf-8',
@@ -120,6 +223,15 @@ export async function onRequest(context) {
         ? data.Departure
         : [];
 
+    const trainNumbersToCheck = rawList.map((item) => {
+      const prod = Array.isArray(item.Product) ? item.Product[0] : item.Product || {};
+      return String(prod.num || prod.displayNumber || '').trim();
+    });
+
+    const tvUpdates = trafikverketKey
+      ? await fetchTrafikverketTrainUpdates(trafikverketKey, trainNumbersToCheck, direction)
+      : new Map();
+
     const mapped = rawList
       .map((item, idx) => {
         const prod = Array.isArray(item.Product) ? item.Product[0] : item.Product || {};
@@ -142,25 +254,41 @@ export async function onRequest(context) {
 
         const scheduledTime = String(item.time || '').slice(0, 5);
         const rtTimeRaw = String(item.rtTime || '').slice(0, 5);
-        const estimatedTime = rtTimeRaw || scheduledTime;
+        let estimatedTime = rtTimeRaw || scheduledTime;
 
-        const delayMin = getDelayMinutes(
+        let delayMin = getDelayMinutes(
           scheduledTime,
           estimatedTime,
           item.date,
           item.rtDate
         );
 
-        const isCancelled = Boolean(item.cancelled);
-        const hasTimeChange =
+        let isCancelled = Boolean(item.cancelled);
+        let hasTimeChange =
           Boolean(rtTimeRaw) &&
           estimatedTime !== scheduledTime &&
           delayMin !== null &&
           Math.abs(delayMin) >= 1;
 
-        const isDelayed = !isCancelled && hasTimeChange && delayMin > 0;
+        let isDelayed = !isCancelled && hasTimeChange && delayMin > 0;
 
         const trainNumber = String(prod.num || prod.displayNumber || '').trim();
+        const tvMatch = trainNumber ? tvUpdates.get(trainNumber) : null;
+
+        if (tvMatch) {
+          if (tvMatch.cancelled) {
+            isCancelled = true;
+            isDelayed = false;
+          } else if (tvMatch.delayMinutes > 0 && tvMatch.estimatedTime) {
+            const tvDiffSameTime = getDelayMinutes(scheduledTime, tvMatch.estimatedTime);
+            if (!isDelayed || (tvDiffSameTime !== null && tvDiffSameTime > (delayMin || 0))) {
+              estimatedTime = tvMatch.estimatedTime;
+              delayMin = tvDiffSameTime !== null ? tvDiffSameTime : tvMatch.delayMinutes;
+              isDelayed = delayMin > 0;
+            }
+          }
+        }
+
         const lineName = String(prod.name || prod.line || trainNumber || 'Avgang').trim();
         const operator = String(
           prod.operator || prod.operatorInfo?.name || 'Trafikoperator'
@@ -176,10 +304,11 @@ export async function onRequest(context) {
             ? String(item.origin || 'Okand avgangsort')
             : String(item.direction || 'Okand destination');
 
-        const trackLabel =
-          item.rtTrack || item.track
-            ? `Spar/Lage ${item.rtTrack || item.track}`
-            : 'Spar ej angivet';
+        const trackValue =
+          item.rtTrack || item.track || (tvMatch && tvMatch.track) || '';
+        const trackLabel = trackValue
+          ? `Spar/Lage ${trackValue}`
+          : 'Spar ej angivet';
 
         return {
           id: `${idx}-${scheduledTime}-${trainNumber}`,
