@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 
+type TransportMode = 'all' | 'train' | 'subway' | 'bus' | 'flight';
+
 type Departure = {
   id: string;
   line: string;
@@ -16,6 +18,7 @@ type Departure = {
   track: string;
   viaStops?: string[];
   directionType?: 'departures' | 'arrivals';
+  transportMode?: TransportMode | 'other';
 };
 
 type StopOption = {
@@ -23,7 +26,6 @@ type StopOption = {
   name: string;
 };
 
-type TransportMode = 'all' | 'train' | 'bus' | 'flight';
 type BoardDirection = 'departures' | 'arrivals';
 type RiderMood = 'on-time' | 'slightly-late' | 'delayed';
 
@@ -39,6 +41,7 @@ const QUICK_STATIONS: StopOption[] = [
 const MODES: { key: TransportMode; label: string }[] = [
   { key: 'all', label: 'Alla trafikslag' },
   { key: 'train', label: 'Tåg' },
+  { key: 'subway', label: 'Tunnelbana' },
   { key: 'bus', label: 'Buss' },
   { key: 'flight', label: 'Flyg' },
 ];
@@ -633,7 +636,7 @@ export default function HomePage() {
               type="text"
               value={stationQuery}
               onChange={(e) => setStationQuery(e.target.value)}
-              placeholder="Sök station eller hållplats (t.ex. Lund, Uppsala)..."
+              placeholder="Sök station eller hållplats (t.ex. T-Centralen, Lund)..."
               style={{
                 width: '100%',
                 boxSizing: 'border-box',
@@ -701,7 +704,7 @@ export default function HomePage() {
             type="text"
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
-            placeholder="Filtrera tågnummer (t.ex. 535), destination, stopp eller bolag..."
+            placeholder="Filtrera tåg-/linjenummer, destination, stopp eller bolag..."
             style={{
               width: '100%',
               boxSizing: 'border-box',
@@ -990,7 +993,7 @@ export default function HomePage() {
         </h2>
         <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: 1.65, margin: '0 0 12px 0' }}>
           På <strong style={{ color: '#e2e8f0' }}>alltiditid.se</strong> samlar vi realtidsinformation
-          om kollektivtrafik i Sverige så att du snabbt kan se när nästa tåg, buss eller
+          om kollektivtrafik i Sverige så att du snabbt kan se när nästa tåg, tunnelbana, buss eller
           förbindelse avgår eller ankommer, om den är i tid eller försenad samt vilket spår eller
           läge som gäller.
         </p>
