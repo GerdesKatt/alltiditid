@@ -17,6 +17,7 @@ type Departure = {
   delayMinutes?: number;
   status: 'on-time' | 'delayed' | 'cancelled';
   track: string;
+  deviation?: string;
   viaStops?: string[];
   directionType?: 'departures' | 'arrivals';
   transportMode?: TransportMode | 'other';
@@ -176,7 +177,7 @@ export default function HomePage() {
     fetch(
       `/api/trafik?action=departures&stopId=${encodeURIComponent(
         selectedStop.id
-      )}&mode=all&direction=${direction}`
+      )}&stopName=${encodeURIComponent(selectedStop.name)}&mode=all&direction=${direction}`
     )
       .then(async (res) => {
         const data = await res.json();
@@ -221,6 +222,7 @@ export default function HomePage() {
       d.line.toLowerCase().includes(queryLower) ||
       (d.trainNumber ? d.trainNumber.toLowerCase().includes(queryLower) : false) ||
       d.operator.toLowerCase().includes(queryLower) ||
+      (d.deviation ? d.deviation.toLowerCase().includes(queryLower) : false) ||
       viaMatch
     );
   });
@@ -454,6 +456,7 @@ export default function HomePage() {
                   : `Från ${selectedStop.name}`}{' '}
                 | {onBoardTrip.line} | {onBoardTrip.operator}
                 {onBoardTrip.track ? ` | ${onBoardTrip.track}` : ''}
+                {onBoardTrip.deviation ? ` | ${onBoardTrip.deviation}` : ''}
               </div>
             </div>
 
@@ -604,7 +607,6 @@ export default function HomePage() {
           Välj stad eller sök hållplats för T-bana, spårvagn, pendel, tåg och buss i realtid.
         </p>
 
-        {/* Stad + stationer */}
         <div
           style={{
             display: 'flex',
@@ -667,7 +669,6 @@ export default function HomePage() {
           })}
         </div>
 
-        {/* Riktning + trafikslag */}
         <div
           style={{
             display: 'flex',
@@ -739,7 +740,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Sök & filter */}
         <div
           style={{
             display: 'grid',
@@ -1067,6 +1067,18 @@ export default function HomePage() {
                           </React.Fragment>
                         ))}
                       </div>
+                      {item.deviation ? (
+                        <div
+                          style={{
+                            fontSize: '12px',
+                            color: '#fbbf24',
+                            fontWeight: 600,
+                            marginTop: '4px',
+                          }}
+                        >
+                          Avvikelse: {item.deviation}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
 
