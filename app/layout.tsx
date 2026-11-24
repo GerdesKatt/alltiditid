@@ -5,7 +5,12 @@ export const metadata: Metadata = {
   title: 'alltiditid.se – Avgångar och ankomster i realtid',
   description: 'Koll på avgångar, ankomster och förseningar i realtid.',
   icons: {
-    icon: '/icon.svg',
+    icon: [
+      { url: '/favicon.png', type: 'image/png' },
+      { url: '/icon.png', type: 'image/png' },
+    ],
+    shortcut: '/favicon.png',
+    apple: '/favicon.png',
   },
 };
 
