@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 
-type TransportMode = 'all' | 'train' | 'subway' | 'bus' | 'flight';
+type TransportMode = 'all' | 'subway' | 'commuter' | 'tram' | 'bus' | 'train' | 'ferry';
+type RegionKey = 'all' | 'stockholm' | 'goteborg' | 'skane';
 
 type Departure = {
   id: string;
@@ -24,30 +25,96 @@ type Departure = {
 type StopOption = {
   id: string;
   name: string;
+  shortName?: string;
 };
 
 type BoardDirection = 'departures' | 'arrivals';
 type RiderMood = 'on-time' | 'slightly-late' | 'delayed';
 
-const QUICK_STATIONS: StopOption[] = [
-  { id: '740000001', name: 'Stockholm Centralstation' },
-  { id: '740000002', name: 'Göteborg Centralstation' },
-  { id: '740000003', name: 'Malmö Centralstation' },
-  { id: '740000120', name: 'Lund Centralstation' },
-  { id: '740000072', name: 'Karlstad Centralstation' },
-  { id: '740000556', name: 'Stockholm Arlanda Airport' },
-];
-
-const MODES: { key: TransportMode; label: string }[] = [
-  { key: 'all', label: 'Alla trafikslag' },
-  { key: 'train', label: 'Tåg' },
-  { key: 'subway', label: 'Tunnelbana' },
-  { key: 'bus', label: 'Buss' },
-  { key: 'flight', label: 'Flyg' },
+const REGIONS: {
+  key: RegionKey;
+  label: string;
+  stations: StopOption[];
+  modes: { key: TransportMode; label: string }[];
+}[] = [
+  {
+    key: 'all',
+    label: 'Hela Sverige',
+    stations: [
+      { id: '740000001', name: 'Stockholm Centralstation', shortName: 'Stockholm C' },
+      { id: '740020749', name: 'T-Centralen (Stockholm)', shortName: 'T-Centralen' },
+      { id: '740000002', name: 'Göteborg Centralstation', shortName: 'Göteborg C' },
+      { id: '740000003', name: 'Malmö Centralstation', shortName: 'Malmö C' },
+      { id: '740000120', name: 'Lund Centralstation', shortName: 'Lund C' },
+      { id: '740000556', name: 'Stockholm Arlanda Airport', shortName: 'Arlanda' },
+    ],
+    modes: [
+      { key: 'all', label: 'Alla trafikslag' },
+      { key: 'train', label: 'Tåg' },
+      { key: 'commuter', label: 'Pendel / Lokaltåg' },
+      { key: 'subway', label: 'T-bana' },
+      { key: 'tram', label: 'Spårvagn' },
+      { key: 'bus', label: 'Buss' },
+    ],
+  },
+  {
+    key: 'stockholm',
+    label: 'Stockholm (SL)',
+    stations: [
+      { id: '740020749', name: 'T-Centralen (Stockholm)', shortName: 'T-Centralen' },
+      { id: '740000001', name: 'Stockholm Centralstation', shortName: 'Stockholm C' },
+      { id: '740020751', name: 'Slussen (Stockholm)', shortName: 'Slussen' },
+      { id: '740020755', name: 'Odenplan (Stockholm)', shortName: 'Odenplan' },
+      { id: '740020754', name: 'Gullmarsplan (Stockholm)', shortName: 'Gullmarsplan' },
+    ],
+    modes: [
+      { key: 'all', label: 'Alla SL & Tåg' },
+      { key: 'subway', label: 'T-bana' },
+      { key: 'commuter', label: 'Pendeltåg' },
+      { key: 'bus', label: 'SL-buss' },
+      { key: 'tram', label: 'Tvärbanan / Lokal' },
+      { key: 'train', label: 'Fjärr- & Regionaltåg' },
+    ],
+  },
+  {
+    key: 'goteborg',
+    label: 'Göteborg (Västtrafik)',
+    stations: [
+      { id: '740000002', name: 'Göteborg Centralstation', shortName: 'Göteborg C' },
+      { id: '740025614', name: 'Brunnsparken (Göteborg)', shortName: 'Brunnsparken' },
+      { id: '740025624', name: 'Korsvägen (Göteborg)', shortName: 'Korsvägen' },
+      { id: '740025619', name: 'Järntorget (Göteborg)', shortName: 'Järntorget' },
+    ],
+    modes: [
+      { key: 'all', label: 'All trafik' },
+      { key: 'tram', label: 'Spårvagn' },
+      { key: 'bus', label: 'Buss' },
+      { key: 'commuter', label: 'Pendel / Västtåg' },
+      { key: 'ferry', label: 'Båt / Älvsnabben' },
+      { key: 'train', label: 'Fjärrtåg' },
+    ],
+  },
+  {
+    key: 'skane',
+    label: 'Skåne (Skånetrafiken)',
+    stations: [
+      { id: '740000003', name: 'Malmö Centralstation', shortName: 'Malmö C' },
+      { id: '740000120', name: 'Lund Centralstation', shortName: 'Lund C' },
+      { id: '740001581', name: 'Triangeln (Malmö)', shortName: 'Triangeln' },
+      { id: '740000044', name: 'Helsingborg Centralstation', shortName: 'Helsingborg C' },
+    ],
+    modes: [
+      { key: 'all', label: 'All trafik' },
+      { key: 'commuter', label: 'Pågatåg / Öresundståg' },
+      { key: 'bus', label: 'Stads- & Regionbuss' },
+      { key: 'train', label: 'Fjärrtåg' },
+    ],
+  },
 ];
 
 export default function HomePage() {
-  const [selectedStop, setSelectedStop] = useState<StopOption>(QUICK_STATIONS[0]);
+  const [region, setRegion] = useState<RegionKey>('all');
+  const [selectedStop, setSelectedStop] = useState<StopOption>(REGIONS[0].stations[0]);
   const [direction, setDirection] = useState<BoardDirection>('departures');
   const [mode, setMode] = useState<TransportMode>('all');
   const [stationQuery, setStationQuery] = useState('');
@@ -64,6 +131,19 @@ export default function HomePage() {
   const [riderStatus, setRiderStatus] = useState<RiderMood>('on-time');
   const [riderNote, setRiderNote] = useState('');
   const [copiedMsg, setCopiedMsg] = useState(false);
+
+  const currentRegionObj = REGIONS.find((r) => r.key === region) || REGIONS[0];
+
+  function handleRegionChange(newRegion: RegionKey) {
+    setRegion(newRegion);
+    setMode('all');
+    const regObj = REGIONS.find((r) => r.key === newRegion);
+    if (regObj && regObj.stations.length > 0) {
+      setSelectedStop(regObj.stations[0]);
+    }
+    setStationQuery('');
+    setSuggestions([]);
+  }
 
   useEffect(() => {
     const q = stationQuery.trim();
@@ -96,7 +176,7 @@ export default function HomePage() {
     fetch(
       `/api/trafik?action=departures&stopId=${encodeURIComponent(
         selectedStop.id
-      )}&mode=${mode}&direction=${direction}`
+      )}&mode=all&direction=${direction}`
     )
       .then(async (res) => {
         const data = await res.json();
@@ -124,10 +204,15 @@ export default function HomePage() {
     return () => {
       active = false;
     };
-  }, [selectedStop, mode, direction]);
+  }, [selectedStop, direction]);
 
   const queryLower = filterText.trim().toLowerCase();
   const filtered = departures.filter((d) => {
+    // Filtrera på valt trafikslag i frontend (ger noll fördröjning vid klick!)
+    if (mode !== 'all' && d.transportMode !== mode) {
+      return false;
+    }
+
     if (!queryLower) return true;
     const viaMatch = Array.isArray(d.viaStops)
       ? d.viaStops.some((stopName) => stopName.toLowerCase().includes(queryLower))
@@ -187,7 +272,7 @@ export default function HomePage() {
 
     const notePart = riderNote.trim() ? ` (${riderNote.trim()})` : '';
 
-    return `Jag sitter på tåget/bussen (${trip.operator} ${trip.line}) ${routePart} (${timePart}) – ${statusText}${notePart}.`;
+    return `Jag sitter på (${trip.operator} ${trip.line}) ${routePart} (${timePart}) – ${statusText}${notePart}.`;
   }
 
   async function handleShareTrip(trip: Departure) {
@@ -343,7 +428,7 @@ export default function HomePage() {
                   color: '#7dd3fc',
                 }}
               >
-                Jag är på tåget eller bussen
+                Jag är ombord
               </span>
               <h2
                 style={{
@@ -427,7 +512,7 @@ export default function HomePage() {
             type="text"
             value={riderNote}
             onChange={(e) => setRiderNote(e.target.value)}
-            placeholder="Valfri notis till den som hämtar (t.ex. Sitter i vagn 2)..."
+            placeholder="Valfri notis till den som hämtar (t.ex. Sitter i främre vagnen)..."
             style={{
               width: '100%',
               boxSizing: 'border-box',
@@ -515,18 +600,83 @@ export default function HomePage() {
         >
           Koll på resan i realtid
         </h1>
-        <p style={{ color: '#94a3b8', margin: '0 0 20px 0', fontSize: '15px', lineHeight: 1.55 }}>
-          Välj station för att se avgångar eller ankomster – perfekt när du redan sitter på tåget
-          eller bussen och vill berätta för den som hämtar om du är i tid.
+        <p style={{ color: '#94a3b8', margin: '0 0 18px 0', fontSize: '15px', lineHeight: 1.55 }}>
+          Välj stad eller sök hållplats för att se T-bana, spårvagn, pendel, tåg och buss i realtid.
         </p>
 
+        {/* STEG 1: Välj Stad / Region */}
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '8px',
+            marginBottom: '16px',
+            paddingBottom: '16px',
+            borderBottom: '1px solid #1e293b',
+          }}
+        >
+          {REGIONS.map((reg) => {
+            const active = region === reg.key;
+            return (
+              <button
+                key={reg.key}
+                type="button"
+                onClick={() => handleRegionChange(reg.key)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '10px',
+                  border: active ? '1px solid #38bdf8' : '1px solid #334155',
+                  backgroundColor: active ? 'rgba(56, 189, 248, 0.2)' : '#0f172a',
+                  color: active ? '#7dd3fc' : '#94a3b8',
+                  fontWeight: 800,
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+              >
+                {reg.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* STEG 2: Snabbval för stationer i vald stad */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
+          {currentRegionObj.stations.map((stop) => {
+            const active = selectedStop.id === stop.id;
+            return (
+              <button
+                key={stop.id}
+                type="button"
+                onClick={() => {
+                  setSelectedStop(stop);
+                  setStationQuery('');
+                  setSuggestions([]);
+                }}
+                style={{
+                  padding: '6px 13px',
+                  borderRadius: '999px',
+                  border: active ? '1px solid #10b981' : '1px solid #334155',
+                  backgroundColor: active ? 'rgba(16, 185, 129, 0.18)' : 'rgba(15, 23, 42, 0.7)',
+                  color: active ? '#6ee7b7' : '#cbd5e1',
+                  fontWeight: 600,
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+              >
+                {stop.shortName || stop.name}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* STEG 3: Avgångar/Ankomster + Trafikslag anpassade efter staden */}
         <div
           style={{
             display: 'flex',
             flexWrap: 'wrap',
             justifyContent: 'space-between',
             gap: '10px',
-            marginBottom: '14px',
+            marginBottom: '16px',
           }}
         >
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -560,12 +710,12 @@ export default function HomePage() {
                 cursor: 'pointer',
               }}
             >
-              Ankomster (Jag är på väg hit)
+              Ankomster
             </button>
           </div>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-            {MODES.map((m) => {
+            {currentRegionObj.modes.map((m) => {
               const active = mode === m.key;
               return (
                 <button
@@ -590,40 +740,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
-          {QUICK_STATIONS.map((stop) => {
-            const active = selectedStop.id === stop.id;
-            return (
-              <button
-                key={stop.id}
-                type="button"
-                onClick={() => {
-                  setSelectedStop(stop);
-                  setStationQuery('');
-                  setSuggestions([]);
-                  if (stop.id === '740000556' && mode === 'train') {
-                    setMode('all');
-                  }
-                }}
-                style={{
-                  padding: '6px 13px',
-                  borderRadius: '999px',
-                  border: active ? '1px solid #38bdf8' : '1px solid #334155',
-                  backgroundColor: active ? 'rgba(56, 189, 248, 0.18)' : 'rgba(15, 23, 42, 0.7)',
-                  color: active ? '#7dd3fc' : '#cbd5e1',
-                  fontWeight: 600,
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                }}
-              >
-                {stop.name
-                  .replace(' Centralstation', ' C')
-                  .replace('Stockholm Arlanda Airport', 'Arlanda')}
-              </button>
-            );
-          })}
-        </div>
-
+        {/* STEG 4: Fritextsök & Filter */}
         <div
           style={{
             display: 'grid',
@@ -636,7 +753,7 @@ export default function HomePage() {
               type="text"
               value={stationQuery}
               onChange={(e) => setStationQuery(e.target.value)}
-              placeholder="Sök station eller hållplats (t.ex. T-Centralen, Lund)..."
+              placeholder="Sök valfri station eller hållplats i Sverige..."
               style={{
                 width: '100%',
                 boxSizing: 'border-box',
@@ -676,6 +793,8 @@ export default function HomePage() {
                       type="button"
                       onClick={() => {
                         setSelectedStop(stop);
+                        setRegion('all');
+                        setMode('all');
                         setStationQuery('');
                         setSuggestions([]);
                       }}
@@ -704,7 +823,7 @@ export default function HomePage() {
             type="text"
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
-            placeholder="Filtrera tåg-/linjenummer, destination, stopp eller bolag..."
+            placeholder="Filtrera linje (t.ex. 19, 4, 535), destination eller stopp..."
             style={{
               width: '100%',
               boxSizing: 'border-box',
@@ -828,8 +947,8 @@ export default function HomePage() {
               color: '#94a3b8',
             }}
           >
-            Inga träffar hittades för valt trafikslag eller filter. Prova att växla mellan
-            Avgångar och Ankomster.
+            Inga träffar hittades för valt trafikslag på denna station. Prova att välja{' '}
+            <strong>Alla</strong> eller byt station.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -953,7 +1072,7 @@ export default function HomePage() {
                         cursor: 'pointer',
                       }}
                     >
-                      {isSelectedTrip ? 'Vald resa' : 'Jag är på tåget/bussen'}
+                      {isSelectedTrip ? 'Vald resa' : 'Jag är ombord'}
                     </button>
 
                     <span
@@ -993,14 +1112,14 @@ export default function HomePage() {
         </h2>
         <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: 1.65, margin: '0 0 12px 0' }}>
           På <strong style={{ color: '#e2e8f0' }}>alltiditid.se</strong> samlar vi realtidsinformation
-          om kollektivtrafik i Sverige så att du snabbt kan se när nästa tåg, tunnelbana, buss eller
-          förbindelse avgår eller ankommer, om den är i tid eller försenad samt vilket spår eller
-          läge som gäller.
+          om kollektivtrafik i Sverige så att du snabbt kan se när nästa tåg, T-bana, spårvagn,
+          pendel eller buss avgår eller ankommer, om den är i tid eller försenad samt vilket spår
+          eller läge som gäller.
         </p>
         <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: 1.65, margin: 0 }}>
           Sitter du redan ombord? Växla till <strong>Ankomster</strong> på din avstigningsstation
-          (t.ex. Lund C), filtrera på tågnummer som <strong>535</strong> och klicka på{' '}
-          <strong>Jag är på tåget/bussen</strong> för att skicka din status till den som hämtar dig.
+          (t.ex. Lund C), filtrera på linje eller tågnummer och klicka på{' '}
+          <strong>Jag är ombord</strong> för att skicka din status till den som hämtar dig.
         </p>
       </section>
 
