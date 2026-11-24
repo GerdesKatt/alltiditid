@@ -6,11 +6,10 @@ export const metadata: Metadata = {
   description: 'Koll på avgångar, ankomster och förseningar i realtid.',
   icons: {
     icon: [
-      { url: '/favicon.png', type: 'image/png' },
-      { url: '/icon.png', type: 'image/png' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
     ],
-    shortcut: '/favicon.png',
-    apple: '/favicon.png',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
   },
 };
 
