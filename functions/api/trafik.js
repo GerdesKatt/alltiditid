@@ -41,32 +41,35 @@ function classifyTransportMode(catCode, catOut) {
   const code = String(catCode || '').trim();
   const label = String(catOut || '').toLowerCase();
 
-  const isSubway =
-    code === '3' ||
-    label.includes('tunnelbana') ||
-    label.includes('subway') ||
-    label.includes('metro') ||
-    label.includes('spårväg') ||
-    label.includes('sparvag') ||
-    label.includes('tram');
+  // 5 = Metro / Tunnelbana
+  if (code === '5' || label.includes('tunnelbana') || label.includes('metro')) {
+    return 'subway';
+  }
 
-  if (isSubway) return 'subway';
+  // 6 = Tram / Spårvagn / Tvärbanan
+  if (code === '6' || label.includes('spårvagn') || label.includes('sparvag') || label.includes('tram') || label.includes('lokalbana')) {
+    return 'tram';
+  }
 
-  const isBus =
-    ['5', '6', '7'].includes(code) ||
-    label.includes('buss') ||
-    label.includes('bus');
+  // 4 = Local trains / Pendeltåg / Pågatåg / Öresundståg
+  if (code === '4' || label.includes('pendel') || label.includes('pågatåg') || label.includes('länstrafik - tåg')) {
+    return 'commuter';
+  }
 
-  if (isBus) return 'bus';
+  // 1 & 2 = High speed & Regional trains / Fjärrtåg
+  if (['1', '2'].includes(code) || label.includes('tåg') || label.includes('tag') || label.includes('train') || label.includes('snabbtåg') || label.includes('regional')) {
+    return 'train';
+  }
 
-  const isTrain =
-    ['1', '2', '4'].includes(code) ||
-    label.includes('tåg') ||
-    label.includes('tag') ||
-    label.includes('train') ||
-    label.includes('pendel');
+  // 3 & 7 = Express buses & Local buses / Buss
+  if (['3', '7'].includes(code) || label.includes('buss') || label.includes('bus')) {
+    return 'bus';
+  }
 
-  if (isTrain) return 'train';
+  // 8 = Ferries / Båt / Färja
+  if (code === '8' || label.includes('färja') || label.includes('båt') || label.includes('ferry')) {
+    return 'ferry';
+  }
 
   return 'other';
 }
@@ -235,10 +238,6 @@ export async function onRequest(context) {
     const mode = url.searchParams.get('mode') || 'all';
     const direction = url.searchParams.get('direction') || 'departures';
 
-    if (mode === 'flight') {
-      return new Response(JSON.stringify({ departures: [] }), { status: 200, headers });
-    }
-
     const endpoint = direction === 'arrivals' ? 'arrivalBoard' : 'departureBoard';
     const boardUrl = `https://api.resrobot.se/v2.1/${endpoint}?id=${encodeURIComponent(
       stopId
@@ -275,9 +274,10 @@ export async function onRequest(context) {
       .map((item, idx) => {
         const prod = Array.isArray(item.Product) ? item.Product[0] : item.Product || {};
         const catCode = String(prod.catCode || '');
-        const catOut = String(prod.catOut || prod.catOutL || '');
+        const catOut = String(prod.catOutL || prod.catOut || '');
         const itemMode = classifyTransportMode(catCode, catOut);
 
+        // Om mode är valt filtrerar vi, annars skickar vi med allt så frontend kan visa tillgängliga trafikslag
         if (mode !== 'all' && itemMode !== mode) return null;
 
         const scheduledTime = String(item.time || '').slice(0, 5);
@@ -294,7 +294,9 @@ export async function onRequest(context) {
 
         const trainNumber = String(prod.num || prod.displayNumber || '').trim();
         const tvMatch =
-          itemMode === 'train' && trainNumber ? tvUpdates.get(trainNumber) : null;
+          (itemMode === 'train' || itemMode === 'commuter') && trainNumber
+            ? tvUpdates.get(trainNumber)
+            : null;
 
         if (tvMatch) {
           if (tvMatch.cancelled) {
