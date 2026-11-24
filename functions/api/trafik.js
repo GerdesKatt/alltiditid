@@ -37,6 +37,14 @@ function extractClockTime(isoOrDateTimeStr) {
   return hhmm ? hhmm[1] : '';
 }
 
+function cleanPlaceName(rawName) {
+  if (!rawName || typeof rawName !== 'string') return '';
+  return rawName
+    .replace(/\s*\([^)]*\bkn\)/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 function classifyTransportMode(catCode, catOut) {
   const code = String(catCode || '').trim();
   const label = String(catOut || '').toLowerCase();
@@ -47,17 +55,35 @@ function classifyTransportMode(catCode, catOut) {
   }
 
   // 6 = Tram / Spårvagn / Tvärbanan
-  if (code === '6' || label.includes('spårvagn') || label.includes('sparvag') || label.includes('tram') || label.includes('lokalbana')) {
+  if (
+    code === '6' ||
+    label.includes('spårvagn') ||
+    label.includes('sparvag') ||
+    label.includes('tram') ||
+    label.includes('lokalbana')
+  ) {
     return 'tram';
   }
 
   // 4 = Local trains / Pendeltåg / Pågatåg / Öresundståg
-  if (code === '4' || label.includes('pendel') || label.includes('pågatåg') || label.includes('länstrafik - tåg')) {
+  if (
+    code === '4' ||
+    label.includes('pendel') ||
+    label.includes('pågatåg') ||
+    label.includes('länstrafik - tåg')
+  ) {
     return 'commuter';
   }
 
   // 1 & 2 = High speed & Regional trains / Fjärrtåg
-  if (['1', '2'].includes(code) || label.includes('tåg') || label.includes('tag') || label.includes('train') || label.includes('snabbtåg') || label.includes('regional')) {
+  if (
+    ['1', '2'].includes(code) ||
+    label.includes('tåg') ||
+    label.includes('tag') ||
+    label.includes('train') ||
+    label.includes('snabbtåg') ||
+    label.includes('regional')
+  ) {
     return 'train';
   }
 
@@ -228,7 +254,7 @@ export async function onRequest(context) {
         .slice(0, 8)
         .map((item) => ({
           id: String(item.StopLocation.extId),
-          name: String(item.StopLocation.name),
+          name: cleanPlaceName(String(item.StopLocation.name)),
         }));
 
       return new Response(JSON.stringify({ stops }), { status: 200, headers });
@@ -277,7 +303,6 @@ export async function onRequest(context) {
         const catOut = String(prod.catOutL || prod.catOut || '');
         const itemMode = classifyTransportMode(catCode, catOut);
 
-        // Om mode är valt filtrerar vi, annars skickar vi med allt så frontend kan visa tillgängliga trafikslag
         if (mode !== 'all' && itemMode !== mode) return null;
 
         const scheduledTime = String(item.time || '').slice(0, 5);
@@ -326,19 +351,21 @@ export async function onRequest(context) {
 
         const stopsRaw = item.Stops?.Stop;
         const viaStops = Array.isArray(stopsRaw)
-          ? stopsRaw.map((s) => s && s.name).filter(Boolean)
+          ? stopsRaw
+              .map((s) => (s && s.name ? cleanPlaceName(String(s.name)) : ''))
+              .filter(Boolean)
           : [];
 
-        const title =
+        const rawTitle =
           direction === 'arrivals'
             ? String(item.origin || 'Okänd avgångsort')
             : String(item.direction || 'Okänd destination');
+        const title = cleanPlaceName(rawTitle) || rawTitle;
 
-        const trackValue =
-          item.rtTrack || item.track || (tvMatch && tvMatch.track) || '';
-        const trackLabel = trackValue
-          ? `Spår/Läge ${trackValue}`
-          : 'Spår ej angivet';
+        const trackValue = String(
+          item.rtTrack || item.track || (tvMatch && tvMatch.track) || ''
+        ).trim();
+        const trackLabel = trackValue ? `Spår/Läge ${trackValue}` : '';
 
         return {
           id: `${idx}-${scheduledTime}-${trainNumber}`,
