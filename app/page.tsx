@@ -29,8 +29,8 @@ type RiderMood = 'on-time' | 'slightly-late' | 'delayed';
 
 const QUICK_STATIONS: StopOption[] = [
   { id: '740000001', name: 'Stockholm Centralstation' },
-  { id: '740000002', name: 'Goteborg Centralstation' },
-  { id: '740000003', name: 'Malmo Centralstation' },
+  { id: '740000002', name: 'Göteborg Centralstation' },
+  { id: '740000003', name: 'Malmö Centralstation' },
   { id: '740000120', name: 'Lund Centralstation' },
   { id: '740000072', name: 'Karlstad Centralstation' },
   { id: '740000556', name: 'Stockholm Arlanda Airport' },
@@ -38,7 +38,7 @@ const QUICK_STATIONS: StopOption[] = [
 
 const MODES: { key: TransportMode; label: string }[] = [
   { key: 'all', label: 'Alla trafikslag' },
-  { key: 'train', label: 'Tag' },
+  { key: 'train', label: 'Tåg' },
   { key: 'bus', label: 'Buss' },
   { key: 'flight', label: 'Flyg' },
 ];
@@ -97,7 +97,7 @@ export default function HomePage() {
     )
       .then(async (res) => {
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Fel vid hamtning');
+        if (!res.ok) throw new Error(data.error || 'Fel vid hämtning');
         return data;
       })
       .then((data) => {
@@ -114,7 +114,7 @@ export default function HomePage() {
       })
       .catch((err) => {
         if (!active) return;
-        setErrorMsg(err.message || 'Kunde inte hamta trafikinformation just nu.');
+        setErrorMsg(err.message || 'Kunde inte hämta trafikinformation just nu.');
         setLoading(false);
       });
 
@@ -167,24 +167,24 @@ export default function HomePage() {
 
     const statusText =
       riderStatus === 'on-time'
-        ? 'ar i tid'
+        ? 'är i tid'
         : riderStatus === 'slightly-late'
-        ? `ar lite sen${delayLabel}`
-        : `ar forsenad${delayLabel}`;
+        ? `är lite sen${delayLabel}`
+        : `är försenad${delayLabel}`;
 
     const isArrival = trip.directionType === 'arrivals';
-    const timeLabel = isArrival ? 'ankomst' : 'avgang';
+    const timeLabel = isArrival ? 'ankomst' : 'avgång';
     const timePart = effectiveNewTime
       ? `ord. ${timeLabel} ${trip.scheduledTime}, ny tid ${effectiveNewTime}${delayLabel}`
       : `${timeLabel} ${trip.scheduledTime}`;
 
     const routePart = isArrival
-      ? `till ${selectedStop.name} (fran ${trip.destination})`
-      : `fran ${selectedStop.name} mot ${trip.destination}`;
+      ? `till ${selectedStop.name} (från ${trip.destination})`
+      : `från ${selectedStop.name} mot ${trip.destination}`;
 
     const notePart = riderNote.trim() ? ` (${riderNote.trim()})` : '';
 
-    return `Jag sitter pa taget/bussen (${trip.operator} ${trip.line}) ${routePart} (${timePart}) - ${statusText}${notePart}.`;
+    return `Jag sitter på tåget/bussen (${trip.operator} ${trip.line}) ${routePart} (${timePart}) – ${statusText}${notePart}.`;
   }
 
   async function handleShareTrip(trip: Departure) {
@@ -285,7 +285,7 @@ export default function HomePage() {
                 marginTop: '2px',
               }}
             >
-              Avgangar och ankomster i realtid
+              Avgångar och ankomster i realtid
             </span>
           </span>
         </a>
@@ -295,7 +295,7 @@ export default function HomePage() {
             Tidtabell
           </a>
           <a href="#om-tjansten" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
-            Om tjansten
+            Om tjänsten
           </a>
           <a
             href="#sidfot"
@@ -340,7 +340,7 @@ export default function HomePage() {
                   color: '#7dd3fc',
                 }}
               >
-                Jag ar pa taget eller bussen
+                Jag är på tåget eller bussen
               </span>
               <h2
                 style={{
@@ -363,8 +363,8 @@ export default function HomePage() {
               </h2>
               <div style={{ fontSize: '13px', color: '#cbd5e1', marginTop: '2px' }}>
                 {onBoardTrip.directionType === 'arrivals'
-                  ? `Fran ${onBoardTrip.destination}`
-                  : `Fran ${selectedStop.name}`}{' '}
+                  ? `Från ${onBoardTrip.destination}`
+                  : `Från ${selectedStop.name}`}{' '}
                 | {onBoardTrip.line} | {onBoardTrip.operator} | {onBoardTrip.track}
               </div>
             </div>
@@ -387,15 +387,15 @@ export default function HomePage() {
                 cursor: 'pointer',
               }}
             >
-              Avsluta lage
+              Avsluta läge
             </button>
           </div>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
             {[
-              { key: 'on-time', label: 'Jag ar i tid' },
+              { key: 'on-time', label: 'Jag är i tid' },
               { key: 'slightly-late', label: 'Lite sen' },
-              { key: 'delayed', label: 'Forsenad' },
+              { key: 'delayed', label: 'Försenad' },
             ].map((opt) => {
               const active = riderStatus === opt.key;
               return (
@@ -424,7 +424,7 @@ export default function HomePage() {
             type="text"
             value={riderNote}
             onChange={(e) => setRiderNote(e.target.value)}
-            placeholder="Valfri notis till den som hamtar (t.ex. Sitter i vagn 2)..."
+            placeholder="Valfri notis till den som hämtar (t.ex. Sitter i vagn 2)..."
             style={{
               width: '100%',
               boxSizing: 'border-box',
@@ -458,7 +458,7 @@ export default function HomePage() {
                 marginBottom: '4px',
               }}
             >
-              Fardigt statusmeddelande:
+              Färdigt statusmeddelande:
             </strong>
             {buildShareMessage(onBoardTrip)}
           </div>
@@ -478,12 +478,12 @@ export default function HomePage() {
                 cursor: 'pointer',
               }}
             >
-              Skicka / kopiera status till den som hamtar
+              Skicka / kopiera status till den som hämtar
             </button>
 
             {copiedMsg ? (
               <span style={{ fontSize: '13px', fontWeight: 700, color: '#6ee7b7' }}>
-                Meddelandet ar kopierat!
+                Meddelandet är kopierat!
               </span>
             ) : null}
           </div>
@@ -510,11 +510,11 @@ export default function HomePage() {
             color: '#f8fafc',
           }}
         >
-          Koll pa resan i realtid
+          Koll på resan i realtid
         </h1>
         <p style={{ color: '#94a3b8', margin: '0 0 20px 0', fontSize: '15px', lineHeight: 1.55 }}>
-          Valj station for att se avgangar eller ankomster - perfekt nar du redan sitter pa taget
-          eller bussen och vill beratta for den som hamtar om du ar i tid.
+          Välj station för att se avgångar eller ankomster – perfekt när du redan sitter på tåget
+          eller bussen och vill berätta för den som hämtar om du är i tid.
         </p>
 
         <div
@@ -541,7 +541,7 @@ export default function HomePage() {
                 cursor: 'pointer',
               }}
             >
-              Avgangar
+              Avgångar
             </button>
             <button
               type="button"
@@ -557,7 +557,7 @@ export default function HomePage() {
                 cursor: 'pointer',
               }}
             >
-              Ankomster (Jag ar pa vag hit)
+              Ankomster (Jag är på väg hit)
             </button>
           </div>
 
@@ -633,7 +633,7 @@ export default function HomePage() {
               type="text"
               value={stationQuery}
               onChange={(e) => setStationQuery(e.target.value)}
-              placeholder="Sok station eller hallplats (t.ex. Lund, Uppsala)..."
+              placeholder="Sök station eller hållplats (t.ex. Lund, Uppsala)..."
               style={{
                 width: '100%',
                 boxSizing: 'border-box',
@@ -664,7 +664,7 @@ export default function HomePage() {
               >
                 {searchingStops ? (
                   <div style={{ padding: '12px 14px', color: '#94a3b8', fontSize: '14px' }}>
-                    Soker platser...
+                    Söker platser...
                   </div>
                 ) : (
                   suggestions.map((stop) => (
@@ -701,7 +701,7 @@ export default function HomePage() {
             type="text"
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
-            placeholder="Filtrera tagnummer (t.ex. 535), destination, stopp eller bolag..."
+            placeholder="Filtrera tågnummer (t.ex. 535), destination, stopp eller bolag..."
             style={{
               width: '100%',
               boxSizing: 'border-box',
@@ -733,7 +733,7 @@ export default function HomePage() {
           }}
         >
           <span style={{ fontSize: '14px', color: '#fde68a', fontWeight: 500 }}>
-            Forsenad eller installd avgang? Se vilka rattigheter du har vid trafikstorningar.
+            Försenad eller inställd avgång? Se vilka rättigheter du har vid trafikstörningar.
           </span>
           <a
             href="https://www.hallakonsument.se/varor-och-tjanster/resor/"
@@ -749,7 +749,7 @@ export default function HomePage() {
               textDecoration: 'none',
             }}
           >
-            Las om reseersattning
+            Läs om reseersättning
           </a>
         </div>
       ) : null}
@@ -767,7 +767,7 @@ export default function HomePage() {
         >
           <div>
             <span style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>
-              {direction === 'arrivals' ? 'Visar ankomster till' : 'Visar avgangar fran'}
+              {direction === 'arrivals' ? 'Visar ankomster till' : 'Visar avgångar från'}
             </span>
             <h2 style={{ fontSize: '21px', fontWeight: 800, margin: 0, color: '#f8fafc' }}>
               {selectedStop.name}
@@ -785,7 +785,7 @@ export default function HomePage() {
               color: '#6ee7b7',
             }}
           >
-            Live fran Trafiklab
+            Live från Trafiklab
           </span>
         </div>
 
@@ -812,7 +812,7 @@ export default function HomePage() {
               color: '#94a3b8',
             }}
           >
-            Hamtar tidtabell i realtid...
+            Hämtar tidtabell i realtid...
           </div>
         ) : filtered.length === 0 ? (
           <div
@@ -825,8 +825,8 @@ export default function HomePage() {
               color: '#94a3b8',
             }}
           >
-            Inga traffar hittades for valt trafikslag eller filter. Prova att vaxla mellan
-            Avgangar och Ankomster.
+            Inga träffar hittades för valt trafikslag eller filter. Prova att växla mellan
+            Avgångar och Ankomster.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -852,7 +852,7 @@ export default function HomePage() {
                 ? '#fcd34d'
                 : '#6ee7b7';
               const statusLabel = isCancelled
-                ? 'Installd'
+                ? 'Inställd'
                 : isDelayed
                 ? `Ny tid ${displayedNewTime}${
                     item.delayMinutes ? ` (+${item.delayMinutes} min)` : ''
@@ -926,7 +926,7 @@ export default function HomePage() {
 
                     <div>
                       <div style={{ fontSize: '16px', fontWeight: 700, color: '#f8fafc' }}>
-                        {direction === 'arrivals' ? `Fran ${item.destination}` : item.destination}
+                        {direction === 'arrivals' ? `Från ${item.destination}` : item.destination}
                       </div>
                       <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '3px' }}>
                         <span style={{ color: '#38bdf8', fontWeight: 600 }}>{item.line}</span>{' '}
@@ -950,7 +950,7 @@ export default function HomePage() {
                         cursor: 'pointer',
                       }}
                     >
-                      {isSelectedTrip ? 'Vald resa' : 'Jag ar pa taget/bussen'}
+                      {isSelectedTrip ? 'Vald resa' : 'Jag är på tåget/bussen'}
                     </button>
 
                     <span
@@ -986,18 +986,18 @@ export default function HomePage() {
         }}
       >
         <h2 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 10px 0', color: '#f8fafc' }}>
-          Sa fungerar avgangstavlan pa alltiditid.se
+          Så fungerar avgångstavlan på alltiditid.se
         </h2>
         <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: 1.65, margin: '0 0 12px 0' }}>
-          Pa <strong style={{ color: '#e2e8f0' }}>alltiditid.se</strong> samlar vi realtidsinformation
-          om kollektivtrafik i Sverige sa att du snabbt kan se nar nasta tag, buss eller
-          forbindelse avgår eller ankommer, om den ar i tid eller forsenad samt vilket spar eller
-          lage som galler.
+          På <strong style={{ color: '#e2e8f0' }}>alltiditid.se</strong> samlar vi realtidsinformation
+          om kollektivtrafik i Sverige så att du snabbt kan se när nästa tåg, buss eller
+          förbindelse avgår eller ankommer, om den är i tid eller försenad samt vilket spår eller
+          läge som gäller.
         </p>
         <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: 1.65, margin: 0 }}>
-          Sitter du redan ombord? Vaxla till <strong>Ankomster</strong> pa din avstigningsstation
-          (t.ex. Lund C), filtrera pa tagnummer som <strong>535</strong> och klicka pa{' '}
-          <strong>Jag ar pa taget/bussen</strong> for att skicka din status till den som hamtar dig.
+          Sitter du redan ombord? Växla till <strong>Ankomster</strong> på din avstigningsstation
+          (t.ex. Lund C), filtrera på tågnummer som <strong>535</strong> och klicka på{' '}
+          <strong>Jag är på tåget/bussen</strong> för att skicka din status till den som hämtar dig.
         </p>
       </section>
 
@@ -1080,26 +1080,26 @@ export default function HomePage() {
 
         {activeInfoTab === 'about' ? (
           <p style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
-            alltiditid.se ar en oberoende informationstjanst som visar aktuella avgangstider,
-            ankomster och forseningsdata baserat pa oppna trafikdata.
+            alltiditid.se är en oberoende informationstjänst som visar aktuella avgångstider,
+            ankomster och förseningsdata baserat på öppna trafikdata.
           </p>
         ) : null}
         {activeInfoTab === 'privacy' ? (
           <p style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
-            Vi samlar inte in personuppgifter genom stationssokningar. Vid annonsering via tredje
-            part (sasom Google AdSense) kan cookies eller liknande tekniker anvandas for att visa
-            relevanta annonser och mata trafik.
+            Vi samlar inte in personuppgifter genom stationssökningar. Vid annonsering via tredje
+            part (såsom Google AdSense) kan cookies eller liknande tekniker användas för att visa
+            relevanta annonser och mäta trafik.
           </p>
         ) : null}
         {activeInfoTab === 'terms' ? (
           <p style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
-            Realtidsdata kan andras med kort varsel vid trafikstorningar. Kontrollera alltid
-            operatorens officiella information pa plats innan avresa.
+            Realtidsdata kan ändras med kort varsel vid trafikstörningar. Kontrollera alltid
+            operatörens officiella information på plats innan avresa.
           </p>
         ) : null}
         {activeInfoTab === 'contact' ? (
           <p style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
-            Har du fragor, synpunkter eller forslag pa forbattringar? Kontakta oss via e-post pa{' '}
+            Har du frågor, synpunkter eller förslag på förbättringar? Kontakta oss via e-post på{' '}
             <a
               href="mailto:kontakt@alltiditid.se"
               style={{ color: '#38bdf8', textDecoration: 'underline' }}
@@ -1121,7 +1121,7 @@ export default function HomePage() {
             color: '#64748b',
           }}
         >
-          <span>2026 alltiditid.se - Alla rattigheter forbehallna.</span>
+          <span>2026 alltiditid.se – Alla rättigheter förbehållna.</span>
           <a
             href="mailto:kontakt@alltiditid.se"
             style={{ color: '#94a3b8', textDecoration: 'none' }}
