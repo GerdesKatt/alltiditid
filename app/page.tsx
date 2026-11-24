@@ -42,16 +42,16 @@ const REGIONS: {
     label: 'Hela Sverige',
     stations: [
       { id: '740000001', name: 'Stockholm Centralstation', shortName: 'Stockholm C' },
-      { id: '740020749', name: 'T-Centralen (Stockholm)', shortName: 'T-Centralen' },
+      { id: '740020749', name: 'T-Centralen', shortName: 'T-Centralen' },
       { id: '740000002', name: 'Göteborg Centralstation', shortName: 'Göteborg C' },
       { id: '740000003', name: 'Malmö Centralstation', shortName: 'Malmö C' },
       { id: '740000120', name: 'Lund Centralstation', shortName: 'Lund C' },
       { id: '740000556', name: 'Stockholm Arlanda Airport', shortName: 'Arlanda' },
     ],
     modes: [
-      { key: 'all', label: 'Alla trafikslag' },
+      { key: 'all', label: 'Alla' },
       { key: 'train', label: 'Tåg' },
-      { key: 'commuter', label: 'Pendel / Lokaltåg' },
+      { key: 'commuter', label: 'Pendel' },
       { key: 'subway', label: 'T-bana' },
       { key: 'tram', label: 'Spårvagn' },
       { key: 'bus', label: 'Buss' },
@@ -59,54 +59,54 @@ const REGIONS: {
   },
   {
     key: 'stockholm',
-    label: 'Stockholm (SL)',
+    label: 'Stockholm',
     stations: [
-      { id: '740020749', name: 'T-Centralen (Stockholm)', shortName: 'T-Centralen' },
+      { id: '740020749', name: 'T-Centralen', shortName: 'T-Centralen' },
       { id: '740000001', name: 'Stockholm Centralstation', shortName: 'Stockholm C' },
-      { id: '740020751', name: 'Slussen (Stockholm)', shortName: 'Slussen' },
-      { id: '740020755', name: 'Odenplan (Stockholm)', shortName: 'Odenplan' },
-      { id: '740020754', name: 'Gullmarsplan (Stockholm)', shortName: 'Gullmarsplan' },
+      { id: '740020751', name: 'Slussen', shortName: 'Slussen' },
+      { id: '740020755', name: 'Odenplan', shortName: 'Odenplan' },
+      { id: '740020754', name: 'Gullmarsplan', shortName: 'Gullmarsplan' },
     ],
     modes: [
-      { key: 'all', label: 'Alla SL & Tåg' },
+      { key: 'all', label: 'Alla' },
       { key: 'subway', label: 'T-bana' },
       { key: 'commuter', label: 'Pendeltåg' },
       { key: 'bus', label: 'SL-buss' },
-      { key: 'tram', label: 'Tvärbanan / Lokal' },
-      { key: 'train', label: 'Fjärr- & Regionaltåg' },
+      { key: 'tram', label: 'Tvärbana/Lokal' },
+      { key: 'train', label: 'Fjärr/Regional' },
     ],
   },
   {
     key: 'goteborg',
-    label: 'Göteborg (Västtrafik)',
+    label: 'Göteborg',
     stations: [
       { id: '740000002', name: 'Göteborg Centralstation', shortName: 'Göteborg C' },
-      { id: '740025614', name: 'Brunnsparken (Göteborg)', shortName: 'Brunnsparken' },
-      { id: '740025624', name: 'Korsvägen (Göteborg)', shortName: 'Korsvägen' },
-      { id: '740025619', name: 'Järntorget (Göteborg)', shortName: 'Järntorget' },
+      { id: '740025614', name: 'Brunnsparken', shortName: 'Brunnsparken' },
+      { id: '740025624', name: 'Korsvägen', shortName: 'Korsvägen' },
+      { id: '740025619', name: 'Järntorget', shortName: 'Järntorget' },
     ],
     modes: [
-      { key: 'all', label: 'All trafik' },
+      { key: 'all', label: 'Alla' },
       { key: 'tram', label: 'Spårvagn' },
       { key: 'bus', label: 'Buss' },
-      { key: 'commuter', label: 'Pendel / Västtåg' },
-      { key: 'ferry', label: 'Båt / Älvsnabben' },
+      { key: 'commuter', label: 'Pendel/Tåg' },
+      { key: 'ferry', label: 'Båt/Färja' },
       { key: 'train', label: 'Fjärrtåg' },
     ],
   },
   {
     key: 'skane',
-    label: 'Skåne (Skånetrafiken)',
+    label: 'Skåne',
     stations: [
       { id: '740000003', name: 'Malmö Centralstation', shortName: 'Malmö C' },
       { id: '740000120', name: 'Lund Centralstation', shortName: 'Lund C' },
-      { id: '740001581', name: 'Triangeln (Malmö)', shortName: 'Triangeln' },
+      { id: '740001581', name: 'Triangeln', shortName: 'Triangeln' },
       { id: '740000044', name: 'Helsingborg Centralstation', shortName: 'Helsingborg C' },
     ],
     modes: [
-      { key: 'all', label: 'All trafik' },
-      { key: 'commuter', label: 'Pågatåg / Öresundståg' },
-      { key: 'bus', label: 'Stads- & Regionbuss' },
+      { key: 'all', label: 'Alla' },
+      { key: 'commuter', label: 'Pågatåg/Öresund' },
+      { key: 'bus', label: 'Buss' },
       { key: 'train', label: 'Fjärrtåg' },
     ],
   },
@@ -208,7 +208,6 @@ export default function HomePage() {
 
   const queryLower = filterText.trim().toLowerCase();
   const filtered = departures.filter((d) => {
-    // Filtrera på valt trafikslag i frontend (ger noll fördröjning vid klick!)
     if (mode !== 'all' && d.transportMode !== mode) {
       return false;
     }
@@ -305,13 +304,13 @@ export default function HomePage() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '14px 18px',
-          marginBottom: '20px',
+          padding: '12px 16px',
+          marginBottom: '16px',
           borderRadius: '16px',
           backgroundColor: 'rgba(15, 23, 42, 0.85)',
           border: '1px solid #1e293b',
           flexWrap: 'wrap',
-          gap: '14px',
+          gap: '12px',
         }}
       >
         <a
@@ -325,9 +324,9 @@ export default function HomePage() {
         >
           <span
             style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '12px',
+              width: '38px',
+              height: '38px',
+              borderRadius: '11px',
               background: 'linear-gradient(135deg, #0284c7 0%, #0f172a 100%)',
               border: '1px solid rgba(56, 189, 248, 0.45)',
               boxShadow: '0 6px 18px rgba(2, 132, 199, 0.28)',
@@ -337,7 +336,7 @@ export default function HomePage() {
               flexShrink: 0,
             }}
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="8.5" stroke="#38bdf8" strokeWidth="2.2" />
               <path
                 d="M12 7.5V12L15.2 14.2"
@@ -353,7 +352,7 @@ export default function HomePage() {
           <span style={{ display: 'flex', flexDirection: 'column' }}>
             <span
               style={{
-                fontSize: '21px',
+                fontSize: '20px',
                 fontWeight: 900,
                 letterSpacing: '-0.03em',
                 lineHeight: 1.1,
@@ -361,11 +360,11 @@ export default function HomePage() {
               }}
             >
               alltid<span style={{ color: '#38bdf8' }}>itid</span>
-              <span style={{ color: '#64748b', fontWeight: 700, fontSize: '16px' }}>.se</span>
+              <span style={{ color: '#64748b', fontWeight: 700, fontSize: '15px' }}>.se</span>
             </span>
             <span
               style={{
-                fontSize: '11px',
+                fontSize: '10px',
                 fontWeight: 600,
                 letterSpacing: '0.04em',
                 textTransform: 'uppercase',
@@ -378,7 +377,7 @@ export default function HomePage() {
           </span>
         </a>
 
-        <nav style={{ display: 'flex', gap: '18px', fontSize: '13px', fontWeight: 600 }}>
+        <nav style={{ display: 'flex', gap: '16px', fontSize: '13px', fontWeight: 600 }}>
           <a href="#avgangstavla" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
             Tidtabell
           </a>
@@ -399,8 +398,8 @@ export default function HomePage() {
         <section
           id="resenar-lage"
           style={{
-            marginBottom: '22px',
-            padding: '20px',
+            marginBottom: '18px',
+            padding: '18px',
             borderRadius: '18px',
             background:
               'linear-gradient(135deg, rgba(2, 132, 199, 0.22) 0%, rgba(15, 23, 42, 0.96) 100%)',
@@ -432,7 +431,7 @@ export default function HomePage() {
               </span>
               <h2
                 style={{
-                  fontSize: '20px',
+                  fontSize: '19px',
                   fontWeight: 800,
                   margin: '4px 0 0 0',
                   color: '#f8fafc',
@@ -453,7 +452,8 @@ export default function HomePage() {
                 {onBoardTrip.directionType === 'arrivals'
                   ? `Från ${onBoardTrip.destination}`
                   : `Från ${selectedStop.name}`}{' '}
-                | {onBoardTrip.line} | {onBoardTrip.operator} | {onBoardTrip.track}
+                | {onBoardTrip.line} | {onBoardTrip.operator}
+                {onBoardTrip.track ? ` | ${onBoardTrip.track}` : ''}
               </div>
             </div>
 
@@ -516,7 +516,7 @@ export default function HomePage() {
             style={{
               width: '100%',
               boxSizing: 'border-box',
-              padding: '11px 14px',
+              padding: '10px 14px',
               borderRadius: '10px',
               border: '1px solid #334155',
               backgroundColor: '#0f172a',
@@ -528,7 +528,7 @@ export default function HomePage() {
 
           <div
             style={{
-              padding: '12px 14px',
+              padding: '11px 14px',
               borderRadius: '10px',
               backgroundColor: 'rgba(15, 23, 42, 0.85)',
               border: '1px solid #1e293b',
@@ -581,9 +581,9 @@ export default function HomePage() {
       <section
         id="sok-och-filter"
         style={{
-          marginBottom: '26px',
-          padding: '24px',
-          borderRadius: '20px',
+          marginBottom: '20px',
+          padding: '18px 20px',
+          borderRadius: '18px',
           background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)',
           border: '1px solid #334155',
           boxShadow: '0 14px 35px rgba(2, 6, 23, 0.45)',
@@ -591,28 +591,27 @@ export default function HomePage() {
       >
         <h1
           style={{
-            fontSize: '30px',
+            fontSize: '26px',
             fontWeight: 900,
             letterSpacing: '-0.02em',
-            margin: '0 0 8px 0',
+            margin: '0 0 4px 0',
             color: '#f8fafc',
           }}
         >
           Koll på resan i realtid
         </h1>
-        <p style={{ color: '#94a3b8', margin: '0 0 18px 0', fontSize: '15px', lineHeight: 1.55 }}>
-          Välj stad eller sök hållplats för att se T-bana, spårvagn, pendel, tåg och buss i realtid.
+        <p style={{ color: '#94a3b8', margin: '0 0 14px 0', fontSize: '14px', lineHeight: 1.45 }}>
+          Välj stad eller sök hållplats för T-bana, spårvagn, pendel, tåg och buss i realtid.
         </p>
 
-        {/* STEG 1: Välj Stad / Region */}
+        {/* Stad + stationer */}
         <div
           style={{
             display: 'flex',
             flexWrap: 'wrap',
+            alignItems: 'center',
             gap: '8px',
-            marginBottom: '16px',
-            paddingBottom: '16px',
-            borderBottom: '1px solid #1e293b',
+            marginBottom: '12px',
           }}
         >
           {REGIONS.map((reg) => {
@@ -623,13 +622,13 @@ export default function HomePage() {
                 type="button"
                 onClick={() => handleRegionChange(reg.key)}
                 style={{
-                  padding: '8px 14px',
-                  borderRadius: '10px',
+                  padding: '6px 12px',
+                  borderRadius: '9px',
                   border: active ? '1px solid #38bdf8' : '1px solid #334155',
                   backgroundColor: active ? 'rgba(56, 189, 248, 0.2)' : '#0f172a',
                   color: active ? '#7dd3fc' : '#94a3b8',
                   fontWeight: 800,
-                  fontSize: '13px',
+                  fontSize: '12px',
                   cursor: 'pointer',
                 }}
               >
@@ -639,8 +638,7 @@ export default function HomePage() {
           })}
         </div>
 
-        {/* STEG 2: Snabbval för stationer i vald stad */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px', marginBottom: '12px' }}>
           {currentRegionObj.stations.map((stop) => {
             const active = selectedStop.id === stop.id;
             return (
@@ -653,13 +651,13 @@ export default function HomePage() {
                   setSuggestions([]);
                 }}
                 style={{
-                  padding: '6px 13px',
+                  padding: '5px 12px',
                   borderRadius: '999px',
                   border: active ? '1px solid #10b981' : '1px solid #334155',
                   backgroundColor: active ? 'rgba(16, 185, 129, 0.18)' : 'rgba(15, 23, 42, 0.7)',
                   color: active ? '#6ee7b7' : '#cbd5e1',
                   fontWeight: 600,
-                  fontSize: '13px',
+                  fontSize: '12px',
                   cursor: 'pointer',
                 }}
               >
@@ -669,28 +667,29 @@ export default function HomePage() {
           })}
         </div>
 
-        {/* STEG 3: Avgångar/Ankomster + Trafikslag anpassade efter staden */}
+        {/* Riktning + trafikslag */}
         <div
           style={{
             display: 'flex',
             flexWrap: 'wrap',
+            alignItems: 'center',
             justifyContent: 'space-between',
             gap: '10px',
-            marginBottom: '16px',
+            marginBottom: '12px',
           }}
         >
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
             <button
               type="button"
               onClick={() => setDirection('departures')}
               style={{
-                padding: '8px 16px',
-                borderRadius: '10px',
+                padding: '7px 14px',
+                borderRadius: '9px',
                 border: direction === 'departures' ? '1px solid #38bdf8' : '1px solid #334155',
                 backgroundColor: direction === 'departures' ? '#0369a1' : '#0f172a',
                 color: '#f8fafc',
                 fontWeight: 800,
-                fontSize: '13px',
+                fontSize: '12px',
                 cursor: 'pointer',
               }}
             >
@@ -700,13 +699,13 @@ export default function HomePage() {
               type="button"
               onClick={() => setDirection('arrivals')}
               style={{
-                padding: '8px 16px',
-                borderRadius: '10px',
+                padding: '7px 14px',
+                borderRadius: '9px',
                 border: direction === 'arrivals' ? '1px solid #10b981' : '1px solid #334155',
                 backgroundColor: direction === 'arrivals' ? '#047857' : '#0f172a',
                 color: '#f8fafc',
                 fontWeight: 800,
-                fontSize: '13px',
+                fontSize: '12px',
                 cursor: 'pointer',
               }}
             >
@@ -714,7 +713,7 @@ export default function HomePage() {
             </button>
           </div>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
             {currentRegionObj.modes.map((m) => {
               const active = mode === m.key;
               return (
@@ -723,13 +722,13 @@ export default function HomePage() {
                   type="button"
                   onClick={() => setMode(m.key)}
                   style={{
-                    padding: '8px 14px',
-                    borderRadius: '10px',
+                    padding: '7px 12px',
+                    borderRadius: '9px',
                     border: active ? '1px solid #38bdf8' : '1px solid #334155',
                     backgroundColor: active ? '#0284c7' : '#0f172a',
                     color: '#f8fafc',
                     fontWeight: 700,
-                    fontSize: '13px',
+                    fontSize: '12px',
                     cursor: 'pointer',
                   }}
                 >
@@ -740,12 +739,12 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* STEG 4: Fritextsök & Filter */}
+        {/* Sök & filter */}
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-            gap: '12px',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gap: '10px',
           }}
         >
           <div style={{ position: 'relative' }}>
@@ -757,12 +756,12 @@ export default function HomePage() {
               style={{
                 width: '100%',
                 boxSizing: 'border-box',
-                padding: '13px 15px',
-                borderRadius: '12px',
+                padding: '11px 14px',
+                borderRadius: '11px',
                 border: '1px solid #38bdf8',
                 backgroundColor: '#0f172a',
                 color: '#f8fafc',
-                fontSize: '14px',
+                fontSize: '13px',
               }}
             />
 
@@ -776,14 +775,14 @@ export default function HomePage() {
                   marginTop: '6px',
                   backgroundColor: '#0f172a',
                   border: '1px solid #38bdf8',
-                  borderRadius: '12px',
+                  borderRadius: '11px',
                   zIndex: 20,
                   overflow: 'hidden',
                   boxShadow: '0 14px 30px rgba(0,0,0,0.65)',
                 }}
               >
                 {searchingStops ? (
-                  <div style={{ padding: '12px 14px', color: '#94a3b8', fontSize: '14px' }}>
+                  <div style={{ padding: '11px 14px', color: '#94a3b8', fontSize: '13px' }}>
                     Söker platser...
                   </div>
                 ) : (
@@ -802,12 +801,12 @@ export default function HomePage() {
                         display: 'block',
                         width: '100%',
                         textAlign: 'left',
-                        padding: '12px 14px',
+                        padding: '11px 14px',
                         backgroundColor: 'transparent',
                         border: 'none',
                         borderBottom: '1px solid #1e293b',
                         color: '#f8fafc',
-                        fontSize: '14px',
+                        fontSize: '13px',
                         cursor: 'pointer',
                       }}
                     >
@@ -827,12 +826,12 @@ export default function HomePage() {
             style={{
               width: '100%',
               boxSizing: 'border-box',
-              padding: '13px 15px',
-              borderRadius: '12px',
+              padding: '11px 14px',
+              borderRadius: '11px',
               border: '1px solid #334155',
               backgroundColor: '#0f172a',
               color: '#f8fafc',
-              fontSize: '14px',
+              fontSize: '13px',
             }}
           />
         </div>
@@ -845,8 +844,8 @@ export default function HomePage() {
             backgroundColor: 'rgba(120, 53, 15, 0.35)',
             border: '1px solid #d97706',
             borderRadius: '14px',
-            padding: '14px 18px',
-            marginBottom: '22px',
+            padding: '13px 16px',
+            marginBottom: '18px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -854,7 +853,7 @@ export default function HomePage() {
             flexWrap: 'wrap',
           }}
         >
-          <span style={{ fontSize: '14px', color: '#fde68a', fontWeight: 500 }}>
+          <span style={{ fontSize: '13px', color: '#fde68a', fontWeight: 500 }}>
             Försenad eller inställd avgång? Se vilka rättigheter du har vid trafikstörningar.
           </span>
           <a
@@ -865,8 +864,8 @@ export default function HomePage() {
               backgroundColor: '#f59e0b',
               color: '#0f172a',
               fontWeight: 800,
-              fontSize: '13px',
-              padding: '7px 14px',
+              fontSize: '12px',
+              padding: '7px 13px',
               borderRadius: '8px',
               textDecoration: 'none',
             }}
@@ -876,13 +875,13 @@ export default function HomePage() {
         </div>
       ) : null}
 
-      <section id="avgangstavla" style={{ marginBottom: '40px' }}>
+      <section id="avgangstavla" style={{ marginBottom: '36px' }}>
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: '14px',
+            marginBottom: '12px',
             flexWrap: 'wrap',
             gap: '8px',
           }}
@@ -891,8 +890,8 @@ export default function HomePage() {
             <span style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>
               {direction === 'arrivals' ? 'Visar ankomster till' : 'Visar avgångar från'}
             </span>
-            <h2 style={{ fontSize: '21px', fontWeight: 800, margin: 0, color: '#f8fafc' }}>
-              {selectedStop.name}
+            <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0, color: '#f8fafc' }}>
+              {selectedStop.name} ({filtered.length})
             </h2>
           </div>
 
@@ -951,7 +950,7 @@ export default function HomePage() {
             <strong>Alla</strong> eller byt station.
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
             {filtered.map((item) => {
               const isDelayed = item.status === 'delayed';
               const isCancelled = item.status === 'cancelled';
@@ -981,26 +980,28 @@ export default function HomePage() {
                   }`
                 : 'I tid';
 
+              const metaParts = [item.line, item.operator, item.track].filter(Boolean);
+
               return (
                 <div
                   key={item.id}
                   style={{
                     backgroundColor: isSelectedTrip ? 'rgba(2, 132, 199, 0.14)' : '#0f172a',
                     border: isSelectedTrip ? '1px solid #38bdf8' : '1px solid #1e293b',
-                    borderRadius: '14px',
-                    padding: '15px 18px',
+                    borderRadius: '13px',
+                    padding: '13px 16px',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    gap: '14px',
+                    gap: '12px',
                     flexWrap: 'wrap',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                     <div
                       style={{
-                        minWidth: '88px',
-                        paddingRight: '14px',
+                        minWidth: '82px',
+                        paddingRight: '12px',
                         borderRight: '1px solid #1e293b',
                       }}
                     >
@@ -1009,7 +1010,7 @@ export default function HomePage() {
                       </div>
                       <div
                         style={{
-                          fontSize: '19px',
+                          fontSize: '18px',
                           fontWeight: 800,
                           fontVariantNumeric: 'tabular-nums',
                           textDecoration:
@@ -1021,7 +1022,7 @@ export default function HomePage() {
                         {item.scheduledTime}
                       </div>
                       {displayedNewTime ? (
-                        <div style={{ marginTop: '4px' }}>
+                        <div style={{ marginTop: '3px' }}>
                           <span
                             style={{
                               display: 'block',
@@ -1034,7 +1035,7 @@ export default function HomePage() {
                           </span>
                           <span
                             style={{
-                              fontSize: '16px',
+                              fontSize: '15px',
                               fontWeight: 800,
                               fontVariantNumeric: 'tabular-nums',
                               color: '#fbbf24',
@@ -1047,17 +1048,29 @@ export default function HomePage() {
                     </div>
 
                     <div>
-                      <div style={{ fontSize: '16px', fontWeight: 700, color: '#f8fafc' }}>
+                      <div style={{ fontSize: '15px', fontWeight: 700, color: '#f8fafc' }}>
                         {direction === 'arrivals' ? `Från ${item.destination}` : item.destination}
                       </div>
-                      <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '3px' }}>
-                        <span style={{ color: '#38bdf8', fontWeight: 600 }}>{item.line}</span>{' '}
-                        | {item.operator} | {item.track}
+                      <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '3px' }}>
+                        {metaParts.map((part, i) => (
+                          <React.Fragment key={i}>
+                            {i > 0 ? ' | ' : ''}
+                            <span
+                              style={
+                                i === 0
+                                  ? { color: '#38bdf8', fontWeight: 600 }
+                                  : undefined
+                              }
+                            >
+                              {part}
+                            </span>
+                          </React.Fragment>
+                        ))}
                       </div>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' }}>
                     <button
                       type="button"
                       onClick={() => handleSelectOnBoard(item)}
@@ -1080,7 +1093,7 @@ export default function HomePage() {
                         backgroundColor: badgeBg,
                         border: `1px solid ${badgeBorder}`,
                         color: badgeColor,
-                        padding: '6px 12px',
+                        padding: '5px 11px',
                         borderRadius: '999px',
                         fontSize: '12px',
                         fontWeight: 700,
@@ -1103,8 +1116,8 @@ export default function HomePage() {
           backgroundColor: '#0f172a',
           border: '1px solid #1e293b',
           borderRadius: '16px',
-          padding: '22px',
-          marginBottom: '28px',
+          padding: '20px',
+          marginBottom: '26px',
         }}
       >
         <h2 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 10px 0', color: '#f8fafc' }}>
@@ -1127,7 +1140,7 @@ export default function HomePage() {
         id="sidfot"
         style={{
           borderTop: '1px solid #1e293b',
-          paddingTop: '22px',
+          paddingTop: '20px',
           paddingBottom: '24px',
           color: '#94a3b8',
           fontSize: '13px',
