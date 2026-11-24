@@ -45,16 +45,23 @@ function cleanPlaceName(rawName) {
     .trim();
 }
 
+function normalizeStationKey(name) {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/\b(centralstation|central|station|c)\b/gi, '')
+    .replace(/[^a-zåäö0-9]/gi, '')
+    .trim();
+}
+
 function classifyTransportMode(catCode, catOut) {
   const code = String(catCode || '').trim();
   const label = String(catOut || '').toLowerCase();
 
-  // 5 = Metro / Tunnelbana
   if (code === '5' || label.includes('tunnelbana') || label.includes('metro')) {
     return 'subway';
   }
 
-  // 6 = Tram / Spårvagn / Tvärbanan
   if (
     code === '6' ||
     label.includes('spårvagn') ||
@@ -65,7 +72,6 @@ function classifyTransportMode(catCode, catOut) {
     return 'tram';
   }
 
-  // 4 = Local trains / Pendeltåg / Pågatåg / Öresundståg
   if (
     code === '4' ||
     label.includes('pendel') ||
@@ -75,7 +81,6 @@ function classifyTransportMode(catCode, catOut) {
     return 'commuter';
   }
 
-  // 1 & 2 = High speed & Regional trains / Fjärrtåg
   if (
     ['1', '2'].includes(code) ||
     label.includes('tåg') ||
@@ -87,12 +92,10 @@ function classifyTransportMode(catCode, catOut) {
     return 'train';
   }
 
-  // 3 & 7 = Express buses & Local buses / Buss
   if (['3', '7'].includes(code) || label.includes('buss') || label.includes('bus')) {
     return 'bus';
   }
 
-  // 8 = Ferries / Båt / Färja
   if (code === '8' || label.includes('färja') || label.includes('båt') || label.includes('ferry')) {
     return 'ferry';
   }
@@ -100,17 +103,75 @@ function classifyTransportMode(catCode, catOut) {
   return 'other';
 }
 
-async function fetchTrafikverketTrainUpdates(trafikverketKey, trainNumbers, activityType) {
-  const updatesByTrain = new Map();
+async function resolveLocationSignature(trafikverketKey, stopName) {
+  const targetKey = normalizeStationKey(stopName);
+  if (!trafikverketKey || !targetKey) return '';
+
+  const xmlBody = `<REQUEST>
+  <LOGIN authenticationkey="${trafikverketKey}" />
+  <QUERY objecttype="TrainStation" schemaversion="1.0" limit="50">
+    <FILTER>
+      <EQ name="Advertised" value="true" />
+    </FILTER>
+    <INCLUDE>LocationSignature</INCLUDE>
+    <INCLUDE>AdvertisedLocationName</INCLUDE>
+  </QUERY>
+</REQUEST>`;
+
+  try {
+    const res = await fetch('https://api.trafikinfo.trafikverket.se/v2/data.json', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/xml; charset=utf-8' },
+      body: xmlBody,
+    });
+    if (!res.ok) return '';
+
+    const data = await res.json();
+    const stations = data?.RESPONSE?.RESULT?.[0]?.TrainStation || [];
+
+    for (const st of stations) {
+      const advName = String(st.AdvertisedLocationName || '');
+      if (normalizeStationKey(advName) === targetKey && st.LocationSignature) {
+        return String(st.LocationSignature).trim();
+      }
+    }
+
+    for (const st of stations) {
+      const advName = String(st.AdvertisedLocationName || '');
+      const stKey = normalizeStationKey(advName);
+      if (
+        stKey &&
+        (stKey.includes(targetKey) || targetKey.includes(stKey)) &&
+        st.LocationSignature
+      ) {
+        return String(st.LocationSignature).trim();
+      }
+    }
+  } catch {
+    // Ignorera uppslagsfel
+  }
+
+  return '';
+}
+
+async function fetchTrafikverketStationUpdates(
+  trafikverketKey,
+  stopName,
+  trainNumbers,
+  activityType
+) {
+  const updatesMap = new Map();
   if (!trafikverketKey || !Array.isArray(trainNumbers) || trainNumbers.length === 0) {
-    return updatesByTrain;
+    return updatesMap;
   }
 
   const uniqueTrains = Array.from(
     new Set(trainNumbers.map((n) => String(n || '').trim()).filter(Boolean))
-  ).slice(0, 20);
+  ).slice(0, 25);
 
-  if (uniqueTrains.length === 0) return updatesByTrain;
+  if (uniqueTrains.length === 0) return updatesMap;
+
+  const locationSignature = await resolveLocationSignature(trafikverketKey, stopName);
 
   const now = Date.now();
   const fromIso = new Date(now - 2 * 60 * 60 * 1000).toISOString();
@@ -124,12 +185,17 @@ async function fetchTrafikverketTrainUpdates(trafikverketKey, trainNumbers, acti
     )
     .join('');
 
+  const locationFilter = locationSignature
+    ? `<EQ name="LocationSignature" value="${locationSignature}" />`
+    : '';
+
   const xmlBody = `<REQUEST>
   <LOGIN authenticationkey="${trafikverketKey}" />
-  <QUERY objecttype="TrainAnnouncement" schemaversion="1.9" limit="150">
+  <QUERY objecttype="TrainAnnouncement" schemaversion="1.9" limit="200">
     <FILTER>
       <AND>
         <EQ name="ActivityType" value="${tvActivity}" />
+        ${locationFilter}
         <GTE name="AdvertisedTimeAtLocation" value="${fromIso}" />
         <LTE name="AdvertisedTimeAtLocation" value="${toIso}" />
         <OR>${trainCriteria}</OR>
@@ -141,6 +207,7 @@ async function fetchTrafikverketTrainUpdates(trafikverketKey, trainNumbers, acti
     <INCLUDE>TimeAtLocation</INCLUDE>
     <INCLUDE>Canceled</INCLUDE>
     <INCLUDE>TrackAtLocation</INCLUDE>
+    <INCLUDE>Deviation</INCLUDE>
   </QUERY>
 </REQUEST>`;
 
@@ -153,7 +220,7 @@ async function fetchTrafikverketTrainUpdates(trafikverketKey, trainNumbers, acti
       body: xmlBody,
     });
 
-    if (!tvRes.ok) return updatesByTrain;
+    if (!tvRes.ok) return updatesMap;
 
     const tvData = await tvRes.json();
     const announcements = tvData?.RESPONSE?.RESULT?.[0]?.TrainAnnouncement || [];
@@ -167,37 +234,51 @@ async function fetchTrafikverketTrainUpdates(trafikverketKey, trainNumbers, acti
         ann.EstimatedTimeAtLocation || ann.TimeAtLocation || ''
       );
       const isCanceled = Boolean(ann.Canceled);
+      const deviationText = Array.isArray(ann.Deviation)
+        ? ann.Deviation.map((d) => String(d || '').trim())
+            .filter(Boolean)
+            .join(', ')
+        : String(ann.Deviation || '').trim();
 
-      const current = updatesByTrain.get(ident) || {
+      const key = `${ident}|${advClock}`;
+      const existing = updatesMap.get(key) || updatesMap.get(ident) || {
         newTime: '',
         delayMinutes: 0,
         cancelled: false,
         track: '',
+        deviation: '',
       };
 
       if (isCanceled) {
-        current.cancelled = true;
+        existing.cancelled = true;
       }
 
       if (ann.TrackAtLocation) {
-        current.track = String(ann.TrackAtLocation).trim();
+        existing.track = String(ann.TrackAtLocation).trim();
+      }
+
+      if (deviationText) {
+        existing.deviation = deviationText;
       }
 
       if (estClock && advClock) {
         const diff = getDelayMinutes(advClock, estClock);
-        if (diff !== null && diff > 0 && diff > current.delayMinutes) {
-          current.newTime = estClock;
-          current.delayMinutes = diff;
+        if (diff !== null && diff > 0) {
+          existing.newTime = estClock;
+          existing.delayMinutes = diff;
         }
       }
 
-      updatesByTrain.set(ident, current);
+      if (advClock) {
+        updatesMap.set(key, existing);
+      }
+      updatesMap.set(ident, existing);
     }
   } catch {
     // Fortsätt med ResRobot-data om Trafikverket inte svarar
   }
 
-  return updatesByTrain;
+  return updatesMap;
 }
 
 export async function onRequest(context) {
@@ -261,6 +342,7 @@ export async function onRequest(context) {
     }
 
     const stopId = url.searchParams.get('stopId') || '740000001';
+    const stopName = url.searchParams.get('stopName') || '';
     const mode = url.searchParams.get('mode') || 'all';
     const direction = url.searchParams.get('direction') || 'departures';
 
@@ -293,7 +375,12 @@ export async function onRequest(context) {
     });
 
     const tvUpdates = trafikverketKey
-      ? await fetchTrafikverketTrainUpdates(trafikverketKey, trainNumbersToCheck, direction)
+      ? await fetchTrafikverketStationUpdates(
+          trafikverketKey,
+          stopName,
+          trainNumbersToCheck,
+          direction
+        )
       : new Map();
 
     const mapped = rawList
@@ -320,7 +407,7 @@ export async function onRequest(context) {
         const trainNumber = String(prod.num || prod.displayNumber || '').trim();
         const tvMatch =
           (itemMode === 'train' || itemMode === 'commuter') && trainNumber
-            ? tvUpdates.get(trainNumber)
+            ? tvUpdates.get(`${trainNumber}|${scheduledTime}`) || tvUpdates.get(trainNumber)
             : null;
 
         if (tvMatch) {
@@ -329,7 +416,7 @@ export async function onRequest(context) {
           }
           if (tvMatch.newTime && tvMatch.newTime !== scheduledTime) {
             const tvDiff = getDelayMinutes(scheduledTime, tvMatch.newTime);
-            if (tvDiff !== null && tvDiff > 0 && tvDiff > delayMin) {
+            if (tvDiff !== null && tvDiff > 0) {
               newTime = tvMatch.newTime;
               delayMin = tvDiff;
             }
@@ -367,6 +454,9 @@ export async function onRequest(context) {
         ).trim();
         const trackLabel = trackValue ? `Spår/Läge ${trackValue}` : '';
 
+        const deviationLabel =
+          tvMatch && tvMatch.deviation ? tvMatch.deviation : '';
+
         return {
           id: `${idx}-${scheduledTime}-${trainNumber}`,
           line:
@@ -382,6 +472,7 @@ export async function onRequest(context) {
           delayMinutes: isDelayed && delayMin > 0 ? delayMin : 0,
           status: isCancelled ? 'cancelled' : isDelayed ? 'delayed' : 'on-time',
           track: trackLabel,
+          deviation: deviationLabel,
           viaStops,
           directionType: direction,
           transportMode: itemMode,
