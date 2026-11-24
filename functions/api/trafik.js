@@ -37,6 +37,40 @@ function extractClockTime(isoOrDateTimeStr) {
   return hhmm ? hhmm[1] : '';
 }
 
+function classifyTransportMode(catCode, catOut) {
+  const code = String(catCode || '').trim();
+  const label = String(catOut || '').toLowerCase();
+
+  const isSubway =
+    code === '3' ||
+    label.includes('tunnelbana') ||
+    label.includes('subway') ||
+    label.includes('metro') ||
+    label.includes('spårväg') ||
+    label.includes('sparvag') ||
+    label.includes('tram');
+
+  if (isSubway) return 'subway';
+
+  const isBus =
+    ['5', '6', '7'].includes(code) ||
+    label.includes('buss') ||
+    label.includes('bus');
+
+  if (isBus) return 'bus';
+
+  const isTrain =
+    ['1', '2', '4'].includes(code) ||
+    label.includes('tåg') ||
+    label.includes('tag') ||
+    label.includes('train') ||
+    label.includes('pendel');
+
+  if (isTrain) return 'train';
+
+  return 'other';
+}
+
 async function fetchTrafikverketTrainUpdates(trafikverketKey, trainNumbers, activityType) {
   const updatesByTrain = new Map();
   if (!trafikverketKey || !Array.isArray(trainNumbers) || trainNumbers.length === 0) {
@@ -176,7 +210,7 @@ export async function onRequest(context) {
       const res = await fetch(stopUrl);
       if (!res.ok) {
         return new Response(
-          JSON.stringify({ error: `Trafiklab sokfel (status ${res.status})` }),
+          JSON.stringify({ error: `Trafiklab sökfel (status ${res.status})` }),
           { status: 502, headers }
         );
       }
@@ -241,21 +275,10 @@ export async function onRequest(context) {
       .map((item, idx) => {
         const prod = Array.isArray(item.Product) ? item.Product[0] : item.Product || {};
         const catCode = String(prod.catCode || '');
-        const catOut = String(prod.catOut || prod.catOutL || '').toLowerCase();
+        const catOut = String(prod.catOut || prod.catOutL || '');
+        const itemMode = classifyTransportMode(catCode, catOut);
 
-        const isTrain =
-          ['1', '2', '3', '4'].includes(catCode) ||
-          catOut.includes('tag') ||
-          catOut.includes('tåg') ||
-          catOut.includes('train') ||
-          catOut.includes('pendel');
-        const isBus =
-          ['5', '6', '7'].includes(catCode) ||
-          catOut.includes('buss') ||
-          catOut.includes('bus');
-
-        if (mode === 'train' && !isTrain) return null;
-        if (mode === 'bus' && !isBus) return null;
+        if (mode !== 'all' && itemMode !== mode) return null;
 
         const scheduledTime = String(item.time || '').slice(0, 5);
         const rtTimeRaw = String(item.rtTime || '').slice(0, 5);
@@ -270,7 +293,8 @@ export async function onRequest(context) {
         let isCancelled = Boolean(item.cancelled);
 
         const trainNumber = String(prod.num || prod.displayNumber || '').trim();
-        const tvMatch = trainNumber ? tvUpdates.get(trainNumber) : null;
+        const tvMatch =
+          itemMode === 'train' && trainNumber ? tvUpdates.get(trainNumber) : null;
 
         if (tvMatch) {
           if (tvMatch.cancelled) {
@@ -293,9 +317,9 @@ export async function onRequest(context) {
 
         const estimatedTime = newTime || scheduledTime;
 
-        const lineName = String(prod.name || prod.line || trainNumber || 'Avgang').trim();
+        const lineName = String(prod.name || prod.line || trainNumber || 'Avgång').trim();
         const operator = String(
-          prod.operator || prod.operatorInfo?.name || 'Trafikoperator'
+          prod.operator || prod.operatorInfo?.name || 'Trafikoperatör'
         ).trim();
 
         const stopsRaw = item.Stops?.Stop;
@@ -305,14 +329,14 @@ export async function onRequest(context) {
 
         const title =
           direction === 'arrivals'
-            ? String(item.origin || 'Okand avgangsort')
-            : String(item.direction || 'Okand destination');
+            ? String(item.origin || 'Okänd avgångsort')
+            : String(item.direction || 'Okänd destination');
 
         const trackValue =
           item.rtTrack || item.track || (tvMatch && tvMatch.track) || '';
         const trackLabel = trackValue
-          ? `Spar/Lage ${trackValue}`
-          : 'Spar ej angivet';
+          ? `Spår/Läge ${trackValue}`
+          : 'Spår ej angivet';
 
         return {
           id: `${idx}-${scheduledTime}-${trainNumber}`,
@@ -331,6 +355,7 @@ export async function onRequest(context) {
           track: trackLabel,
           viaStops,
           directionType: direction,
+          transportMode: itemMode,
         };
       })
       .filter(Boolean);
@@ -341,7 +366,7 @@ export async function onRequest(context) {
     });
   } catch (err) {
     return new Response(
-      JSON.stringify({ error: 'Ett fel uppstod vid hamtning av trafikdata.' }),
+      JSON.stringify({ error: 'Ett fel uppstod vid hämtning av trafikdata.' }),
       { status: 500, headers }
     );
   }
