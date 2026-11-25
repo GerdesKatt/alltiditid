@@ -1,0 +1,27 @@
+/*
+ * Globala stilar. Det mesta ligger fortfarande inline i komponenterna; här finns
+ * det som inline-stilar inte klarar: mediafrågor och sticky-beteende.
+ */
+
+/* "Byt hållplats": överst på desktop, fast längst ner på mobilen där tummen når. */
+.switch-stop {
+  margin: 0 0 16px 0;
+}
+
+.switch-stop--bottom {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .switch-stop--top {
+    display: none;
+  }
+
+  .switch-stop--bottom {
+    display: block;
+    position: sticky;
+    bottom: 12px;
+    z-index: 30;
+    margin: 8px 0 24px 0;
+  }
+}

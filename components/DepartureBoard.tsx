@@ -1,11 +1,13 @@
 import React from 'react';
 import type { BoardDirection, BoardSource, Departure } from '../lib/types';
 import DepartureRow from './DepartureRow';
+import DirectionToggle from './DirectionToggle';
 import { colors, emptyState } from './styles';
 
 type Props = {
   stopName: string;
   direction: BoardDirection;
+  onDirectionChange: (direction: BoardDirection) => void;
   departures: Departure[];
   loading: boolean;
   errorMsg: string | null;
@@ -21,6 +23,7 @@ const STALE_AFTER_MS = 2 * 60_000;
 export default function DepartureBoard({
   stopName,
   direction,
+  onDirectionChange,
   departures,
   loading,
   errorMsg,
@@ -38,7 +41,7 @@ export default function DepartureBoard({
   const limited = source === 'resrobot';
 
   return (
-    <section id="avgangstavla" style={{ marginBottom: '36px' }}>
+    <section id="avgangstavla" style={{ marginBottom: '36px', scrollMarginTop: '12px' }}>
       <div
         style={{
           display: 'flex',
@@ -49,14 +52,16 @@ export default function DepartureBoard({
           gap: '8px',
         }}
       >
-        <div>
+        <div style={{ flexBasis: '100%' }}>
           <span style={{ fontSize: '12px', color: colors.textDim, display: 'block' }}>
             {direction === 'arrivals' ? 'Visar ankomster till' : 'Visar avgångar från'}
           </span>
-          <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0, color: colors.text }}>
-            {stopName} ({departures.length})
+          <h2 style={{ fontSize: '22px', fontWeight: 800, margin: 0, color: colors.text }}>
+            {stopName}
           </h2>
         </div>
+
+        <DirectionToggle direction={direction} onChange={onDirectionChange} />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {updatedAt ? (

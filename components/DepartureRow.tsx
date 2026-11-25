@@ -16,6 +16,9 @@ const STATUS_COLORS = {
   scheduled: { bg: 'rgba(30, 41, 59, 0.9)', border: '#475569', text: '#cbd5e1' },
 } as const;
 
+/** Från så här många minuters försening visas en länk om reseersättning. */
+const COMPENSATION_DELAY_MIN = 20;
+
 export default function DepartureRow({ item, direction, isSelectedTrip, onSelectOnBoard }: Props) {
   const isDelayed = item.status === 'delayed';
   const isCancelled = item.status === 'cancelled';
@@ -116,6 +119,22 @@ export default function DepartureRow({ item, direction, isSelectedTrip, onSelect
               </React.Fragment>
             ))}
           </div>
+          {isCancelled || (isDelayed && (item.delayMinutes || 0) >= COMPENSATION_DELAY_MIN) ? (
+            <a
+              href="https://www.hallakonsument.se/varor-och-tjanster/resor/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-block',
+                marginTop: '4px',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: colors.amber,
+              }}
+            >
+              Rätt till ersättning?
+            </a>
+          ) : null}
           {item.deviation ? (
             <div
               style={{
