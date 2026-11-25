@@ -38,7 +38,13 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
     : minutesLeft <= 0
     ? 'Nu'
     : `${minutesLeft} min`;
-  const showClockUnder = !isCancelled && bigTime !== clock;
+  // Bokade tåg (fjärr- och regionaltåg) visas som på stationsskylten och biljetten:
+  // ordinarie avgångstid stort, nedräkningen smått. Lokaltrafik tvärtom.
+  const booked = item.transportMode === 'train';
+  const countdown =
+    minutesLeft === null || minutesLeft >= COUNTDOWN_MAX_MIN ? '' : minutesLeft <= 0 ? 'nu' : `om ${minutesLeft} min`;
+  // Ordinarie tid → väntad tid, när de skiljer sig (t.ex. en buss 2 min sen: "18:35 → 18:37").
+  const shifted = !isCancelled && !isDelayed && clock !== item.scheduledTime;
 
   const badge = lineBadge(item.line);
   const name = lineName(item.line, badge);
@@ -47,8 +53,11 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
   const compensation =
     isCancelled || (isDelayed && (item.delayMinutes || 0) >= COMPENSATION_DELAY_MIN);
 
+  const shownBig = booked ? item.scheduledTime : bigTime;
   const timeColor = isCancelled
     ? colors.cancelledText
+    : isDelayed && booked
+    ? colors.text // den ordinarie tiden står kvar; "Ny tid" är orange under
     : isDelayed
     ? colors.amber
     : onlySchedule
@@ -61,7 +70,11 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
       ? `inställd, ordinarie tid ${item.scheduledTime}`
       : isDelayed
       ? `försenad${item.delayMinutes ? ` ${item.delayMinutes} min` : ''}, ny tid ${newTime}, ordinarie ${item.scheduledTime}`
-      : `${bigTime === 'Nu' ? 'avgår nu' : bigTime}${early ? `, ${early} min tidig` : ''}${
+      : `${
+          booked
+            ? `avgår ${item.scheduledTime}${countdown ? `, ${countdown}` : ''}`
+            : `${bigTime === 'Nu' ? 'avgår nu' : bigTime}, ordinarie ${item.scheduledTime}`
+        }${shifted && !early ? `, väntas ${clock}` : ''}${early ? `, ${early} min tidig, väntas ${clock}` : ''}${
           onlySchedule ? ', enligt tidtabell' : ''
         }`
   }${details ? `, ${details}` : ''}${item.deviation ? `, ${item.deviation}` : ''}`;
@@ -165,7 +178,7 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
               whiteSpace: 'nowrap',
             }}
           >
-            {bigTime}
+            {shownBig}
           </span>
           <span
             style={{
@@ -179,6 +192,15 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
           >
             {isCancelled ? (
               'Inställd'
+            ) : booked ? (
+              // Bokat tåg: ordinarie tid står stort ovanför.
+              <>
+                {isDelayed ? `Ny tid ${newTime}${item.delayMinutes ? ` +${item.delayMinutes}` : ''}` : ''}
+                {early ? <span style={{ color: colors.okText }}>{`${clock} · ${early} min tidig`}</span> : ''}
+                {(isDelayed || early) && countdown ? ' · ' : ''}
+                {countdown}
+                {onlySchedule ? `${countdown ? ' · ' : ''}tidtabell` : ''}
+              </>
             ) : isDelayed ? (
               <>
                 <s style={{ color: colors.textFaint }}>{item.scheduledTime}</s> {newTime}
@@ -186,14 +208,18 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
               </>
             ) : early ? (
               <span style={{ color: colors.okText }}>
-                {showClockUnder ? `${clock} · ` : ''}
-                {early} min tidig
+                {item.scheduledTime} → {clock} · {early} min tidig
               </span>
-            ) : onlySchedule ? (
-              `${showClockUnder ? `${item.scheduledTime} · ` : ''}tidtabell`
-            ) : showClockUnder ? (
-              clock
-            ) : null}
+            ) : bigTime === clock ? (
+              // Långt fram står klockslaget redan stort.
+              onlySchedule ? 'tidtabell' : null
+            ) : (
+              <>
+                {item.scheduledTime}
+                {shifted ? ` → ${clock}` : ''}
+                {onlySchedule ? ' · tidtabell' : ''}
+              </>
+            )}
           </span>
         </span>
       </button>
