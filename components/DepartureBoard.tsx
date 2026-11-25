@@ -9,6 +9,7 @@ type Props = {
   departures: Departure[];
   loading: boolean;
   errorMsg: string | null;
+  updatedAt: Date | null;
   selectedTripId: string | null;
   onSelectOnBoard: (item: Departure) => void;
 };
@@ -19,6 +20,7 @@ export default function DepartureBoard({
   departures,
   loading,
   errorMsg,
+  updatedAt,
   selectedTripId,
   onSelectOnBoard,
 }: Props) {
@@ -43,19 +45,26 @@ export default function DepartureBoard({
           </h2>
         </div>
 
-        <span
-          style={{
-            fontSize: '12px',
-            fontWeight: 700,
-            padding: '5px 11px',
-            borderRadius: '999px',
-            backgroundColor: 'rgba(6, 78, 59, 0.75)',
-            border: '1px solid #059669',
-            color: colors.greenSoft,
-          }}
-        >
-          Live från Trafiklab
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {updatedAt ? (
+            <span style={{ fontSize: '12px', color: colors.textFaint }}>
+              Uppdaterad {updatedAt.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          ) : null}
+          <span
+            style={{
+              fontSize: '12px',
+              fontWeight: 700,
+              padding: '5px 11px',
+              borderRadius: '999px',
+              backgroundColor: 'rgba(6, 78, 59, 0.75)',
+              border: '1px solid #059669',
+              color: colors.greenSoft,
+            }}
+          >
+            Live från Trafiklab
+          </span>
+        </div>
       </div>
 
       {errorMsg ? (
@@ -90,6 +99,19 @@ export default function DepartureBoard({
           ))}
         </div>
       )}
+
+      <p style={{ fontSize: '11px', color: colors.textFaint, margin: '12px 0 0 0' }}>
+        Trafikdata från{' '}
+        <a
+          href="https://www.trafiklab.se"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: colors.textDim }}
+        >
+          Trafiklab.se
+        </a>{' '}
+        och Trafikverket. Avgångar markerade &quot;Enligt tidtabell&quot; saknar realtidsdata.
+      </p>
     </section>
   );
 }

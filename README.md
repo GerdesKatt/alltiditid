@@ -16,7 +16,7 @@ Avgångar och ankomster i realtid för kollektivtrafik i hela Sverige: tåg, pen
 | --- | --- |
 | Frontend | Next.js 14 (App Router), React 18, TypeScript, statisk export (`output: 'export'`) |
 | API | Cloudflare Pages Function i `functions/api/trafik.js` (nås på `/api/trafik`) |
-| Datakällor | [Trafiklab ResRobot](https://www.trafiklab.se/) (hållplatser och tavlor) och [Trafikverkets öppna API](https://api.trafikinfo.trafikverket.se/) (tåginfo) |
+| Datakällor | [Trafiklab Realtime APIs](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/) (tavlor och hållplatser, med ResRobot som reserv) och [Trafikverkets öppna API](https://api.trafikinfo.trafikverket.se/) (tåg) |
 | Hosting | Cloudflare Pages |
 
 ## Projektstruktur
@@ -57,11 +57,19 @@ Sätts i Cloudflare Pages under *Settings → Environment variables* (lägg dem 
 
 | Variabel | Krävs | Beskrivning |
 | --- | --- | --- |
-| `TRAFIKLAB_RESROBOT_KEY` | Ja* | Nyckel till ResRobot v2.1 från Trafiklab |
-| `TRAFIKLAB_API_KEY` / `TRAFIKLAB_REALTIME_KEY` | | Alternativa namn som också läses om ovanstående saknas |
-| `TRAFIKVERKET_API_KEY` | Nej | Ger extra tåginfo (spår, avvikelser) från Trafikverket |
+| `TRAFIKLAB_REALTIME_API_KEY` | Ja* | Nyckel till Trafiklab Realtime APIs. Förstahandskälla för tavlor och hållplatssök |
+| `TRAFIKLAB_RESROBOT_KEY` | Ja* | Nyckel till ResRobot v2.1. Används som reserv om Realtime-nyckeln saknas eller API:et inte svarar |
+| `TRAFIKLAB_API_KEY` / `TRAFIKLAB_REALTIME_KEY` | | Äldre namn för ResRobot-nyckeln, läses om `TRAFIKLAB_RESROBOT_KEY` saknas |
+| `TRAFIKVERKET_API_KEY` | Nej | Realtid, spår, inställda tåg och avvikelser för all tågtrafik från Trafikverket |
 
 \* Minst en av Trafiklab-nycklarna måste finnas.
+
+### Varifrån förseningarna kommer
+
+- **Tåg:** Trafikverket (matchas på tågnummer, station och ordinarie tid). Saknas matchning används Trafiklab.
+- **Buss, T-bana, spårvagn, båt:** Trafiklab Realtime APIs. Realtid finns bara för de operatörer som levererar det till Trafiklab (t.ex. SL, Skånetrafiken, UL, Östgötatrafiken). Västtrafik har i dag bara tidtabell där.
+- Avgångar utan realtidsdata visas som **"Enligt tidtabell"** i stället för "I tid".
+- Tavlan uppdateras automatiskt varje minut medan fliken är öppen. Svaren cachas i Cloudflare i 45 sekunder så att kvoten räcker.
 
 ## Kör lokalt
 
@@ -74,7 +82,7 @@ npm run dev        # bara frontend, http://localhost:3000
 
 ```bash
 npm run build
-echo 'TRAFIKLAB_RESROBOT_KEY=din-nyckel' > .dev.vars
+printf 'TRAFIKLAB_REALTIME_API_KEY=din-nyckel\nTRAFIKVERKET_API_KEY=din-nyckel\n' > .dev.vars
 npx wrangler pages dev out
 ```
 

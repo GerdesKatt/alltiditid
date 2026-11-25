@@ -13,6 +13,7 @@ const STATUS_COLORS = {
   cancelled: { bg: 'rgba(127, 29, 29, 0.8)', border: '#dc2626', text: '#fca5a5' },
   delayed: { bg: 'rgba(120, 53, 15, 0.85)', border: '#d97706', text: '#fcd34d' },
   'on-time': { bg: 'rgba(6, 78, 59, 0.7)', border: '#059669', text: '#6ee7b7' },
+  scheduled: { bg: 'rgba(30, 41, 59, 0.9)', border: '#475569', text: '#cbd5e1' },
 } as const;
 
 export default function DepartureRow({ item, direction, isSelectedTrip, onSelectOnBoard }: Props) {
@@ -20,11 +21,19 @@ export default function DepartureRow({ item, direction, isSelectedTrip, onSelect
   const isCancelled = item.status === 'cancelled';
   const displayedNewTime = isDelayed ? item.newTime || item.estimatedTime : '';
 
-  const badge = STATUS_COLORS[isCancelled ? 'cancelled' : isDelayed ? 'delayed' : 'on-time'];
+  // Utan realtidsdata vet vi inte om avgången är i tid – visa då bara tidtabellen.
+  const onlySchedule = !isCancelled && !isDelayed && item.hasRealtime === false;
+
+  const badge =
+    STATUS_COLORS[
+      isCancelled ? 'cancelled' : isDelayed ? 'delayed' : onlySchedule ? 'scheduled' : 'on-time'
+    ];
   const statusLabel = isCancelled
     ? 'Inställd'
     : isDelayed
     ? `Ny tid ${displayedNewTime}${item.delayMinutes ? ` (+${item.delayMinutes} min)` : ''}`
+    : onlySchedule
+    ? 'Enligt tidtabell'
     : 'I tid';
 
   const metaParts = [item.line, item.operator, item.track].filter(Boolean);

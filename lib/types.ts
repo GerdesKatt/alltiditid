@@ -15,6 +15,8 @@ export type Departure = {
   estimatedTime: string;
   delayMinutes?: number;
   status: 'on-time' | 'delayed' | 'cancelled';
+  /** false när källan saknar realtidsdata för avgången (bara tidtabell). */
+  hasRealtime?: boolean;
   track: string;
   deviation?: string;
   viaStops?: string[];
