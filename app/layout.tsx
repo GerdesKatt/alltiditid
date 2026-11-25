@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import React from 'react';
 import './globals.css';
+import { PREFETCH_SCRIPT } from '../lib/prefetch';
 
 export const metadata: Metadata = {
   title: 'alltiditid.se – Avgångar och ankomster i realtid',
@@ -28,6 +29,8 @@ export default function RootLayout({
   return (
     <html lang="sv">
       <head>
+        {/* Startar hämtningen av tavlan innan React har laddat (lib/prefetch.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: PREFETCH_SCRIPT }} />
         <meta name="theme-color" content="#020617" media="(prefers-color-scheme: dark)" />
         <meta name="theme-color" content="#eef2f7" media="(prefers-color-scheme: light)" />
         {/*

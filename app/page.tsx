@@ -14,10 +14,13 @@ import { REGIONS } from '../lib/regions';
 import { loadSavedState, regionForStop, saveState } from '../lib/savedStop';
 import { loadFavorites, MAX_FAVORITES, storeFavorites, toggleFavorite } from '../lib/favorites';
 import FavoritesBar from '../components/FavoritesBar';
+import { boardUrl, takePrefetch } from '../lib/prefetch';
 import type { BoardView } from '../components/DepartureBoard';
 
 /** Lista eller per linje, sparat i webbläsaren. */
 const VIEW_KEY = 'alltiditid:vy';
+/** Samma brytpunkt som .layout i globals.css. */
+const WIDE_QUERY = '(min-width: 1100px)';
 import { buildShareMessage } from '../lib/shareMessage';
 import type {
   BoardDirection,
@@ -42,6 +45,30 @@ function parseLocal(value?: string): number | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value || '');
   if (!m) return null;
   return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime();
+}
+
+let firstBoardMarked = false;
+
+/**
+ * B1: mät "tid till första avgång" en gång per sidvisning. Värdet ligger alltid i
+ * performance (syns i webbläsarens utvecklarverktyg) och skickas till Google Analytics
+ * som händelsen forsta_avgang bara om besökaren har godkänt statistik.
+ */
+function markFirstBoard(rows: number) {
+  if (firstBoardMarked || typeof window === 'undefined' || rows === 0) return;
+  firstBoardMarked = true;
+  requestAnimationFrame(() => {
+    try {
+      performance.mark('alltiditid:forsta-avgang');
+      const ms = Math.round(performance.now());
+      if (readConsent() === 'granted') {
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({ event: 'forsta_avgang', forsta_avgang_ms: ms });
+      }
+    } catch {
+      // Mätningen får aldrig störa tavlan.
+    }
+  });
 }
 
 export default function HomePage() {
@@ -99,6 +126,16 @@ export default function HomePage() {
   const [restored, setRestored] = useState(false);
   const [offline, setOffline] = useState(false);
   const [view, setView] = useState<BoardView>('list');
+  // Bred skärm: inställningar till vänster och tavlan till höger, alltid öppna.
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia?.(WIDE_QUERY);
+    if (!query) return;
+    const update = () => setWide(query.matches);
+    update();
+    query.addEventListener?.('change', update);
+    return () => query.removeEventListener?.('change', update);
+  }, []);
   const [favorites, setFavorites] = useState<StopOption[]>([]);
   // Inställningarna (region, snabbval, sök, filter) är öppna vid första besöket och
   // fälls ihop när det finns en sparad hållplats, så att tavlan kommer först.
@@ -189,12 +226,11 @@ export default function HomePage() {
     setErrorMsg(null);
     setUpdatedAt(null);
 
+    const url = boardUrl(selectedStop.id, selectedStop.name, direction);
     function load() {
-      fetch(
-        `/api/trafik?action=departures&stopId=${encodeURIComponent(
-          selectedStop.id
-        )}&stopName=${encodeURIComponent(selectedStop.name)}&mode=all&direction=${direction}`
-      )
+      // Första gången kan svaret redan vara på väg (startat i <head>, lib/prefetch.ts).
+      const early = hasData ? null : takePrefetch(url);
+      (early || fetch(url))
         .then(async (res) => {
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Fel vid hämtning');
@@ -206,6 +242,7 @@ export default function HomePage() {
           if (!active) return;
           setOffline(data.savedAt > 0);
           const list: Departure[] = Array.isArray(data.departures) ? data.departures : [];
+          if (!hasData) markFirstBoard(list.length);
           hasData = true;
           setDepartures(list);
           setErrorMsg(null);
@@ -320,7 +357,7 @@ export default function HomePage() {
   const isFavorite = favorites.some((s) => s.id === selectedStop.id);
 
   return (
-    <div id="alltiditid-app" style={{ maxWidth: '860px', margin: '0 auto' }}>
+    <div id="alltiditid-app" className="app-shell" style={{ maxWidth: '860px', margin: '0 auto' }}>
       <a href="#avgangstavla" className="skip-link">
         Hoppa till avgångar
       </a>
@@ -346,7 +383,9 @@ export default function HomePage() {
         />
       ) : null}
 
-      {controlsOpen ? (
+      <div className="layout">
+      <div className="layout-side">
+      {controlsOpen || wide ? (
         <SearchPanel
           region={region}
           currentRegion={currentRegionObj}
@@ -358,7 +397,7 @@ export default function HomePage() {
             setSuggestions([]);
             showBoard();
           }}
-          onClose={restored ? () => setControlsOpen(false) : undefined}
+          onClose={restored && !wide ? () => setControlsOpen(false) : undefined}
           mode={mode}
           onModeChange={setMode}
           stationQuery={stationQuery}
@@ -386,7 +425,9 @@ export default function HomePage() {
           />
         </div>
       )}
+      </div>
 
+      <div className="layout-board">
       <FavoritesBar
         favorites={favorites}
         currentId={selectedStop.id}
@@ -430,7 +471,7 @@ export default function HomePage() {
         onSelectOnBoard={handleSelectOnBoard}
       />
 
-      {!controlsOpen ? (
+      {!controlsOpen && !wide ? (
         <div className="switch-stop switch-stop--bottom">
           <SwitchStopButton
             onClick={() => {
@@ -441,6 +482,8 @@ export default function HomePage() {
           />
         </div>
       ) : null}
+      </div>
+      </div>
 
       <AboutSection />
       </main>
