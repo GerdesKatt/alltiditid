@@ -218,7 +218,6 @@ function trackLabelFor(value, mode) {
   if (!v) return '';
   const rail = mode === 'train' || mode === 'commuter' || mode === 'subway';
   return `${rail ? 'Spår' : 'Läge'} ${v}`;
-}` : '';
 }
 
 // ---------------------------------------------------------------------------
