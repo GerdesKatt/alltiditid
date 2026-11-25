@@ -997,9 +997,20 @@ function tidyStopName(name) {
  * Koordinaterna avrundas till tre decimaler (cirka 100 m) innan de skickas
  * vidare eller används som cachenyckel, och sparas inte.
  */
-async function handleNearby(url, keys, context) {
-  const lat = Number(url.searchParams.get('lat'));
-  const lon = Number(url.searchParams.get('lon'));
+async function handleNearby(request, keys, context) {
+  // Positionen skickas i anropets innehåll (POST), inte i adressen, så att den
+  // inte hamnar i loggar, webbläsarhistorik eller mellanlagringar som sparar adresser.
+  if (request.method !== 'POST') {
+    return jsonResponse({ stops: [], error: 'Använd POST med { lat, lon }.' }, 405, { Allow: 'POST' });
+  }
+  let body = null;
+  try {
+    body = await request.json();
+  } catch {
+    body = null;
+  }
+  const lat = Number(body && body.lat);
+  const lon = Number(body && body.lon);
   // Ungefär Sveriges utbredning; allt annat är fel eller utanför trafikdatan.
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < 55 || lat > 69.2 || lon < 10.5 || lon > 24.3) {
     return jsonResponse({ stops: [], error: 'Positionen ligger utanför Sverige.' }, 400);
@@ -1012,7 +1023,14 @@ async function handleNearby(url, keys, context) {
   const rLon = lon.toFixed(3);
   const cacheKey = new Request(`https://cache.alltiditid.se/nearby-v1/${rLat},${rLon}`);
   const cached = await cacheGet(cacheKey);
-  if (cached) return cached;
+  if (cached) {
+    try {
+      const data = await cached.json();
+      return jsonResponse(data, 200, { 'Cache-Control': 'no-store' });
+    } catch {
+      // Hämta på nytt nedan
+    }
+  }
 
   const res = await fetch(
     `${RESROBOT_BASE}/location.nearbystops?originCoordLat=${rLat}&originCoordLong=${rLon}` +
@@ -1041,9 +1059,14 @@ async function handleNearby(url, keys, context) {
     .sort((a, b) => a.distance - b.distance)
     .slice(0, 6);
 
-  const response = jsonResponse({ stops }, 200, { 'Cache-Control': 'public, max-age=300' });
-  await cachePut(cacheKey, response.clone(), context);
-  return response;
+  // Cloudflare-cachen (nyckel = avrundad position) får spara svaret i 5 min, men
+  // webbläsare och mellanled ska inte göra det.
+  await cachePut(
+    cacheKey,
+    jsonResponse({ stops }, 200, { 'Cache-Control': 'max-age=300' }),
+    context
+  );
+  return jsonResponse({ stops }, 200, { 'Cache-Control': 'no-store' });
 }
 
 /** Max antal hållplatser som kan slås ihop till en tavla (t.ex. Göteborg C). */
@@ -1240,7 +1263,7 @@ export async function onRequest(context) {
       return await handleSearch(url, keys);
     }
     if (action === 'nearby') {
-      return await handleNearby(url, keys, context);
+      return await handleNearby(request, keys, context);
     }
 
     // Avgångstavlor cachas kort i Cloudflare så att automatisk uppdatering

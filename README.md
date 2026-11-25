@@ -23,7 +23,7 @@ Avgångar och ankomster i realtid för kollektivtrafik i hela Sverige: tåg, pen
 
 ```
 app/
-  layout.tsx          Rotlayout, metadata, AdSense
+  layout.tsx          Rotlayout och metadata (AdSense är avstängt, se kommentaren i filen)
   page.tsx            Startsidan: state, datahämtning och filtrering
 components/
   Header.tsx          Sidhuvud med logga och meny
@@ -49,7 +49,7 @@ public/
 
 `GET /api/trafik?action=search&q=<text>` returnerar `{ stops: [{ id, name }] }`.
 
-`GET /api/trafik?action=nearby&lat=<lat>&lon=<lon>` returnerar `{ stops: [{ id, name, distance }] }`, de närmaste hållplatserna inom 1,5 km (ResRobot Nearby stops). Positionen avrundas till tre decimaler (cirka 100 m) och sparas inte.
+`POST /api/trafik?action=nearby` med JSON-kroppen `{ "lat": 59.299, "lon": 18.081 }` returnerar `{ stops: [{ id, name, distance }] }`, de närmaste hållplatserna inom 1,5 km (ResRobot Nearby stops). Positionen skickas i kroppen och inte i adressen, så att den inte hamnar i loggar. Den avrundas till tre decimaler (cirka 100 m) och sparas inte.
 
 `GET /api/trafik?action=departures&stopId=<id>&stopName=<namn>&mode=all&direction=departures|arrivals` returnerar `{ departures: [...] }`.
 
