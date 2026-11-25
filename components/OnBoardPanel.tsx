@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import type { Departure, RiderMood } from '../lib/types';
 import { colors } from './styles';
 
@@ -35,14 +35,33 @@ export default function OnBoardPanel({
 }: Props) {
   const isArrival = trip.directionType === 'arrivals';
   const newTime = trip.newTime || trip.estimatedTime;
+  const sheetRef = useRef<HTMLElement>(null);
+
+  // Bladet får fokus när det öppnas (skärmläsare och tangentbord), och Esc stänger det.
+  useEffect(() => {
+    sheetRef.current?.focus({ preventScroll: true });
+  }, [trip.id]);
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   return (
     <section
       id="resenar-lage"
+      ref={sheetRef}
+      className="onboard-sheet"
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby="resenar-lage-rubrik"
+      tabIndex={-1}
       style={{
-        marginBottom: '18px',
         padding: '18px',
-        borderRadius: '18px',
+        borderRadius: '18px 18px 0 0',
+        outline: 'none',
         background:
           `linear-gradient(135deg, ${colors.onboardTop} 0%, ${colors.onboardBottom} 100%)`,
         border: `1px solid ${colors.accent}`,
@@ -72,6 +91,7 @@ export default function OnBoardPanel({
             Jag är ombord
           </span>
           <h2
+            id="resenar-lage-rubrik"
             style={{
               fontSize: '19px',
               fontWeight: 800,

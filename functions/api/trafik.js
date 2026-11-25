@@ -633,6 +633,7 @@ const VASTTRAFIK_TOKEN_URL = 'https://ext-api.vasttrafik.se/token';
 const VASTTRAFIK_BASE = 'https://ext-api.vasttrafik.se/pr/v4';
 /** Västtrafiks tavla: tidsfönster i minuter, avgångar per sida och högst antal sidor. */
 const VASTTRAFIK_SPAN_MIN = 120;
+const PART_CANCELLED_TEXT = 'Går inte hela vägen';
 const VASTTRAFIK_PAGE = 100;
 const VASTTRAFIK_MAX_PAGES = 3;
 
@@ -841,6 +842,7 @@ async function fetchVasttrafikUpdates(keys, stopId, names, coords, direction, co
       estimated,
       planned,
       cancelled: Boolean(item.isCancelled),
+      partCancelled: !item.isCancelled && Boolean(item.isPartCancelled),
       platform: String(platform || '').trim(),
     };
     const designations = new Set(
@@ -858,14 +860,24 @@ async function fetchVasttrafikUpdates(keys, stopId, names, coords, direction, co
 /** Lägger Västtrafiks realtid ovanpå en avgång från Trafiklab. */
 function applyVasttrafik(departure, vtUpdates) {
   if (!vtUpdates || vtUpdates.size === 0 || !isVasttrafikDeparture(departure)) return departure;
-  if (departure.hasRealtime) return departure;
-
   const des = String(departure._designation || '').trim().toLowerCase();
   const match = des ? vtUpdates.get(`${des}|${departure._scheduledLocal}`) : null;
   if (!match) return departure;
+  // Har Trafiklab redan realtid behålls deras tider, men "går inte hela vägen" läggs till.
+  if (departure.hasRealtime) {
+    if (!match.partCancelled || departure.status === 'cancelled') return departure;
+    return {
+      ...departure,
+      deviation: [PART_CANCELLED_TEXT, departure.deviation].filter(Boolean).join(' • '),
+    };
+  }
 
   const result = { ...departure };
   if (match.platform && !result.track) result.track = trackLabelFor(match.platform, departure.transportMode);
+  if (match.partCancelled) {
+    // Turen går, men inte hela vägen. Skrivs först i avvikelsen så att den syns på raden.
+    result.deviation = [PART_CANCELLED_TEXT, result.deviation].filter(Boolean).join(' • ');
+  }
 
   if (match.cancelled) {
     result.status = 'cancelled';
@@ -1171,6 +1183,18 @@ const DELAY_THRESHOLD_OTHER_MIN = 3;
 const EARLY_THRESHOLD_RAIL_MIN = 1;
 const EARLY_THRESHOLD_OTHER_MIN = 2;
 
+/** Tar bort tomma fält (viaStops: [], deviation: "" …) som annars skickas på varje rad. */
+function compactDeparture(d) {
+  const out = {};
+  for (const [key, value] of Object.entries(d)) {
+    if (value === undefined || value === null || value === '') continue;
+    if (Array.isArray(value) && value.length === 0) continue;
+    if ((key === 'delayMinutes' || key === 'earlyMinutes') && !value) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
 /** Sätter expectedAt, tar bort småförseningar och märker tidiga avgångar. */
 function finalizeTiming(d) {
   const rail = d.transportMode === 'train' || d.transportMode === 'commuter';
@@ -1286,7 +1310,7 @@ async function handleBoard(url, keys, context) {
     .map(finalizeTiming)
     .map(
       ({ _trainCandidates, _scheduledLocal, _agency, _designation, _coords, _tvStation, _offsetMin, ...rest }) =>
-        rest
+        compactDeparture(rest)
     );
 
   return jsonResponse(

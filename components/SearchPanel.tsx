@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { REGIONS } from '../lib/regions';
 import NearbyStops from './NearbyStops';
 import type { Region, RegionKey, StopOption, TransportMode } from '../lib/types';
@@ -40,6 +40,35 @@ export default function SearchPanel({
   filterText,
   onFilterTextChange,
 }: Props) {
+  // Kombobox för sökförslagen (ARIA-mönstret): piltangenter, Enter och Esc.
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [dismissed, setDismissed] = useState(false);
+  useEffect(() => {
+    setActiveIndex(-1);
+    setDismissed(false);
+  }, [suggestions]);
+  const listOpen = !dismissed && (searchingStops || suggestions.length > 0);
+  const optionId = (i: number) => `hallplats-forslag-${i}`;
+
+  function onSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'ArrowDown' && suggestions.length > 0) {
+      e.preventDefault();
+      setDismissed(false);
+      setActiveIndex((i) => (i + 1) % suggestions.length);
+    } else if (e.key === 'ArrowUp' && suggestions.length > 0) {
+      e.preventDefault();
+      setDismissed(false);
+      setActiveIndex((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
+    } else if (e.key === 'Enter' && listOpen && activeIndex >= 0 && suggestions[activeIndex]) {
+      e.preventDefault();
+      onSuggestionSelect(suggestions[activeIndex]);
+    } else if (e.key === 'Escape' && listOpen) {
+      e.preventDefault();
+      setDismissed(true);
+      setActiveIndex(-1);
+    }
+  }
+
   return (
     <section
       id="sok-och-filter"
@@ -72,7 +101,7 @@ export default function SearchPanel({
           Klar
         </button>
       ) : null}
-      <h1
+      <h2
         style={{
           fontSize: '26px',
           fontWeight: 900,
@@ -82,7 +111,7 @@ export default function SearchPanel({
         }}
       >
         Koll på resan i realtid
-      </h1>
+      </h2>
       <p style={{ color: colors.textDim, margin: '0 0 14px 0', fontSize: '14px', lineHeight: 1.45 }}>
         Välj stad eller sök hållplats för T-bana, spårvagn, pendel, tåg och buss i realtid.
       </p>
@@ -209,14 +238,24 @@ export default function SearchPanel({
             id="sok-hallplats"
             type="search"
             autoComplete="off"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={listOpen}
+            aria-controls="hallplats-forslag"
+            aria-activedescendant={listOpen && activeIndex >= 0 ? optionId(activeIndex) : undefined}
             value={stationQuery}
+            onKeyDown={onSearchKeyDown}
             onChange={(e) => onStationQueryChange(e.target.value)}
             placeholder="Sök valfri station eller hållplats i Sverige..."
             style={textInput(colors.accent)}
           />
 
-          {searchingStops || suggestions.length > 0 ? (
+          {listOpen ? (
             <div
+              id="hallplats-forslag"
+              role="listbox"
+              aria-label="Förslag på hållplatser"
+              aria-busy={searchingStops}
               style={{
                 position: 'absolute',
                 top: '100%',
@@ -232,21 +271,28 @@ export default function SearchPanel({
               }}
             >
               {searchingStops ? (
-                <div style={{ padding: '11px 14px', color: colors.textDim, fontSize: '13px' }}>
+                <div role="status" style={{ padding: '11px 14px', color: colors.textDim, fontSize: '13px' }}>
                   Söker platser...
                 </div>
               ) : (
-                suggestions.map((stop) => (
-                  <button
+                suggestions.map((stop, i) => (
+                  <div
                     key={stop.id}
-                    type="button"
+                    id={optionId(i)}
+                    role="option"
+                    aria-selected={i === activeIndex}
+                    // mousedown, så att sökfältet inte tappar fokus innan valet registreras.
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => onSuggestionSelect(stop)}
+                    onMouseEnter={() => setActiveIndex(i)}
                     style={{
                       display: 'block',
                       width: '100%',
+                      boxSizing: 'border-box',
                       textAlign: 'left',
-                      padding: '11px 14px',
-                      backgroundColor: 'transparent',
+                      padding: '13px 14px',
+                      minHeight: '44px',
+                      backgroundColor: i === activeIndex ? colors.accentTint : 'transparent',
                       border: 'none',
                       borderBottom: `1px solid ${colors.border}`,
                       color: colors.text,
@@ -255,7 +301,7 @@ export default function SearchPanel({
                     }}
                   >
                     {stop.name}
-                  </button>
+                  </div>
                 ))
               )}
             </div>

@@ -183,3 +183,49 @@ input[type='search']::-webkit-search-decoration {
 .favorites-scroll::-webkit-scrollbar {
   display: none;
 }
+
+
+/* Hoppa-till-länk: syns bara när den får fokus med tangentbordet. */
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--c-accent-strong);
+  color: var(--c-on-accent);
+  font-weight: 800;
+  text-decoration: none;
+}
+.skip-link:focus {
+  top: 12px;
+}
+
+/* Kompakt sidhuvud på mobilen, så att tavlan kommer högre upp. */
+@media (max-width: 600px) {
+  .site-header {
+    padding: 2px 12px !important;
+    margin-bottom: 10px !important;
+    flex-wrap: nowrap !important;
+  }
+  .site-tagline,
+  .site-nav-board {
+    display: none !important;
+  }
+}
+
+/* "Jag är ombord" som ett blad nerifrån. */
+.onboard-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  max-width: 860px;
+  margin: 0 auto;
+  max-height: 78vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding-bottom: calc(18px + env(safe-area-inset-bottom));
+}
