@@ -26,7 +26,7 @@ export default function Header({ onContactClick }: Props) {
         padding: '12px 16px',
         marginBottom: '16px',
         borderRadius: '16px',
-        backgroundColor: 'rgba(15, 23, 42, 0.85)',
+        backgroundColor: colors.headerBg,
         border: `1px solid ${colors.border}`,
         flexWrap: 'wrap',
         gap: '12px',

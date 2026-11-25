@@ -103,7 +103,7 @@ export default function NearbyStops({ onSelect }: Props) {
           padding: '0 16px',
           borderRadius: '10px',
           border: `1px solid ${colors.accent}`,
-          backgroundColor: busy ? colors.surface : 'rgba(56, 189, 248, 0.12)',
+          backgroundColor: busy ? colors.surface : colors.accentTint,
           color: colors.text,
           fontWeight: 700,
           fontSize: '14px',

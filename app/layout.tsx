@@ -39,8 +39,8 @@ export default function RootLayout({
         style={{
           margin: 0,
           padding: '20px 16px',
-          backgroundColor: '#020617',
-          color: '#f8fafc',
+          backgroundColor: 'var(--c-bg)',
+          color: 'var(--c-text)',
           fontFamily:
             'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         }}

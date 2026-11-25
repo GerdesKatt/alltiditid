@@ -47,9 +47,9 @@ export default function SearchPanel({
         marginBottom: '20px',
         padding: '18px 20px',
         borderRadius: '18px',
-        background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)',
+        background: `linear-gradient(180deg, ${colors.panelTop} 0%, ${colors.panelBottom} 100%)`,
         border: `1px solid ${colors.borderStrong}`,
-        boxShadow: '0 14px 35px rgba(2, 6, 23, 0.45)',
+        boxShadow: `0 14px 35px ${colors.shadow}`,
       }}
     >
       {onClose ? (
@@ -112,7 +112,7 @@ export default function SearchPanel({
                 padding: '6px 12px',
                 borderRadius: '9px',
                 border: active ? `1px solid ${colors.accent}` : `1px solid ${colors.borderStrong}`,
-                backgroundColor: active ? 'rgba(56, 189, 248, 0.2)' : colors.surface,
+                backgroundColor: active ? colors.accentTint : colors.surface,
                 color: active ? colors.accentSoft : colors.textDim,
                 fontWeight: 800,
                 fontSize: '12px',
@@ -140,7 +140,7 @@ export default function SearchPanel({
                 padding: '5px 12px',
                 borderRadius: '999px',
                 border: active ? `1px solid ${colors.green}` : `1px solid ${colors.borderStrong}`,
-                backgroundColor: active ? 'rgba(16, 185, 129, 0.18)' : 'rgba(15, 23, 42, 0.7)',
+                backgroundColor: active ? colors.greenTint : colors.chipBg,
                 color: active ? colors.greenSoft : colors.textMuted,
                 fontWeight: 600,
                 fontSize: '12px',
@@ -179,7 +179,7 @@ export default function SearchPanel({
                   borderRadius: '9px',
                   border: active ? `1px solid ${colors.accent}` : `1px solid ${colors.borderStrong}`,
                   backgroundColor: active ? colors.accentStrong : colors.surface,
-                  color: colors.text,
+                  color: active ? colors.onAccent : colors.text,
                   fontWeight: 700,
                   fontSize: '12px',
                   cursor: 'pointer',
@@ -228,7 +228,7 @@ export default function SearchPanel({
                 borderRadius: '11px',
                 zIndex: 20,
                 overflow: 'hidden',
-                boxShadow: '0 14px 30px rgba(0,0,0,0.65)',
+                boxShadow: `0 14px 30px ${colors.shadow}`,
               }}
             >
               {searchingStops ? (

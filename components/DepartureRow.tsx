@@ -10,10 +10,10 @@ type Props = {
 };
 
 const STATUS_COLORS = {
-  cancelled: { bg: 'rgba(127, 29, 29, 0.8)', border: '#dc2626', text: '#fca5a5' },
-  delayed: { bg: 'rgba(120, 53, 15, 0.85)', border: '#d97706', text: '#fcd34d' },
-  'on-time': { bg: 'rgba(6, 78, 59, 0.7)', border: '#059669', text: '#6ee7b7' },
-  scheduled: { bg: 'rgba(30, 41, 59, 0.9)', border: '#475569', text: '#cbd5e1' },
+  cancelled: { bg: colors.cancelledBg, border: colors.cancelledBorder, text: colors.cancelledText },
+  delayed: { bg: colors.delayedBg, border: colors.delayedBorder, text: colors.delayedText },
+  'on-time': { bg: colors.okBg, border: colors.okBorder, text: colors.okText },
+  scheduled: { bg: colors.scheduledBg, border: colors.scheduledBorder, text: colors.scheduledText },
 } as const;
 
 /** Från så här många minuters försening visas en länk om reseersättning. */
@@ -44,7 +44,7 @@ export default function DepartureRow({ item, direction, isSelectedTrip, onSelect
   return (
     <div
       style={{
-        backgroundColor: isSelectedTrip ? 'rgba(2, 132, 199, 0.14)' : colors.surface,
+        backgroundColor: isSelectedTrip ? colors.selectedRowBg : colors.surface,
         border: isSelectedTrip ? `1px solid ${colors.accent}` : `1px solid ${colors.border}`,
         borderRadius: '13px',
         padding: '13px 16px',
@@ -163,7 +163,7 @@ export default function DepartureRow({ item, direction, isSelectedTrip, onSelect
             borderRadius: '8px',
             border: isSelectedTrip ? `1px solid ${colors.accent}` : `1px solid ${colors.borderStrong}`,
             backgroundColor: isSelectedTrip ? colors.accentStrong : colors.surfaceRaised,
-            color: colors.text,
+            color: isSelectedTrip ? colors.onAccent : colors.text,
             fontSize: '12px',
             fontWeight: 700,
             cursor: 'pointer',
