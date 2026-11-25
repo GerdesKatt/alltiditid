@@ -412,6 +412,8 @@ async function fetchTrafikverketStationUpdates(
         hasRealtime: true,
         newTime: diff !== null && diff > 0 ? swedishClock(estIso) : '',
         delayMinutes: diff !== null && diff > 0 ? diff : 0,
+        // Signerad avvikelse i minuter: negativ när tåget går eller kommer tidigt.
+        offsetMinutes: diff !== null ? diff : 0,
         cancelled: Boolean(ann.Canceled),
         track: ann.TrackAtLocation ? String(ann.TrackAtLocation).trim() : '',
         deviation: deviationText,
@@ -448,6 +450,7 @@ function applyTrafikverket(departure, tvUpdates, trainNumberCandidates) {
   } else if (match.hasRealtime) {
     // Trafikverket är källan för tåg, så deras prognos vinner.
     result.hasRealtime = true;
+    result._offsetMin = match.offsetMinutes || 0;
     if (match.delayMinutes > 0) {
       result.status = 'delayed';
       result.newTime = match.newTime;
@@ -544,6 +547,8 @@ function mapRealtimeCall(call, direction) {
   const delayMin = hasRealtime ? Math.floor(delaySeconds / 60) : 0;
   const isDelayed = !isCancelled && delayMin > 0;
   const newTime = isDelayed ? extractClockTime(realtimeIso) : '';
+  // Signerad avvikelse i hela minuter (negativ = tidig), för expectedAt och "tidig".
+  const offsetMin = hasRealtime && !isCancelled ? Math.trunc(delaySeconds / 60) : 0;
 
   const trainNumber =
     itemMode === 'train' || itemMode === 'commuter'
@@ -583,6 +588,7 @@ function mapRealtimeCall(call, direction) {
         ? { lat: Number(call.stop.lat), lon: Number(call.stop.lon) }
         : null,
     _scheduledLocal: scheduledIso.slice(0, 16),
+    _offsetMin: offsetMin,
   };
 }
 
@@ -625,6 +631,10 @@ async function realtimeSearch(key, q) {
 
 const VASTTRAFIK_TOKEN_URL = 'https://ext-api.vasttrafik.se/token';
 const VASTTRAFIK_BASE = 'https://ext-api.vasttrafik.se/pr/v4';
+/** Västtrafiks tavla: tidsfönster i minuter, avgångar per sida och högst antal sidor. */
+const VASTTRAFIK_SPAN_MIN = 120;
+const VASTTRAFIK_PAGE = 100;
+const VASTTRAFIK_MAX_PAGES = 3;
 
 function isVasttrafikDeparture(d) {
   return /västtrafik|vasttrafik/i.test(String(d._agency || ''));
@@ -792,15 +802,26 @@ async function fetchVasttrafikUpdates(keys, stopId, names, coords, direction, co
   diag.step = 'tavla';
 
   const kind = direction === 'arrivals' ? 'arrivals' : 'departures';
-  const baseUrl = `${VASTTRAFIK_BASE}/stop-areas/${encodeURIComponent(gid)}/${kind}?timeSpanInMinutes=70`;
-  let res = await auth.fetch(`${baseUrl}&limit=100`);
+  const baseUrl = `${VASTTRAFIK_BASE}/stop-areas/${encodeURIComponent(gid)}/${kind}?timeSpanInMinutes=${VASTTRAFIK_SPAN_MIN}`;
+  let res = await auth.fetch(`${baseUrl}&limit=${VASTTRAFIK_PAGE}`);
+  let paged = true;
   if (res.status === 400) {
     res = await auth.fetch(baseUrl);
+    paged = false;
   }
   diag.boardStatus = res.status;
   if (!res.ok) throw new Error(`Västtrafik ${kind} ${res.status}`);
   const data = await res.json();
-  const results = Array.isArray(data.results) ? data.results : [];
+  const results = Array.isArray(data.results) ? [...data.results] : [];
+  // Stora hållplatser har fler avgångar än en sida: hämta nästa sidor (högst VASTTRAFIK_MAX_PAGES).
+  for (let page = 1; paged && page < VASTTRAFIK_MAX_PAGES && results.length === page * VASTTRAFIK_PAGE; page++) {
+    const next = await auth.fetch(`${baseUrl}&limit=${VASTTRAFIK_PAGE}&offset=${page * VASTTRAFIK_PAGE}`);
+    if (!next.ok) break;
+    const more = await next.json().catch(() => null);
+    const list = more && Array.isArray(more.results) ? more.results : [];
+    if (list.length === 0) break;
+    results.push(...list);
+  }
   diag.results = results.length;
   diag.withEstimate = results.filter((r) => r && r.estimatedTime).length;
   diag.status = 'ok';
@@ -858,7 +879,8 @@ function applyVasttrafik(departure, vtUpdates) {
 
   result.hasRealtime = true;
   const diffMs = Date.parse(match.estimated) - Date.parse(match.planned);
-  const delayMin = Number.isNaN(diffMs) ? 0 : Math.floor(diffMs / 60000);
+  const delayMin = Number.isNaN(diffMs) ? 0 : Math.trunc(diffMs / 60000);
+  result._offsetMin = delayMin;
   if (delayMin > 0) {
     result.status = 'delayed';
     result.newTime = swedishClock(match.estimated);
@@ -924,6 +946,7 @@ function mapResrobotItem(item, direction) {
     transportMode: itemMode,
     _trainCandidates: [trainNumber],
     _scheduledLocal: `${item.date || ''}T${scheduledTime}`,
+    _offsetMin: !isCancelled && rawDiff !== null ? rawDiff : 0,
   };
 }
 
@@ -1136,6 +1159,50 @@ async function overlayVasttrafik(keys, board, fallbackName, direction, context) 
   }
 }
 
+/**
+ * Försening räknas från så här många minuter. Tåg visas från första minuten, som på
+ * stationsskyltarna. Buss, spårvagn, tunnelbana och båt först från 3 minuter, annars
+ * blir nästan varje SL-buss "försenad" av en minut. Nedräkningen visar ändå den
+ * verkliga tiden.
+ */
+const DELAY_THRESHOLD_RAIL_MIN = 1;
+const DELAY_THRESHOLD_OTHER_MIN = 3;
+/** Så många minuter före tidtabell märks avgången "tidig" (tåg respektive övrigt). */
+const EARLY_THRESHOLD_RAIL_MIN = 1;
+const EARLY_THRESHOLD_OTHER_MIN = 2;
+
+/** Sätter expectedAt, tar bort småförseningar och märker tidiga avgångar. */
+function finalizeTiming(d) {
+  const rail = d.transportMode === 'train' || d.transportMode === 'commuter';
+  const cancelled = d.status === 'cancelled';
+  const offset = cancelled
+    ? 0
+    : typeof d._offsetMin === 'number'
+    ? d._offsetMin
+    : d.status === 'delayed'
+    ? d.delayMinutes || 0
+    : 0;
+  // Förväntad tid i svensk lokal tid, så att klienten räknar ner rätt och döljer det som gått.
+  const expectedAt = addMinutesLocal(d._scheduledLocal, offset) || undefined;
+  const expectedClock = expectedAt ? expectedAt.slice(11, 16) : '';
+  const result = { ...d, expectedAt };
+
+  const threshold = rail ? DELAY_THRESHOLD_RAIL_MIN : DELAY_THRESHOLD_OTHER_MIN;
+  if (result.status === 'delayed' && offset < threshold) {
+    result.status = 'on-time';
+    result.newTime = '';
+    result.delayMinutes = 0;
+    result.estimatedTime = expectedClock || result.scheduledTime;
+  }
+  // Klocktiden följer prognosen, så att den stämmer med nedräkningen.
+  if (!cancelled && result.status === 'on-time' && expectedClock) result.estimatedTime = expectedClock;
+  if (!cancelled && result.status === 'on-time' && offset <= -(rail ? EARLY_THRESHOLD_RAIL_MIN : EARLY_THRESHOLD_OTHER_MIN) && expectedClock) {
+    result.earlyMinutes = -offset;
+    result.estimatedTime = expectedClock;
+  }
+  return result;
+}
+
 async function handleBoard(url, keys, context) {
   const stopParam = url.searchParams.get('stopId') || '740000001';
   const clientStopName = url.searchParams.get('stopName') || '';
@@ -1216,13 +1283,11 @@ async function handleBoard(url, keys, context) {
   const departures = all
     .filter((d) => mode === 'all' || d.transportMode === mode)
     .map((d) => applyTrafikverket(d, tvByStation.get(d._tvStation) || new Map(), d._trainCandidates || []))
-    .map((d) => ({
-      ...d,
-      // Förväntad avgångstid i svensk lokal tid, så att klienten kan dölja avgångar som redan gått.
-      expectedAt:
-        addMinutesLocal(d._scheduledLocal, d.status === 'delayed' ? d.delayMinutes : 0) || undefined,
-    }))
-    .map(({ _trainCandidates, _scheduledLocal, _agency, _designation, _coords, _tvStation, ...rest }) => rest);
+    .map(finalizeTiming)
+    .map(
+      ({ _trainCandidates, _scheduledLocal, _agency, _designation, _coords, _tvStation, _offsetMin, ...rest }) =>
+        rest
+    );
 
   return jsonResponse(
     {

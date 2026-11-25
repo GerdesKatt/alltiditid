@@ -14,6 +14,8 @@ export type Departure = {
   newTime?: string;
   estimatedTime: string;
   delayMinutes?: number;
+  /** Minuter före tidtabell, när avgången eller ankomsten väntas gå tidigt. */
+  earlyMinutes?: number;
   status: 'on-time' | 'delayed' | 'cancelled';
   /** Förväntad tid i svensk lokal tid, 'YYYY-MM-DDTHH:MM' (ny tid om försenad). */
   expectedAt?: string;
