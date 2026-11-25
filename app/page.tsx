@@ -6,7 +6,14 @@ import DepartureBoard from '../components/DepartureBoard';
 import Header from '../components/Header';
 import ConsentBanner from '../components/ConsentBanner';
 import InfoFooter from '../components/InfoFooter';
-import { clearConsent, loadAnalytics, readConsent, revokeAnalytics, storeConsent } from '../lib/analytics';
+import {
+  ANALYTICS_ENABLED,
+  clearConsent,
+  loadAnalytics,
+  readConsent,
+  revokeAnalytics,
+  storeConsent,
+} from '../lib/analytics';
 import OnBoardPanel from '../components/OnBoardPanel';
 import SearchPanel from '../components/SearchPanel';
 import SwitchStopButton from '../components/SwitchStopButton';
@@ -62,9 +69,8 @@ function markFirstBoard(rows: number) {
     try {
       performance.mark('alltiditid:forsta-avgang');
       const ms = Math.round(performance.now());
-      if (readConsent() === 'granted') {
-        window.dataLayer = window.dataLayer || [];
-        window.dataLayer.push({ event: 'forsta_avgang', forsta_avgang_ms: ms });
+      if (ANALYTICS_ENABLED && readConsent() === 'granted' && window.gtag) {
+        window.gtag('event', 'forsta_avgang', { value: ms });
       }
     } catch {
       // Mätningen får aldrig störa tavlan.
@@ -98,9 +104,17 @@ export default function HomePage() {
 
   // Senaste hållplats (eller hållplatsen i adressen) läses in innan tavlan hämtas första gången,
   // så att standardhållplatsen inte hinner visas och hämtas i onödan.
-  // Statistik (Google Analytics via GTM) laddas bara efter samtycke.
+  // Statistik (Google Analytics) laddas bara efter samtycke, och bara om ett mätnings-id finns.
   const [consentAsked, setConsentAsked] = useState(false);
   useEffect(() => {
+    if (!ANALYTICS_ENABLED) {
+      // Google Analytics är avstängt: städa bort kakor och samtycke från tidigare besök.
+      if (readConsent() !== null) {
+        revokeAnalytics();
+        clearConsent();
+      }
+      return;
+    }
     const choice = readConsent();
     if (choice === 'granted') loadAnalytics();
     setConsentAsked(choice === null);

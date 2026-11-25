@@ -34,8 +34,8 @@ export default function RootLayout({
         <meta name="theme-color" content="#020617" media="(prefers-color-scheme: dark)" />
         <meta name="theme-color" content="#eef2f7" media="(prefers-color-scheme: light)" />
         {/*
-          Google Analytics (GTM) laddas inte här utan i lib/analytics.ts, och bara efter
-          samtycke via ConsentBanner.
+          Google Analytics laddas inte här utan i lib/analytics.ts, och bara om ett
+          mätnings-id finns och efter samtycke via ConsentBanner.
 
           Google AdSense är avstängt tills vidare. Annonskakor kräver samtycke
           (9 kap. 28 § LEK), och Google kräver en certifierad samtyckesruta (CMP med
