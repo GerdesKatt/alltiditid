@@ -1,6 +1,6 @@
 import React from 'react';
 import { REGIONS } from '../lib/regions';
-import type { BoardDirection, Region, RegionKey, StopOption, TransportMode } from '../lib/types';
+import type { Region, RegionKey, StopOption, TransportMode } from '../lib/types';
 import { colors, textInput } from './styles';
 
 type Props = {
@@ -9,8 +9,8 @@ type Props = {
   onRegionChange: (region: RegionKey) => void;
   selectedStop: StopOption;
   onQuickStopSelect: (stop: StopOption) => void;
-  direction: BoardDirection;
-  onDirectionChange: (direction: BoardDirection) => void;
+  /** Stänger panelen (visas bara när det finns något att gå tillbaka till). */
+  onClose?: () => void;
   mode: TransportMode;
   onModeChange: (mode: TransportMode) => void;
   stationQuery: string;
@@ -22,47 +22,13 @@ type Props = {
   onFilterTextChange: (text: string) => void;
 };
 
-function DirectionButton({
-  active,
-  activeBorder,
-  activeBg,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  activeBorder: string;
-  activeBg: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        padding: '7px 14px',
-        borderRadius: '9px',
-        border: active ? `1px solid ${activeBorder}` : `1px solid ${colors.borderStrong}`,
-        backgroundColor: active ? activeBg : colors.surface,
-        color: colors.text,
-        fontWeight: 800,
-        fontSize: '12px',
-        cursor: 'pointer',
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
 export default function SearchPanel({
   region,
   currentRegion,
   onRegionChange,
   selectedStop,
   onQuickStopSelect,
-  direction,
-  onDirectionChange,
+  onClose,
   mode,
   onModeChange,
   stationQuery,
@@ -85,6 +51,26 @@ export default function SearchPanel({
         boxShadow: '0 14px 35px rgba(2, 6, 23, 0.45)',
       }}
     >
+      {onClose ? (
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            float: 'right',
+            minHeight: '44px',
+            padding: '0 16px',
+            borderRadius: '10px',
+            border: `1px solid ${colors.borderMuted}`,
+            backgroundColor: colors.surface,
+            color: colors.text,
+            fontWeight: 700,
+            fontSize: '14px',
+            cursor: 'pointer',
+          }}
+        >
+          Klar
+        </button>
+      ) : null}
       <h1
         style={{
           fontSize: '26px',
@@ -160,7 +146,7 @@ export default function SearchPanel({
         })}
       </div>
 
-      {/* Riktning och trafikslag */}
+      {/* Trafikslag */}
       <div
         style={{
           display: 'flex',
@@ -171,25 +157,6 @@ export default function SearchPanel({
           marginBottom: '12px',
         }}
       >
-        <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
-          <DirectionButton
-            active={direction === 'departures'}
-            activeBorder={colors.accent}
-            activeBg="#0369a1"
-            onClick={() => onDirectionChange('departures')}
-          >
-            Avgångar
-          </DirectionButton>
-          <DirectionButton
-            active={direction === 'arrivals'}
-            activeBorder={colors.green}
-            activeBg="#047857"
-            onClick={() => onDirectionChange('arrivals')}
-          >
-            Ankomster
-          </DirectionButton>
-        </div>
-
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
           {currentRegion.modes.map((m) => {
             const active = mode === m.key;

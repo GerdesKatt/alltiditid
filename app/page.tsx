@@ -3,11 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import AboutSection from '../components/AboutSection';
 import DepartureBoard from '../components/DepartureBoard';
-import DisruptionBanner from '../components/DisruptionBanner';
 import Header from '../components/Header';
 import InfoFooter from '../components/InfoFooter';
 import OnBoardPanel from '../components/OnBoardPanel';
 import SearchPanel from '../components/SearchPanel';
+import SwitchStopButton from '../components/SwitchStopButton';
 import { REGIONS } from '../lib/regions';
 import { loadSavedState, regionForStop, saveState } from '../lib/savedStop';
 import { buildShareMessage } from '../lib/shareMessage';
@@ -62,15 +62,33 @@ export default function HomePage() {
   // Senaste hållplats (eller hållplatsen i adressen) läses in innan tavlan hämtas första gången,
   // så att standardhållplatsen inte hinner visas och hämtas i onödan.
   const [restored, setRestored] = useState(false);
+  // Inställningarna (region, snabbval, sök, filter) är öppna vid första besöket och
+  // fälls ihop när det finns en sparad hållplats, så att tavlan kommer först.
+  const [controlsOpen, setControlsOpen] = useState(true);
   useEffect(() => {
     const saved = loadSavedState();
     if (saved) {
       setRegion(saved.region);
       setSelectedStop(saved.stop);
       setDirection(saved.direction);
+      setControlsOpen(false);
     }
     setRestored(true);
   }, []);
+
+  /** Efter att en hållplats valts: fäll ihop inställningarna och visa tavlan. */
+  function showBoard() {
+    setControlsOpen(false);
+    if (typeof window !== 'undefined') {
+      requestAnimationFrame(() => {
+        const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        document.getElementById('avgangstavla')?.scrollIntoView({
+          behavior: reduce ? 'auto' : 'smooth',
+          block: 'start',
+        });
+      });
+    }
+  }
 
   useEffect(() => {
     if (!restored) return;
@@ -209,9 +227,6 @@ export default function HomePage() {
     );
   });
 
-  const hasDisruptions = filtered.some(
-    (d) => d.status === 'delayed' || d.status === 'cancelled'
-  );
 
   function handleSelectOnBoard(item: Departure) {
     setOnBoardTrip(item);
@@ -224,7 +239,8 @@ export default function HomePage() {
     }
     setCopiedMsg(false);
     if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
     }
   }
 
@@ -274,42 +290,51 @@ export default function HomePage() {
         />
       ) : null}
 
-      <SearchPanel
-        region={region}
-        currentRegion={currentRegionObj}
-        onRegionChange={handleRegionChange}
-        selectedStop={selectedStop}
-        onQuickStopSelect={(stop) => {
-          setSelectedStop(stop);
-          setStationQuery('');
-          setSuggestions([]);
-        }}
-        direction={direction}
-        onDirectionChange={setDirection}
-        mode={mode}
-        onModeChange={setMode}
-        stationQuery={stationQuery}
-        onStationQueryChange={setStationQuery}
-        searchingStops={searchingStops}
-        suggestions={suggestions}
-        onSuggestionSelect={(stop) => {
-          setSelectedStop(stop);
-          // Behåll vald region (och dess snabbval) om hållplatsen inte hör till en annan region.
-          const stopRegion = regionForStop(stop.id);
-          if (stopRegion !== 'all') setRegion(stopRegion);
-          setMode('all');
-          setStationQuery('');
-          setSuggestions([]);
-        }}
-        filterText={filterText}
-        onFilterTextChange={setFilterText}
-      />
-
-      {hasDisruptions ? <DisruptionBanner /> : null}
+      {controlsOpen ? (
+        <SearchPanel
+          region={region}
+          currentRegion={currentRegionObj}
+          onRegionChange={handleRegionChange}
+          selectedStop={selectedStop}
+          onQuickStopSelect={(stop) => {
+            setSelectedStop(stop);
+            setStationQuery('');
+            setSuggestions([]);
+            showBoard();
+          }}
+          onClose={restored ? () => setControlsOpen(false) : undefined}
+          mode={mode}
+          onModeChange={setMode}
+          stationQuery={stationQuery}
+          onStationQueryChange={setStationQuery}
+          searchingStops={searchingStops}
+          suggestions={suggestions}
+          onSuggestionSelect={(stop) => {
+            setSelectedStop(stop);
+            // Behåll vald region (och dess snabbval) om hållplatsen inte hör till en annan region.
+            const stopRegion = regionForStop(stop.id);
+            if (stopRegion !== 'all') setRegion(stopRegion);
+            setMode('all');
+            setStationQuery('');
+            setSuggestions([]);
+            showBoard();
+          }}
+          filterText={filterText}
+          onFilterTextChange={setFilterText}
+        />
+      ) : (
+        <div className="switch-stop switch-stop--top">
+          <SwitchStopButton
+            onClick={() => setControlsOpen(true)}
+            activeFilter={mode !== 'all' || filterText.trim() !== ''}
+          />
+        </div>
+      )}
 
       <DepartureBoard
         stopName={selectedStop.name}
         direction={direction}
+        onDirectionChange={setDirection}
         departures={filtered}
         loading={loading}
         errorMsg={errorMsg}
@@ -319,6 +344,18 @@ export default function HomePage() {
         selectedTripId={onBoardTrip ? onBoardTrip.id : null}
         onSelectOnBoard={handleSelectOnBoard}
       />
+
+      {!controlsOpen ? (
+        <div className="switch-stop switch-stop--bottom">
+          <SwitchStopButton
+            onClick={() => {
+              setControlsOpen(true);
+              window.scrollTo({ top: 0 });
+            }}
+            activeFilter={mode !== 'all' || filterText.trim() !== ''}
+          />
+        </div>
+      ) : null}
 
       <AboutSection />
 
