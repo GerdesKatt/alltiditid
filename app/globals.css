@@ -1,4 +1,118 @@
 /*
+ * Färgtema. Komponenterna läser färgerna via components/styles.ts, som pekar på
+ * de här variablerna. Mörkt är standard; telefonens ljusa läge ger ljust tema
+ * (läsbart i solljus). Kontrasterna är kontrollerade mot WCAG 2.2 AA.
+ */
+:root {
+  color-scheme: dark;
+  --c-bg: #020617;
+  --c-surface: #0f172a;
+  --c-surface-raised: #1e293b;
+  --c-border: #1e293b;
+  --c-border-strong: #64748b;
+  --c-border-muted: #64748b;
+  --c-text: #f8fafc;
+  --c-text-soft: #e2e8f0;
+  --c-text-muted: #cbd5e1;
+  --c-text-dim: #94a3b8;
+  --c-text-faint: #8593a8;
+  --c-accent: #38bdf8;
+  --c-accent-soft: #7dd3fc;
+  --c-accent-strong: #0369a1;
+  --c-accent-tint: rgba(56, 189, 248, 0.14);
+  --c-green: #10b981;
+  --c-green-soft: #6ee7b7;
+  --c-green-tint: rgba(16, 185, 129, 0.18);
+  --c-amber: #fbbf24;
+  --c-on-accent: #f8fafc;
+  --c-arrivals-bg: #047857;
+  --c-header-bg: rgba(15, 23, 42, 0.85);
+  --c-panel-top: #1e293b;
+  --c-panel-bottom: #0f172a;
+  --c-chip-bg: rgba(15, 23, 42, 0.7);
+  --c-selected-row-bg: rgba(2, 132, 199, 0.14);
+  --c-onboard-top: rgba(2, 132, 199, 0.22);
+  --c-onboard-bottom: rgba(15, 23, 42, 0.96);
+  --c-message-bg: rgba(15, 23, 42, 0.85);
+  --c-switch-bg: #0c2a40;
+  --c-shadow: rgba(2, 6, 23, 0.6);
+  --c-ok-bg: rgba(6, 78, 59, 0.72);
+  --c-ok-border: #059669;
+  --c-ok-text: #6ee7b7;
+  --c-delayed-bg: rgba(120, 53, 15, 0.85);
+  --c-delayed-border: #d97706;
+  --c-delayed-text: #fcd34d;
+  --c-cancelled-bg: rgba(127, 29, 29, 0.8);
+  --c-cancelled-border: #dc2626;
+  --c-cancelled-text: #fca5a5;
+  --c-scheduled-bg: rgba(30, 41, 59, 0.9);
+  --c-scheduled-border: #475569;
+  --c-scheduled-text: #cbd5e1;
+  --c-error-bg: #7f1d1d;
+  --c-error-text: #fecaca;
+  --c-notice-bg: rgba(120, 53, 15, 0.35);
+  --c-notice-text: #fde68a;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --c-bg: #eef2f7;
+    --c-surface: #ffffff;
+    --c-surface-raised: #e8edf4;
+    --c-border: #d5dde8;
+    --c-border-strong: #64748b;
+    --c-border-muted: #64748b;
+    --c-text: #0f172a;
+    --c-text-soft: #1e293b;
+    --c-text-muted: #334155;
+    --c-text-dim: #475569;
+    --c-text-faint: #55657c;
+    --c-accent: #0369a1;
+    --c-accent-soft: #075985;
+    --c-accent-strong: #0369a1;
+    --c-accent-tint: #e0f2fe;
+    --c-green: #047857;
+    --c-green-soft: #065f46;
+    --c-green-tint: #d1fae5;
+    --c-amber: #a14a06;
+    --c-on-accent: #ffffff;
+    --c-arrivals-bg: #047857;
+    --c-header-bg: rgba(255, 255, 255, 0.92);
+    --c-panel-top: #ffffff;
+    --c-panel-bottom: #f6f8fb;
+    --c-chip-bg: #ffffff;
+    --c-selected-row-bg: #e0f2fe;
+    --c-onboard-top: #dbeefe;
+    --c-onboard-bottom: #ffffff;
+    --c-message-bg: #f6f8fb;
+    --c-switch-bg: #e0f2fe;
+    --c-shadow: rgba(15, 23, 42, 0.18);
+    --c-ok-bg: #d1fae5;
+    --c-ok-border: #047857;
+    --c-ok-text: #065f46;
+    --c-delayed-bg: #fef3c7;
+    --c-delayed-border: #b45309;
+    --c-delayed-text: #7c2d12;
+    --c-cancelled-bg: #fee2e2;
+    --c-cancelled-border: #b91c1c;
+    --c-cancelled-text: #7f1d1d;
+    --c-scheduled-bg: #e8edf4;
+    --c-scheduled-border: #64748b;
+    --c-scheduled-text: #334155;
+    --c-error-bg: #fee2e2;
+    --c-error-text: #7f1d1d;
+    --c-notice-bg: #fef3c7;
+    --c-notice-text: #7c2d12;
+  }
+}
+
+body {
+  background-color: var(--c-bg);
+  color: var(--c-text);
+}
+
+/*
  * Globala stilar. Det mesta ligger fortfarande inline i komponenterna; här finns
  * det som inline-stilar inte klarar: mediafrågor och sticky-beteende.
  */
@@ -41,7 +155,7 @@
 
 /* Platshållartext med minst 4,5:1 kontrast mot fälten (WCAG 1.4.3). */
 input::placeholder {
-  color: #94a3b8;
+  color: var(--c-text-dim);
   opacity: 1;
 }
 
@@ -49,7 +163,7 @@ input::placeholder {
 button:focus-visible,
 a:focus-visible,
 input:focus-visible {
-  outline: 3px solid #fbbf24;
+  outline: 3px solid var(--c-amber);
   outline-offset: 2px;
 }
 

@@ -39,7 +39,7 @@ export default function ConsentBanner({ onAccept, onDecline, onReadMore }: Props
         borderRadius: '16px',
         backgroundColor: colors.surface,
         border: `1px solid ${colors.borderStrong}`,
-        boxShadow: '0 16px 40px rgba(0, 0, 0, 0.6)',
+        boxShadow: `0 16px 40px ${colors.shadow}`,
       }}
     >
       <p style={{ margin: '0 0 12px 0', fontSize: '14px', lineHeight: 1.5, color: colors.textSoft }}>
@@ -72,7 +72,7 @@ export default function ConsentBanner({ onAccept, onDecline, onReadMore }: Props
         <button
           type="button"
           onClick={onAccept}
-          style={{ ...choiceButton, border: `1px solid ${colors.accent}`, backgroundColor: colors.accentStrong }}
+          style={{ ...choiceButton, color: colors.onAccent, border: `1px solid ${colors.accent}`, backgroundColor: colors.accentStrong }}
         >
           Godkänn
         </button>

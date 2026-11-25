@@ -85,9 +85,9 @@ export default function DepartureBoard({
                 fontWeight: 700,
                 padding: '5px 11px',
                 borderRadius: '999px',
-                backgroundColor: limited ? 'rgba(120, 53, 15, 0.85)' : 'rgba(6, 78, 59, 0.75)',
-                border: limited ? '1px solid #d97706' : '1px solid #059669',
-                color: limited ? '#fcd34d' : colors.greenSoft,
+                backgroundColor: limited ? colors.delayedBg : colors.okBg,
+                border: `1px solid ${limited ? colors.delayedBorder : colors.okBorder}`,
+                color: limited ? colors.delayedText : colors.okText,
               }}
             >
               {limited ? 'Begränsad realtid' : 'Realtid från Trafiklab'}
@@ -99,8 +99,8 @@ export default function DepartureBoard({
       {errorMsg ? (
         <div
           style={{
-            backgroundColor: '#7f1d1d',
-            color: '#fecaca',
+            backgroundColor: colors.errorBg,
+            color: colors.errorText,
             padding: '16px',
             borderRadius: '12px',
             fontSize: '14px',

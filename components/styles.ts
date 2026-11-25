@@ -1,27 +1,89 @@
 import type { CSSProperties } from 'react';
 
-/** Färgpalett som används i hela appen. */
+/**
+ * Färgpalett. Varje färg är en CSS-variabel (app/globals.css) med ett mörkt och ett
+ * ljust värde, så att samma inline-stilar fungerar i båda teman.
+ */
 export const colors = {
-  bg: '#020617',
-  surface: '#0f172a',
-  surfaceRaised: '#1e293b',
-  border: '#1e293b',
-  /** Ram på knappar och fält: minst 3:1 mot bakgrunden (WCAG 1.4.11). */
-  borderStrong: '#64748b',
-  borderMuted: '#475569',
-  text: '#f8fafc',
-  textSoft: '#e2e8f0',
-  textMuted: '#cbd5e1',
-  textDim: '#94a3b8',
-  /** Minst 4,5:1 mot kort och sida (WCAG 1.4.3). Var #64748b (3,75:1). */
-  textFaint: '#8593a8',
-  accent: '#38bdf8',
-  accentSoft: '#7dd3fc',
-  /** Bakgrund bakom vit text: 5,7:1 (var #0284c7, 3,9:1). */
-  accentStrong: '#0369a1',
-  green: '#10b981',
-  greenSoft: '#6ee7b7',
-  amber: '#fbbf24',
+  /** Sidans bakgrund */
+  bg: 'var(--c-bg)',
+  /** Kort, fält, knappar */
+  surface: 'var(--c-surface)',
+  /** Upphöjda knappar */
+  surfaceRaised: 'var(--c-surface-raised)',
+  /** Dekorativa ramar */
+  border: 'var(--c-border)',
+  /** Ram på knappar och fält, minst 3:1 */
+  borderStrong: 'var(--c-border-strong)',
+  /** Ram på sekundära knappar */
+  borderMuted: 'var(--c-border-muted)',
+  /** Brödtext */
+  text: 'var(--c-text)',
+  textSoft: 'var(--c-text-soft)',
+  textMuted: 'var(--c-text-muted)',
+  textDim: 'var(--c-text-dim)',
+  /** Minst 4,5:1 mot kort och sida */
+  textFaint: 'var(--c-text-faint)',
+  /** Länkar och markeringar */
+  accent: 'var(--c-accent)',
+  accentSoft: 'var(--c-accent-soft)',
+  /** Bakgrund bakom vit text, 5,7:1 */
+  accentStrong: 'var(--c-accent-strong)',
+  /** Svag blå bakgrund (vald region, nära mig) */
+  accentTint: 'var(--c-accent-tint)',
+  /** Ramar för ankomster/vald hållplats */
+  green: 'var(--c-green)',
+  /** Grön text */
+  greenSoft: 'var(--c-green-soft)',
+  /** Svag grön bakgrund (vald hållplats) */
+  greenTint: 'var(--c-green-tint)',
+  /** Varningstext */
+  amber: 'var(--c-amber)',
+  /** Text på accentStrong/arrivalsBg */
+  onAccent: 'var(--c-on-accent)',
+  /** Vald Ankomster-knapp, vit text 5,2:1 */
+  arrivalsBg: 'var(--c-arrivals-bg)',
+  headerBg: 'var(--c-header-bg)',
+  /** Sökpanelens gradient, överst */
+  panelTop: 'var(--c-panel-top)',
+  /** Sökpanelens gradient, nederst */
+  panelBottom: 'var(--c-panel-bottom)',
+  /** Ovald hållplatsknapp */
+  chipBg: 'var(--c-chip-bg)',
+  /** Vald resa i tavlan */
+  selectedRowBg: 'var(--c-selected-row-bg)',
+  /** Ombordpanelens gradient, överst */
+  onboardTop: 'var(--c-onboard-top)',
+  /** Ombordpanelens gradient, nederst */
+  onboardBottom: 'var(--c-onboard-bottom)',
+  /** Ruta med statusmeddelandet */
+  messageBg: 'var(--c-message-bg)',
+  /** Byt hållplats-knappen */
+  switchBg: 'var(--c-switch-bg)',
+  /** Skuggor */
+  shadow: 'var(--c-shadow)',
+  /** Märke: i tid / realtid */
+  okBg: 'var(--c-ok-bg)',
+  okBorder: 'var(--c-ok-border)',
+  okText: 'var(--c-ok-text)',
+  /** Märke: försenad / begränsad */
+  delayedBg: 'var(--c-delayed-bg)',
+  delayedBorder: 'var(--c-delayed-border)',
+  delayedText: 'var(--c-delayed-text)',
+  /** Märke: inställd */
+  cancelledBg: 'var(--c-cancelled-bg)',
+  cancelledBorder: 'var(--c-cancelled-border)',
+  cancelledText: 'var(--c-cancelled-text)',
+  /** Märke: enligt tidtabell */
+  scheduledBg: 'var(--c-scheduled-bg)',
+  scheduledBorder: 'var(--c-scheduled-border)',
+  scheduledText: 'var(--c-scheduled-text)',
+  /** Felruta */
+  errorBg: 'var(--c-error-bg)',
+  errorText: 'var(--c-error-text)',
+  /** Varningsruta (resan försvunnen) */
+  noticeBg: 'var(--c-notice-bg)',
+  noticeText: 'var(--c-notice-text)',
 } as const;
 
 /** Textfält (stationssök, filter). */

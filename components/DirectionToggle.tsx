@@ -8,8 +8,8 @@ type Props = {
 };
 
 const OPTIONS: { key: BoardDirection; label: string; activeBorder: string; activeBg: string }[] = [
-  { key: 'departures', label: 'Avgångar', activeBorder: colors.accent, activeBg: '#0369a1' },
-  { key: 'arrivals', label: 'Ankomster', activeBorder: colors.green, activeBg: '#047857' },
+  { key: 'departures', label: 'Avgångar', activeBorder: colors.accent, activeBg: colors.accentStrong },
+  { key: 'arrivals', label: 'Ankomster', activeBorder: colors.green, activeBg: colors.arrivalsBg },
 ];
 
 /** Avgångar/Ankomster, direkt vid tavlan så att man inte behöver öppna inställningarna. */
@@ -30,7 +30,7 @@ export default function DirectionToggle({ direction, onChange }: Props) {
               borderRadius: '10px',
               border: active ? `1px solid ${opt.activeBorder}` : `1px solid ${colors.borderMuted}`,
               backgroundColor: active ? opt.activeBg : colors.surface,
-              color: colors.text,
+              color: active ? colors.onAccent : colors.text,
               fontWeight: 800,
               fontSize: '14px',
               cursor: 'pointer',

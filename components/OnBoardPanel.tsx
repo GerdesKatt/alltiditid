@@ -44,9 +44,9 @@ export default function OnBoardPanel({
         padding: '18px',
         borderRadius: '18px',
         background:
-          'linear-gradient(135deg, rgba(2, 132, 199, 0.22) 0%, rgba(15, 23, 42, 0.96) 100%)',
+          `linear-gradient(135deg, ${colors.onboardTop} 0%, ${colors.onboardBottom} 100%)`,
         border: `1px solid ${colors.accent}`,
-        boxShadow: '0 12px 28px rgba(2, 132, 199, 0.18)',
+        boxShadow: `0 12px 28px ${colors.shadow}`,
       }}
     >
       <div
@@ -119,9 +119,9 @@ export default function OnBoardPanel({
             margin: '0 0 12px 0',
             padding: '10px 12px',
             borderRadius: '10px',
-            border: '1px solid #d97706',
-            backgroundColor: 'rgba(120, 53, 15, 0.35)',
-            color: '#fde68a',
+            border: `1px solid ${colors.delayedBorder}`,
+            backgroundColor: colors.noticeBg,
+            color: colors.noticeText,
             fontSize: '13px',
             lineHeight: 1.45,
           }}
@@ -145,7 +145,7 @@ export default function OnBoardPanel({
                 borderRadius: '10px',
                 border: active ? `1px solid ${colors.accent}` : `1px solid ${colors.borderStrong}`,
                 backgroundColor: active ? colors.accentStrong : colors.surface,
-                color: colors.text,
+                color: active ? colors.onAccent : colors.text,
                 fontSize: '13px',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -183,7 +183,7 @@ export default function OnBoardPanel({
         style={{
           padding: '11px 14px',
           borderRadius: '10px',
-          backgroundColor: 'rgba(15, 23, 42, 0.85)',
+          backgroundColor: colors.messageBg,
           border: `1px solid ${colors.border}`,
           fontSize: '13px',
           color: colors.textSoft,
@@ -212,7 +212,8 @@ export default function OnBoardPanel({
             padding: '10px 16px',
             borderRadius: '10px',
             border: 'none',
-            backgroundColor: colors.green,
+            // Fast grön med mörk text: samma i mörkt och ljust tema (7,9:1).
+            backgroundColor: '#10b981',
             color: '#062e22',
             fontWeight: 800,
             fontSize: '13px',

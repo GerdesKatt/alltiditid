@@ -20,12 +20,12 @@ export default function SwitchStopButton({ onClick, activeFilter }: Props) {
         padding: '0 20px',
         borderRadius: '999px',
         border: `2px solid ${colors.accent}`,
-        backgroundColor: '#0c2a40',
+        backgroundColor: colors.switchBg,
         color: colors.text,
         fontWeight: 800,
         fontSize: '15px',
         cursor: 'pointer',
-        boxShadow: '0 8px 24px rgba(2, 6, 23, 0.6)',
+        boxShadow: `0 8px 24px ${colors.shadow}`,
       }}
     >
       Byt hållplats eller filtrera{activeFilter ? ' · filter på' : ''}
