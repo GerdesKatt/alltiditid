@@ -45,4 +45,10 @@ export type Region = {
   modes: { key: TransportMode; label: string }[];
 };
 
+/** En störning som gäller flera avgångar, visad en gång överst på tavlan. */
+export type Disruption = {
+  text: string;
+  lines: string[];
+};
+
 export type BoardSource = 'trafiklab-realtime' | 'resrobot' | '';

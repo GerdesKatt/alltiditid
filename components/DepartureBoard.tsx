@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { BoardDirection, BoardSource, Departure } from '../lib/types';
+import type { BoardDirection, BoardSource, Departure, Disruption } from '../lib/types';
 import DepartureRow from './DepartureRow';
 import LineGroupRow from './LineGroupRow';
+import DisruptionBox from './DisruptionBox';
 import { groupKey } from '../lib/lineFormat';
 import DirectionToggle from './DirectionToggle';
 import { colors, emptyState } from './styles';
@@ -11,6 +12,7 @@ type Props = {
   direction: BoardDirection;
   onDirectionChange: (direction: BoardDirection) => void;
   departures: Departure[];
+  disruptions: Disruption[];
   loading: boolean;
   errorMsg: string | null;
   updatedAt: Date | null;
@@ -40,6 +42,7 @@ export default function DepartureBoard({
   direction,
   onDirectionChange,
   departures,
+  disruptions,
   loading,
   errorMsg,
   updatedAt,
@@ -154,37 +157,26 @@ export default function DepartureBoard({
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
           <DirectionToggle direction={direction} onChange={onDirectionChange} />
-          <div role="group" aria-label="Visning" style={{ display: 'flex', gap: '4px' }}>
-            {(
-              [
-                ['list', 'Lista'],
-                ['lines', 'Per linje'],
-              ] as const
-            ).map(([key, label]) => {
-              const active = view === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => onViewChange(key)}
-                  style={{
-                    minHeight: '44px',
-                    padding: '0 12px',
-                    borderRadius: '10px',
-                    border: active ? `1px solid ${colors.accent}` : `1px solid ${colors.borderMuted}`,
-                    backgroundColor: active ? colors.accentTint : 'transparent',
-                    color: colors.text,
-                    fontWeight: active ? 800 : 600,
-                    fontSize: '13px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
+          {/* C2: ett enda av/på-val i stället för en egen rad med Lista/Per linje. */}
+          <button
+            type="button"
+            aria-pressed={view === 'lines'}
+            onClick={() => onViewChange(view === 'lines' ? 'list' : 'lines')}
+            style={{
+              minHeight: '44px',
+              padding: '0 12px',
+              borderRadius: '10px',
+              border: view === 'lines' ? `1px solid ${colors.accent}` : `1px solid ${colors.borderMuted}`,
+              backgroundColor: view === 'lines' ? colors.accentTint : 'transparent',
+              color: colors.text,
+              fontWeight: view === 'lines' ? 800 : 600,
+              fontSize: '13px',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {view === 'lines' ? '✓ ' : ''}Per linje
+          </button>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -221,6 +213,8 @@ export default function DepartureBoard({
           ) : null}
         </div>
       </div>
+
+      {!errorMsg ? <DisruptionBox disruptions={disruptions} /> : null}
 
       {errorMsg ? (
         <div

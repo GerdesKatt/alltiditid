@@ -31,6 +31,7 @@ import type {
   RiderMood,
   StopOption,
   TransportMode,
+  Disruption,
 } from '../lib/types';
 
 /** Hur ofta tavlan hämtas på nytt (ms). */
@@ -86,6 +87,7 @@ export default function HomePage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [source, setSource] = useState<BoardSource>('');
+  const [disruptions, setDisruptions] = useState<Disruption[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const [activeInfoTab, setActiveInfoTab] = useState<InfoTab>('about');
 
@@ -225,6 +227,7 @@ export default function HomePage() {
     setLoading(true);
     setErrorMsg(null);
     setUpdatedAt(null);
+    setDisruptions([]);
 
     const url = boardUrl(selectedStop.id, selectedStop.name, direction);
     function load() {
@@ -250,6 +253,7 @@ export default function HomePage() {
           setUpdatedAt(data.savedAt > 0 ? new Date(data.savedAt) : new Date());
           setNow(Date.now());
           setSource(data.source === 'resrobot' ? 'resrobot' : 'trafiklab-realtime');
+          setDisruptions(Array.isArray(data.disruptions) ? data.disruptions : []);
 
           setOnBoardTrip((prev) => {
             if (!prev) return null;
@@ -452,6 +456,7 @@ export default function HomePage() {
         direction={direction}
         onDirectionChange={setDirection}
         departures={filtered}
+        disruptions={disruptions}
         loading={loading}
         errorMsg={errorMsg}
         updatedAt={updatedAt}
