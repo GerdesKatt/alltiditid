@@ -17,7 +17,8 @@ export const colors = {
   textFaint: '#8593a8',
   accent: '#38bdf8',
   accentSoft: '#7dd3fc',
-  accentStrong: '#0284c7',
+  /** Bakgrund bakom vit text: 5,7:1 (var #0284c7, 3,9:1). */
+  accentStrong: '#0369a1',
   green: '#10b981',
   greenSoft: '#6ee7b7',
   amber: '#fbbf24',
