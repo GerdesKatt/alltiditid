@@ -13,6 +13,13 @@ type Props = {
 const TIMES_PER_GROUP = 3;
 
 /** En linje mot ett mål, med de närmaste avgångarna i rad: "3 min · 11 min · 19 min". */
+/** "om 12 min" / "nu" för tåg, där avgångstiden står stort; tomt om det är en timme eller mer. */
+function relativeLabel(t: Departure, now: number): string {
+  const label = countdownFor(t, now);
+  if (label === 'Nu') return 'nu';
+  return /min$/.test(label) ? `om ${label}` : '';
+}
+
 export default function LineGroupRow({ items, direction, now }: Props) {
   const first = items[0];
   const badge = lineBadge(first.line);
@@ -24,14 +31,15 @@ export default function LineGroupRow({ items, direction, now }: Props) {
   const subline = [name, first.stopLabel, tracks.length === 1 ? tracks[0] : ''].filter(Boolean).join(' · ');
   const times = items.slice(0, TIMES_PER_GROUP);
 
+  // Skärmläsaren får både nedräkning och ordinarie tid, som på raden i listan.
   const spoken = `${trainNumber ? name || 'Tåg' : first.line} ${direction === 'arrivals' ? 'från' : 'mot'} ${
     first.destination
   }: ${times
     .map((t) => {
       const label = countdownFor(t, now);
       if (t.status === 'cancelled') return `${t.scheduledTime} inställd`;
-      if (t.status === 'delayed') return `${label === "Nu" ? "nu" : label}, försenad`;
-      return label === 'Nu' ? 'nu' : label;
+      if (t.status === 'delayed') return `${label === 'Nu' ? 'nu' : label}, försenad, ordinarie ${t.scheduledTime}`;
+      return `${label === 'Nu' ? 'nu' : label}, ${t.scheduledTime}`;
     })
     .join(', ')}`;
 
@@ -111,18 +119,37 @@ export default function LineGroupRow({ items, direction, now }: Props) {
                   fontSize: i === 0 ? '15px' : '13px',
                   fontWeight: i === 0 ? 800 : 700,
                   fontVariantNumeric: 'tabular-nums',
-                  padding: '2px 8px',
+                  display: 'inline-flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  lineHeight: 1.2,
+                  padding: '3px 8px',
                   borderRadius: '7px',
                   backgroundColor: colors.surfaceRaised,
                   border: `1px solid ${
                     cancelled ? colors.cancelledBorder : delayed ? colors.delayedBorder : colors.border
                   }`,
                   color: cancelled ? colors.cancelledText : delayed ? colors.amber : schedule ? colors.textDim : colors.text,
-                  textDecoration: cancelled ? 'line-through' : 'none',
                   whiteSpace: 'nowrap',
                 }}
               >
-                {countdownFor(t, now)}
+                {/* Tåg med tågnummer: avgångstiden stort (som på biljetten), annars nedräkningen. */}
+                <span style={{ textDecoration: cancelled ? 'line-through' : 'none' }}>
+                  {trainNumber ? t.scheduledTime : countdownFor(t, now)}
+                </span>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: colors.textDim }}>
+                  {trainNumber
+                    ? cancelled
+                      ? 'inställd'
+                      : delayed
+                      ? `ny ${t.newTime || t.estimatedTime}`
+                      : relativeLabel(t, now)
+                    : cancelled
+                    ? 'inställd'
+                    : delayed
+                    ? `${t.scheduledTime}→${t.newTime || t.estimatedTime}`
+                    : t.scheduledTime}
+                </span>
               </span>
             );
           })}
