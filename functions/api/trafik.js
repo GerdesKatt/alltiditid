@@ -1462,14 +1462,14 @@ function groupDisruptions(departures, stopDisruptions = []) {
   for (const d of departures) {
     for (const part of String(d.deviation || '').split(' • ').map((x) => x.trim()).filter(Boolean)) {
       if (ROW_ONLY_DEVIATION.test(part)) continue;
-      const entry = byText.get(part) || { text: part, lines: new Set(), rows: 0, importance: 5 };
+      const entry = byText.get(part) || { text: part, lines: new Set(), rows: 0, importance: 5, onRows: true };
       entry.lines.add(d.line);
       entry.rows += 1;
       byText.set(part, entry);
     }
   }
   for (const dev of stopDisruptions) {
-    const entry = byText.get(dev.text) || { text: dev.text, lines: new Set(), rows: 2, importance: dev.importance };
+    const entry = byText.get(dev.text) || { text: dev.text, lines: new Set(), rows: 2, importance: dev.importance, onRows: false };
     for (const line of dev.lines) entry.lines.add(line);
     entry.rows = Math.max(entry.rows, 2);
     entry.importance = Math.min(entry.importance, dev.importance);
@@ -1478,7 +1478,8 @@ function groupDisruptions(departures, stopDisruptions = []) {
   const shared = new Set(Array.from(byText.values()).filter((e) => e.rows >= 2).map((e) => e.text));
   const disruptions = Array.from(byText.values())
     .filter((e) => shared.has(e.text))
-    .sort((a, b) => a.importance - b.importance || b.rows - a.rows)
+    // Det som syns på avgångarna just nu först, sedan hållplatsens allmänna information.
+    .sort((a, b) => Number(b.onRows) - Number(a.onRows) || a.importance - b.importance || b.rows - a.rows)
     .slice(0, MAX_DISRUPTIONS)
     .map((e) => ({ text: e.text, lines: Array.from(e.lines).sort(compareLines) }));
   const outDepartures = departures.map((d) => {

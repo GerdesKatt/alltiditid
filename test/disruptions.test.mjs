@@ -40,7 +40,7 @@ globalThis.fetch = async (url) => {
 test('samma text på flera rader blir en störning med linjerna', async () => {
   const { body } = await board('action=departures&stopId=740021705&stopName=Gullmarsplan&mode=all&direction=departures', { TRAFIKLAB_REALTIME_API_KEY: 'rt' });
   const texts = (body.disruptions || []).map((d) => d.text);
-  assert.ok(texts.includes('Förseningar och inställda avgångar'));
+  assert.equal(texts[0], 'Förseningar och inställda avgångar'); // det som syns på raderna först
   const generic = body.disruptions.find((d) => d.text === 'Förseningar och inställda avgångar');
   assert.deepEqual(generic.lines, ['Gröna linjen 17', 'Gröna linjen 18', 'Gröna linjen 19']);
   // Hållplatsens egen störning från SL, bara för linjer som går här.

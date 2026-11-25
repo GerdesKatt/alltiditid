@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Disruption } from '../lib/types';
 import { colors } from './styles';
 
@@ -27,11 +27,17 @@ export function formatLines(lines: string[]): string {
  * A4/C3: störningar en gång per linje, överst på tavlan, i stället för samma gula text
  * på var tredje rad. Ihopfällda till två rader; ett tryck visar hela texten.
  */
+/** Så många rutor syns direkt; resten bakom "Visa N störningar till". */
+const VISIBLE = 1;
+
 export default function DisruptionBox({ disruptions }: Props) {
+  const [showAll, setShowAll] = useState(false);
   if (disruptions.length === 0) return null;
+  const shown = showAll ? disruptions : disruptions.slice(0, VISIBLE);
+  const hidden = disruptions.length - shown.length;
   return (
     <section aria-label="Störningar" style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px' }}>
-      {disruptions.map((d) => (
+      {shown.map((d) => (
         <details
           key={d.text}
           style={{
@@ -66,6 +72,26 @@ export default function DisruptionBox({ disruptions }: Props) {
           </p>
         </details>
       ))}
+      {hidden > 0 ? (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          style={{
+            alignSelf: 'flex-start',
+            minHeight: '44px',
+            padding: '0 4px',
+            border: 'none',
+            background: 'none',
+            color: colors.delayedText,
+            fontSize: '13px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            textDecoration: 'underline',
+          }}
+        >
+          Visa {hidden} {hidden === 1 ? 'störning' : 'störningar'} till
+        </button>
+      ) : null}
     </section>
   );
 }
