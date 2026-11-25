@@ -20,6 +20,9 @@ import type {
   TransportMode,
 } from '../lib/types';
 
+/** Hur ofta tavlan hämtas på nytt (ms). */
+const REFRESH_INTERVAL_MS = 60_000;
+
 export default function HomePage() {
   const [region, setRegion] = useState<RegionKey>('all');
   const [selectedStop, setSelectedStop] = useState<StopOption>(REGIONS[0].stations[0]);
@@ -33,6 +36,7 @@ export default function HomePage() {
   const [departures, setDepartures] = useState<Departure[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [activeInfoTab, setActiveInfoTab] = useState<InfoTab>('about');
 
   const [onBoardTrip, setOnBoardTrip] = useState<Departure | null>(null);
@@ -78,39 +82,62 @@ export default function HomePage() {
 
   useEffect(() => {
     let active = true;
+    let hasData = false;
     setLoading(true);
     setErrorMsg(null);
+    setUpdatedAt(null);
 
-    fetch(
-      `/api/trafik?action=departures&stopId=${encodeURIComponent(
-        selectedStop.id
-      )}&stopName=${encodeURIComponent(selectedStop.name)}&mode=all&direction=${direction}`
-    )
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Fel vid hämtning');
-        return data;
-      })
-      .then((data) => {
-        if (!active) return;
-        const list: Departure[] = Array.isArray(data.departures) ? data.departures : [];
-        setDepartures(list);
-        setLoading(false);
+    function load() {
+      fetch(
+        `/api/trafik?action=departures&stopId=${encodeURIComponent(
+          selectedStop.id
+        )}&stopName=${encodeURIComponent(selectedStop.name)}&mode=all&direction=${direction}`
+      )
+        .then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Fel vid hämtning');
+          return data;
+        })
+        .then((data) => {
+          if (!active) return;
+          const list: Departure[] = Array.isArray(data.departures) ? data.departures : [];
+          hasData = true;
+          setDepartures(list);
+          setErrorMsg(null);
+          setLoading(false);
+          setUpdatedAt(new Date());
 
-        setOnBoardTrip((prev) => {
-          if (!prev) return null;
-          const match = list.find((item) => item.id === prev.id);
-          return match || prev;
+          setOnBoardTrip((prev) => {
+            if (!prev) return null;
+            const match = list.find((item) => item.id === prev.id);
+            return match || prev;
+          });
+        })
+        .catch((err) => {
+          if (!active) return;
+          // Vid en misslyckad automatisk uppdatering behålls den senaste tavlan.
+          if (!hasData) {
+            setErrorMsg(err.message || 'Kunde inte hämta trafikinformation just nu.');
+          }
+          setLoading(false);
         });
-      })
-      .catch((err) => {
-        if (!active) return;
-        setErrorMsg(err.message || 'Kunde inte hämta trafikinformation just nu.');
-        setLoading(false);
-      });
+    }
+
+    load();
+
+    // Uppdatera tavlan automatiskt, men bara när fliken syns.
+    const interval = setInterval(() => {
+      if (typeof document === 'undefined' || !document.hidden) load();
+    }, REFRESH_INTERVAL_MS);
+    function handleVisibility() {
+      if (!document.hidden) load();
+    }
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       active = false;
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [selectedStop, direction]);
 
@@ -236,6 +263,7 @@ export default function HomePage() {
         departures={filtered}
         loading={loading}
         errorMsg={errorMsg}
+        updatedAt={updatedAt}
         selectedTripId={onBoardTrip ? onBoardTrip.id : null}
         onSelectOnBoard={handleSelectOnBoard}
       />
