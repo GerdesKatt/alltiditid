@@ -1146,6 +1146,173 @@ async function fetchOneBoard(keys, stopId, direction) {
 }
 
 /** Lägger Västtrafiks realtid på en hållplats avgångar (om det behövs). */
+// ---------------------------------------------------------------------------
+// SL Transport API (realtid för SL, ingen nyckel)
+// ---------------------------------------------------------------------------
+//
+// Trafiklab saknar ofta realtid för SL:s bussar och tunnelbana. SL:s eget API har
+// prognoser för nästan alla avgångar men egna "site"-id:n, så Trafiklab-hållplatsen
+// översätts till närmaste SL-site (via koordinater och namn) och cachas en vecka.
+
+const SL_BASE = 'https://transport.integration.sl.se/v1';
+const SL_SITE_MAX_METERS = 400;
+const SL_FORECAST_MIN = 60;
+
+function isSlDeparture(d) {
+  if (/^sl$|storstockholms lokaltrafik/i.test(String(d._agency || '').trim())) return true;
+  // Okänd operatör men inom Stockholms län: prova också. Matchningen kräver ändå samma
+  // linje och samma ordinarie minut hos SL, så andra bolags turer påverkas inte.
+  const c = d._coords;
+  return Boolean(
+    c && !isVasttrafikDeparture(d) && c.lat > 58.7 && c.lat < 60.3 && c.lon > 17.2 && c.lon < 19.4
+  );
+}
+
+function slNameKey(name) {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/\b(t-bana|tunnelbana|station|stockholm)\b/g, '')
+    .replace(/[^a-zåäö0-9]/g, '');
+}
+
+/** Alla SL-sites som [id, namn, lat, lon], cachat ett dygn (originalet är 1,3 MB). */
+async function fetchSlSites(context) {
+  const cacheKey = new Request('https://cache.alltiditid.se/sl/sites-v1');
+  const cached = await cacheGet(cacheKey);
+  if (cached) {
+    try {
+      return await cached.json();
+    } catch {
+      // Hämta om nedan
+    }
+  }
+  const res = await fetch(`${SL_BASE}/sites`);
+  if (!res.ok) throw new Error(`SL sites ${res.status}`);
+  const data = await res.json();
+  const compact = (Array.isArray(data) ? data : [])
+    .filter((x) => x && x.id && typeof x.lat === 'number' && typeof x.lon === 'number')
+    .map((x) => [x.id, String(x.name || ''), x.lat, x.lon]);
+  await cachePut(
+    cacheKey,
+    new Response(JSON.stringify(compact), {
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' },
+    }),
+    context
+  );
+  return compact;
+}
+
+/** Trafiklab-hållplats → SL-site-id (eller null). Samma namn vinner, annars närmast. */
+async function findSlSite(stopId, name, coords, context) {
+  const cacheKey = new Request(`https://cache.alltiditid.se/sl/site-v1/${encodeURIComponent(stopId)}`);
+  const cached = await cacheGet(cacheKey);
+  if (cached) {
+    try {
+      return (await cached.json()).site;
+    } catch {
+      // Slå upp igen
+    }
+  }
+  if (!coords) return null;
+  const sites = await fetchSlSites(context);
+  const wanted = slNameKey(name);
+  let best = null;
+  for (const [id, siteName, lat, lon] of sites) {
+    const dist = distanceMeters(coords.lat, coords.lon, lat, lon);
+    if (dist > SL_SITE_MAX_METERS) continue;
+    // Samma namn räknas som 300 m närmare, så att "Gullmarsplan" slår en busshållplats intill.
+    const score = dist - (wanted && slNameKey(siteName) === wanted ? 300 : 0);
+    if (!best || score < best.score) best = { id, score };
+  }
+  const site = best ? best.id : null;
+  await cachePut(
+    cacheKey,
+    new Response(JSON.stringify({ site }), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': `public, max-age=${site ? 7 * 86400 : 86400}`,
+      },
+    }),
+    context
+  );
+  return site;
+}
+
+/** SL:s avgångar som karta "linje|YYYY-MM-DDTHH:MM" → prognos. */
+async function fetchSlUpdates(site) {
+  const res = await fetch(`${SL_BASE}/sites/${encodeURIComponent(site)}/departures?forecast=${SL_FORECAST_MIN}`);
+  if (!res.ok) throw new Error(`SL departures ${res.status}`);
+  const data = await res.json();
+  const updates = new Map();
+  for (const dep of Array.isArray(data.departures) ? data.departures : []) {
+    const designation = String(dep?.line?.designation || '').trim().toLowerCase();
+    const scheduled = String(dep?.scheduled || '').slice(0, 16);
+    if (!designation || !scheduled) continue;
+    const display = String(dep.display || '').trim();
+    updates.set(`${designation}|${scheduled}`, {
+      // SL visar nedräkning ("Nu", "4 min") när de har en prognos och klockslag annars.
+      hasRealtime: display !== '' && !/^\d{1,2}:\d{2}$/.test(display),
+      expected: String(dep.expected || '').slice(0, 16),
+      cancelled: String(dep.state || '').toUpperCase() === 'CANCELLED',
+      platform: String(dep?.stop_point?.designation || '').trim(),
+    });
+  }
+  return updates;
+}
+
+/** Lägger SL:s prognos på en SL-avgång som saknar realtid hos Trafiklab. */
+function applySl(departure, updates) {
+  if (!updates || updates.size === 0 || !isSlDeparture(departure) || departure.hasRealtime) return departure;
+  const des = String(departure._designation || '').trim().toLowerCase();
+  const match = des ? updates.get(`${des}|${departure._scheduledLocal}`) : null;
+  if (!match) return departure;
+
+  const result = { ...departure };
+  if (match.platform && !result.track) result.track = trackLabelFor(match.platform, departure.transportMode);
+  if (match.cancelled) {
+    result.status = 'cancelled';
+    result.hasRealtime = true;
+    result.newTime = '';
+    result.delayMinutes = 0;
+    result.estimatedTime = result.scheduledTime;
+    return result;
+  }
+  if (!match.hasRealtime) return result;
+  const offset = minutesBetweenLocal(departure._scheduledLocal, match.expected);
+  if (offset === null) return result;
+  result.hasRealtime = true;
+  result._offsetMin = offset;
+  if (offset > 0) {
+    result.status = 'delayed';
+    result.delayMinutes = offset;
+    result.newTime = match.expected.slice(11, 16);
+    result.estimatedTime = result.newTime;
+  } else {
+    result.status = 'on-time';
+    result.newTime = '';
+    result.delayMinutes = 0;
+  }
+  return result;
+}
+
+async function overlaySl(board, fallbackName, direction, context) {
+  // SL:s API har bara avgångar, inte ankomster.
+  if (direction === 'arrivals') return board.departures;
+  const needs = board.departures.some((d) => isSlDeparture(d) && !d.hasRealtime);
+  if (!needs) return board.departures;
+  try {
+    const coords = board.departures.find((d) => isSlDeparture(d) && d._coords)?._coords || null;
+    const site = await findSlSite(board.stopId, board.stopName || fallbackName, coords, context);
+    if (!site) return board.departures;
+    const updates = await fetchSlUpdates(site);
+    return board.departures.map((d) => applySl(d, updates));
+  } catch {
+    // Utan SL-data visas Trafiklabs uppgifter som förut.
+    return board.departures;
+  }
+}
+
 async function overlayVasttrafik(keys, board, fallbackName, direction, context) {
   const diag = { stopId: board.stopId, status: 'ej använd' };
   const needs = board.departures.some((d) => isVasttrafikDeparture(d) && !d.hasRealtime);
@@ -1270,9 +1437,15 @@ async function handleBoard(url, keys, context) {
   // Västtrafik per hållplats (varje del har sitt eget hållplatsområde hos Västtrafik).
   let all = [];
   for (const board of boards) {
-    const { departures } = await overlayVasttrafik(
+    const { departures: vtDepartures } = await overlayVasttrafik(
       keys,
       board,
+      combined ? '' : clientStopName,
+      direction,
+      context
+    );
+    const departures = await overlaySl(
+      { ...board, departures: vtDepartures },
       combined ? '' : clientStopName,
       direction,
       context

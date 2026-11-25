@@ -297,7 +297,7 @@ export default function DepartureBoard({
         >
           Trafiklab.se
         </a>
-        , Trafikverket och Västtrafik. Avgångar märkta &quot;tidtabell&quot; saknar
+        , Trafikverket, SL och Västtrafik. Avgångar märkta &quot;tidtabell&quot; saknar
         realtidsdata.
       </p>
     </section>

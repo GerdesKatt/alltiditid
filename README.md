@@ -70,7 +70,7 @@ Sätts i Cloudflare Pages under *Settings → Environment variables* (lägg dem 
 ### Varifrån förseningarna kommer
 
 - **Tåg:** Trafikverket (matchas på tågnummer, station och ordinarie tid). Saknas matchning används Trafiklab.
-- **Buss, T-bana, spårvagn, båt:** Trafiklab Realtime APIs. Realtid finns bara för de operatörer som levererar det till Trafiklab (t.ex. SL, Skånetrafiken, UL, Östgötatrafiken). Västtrafik har bara tidtabell där, så deras realtid hämtas direkt från Västtrafiks Planera Resa v4 (matchas på linje och ordinarie tid).
+- **Buss, T-bana, spårvagn, båt:** Trafiklab Realtime APIs. Realtid finns bara för de operatörer som levererar det till Trafiklab (t.ex. SL, Skånetrafiken, UL, Östgötatrafiken). Västtrafik har bara tidtabell där, så deras realtid hämtas direkt från Västtrafiks Planera Resa v4 (matchas på linje och ordinarie tid). För SL fylls saknad realtid i från [SL Transport API](https://www.trafiklab.se/api/trafiklab-apis/sl/transport/) (ingen nyckel): Trafiklab-hållplatsen översätts till närmaste SL-site och avgångarna matchas på linje och ordinarie tid. Bara avgångar, inte ankomster.
 - Avgångar utan realtidsdata visas som **"Enligt tidtabell"** i stället för "I tid".
 - Tavlan uppdateras automatiskt varje minut medan fliken är öppen. Svaren cachas i Cloudflare i 45 sekunder så att kvoten räcker.
 

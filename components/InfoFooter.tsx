@@ -53,7 +53,7 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
             </li>
             <li style={privacyItem}>
               <strong>Avgångstavlor.</strong> När du visar en tavla hämtar vår server avgångar från
-              Trafiklab, Trafikverket och Västtrafik. Där skickas bara hållplatsens id och namn,
+              Trafiklab, Trafikverket, SL och Västtrafik. Där skickas bara hållplatsens id och namn,
               inget om dig.
             </li>
             <li style={privacyItem}>
