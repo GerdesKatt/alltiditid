@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { BoardDirection, BoardSource, Departure } from '../lib/types';
 import DepartureRow from './DepartureRow';
+import LineGroupRow from './LineGroupRow';
+import { groupKey } from '../lib/lineFormat';
 import DirectionToggle from './DirectionToggle';
 import { colors, emptyState } from './styles';
 
@@ -22,7 +24,14 @@ type Props = {
   /** Listan är full och hållplatsen är inte sparad: knappen förklarar i stället för att spara. */
   favoritesFull: boolean;
   onToggleFavorite: () => void;
+  view: BoardView;
+  onViewChange: (view: BoardView) => void;
 };
+
+export type BoardView = 'list' | 'lines';
+
+/** Så många rader visas först; "Visa fler" lägger till lika många till. */
+const PAGE_SIZE = 20;
 
 const STALE_AFTER_MS = 2 * 60_000;
 
@@ -42,7 +51,26 @@ export default function DepartureBoard({
   isFavorite,
   favoritesFull,
   onToggleFavorite,
+  view,
+  onViewChange,
 }: Props) {
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  // Ny hållplats, riktning eller vy: börja om från de första raderna.
+  useEffect(() => setLimit(PAGE_SIZE), [stopName, direction, view]);
+
+  const groups = useMemo(() => {
+    const map = new Map<string, Departure[]>();
+    for (const d of departures) {
+      const key = groupKey(d);
+      const list = map.get(key);
+      if (list) list.push(d);
+      else map.set(key, [d]);
+    }
+    return Array.from(map.values());
+  }, [departures]);
+  const total = view === 'lines' ? groups.length : departures.length;
+  const hidden = Math.max(0, total - limit);
+
   const updatedLabel = updatedAt
     ? updatedAt.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
     : '';
@@ -99,7 +127,40 @@ export default function DepartureBoard({
           </button>
         </div>
 
-        <DirectionToggle direction={direction} onChange={onDirectionChange} />
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+          <DirectionToggle direction={direction} onChange={onDirectionChange} />
+          <div role="group" aria-label="Visning" style={{ display: 'flex', gap: '4px' }}>
+            {(
+              [
+                ['list', 'Lista'],
+                ['lines', 'Per linje'],
+              ] as const
+            ).map(([key, label]) => {
+              const active = view === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => onViewChange(key)}
+                  style={{
+                    minHeight: '44px',
+                    padding: '0 12px',
+                    borderRadius: '10px',
+                    border: active ? `1px solid ${colors.accent}` : `1px solid ${colors.borderMuted}`,
+                    backgroundColor: active ? colors.accentTint : 'transparent',
+                    color: colors.text,
+                    fontWeight: active ? 800 : 600,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {updatedAt ? (
@@ -156,18 +217,49 @@ export default function DepartureBoard({
           <strong>Alla</strong> eller byt station.
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          {departures.map((item) => (
-            <DepartureRow
-              key={item.id}
-              item={item}
-              direction={direction}
-              now={now}
-              isSelectedTrip={selectedTripId === item.id}
-              onSelectOnBoard={onSelectOnBoard}
-            />
-          ))}
-        </div>
+        <>
+          {view === 'lines' ? (
+            <ul style={{ display: 'flex', flexDirection: 'column', gap: '6px', margin: 0, padding: 0 }}>
+              {groups.slice(0, limit).map((items) => (
+                <LineGroupRow key={groupKey(items[0])} items={items} direction={direction} now={now} />
+              ))}
+            </ul>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {departures.slice(0, limit).map((item) => (
+                <DepartureRow
+                  key={item.id}
+                  item={item}
+                  direction={direction}
+                  now={now}
+                  isSelectedTrip={selectedTripId === item.id}
+                  onSelectOnBoard={onSelectOnBoard}
+                />
+              ))}
+            </div>
+          )}
+          {hidden > 0 ? (
+            <button
+              type="button"
+              onClick={() => setLimit((n) => n + PAGE_SIZE)}
+              style={{
+                display: 'block',
+                width: '100%',
+                minHeight: '44px',
+                marginTop: '10px',
+                borderRadius: '11px',
+                border: `1px solid ${colors.borderStrong}`,
+                backgroundColor: colors.surface,
+                color: colors.text,
+                fontSize: '14px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Visa fler ({hidden} till)
+            </button>
+          ) : null}
+        </>
       )}
 
       <p style={{ fontSize: '11px', color: colors.textFaint, margin: '12px 0 0 0' }}>

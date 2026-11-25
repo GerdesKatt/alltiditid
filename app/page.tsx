@@ -14,6 +14,10 @@ import { REGIONS } from '../lib/regions';
 import { loadSavedState, regionForStop, saveState } from '../lib/savedStop';
 import { loadFavorites, MAX_FAVORITES, storeFavorites, toggleFavorite } from '../lib/favorites';
 import FavoritesBar from '../components/FavoritesBar';
+import type { BoardView } from '../components/DepartureBoard';
+
+/** Lista eller per linje, sparat i webbläsaren. */
+const VIEW_KEY = 'alltiditid:vy';
 import { buildShareMessage } from '../lib/shareMessage';
 import type {
   BoardDirection,
@@ -94,12 +98,18 @@ export default function HomePage() {
 
   const [restored, setRestored] = useState(false);
   const [offline, setOffline] = useState(false);
+  const [view, setView] = useState<BoardView>('list');
   const [favorites, setFavorites] = useState<StopOption[]>([]);
   // Inställningarna (region, snabbval, sök, filter) är öppna vid första besöket och
   // fälls ihop när det finns en sparad hållplats, så att tavlan kommer först.
   const [controlsOpen, setControlsOpen] = useState(true);
   useEffect(() => {
     setFavorites(loadFavorites());
+    try {
+      if (window.localStorage.getItem(VIEW_KEY) === 'lines') setView('lines');
+    } catch {
+      // Ingen lagring: listvyn gäller.
+    }
     // Service worker: appen startar från hemskärmen och visar senaste tavlan utan nät.
     if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
       navigator.serviceWorker.register('/sw.js').catch(() => {
@@ -405,6 +415,15 @@ export default function HomePage() {
         errorMsg={errorMsg}
         updatedAt={updatedAt}
         offline={offline}
+        view={view}
+        onViewChange={(next) => {
+          setView(next);
+          try {
+            window.localStorage.setItem(VIEW_KEY, next);
+          } catch {
+            // Valet gäller då bara tills sidan laddas om.
+          }
+        }}
         now={now}
         source={source}
         selectedTripId={onBoardTrip ? onBoardTrip.id : null}
