@@ -16,6 +16,10 @@ type Props = {
   source: BoardSource;
   selectedTripId: string | null;
   onSelectOnBoard: (item: Departure) => void;
+  isFavorite: boolean;
+  /** Listan är full och hållplatsen är inte sparad: knappen förklarar i stället för att spara. */
+  favoritesFull: boolean;
+  onToggleFavorite: () => void;
 };
 
 const STALE_AFTER_MS = 2 * 60_000;
@@ -32,6 +36,9 @@ export default function DepartureBoard({
   source,
   selectedTripId,
   onSelectOnBoard,
+  isFavorite,
+  favoritesFull,
+  onToggleFavorite,
 }: Props) {
   const updatedLabel = updatedAt
     ? updatedAt.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
@@ -52,13 +59,41 @@ export default function DepartureBoard({
           gap: '8px',
         }}
       >
-        <div style={{ flexBasis: '100%' }}>
-          <span style={{ fontSize: '12px', color: colors.textDim, display: 'block' }}>
-            {direction === 'arrivals' ? 'Visar ankomster till' : 'Visar avgångar från'}
-          </span>
-          <h2 style={{ fontSize: '22px', fontWeight: 800, margin: 0, color: colors.text }}>
-            {stopName}
-          </h2>
+        <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'flex-end', gap: '10px' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ fontSize: '12px', color: colors.textDim, display: 'block' }}>
+              {direction === 'arrivals' ? 'Visar ankomster till' : 'Visar avgångar från'}
+            </span>
+            <h2 style={{ fontSize: '22px', fontWeight: 800, margin: 0, color: colors.text }}>
+              {stopName}
+            </h2>
+          </div>
+          <button
+            type="button"
+            aria-pressed={isFavorite}
+            disabled={favoritesFull}
+            title={favoritesFull ? 'Du kan spara högst 8 hållplatser. Ta bort en först.' : undefined}
+            onClick={onToggleFavorite}
+            style={{
+              flexShrink: 0,
+              minHeight: '44px',
+              padding: '0 14px',
+              borderRadius: '999px',
+              border: isFavorite ? `1px solid ${colors.amber}` : `1px solid ${colors.borderStrong}`,
+              backgroundColor: colors.surface,
+              color: colors.text,
+              fontSize: '14px',
+              fontWeight: 700,
+              cursor: favoritesFull ? 'not-allowed' : 'pointer',
+              opacity: favoritesFull ? 0.6 : 1,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span aria-hidden="true" style={{ color: colors.amber, marginRight: '6px' }}>
+              {isFavorite ? '★' : '☆'}
+            </span>
+            {isFavorite ? 'Sparad' : favoritesFull ? 'Listan full' : 'Spara'}
+          </button>
         </div>
 
         <DirectionToggle direction={direction} onChange={onDirectionChange} />

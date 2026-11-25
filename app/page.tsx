@@ -12,6 +12,8 @@ import SearchPanel from '../components/SearchPanel';
 import SwitchStopButton from '../components/SwitchStopButton';
 import { REGIONS } from '../lib/regions';
 import { loadSavedState, regionForStop, saveState } from '../lib/savedStop';
+import { loadFavorites, MAX_FAVORITES, storeFavorites, toggleFavorite } from '../lib/favorites';
+import FavoritesBar from '../components/FavoritesBar';
 import { buildShareMessage } from '../lib/shareMessage';
 import type {
   BoardDirection,
@@ -91,10 +93,12 @@ export default function HomePage() {
   }
 
   const [restored, setRestored] = useState(false);
+  const [favorites, setFavorites] = useState<StopOption[]>([]);
   // Inställningarna (region, snabbval, sök, filter) är öppna vid första besöket och
   // fälls ihop när det finns en sparad hållplats, så att tavlan kommer först.
   const [controlsOpen, setControlsOpen] = useState(true);
   useEffect(() => {
+    setFavorites(loadFavorites());
     const saved = loadSavedState();
     if (saved) {
       setRegion(saved.region);
@@ -296,6 +300,8 @@ export default function HomePage() {
     }
   }
 
+  const isFavorite = favorites.some((s) => s.id === selectedStop.id);
+
   return (
     <div id="alltiditid-app" style={{ maxWidth: '860px', margin: '0 auto' }}>
       <Header onContactClick={() => setActiveInfoTab('contact')} />
@@ -360,7 +366,26 @@ export default function HomePage() {
         </div>
       )}
 
+      <FavoritesBar
+        favorites={favorites}
+        currentId={selectedStop.id}
+        onSelect={(stop) => {
+          setSelectedStop(stop);
+          const stopRegion = regionForStop(stop.id);
+          if (stopRegion !== 'all') setRegion(stopRegion);
+          setMode('all');
+          setControlsOpen(false);
+        }}
+      />
+
       <DepartureBoard
+        isFavorite={isFavorite}
+        favoritesFull={!isFavorite && favorites.length >= MAX_FAVORITES}
+        onToggleFavorite={() => {
+          const next = toggleFavorite(favorites, selectedStop);
+          setFavorites(next);
+          storeFavorites(next);
+        }}
         stopName={selectedStop.name}
         direction={direction}
         onDirectionChange={setDirection}
