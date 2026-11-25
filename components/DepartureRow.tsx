@@ -64,7 +64,7 @@ export default function DepartureRow({ item, direction, isSelectedTrip, onSelect
             borderRight: `1px solid ${colors.border}`,
           }}
         >
-          <div style={{ fontSize: '10px', color: colors.textFaint, fontWeight: 700 }}>
+          <div style={{ fontSize: '12px', color: colors.textFaint, fontWeight: 700 }}>
             ORD. TID
           </div>
           <div
@@ -83,7 +83,7 @@ export default function DepartureRow({ item, direction, isSelectedTrip, onSelect
               <span
                 style={{
                   display: 'block',
-                  fontSize: '10px',
+                  fontSize: '12px',
                   color: colors.amber,
                   fontWeight: 800,
                 }}
@@ -153,6 +153,10 @@ export default function DepartureRow({ item, direction, isSelectedTrip, onSelect
       <div style={{ display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' }}>
         <button
           type="button"
+          aria-pressed={isSelectedTrip}
+          aria-label={`${isSelectedTrip ? 'Vald resa' : 'Jag är ombord'}: ${item.line} ${
+            direction === 'arrivals' ? 'från' : 'mot'
+          } ${item.destination} ${item.scheduledTime}`}
           onClick={() => onSelectOnBoard(item)}
           style={{
             padding: '6px 11px',

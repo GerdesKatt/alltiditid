@@ -5,7 +5,15 @@ type Props = {
   onContactClick: () => void;
 };
 
-const navLink = { color: colors.textMuted, textDecoration: 'none' } as const;
+// Minst 44 px höga tryckytor (var 15 px).
+const navLink = {
+  color: colors.textMuted,
+  textDecoration: 'none',
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '44px',
+  padding: '0 4px',
+} as const;
 
 export default function Header({ onContactClick }: Props) {
   return (
@@ -75,7 +83,7 @@ export default function Header({ onContactClick }: Props) {
           </span>
           <span
             style={{
-              fontSize: '10px',
+              fontSize: '11px',
               fontWeight: 600,
               letterSpacing: '0.04em',
               textTransform: 'uppercase',
@@ -98,7 +106,7 @@ export default function Header({ onContactClick }: Props) {
         <a
           href="#sidfot"
           onClick={onContactClick}
-          style={{ color: colors.accent, textDecoration: 'none' }}
+          style={{ ...navLink, color: colors.accent }}
         >
           Kontakt
         </a>

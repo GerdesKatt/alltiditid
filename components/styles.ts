@@ -6,16 +6,19 @@ export const colors = {
   surface: '#0f172a',
   surfaceRaised: '#1e293b',
   border: '#1e293b',
-  borderStrong: '#334155',
+  /** Ram på knappar och fält: minst 3:1 mot bakgrunden (WCAG 1.4.11). */
+  borderStrong: '#64748b',
   borderMuted: '#475569',
   text: '#f8fafc',
   textSoft: '#e2e8f0',
   textMuted: '#cbd5e1',
   textDim: '#94a3b8',
-  textFaint: '#64748b',
+  /** Minst 4,5:1 mot kort och sida (WCAG 1.4.3). Var #64748b (3,75:1). */
+  textFaint: '#8593a8',
   accent: '#38bdf8',
   accentSoft: '#7dd3fc',
-  accentStrong: '#0284c7',
+  /** Bakgrund bakom vit text: 5,7:1 (var #0284c7, 3,9:1). */
+  accentStrong: '#0369a1',
   green: '#10b981',
   greenSoft: '#6ee7b7',
   amber: '#fbbf24',

@@ -73,6 +73,7 @@ export default function InfoFooter({ activeTab, onTabChange }: Props) {
           <button
             key={tab.key}
             type="button"
+            aria-pressed={activeTab === tab.key}
             onClick={() => onTabChange(tab.key)}
             style={{
               padding: '6px 12px',
