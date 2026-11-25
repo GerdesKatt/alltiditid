@@ -565,7 +565,11 @@ async function realtimeBoard(key, stopId, direction) {
   if (!res.ok) throw new Error(`Trafiklab Realtime svarade med status ${res.status}`);
   const data = await res.json();
   const calls = Array.isArray(data[kind]) ? data[kind] : [];
-  const stopName = data.stops?.find((s) => String(s.id) === String(stopId))?.name || '';
+  const stopName =
+    data.stops?.find((s) => String(s.id) === String(stopId))?.name ||
+    calls.find((c) => c && c.stop && c.stop.name)?.stop.name ||
+    data.stops?.[0]?.name ||
+    '';
   return {
     stopName,
     departures: calls.map((call) => mapRealtimeCall(call, direction)),
@@ -953,87 +957,152 @@ async function handleSearch(url, keys) {
   return jsonResponse({ error: 'Kunde inte söka hållplatser just nu.' }, 502);
 }
 
+/** Max antal hållplatser som kan slås ihop till en tavla (t.ex. Göteborg C). */
+const MAX_COMBINED_STOPS = 4;
+
+/** Kort hållplatsnamn utan ortsprefix, för att visa vilken del av en sammanslagen tavla. */
+function shortStopLabel(name) {
+  return String(name || '')
+    .replace(/^(göteborg|stockholm|malmö)\s+/i, '')
+    .trim();
+}
+
+/** Hämtar en hållplats tavla: Trafiklab Realtime först, ResRobot som reserv. */
+async function fetchOneBoard(keys, stopId, direction) {
+  let lastError = null;
+  if (keys.realtime) {
+    try {
+      const board = await realtimeBoard(keys.realtime, stopId, direction);
+      return { ...board, stopId, source: 'trafiklab-realtime' };
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  if (keys.resrobot) {
+    try {
+      const board = await resrobotBoard(keys.resrobot, stopId, direction);
+      return { ...board, stopId, source: 'resrobot' };
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  return { stopId, error: lastError || new Error('Kunde inte hämta trafikinformation just nu.') };
+}
+
+/** Lägger Västtrafiks realtid på en hållplats avgångar (om det behövs). */
+async function overlayVasttrafik(keys, board, fallbackName, direction, context) {
+  const diag = { stopId: board.stopId, status: 'ej använd' };
+  const needs = board.departures.some((d) => isVasttrafikDeparture(d) && !d.hasRealtime);
+  if (!needs) return { departures: board.departures, diag };
+  if (!keys.vasttrafikKey || !keys.vasttrafikSecret) {
+    diag.status = 'nycklar saknas';
+    return { departures: board.departures, diag };
+  }
+  try {
+    const coords =
+      board.departures.find((d) => isVasttrafikDeparture(d) && d._coords)?._coords || null;
+    const updates = await fetchVasttrafikUpdates(
+      keys,
+      board.stopId,
+      [board.stopName, fallbackName].filter(Boolean),
+      coords,
+      direction,
+      context,
+      diag
+    );
+    const departures = board.departures.map((d) => applyVasttrafik(d, updates));
+    diag.matched = departures.filter((d) => isVasttrafikDeparture(d) && d.hasRealtime).length;
+    return { departures, diag };
+  } catch (err) {
+    diag.status = 'fel';
+    diag.message = String((err && err.message) || err);
+    return { departures: board.departures, diag };
+  }
+}
+
 async function handleBoard(url, keys, context) {
-  const stopId = url.searchParams.get('stopId') || '740000001';
+  const stopParam = url.searchParams.get('stopId') || '740000001';
   const clientStopName = url.searchParams.get('stopName') || '';
   const mode = url.searchParams.get('mode') || 'all';
   const direction = url.searchParams.get('direction') === 'arrivals' ? 'arrivals' : 'departures';
 
-  let board = null;
-  let source = '';
-  let lastError = null;
+  // stopId kan vara flera id:n separerade med komma, t.ex. Göteborg C =
+  // järnvägsstationen + spårvagnshållplatserna + bussterminalen.
+  const stopIds = Array.from(
+    new Set(
+      stopParam
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean)
+    )
+  ).slice(0, MAX_COMBINED_STOPS);
+  const combined = stopIds.length > 1;
 
-  if (keys.realtime) {
-    try {
-      board = await realtimeBoard(keys.realtime, stopId, direction);
-      source = 'trafiklab-realtime';
-    } catch (err) {
-      lastError = err;
-    }
-  }
-  if (!board && keys.resrobot) {
-    try {
-      board = await resrobotBoard(keys.resrobot, stopId, direction);
-      source = 'resrobot';
-    } catch (err) {
-      lastError = err;
-    }
-  }
-  if (!board) {
+  const results = await Promise.all(stopIds.map((id) => fetchOneBoard(keys, id, direction)));
+  const boards = results.filter((b) => !b.error);
+  if (boards.length === 0) {
+    const err = results[0] && results[0].error;
     return jsonResponse(
-      { error: lastError ? lastError.message : 'Kunde inte hämta trafikinformation just nu.' },
+      { error: err ? err.message : 'Kunde inte hämta trafikinformation just nu.' },
       502
     );
   }
 
-  const stopName = clientStopName || board.stopName;
-  const trainNumbers = board.departures
+  // Västtrafik per hållplats (varje del har sitt eget hållplatsområde hos Västtrafik).
+  const vtDiags = [];
+  let all = [];
+  for (const board of boards) {
+    const { departures, diag } = await overlayVasttrafik(
+      keys,
+      board,
+      combined ? '' : clientStopName,
+      direction,
+      context
+    );
+    vtDiags.push(diag);
+    const label = combined ? shortStopLabel(board.stopName) : '';
+    all = all.concat(
+      departures.map((d) =>
+        combined ? { ...d, id: `${board.stopId}-${d.id}`, stopLabel: label } : d
+      )
+    );
+  }
+
+  if (combined) {
+    all.sort((a, b) =>
+      String(a._scheduledLocal || '').localeCompare(String(b._scheduledLocal || ''))
+    );
+  }
+
+  // Trafikverket för tågen (stationsnamnet från klienten, t.ex. "Göteborg Centralstation").
+  const stopName = clientStopName || boards[0].stopName;
+  const trainNumbers = all
     .filter((d) => d.transportMode === 'train' || d.transportMode === 'commuter')
     .flatMap((d) => d._trainCandidates || []);
-
   const tvUpdates = keys.trafikverket
     ? await fetchTrafikverketStationUpdates(keys.trafikverket, stopName, trainNumbers, direction, context)
     : new Map();
 
-  // Västtrafik: Trafiklab saknar deras realtid, så hämta den direkt från Västtrafik.
-  let vtUpdates = null;
-  const vtDiag = { status: 'ej använd' };
-  const needsVasttrafik = board.departures.some(
-    (d) => isVasttrafikDeparture(d) && !d.hasRealtime
-  );
-  if (keys.vasttrafikKey && keys.vasttrafikSecret && needsVasttrafik) {
-    try {
-      const coords = board.departures.find((d) => isVasttrafikDeparture(d) && d._coords)?._coords || null;
-      vtUpdates = await fetchVasttrafikUpdates(
-        keys,
-        stopId,
-        [board.stopName, clientStopName].filter(Boolean),
-        coords,
-        direction,
-        context,
-        vtDiag
-      );
-    } catch (err) {
-      vtUpdates = null; // Visa Trafiklabs tidtabell om Västtrafik inte svarar
-      vtDiag.status = 'fel';
-      vtDiag.message = String((err && err.message) || err);
-    }
-  } else if (needsVasttrafik) {
-    vtDiag.status = 'nycklar saknas';
-  }
-
-  const departures = board.departures
+  const departures = all
     .filter((d) => mode === 'all' || d.transportMode === mode)
     .map((d) => applyTrafikverket(d, tvUpdates, d._trainCandidates || []))
-    .map((d) => applyVasttrafik(d, vtUpdates))
     .map(({ _trainCandidates, _scheduledLocal, _agency, _designation, _coords, ...rest }) => rest);
 
-  if (vtUpdates) {
-    vtDiag.matched = departures.filter((d) => d.hasRealtime).length;
-  }
+  const vasttrafik =
+    vtDiags.length === 1
+      ? vtDiags[0]
+      : { status: vtDiags.map((d) => d.status).join(', '), stops: vtDiags };
 
   return jsonResponse(
-    { departures, source, updatedAt: new Date().toISOString(), vasttrafik: vtDiag },
+    {
+      departures,
+      source: boards[0].source,
+      updatedAt: new Date().toISOString(),
+      vasttrafik,
+      ...(results.length !== boards.length
+        ? { partial: results.filter((r) => r.error).map((r) => r.stopId) }
+        : {}),
+    },
     200,
     { 'Cache-Control': `public, max-age=${BOARD_CACHE_SECONDS}` }
   );
