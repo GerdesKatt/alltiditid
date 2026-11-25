@@ -1,5 +1,5 @@
 import React from 'react';
-import type { BoardDirection, Departure } from '../lib/types';
+import type { BoardDirection, BoardSource, Departure } from '../lib/types';
 import DepartureRow from './DepartureRow';
 import { colors, emptyState } from './styles';
 
@@ -10,9 +10,13 @@ type Props = {
   loading: boolean;
   errorMsg: string | null;
   updatedAt: Date | null;
+  now: number;
+  source: BoardSource;
   selectedTripId: string | null;
   onSelectOnBoard: (item: Departure) => void;
 };
+
+const STALE_AFTER_MS = 2 * 60_000;
 
 export default function DepartureBoard({
   stopName,
@@ -21,9 +25,18 @@ export default function DepartureBoard({
   loading,
   errorMsg,
   updatedAt,
+  now,
+  source,
   selectedTripId,
   onSelectOnBoard,
 }: Props) {
+  const updatedLabel = updatedAt
+    ? updatedAt.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
+    : '';
+  // Data äldre än så här räknas som inaktuell och visas som en varning.
+  const stale = updatedAt ? now - updatedAt.getTime() > STALE_AFTER_MS : false;
+  const limited = source === 'resrobot';
+
   return (
     <section id="avgangstavla" style={{ marginBottom: '36px' }}>
       <div
@@ -47,23 +60,34 @@ export default function DepartureBoard({
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {updatedAt ? (
-            <span style={{ fontSize: '12px', color: colors.textFaint }}>
-              Uppdaterad {updatedAt.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
+            <span
+              role={stale ? 'alert' : undefined}
+              style={{
+                fontSize: '12px',
+                fontWeight: stale ? 700 : 400,
+                color: stale ? colors.amber : colors.textDim,
+              }}
+            >
+              {stale
+                ? `Ej uppdaterad sedan ${updatedLabel}. Försöker igen…`
+                : `Uppdaterad ${updatedLabel}`}
             </span>
           ) : null}
-          <span
-            style={{
-              fontSize: '12px',
-              fontWeight: 700,
-              padding: '5px 11px',
-              borderRadius: '999px',
-              backgroundColor: 'rgba(6, 78, 59, 0.75)',
-              border: '1px solid #059669',
-              color: colors.greenSoft,
-            }}
-          >
-            Live från Trafiklab
-          </span>
+          {updatedAt && !stale ? (
+            <span
+              style={{
+                fontSize: '12px',
+                fontWeight: 700,
+                padding: '5px 11px',
+                borderRadius: '999px',
+                backgroundColor: limited ? 'rgba(120, 53, 15, 0.85)' : 'rgba(6, 78, 59, 0.75)',
+                border: limited ? '1px solid #d97706' : '1px solid #059669',
+                color: limited ? '#fcd34d' : colors.greenSoft,
+              }}
+            >
+              {limited ? 'Begränsad realtid' : 'Realtid från Trafiklab'}
+            </span>
+          ) : null}
         </div>
       </div>
 

@@ -112,7 +112,7 @@ const REALTIME_BASE = 'https://realtime-api.trafiklab.se/v1';
 const RESROBOT_BASE = 'https://api.resrobot.se/v2.1';
 
 /** Hur länge en avgångstavla cachas i Cloudflare (sekunder). Trafiklab cachar själva i 60 s. */
-const BOARD_CACHE_SECONDS = 45;
+const BOARD_CACHE_SECONDS = 20;
 /** Hur länge Trafikverkets stationslista cachas (sekunder). */
 const STATION_LIST_CACHE_SECONDS = 24 * 60 * 60;
 
@@ -201,6 +201,15 @@ function swedishDateTime(isoWithZone) {
   } catch {
     return String(isoWithZone || '').slice(0, 16);
   }
+}
+
+/** Lägger till minuter på en lokal tid 'YYYY-MM-DDTHH:MM' (utan tidszon) och returnerar samma format. */
+function addMinutesLocal(local, minutes) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(String(local || ''));
+  if (!m) return '';
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) + (minutes || 0) * 60000);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 }
 
 function trackLabelFor(value) {
@@ -1049,17 +1058,15 @@ async function handleBoard(url, keys, context) {
   }
 
   // Västtrafik per hållplats (varje del har sitt eget hållplatsområde hos Västtrafik).
-  const vtDiags = [];
   let all = [];
   for (const board of boards) {
-    const { departures, diag } = await overlayVasttrafik(
+    const { departures } = await overlayVasttrafik(
       keys,
       board,
       combined ? '' : clientStopName,
       direction,
       context
     );
-    vtDiags.push(diag);
     const label = combined ? shortStopLabel(board.stopName) : '';
     all = all.concat(
       departures.map((d) =>
@@ -1086,19 +1093,19 @@ async function handleBoard(url, keys, context) {
   const departures = all
     .filter((d) => mode === 'all' || d.transportMode === mode)
     .map((d) => applyTrafikverket(d, tvUpdates, d._trainCandidates || []))
+    .map((d) => ({
+      ...d,
+      // Förväntad avgångstid i svensk lokal tid, så att klienten kan dölja avgångar som redan gått.
+      expectedAt:
+        addMinutesLocal(d._scheduledLocal, d.status === 'delayed' ? d.delayMinutes : 0) || undefined,
+    }))
     .map(({ _trainCandidates, _scheduledLocal, _agency, _designation, _coords, ...rest }) => rest);
-
-  const vasttrafik =
-    vtDiags.length === 1
-      ? vtDiags[0]
-      : { status: vtDiags.map((d) => d.status).join(', '), stops: vtDiags };
 
   return jsonResponse(
     {
       departures,
       source: boards[0].source,
       updatedAt: new Date().toISOString(),
-      vasttrafik,
       ...(results.length !== boards.length
         ? { partial: results.filter((r) => r.error).map((r) => r.stopId) }
         : {}),
