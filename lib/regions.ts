@@ -27,9 +27,9 @@ export const REGIONS: Region[] = [
     stations: [
       { id: '740020749', name: 'T-Centralen', shortName: 'T-Centralen' },
       { id: '740000001', name: 'Stockholm Centralstation', shortName: 'Stockholm C' },
-      { id: '740020751', name: 'Slussen', shortName: 'Slussen' },
-      { id: '740020755', name: 'Odenplan', shortName: 'Odenplan' },
-      { id: '740020754', name: 'Gullmarsplan', shortName: 'Gullmarsplan' },
+      { id: '740020101', name: 'Slussen', shortName: 'Slussen' },
+      { id: '740098559', name: 'Odenplan', shortName: 'Odenplan' },
+      { id: '740021705', name: 'Gullmarsplan', shortName: 'Gullmarsplan' },
     ],
     modes: [
       { key: 'all', label: 'Alla' },
@@ -45,9 +45,9 @@ export const REGIONS: Region[] = [
     label: 'Göteborg',
     stations: [
       { id: '740000002', name: 'Göteborg Centralstation', shortName: 'Göteborg C' },
-      { id: '740025614', name: 'Brunnsparken', shortName: 'Brunnsparken' },
-      { id: '740025624', name: 'Korsvägen', shortName: 'Korsvägen' },
-      { id: '740025619', name: 'Järntorget', shortName: 'Järntorget' },
+      { id: '740020752', name: 'Brunnsparken', shortName: 'Brunnsparken' },
+      { id: '740015578', name: 'Korsvägen', shortName: 'Korsvägen' },
+      { id: '740015573', name: 'Järntorget', shortName: 'Järntorget' },
     ],
     modes: [
       { key: 'all', label: 'Alla' },
@@ -64,7 +64,7 @@ export const REGIONS: Region[] = [
     stations: [
       { id: '740000003', name: 'Malmö Centralstation', shortName: 'Malmö C' },
       { id: '740000120', name: 'Lund Centralstation', shortName: 'Lund C' },
-      { id: '740001581', name: 'Triangeln', shortName: 'Triangeln' },
+      { id: '740001587', name: 'Triangeln', shortName: 'Triangeln' },
       { id: '740000044', name: 'Helsingborg Centralstation', shortName: 'Helsingborg C' },
     ],
     modes: [
