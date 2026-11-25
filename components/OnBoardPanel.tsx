@@ -138,6 +138,7 @@ export default function OnBoardPanel({
             <button
               key={opt.key}
               type="button"
+              aria-pressed={active}
               onClick={() => onRiderStatusChange(opt.key)}
               style={{
                 padding: '8px 14px',
@@ -156,7 +157,11 @@ export default function OnBoardPanel({
         })}
       </div>
 
+      <label htmlFor="notis" className="sr-only">
+        Notis till den som hämtar
+      </label>
       <input
+        id="notis"
         type="text"
         value={riderNote}
         onChange={(e) => onRiderNoteChange(e.target.value)}

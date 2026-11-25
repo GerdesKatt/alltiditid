@@ -102,6 +102,7 @@ export default function SearchPanel({
             <button
               key={reg.key}
               type="button"
+              aria-pressed={active}
               onClick={() => onRegionChange(reg.key)}
               style={{
                 padding: '6px 12px',
@@ -114,6 +115,7 @@ export default function SearchPanel({
                 cursor: 'pointer',
               }}
             >
+              {active ? '✓ ' : ''}
               {reg.label}
             </button>
           );
@@ -128,6 +130,7 @@ export default function SearchPanel({
             <button
               key={stop.id}
               type="button"
+              aria-pressed={active}
               onClick={() => onQuickStopSelect(stop)}
               style={{
                 padding: '5px 12px',
@@ -140,6 +143,7 @@ export default function SearchPanel({
                 cursor: 'pointer',
               }}
             >
+              {active ? '✓ ' : ''}
               {stop.shortName || stop.name}
             </button>
           );
@@ -164,6 +168,7 @@ export default function SearchPanel({
               <button
                 key={m.key}
                 type="button"
+                aria-pressed={active}
                 onClick={() => onModeChange(m.key)}
                 style={{
                   padding: '7px 12px',
@@ -176,6 +181,7 @@ export default function SearchPanel({
                   cursor: 'pointer',
                 }}
               >
+                {active ? '✓ ' : ''}
                 {m.label}
               </button>
             );
@@ -192,8 +198,13 @@ export default function SearchPanel({
         }}
       >
         <div style={{ position: 'relative' }}>
+          <label htmlFor="sok-hallplats" className="sr-only">
+            Sök hållplats eller station
+          </label>
           <input
-            type="text"
+            id="sok-hallplats"
+            type="search"
+            autoComplete="off"
             value={stationQuery}
             onChange={(e) => onStationQueryChange(e.target.value)}
             placeholder="Sök valfri station eller hållplats i Sverige..."
@@ -247,8 +258,13 @@ export default function SearchPanel({
           ) : null}
         </div>
 
+        <label htmlFor="filtrera-avgangar" className="sr-only">
+          Filtrera avgångar på linje, destination eller stopp
+        </label>
         <input
-          type="text"
+          id="filtrera-avgangar"
+          type="search"
+          autoComplete="off"
           value={filterText}
           onChange={(e) => onFilterTextChange(e.target.value)}
           placeholder="Filtrera linje (t.ex. 19, 4, 535), destination eller stopp..."
