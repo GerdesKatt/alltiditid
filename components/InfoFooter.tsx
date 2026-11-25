@@ -9,12 +9,14 @@ type Props = {
 
 const TABS: { key: InfoTab; label: string }[] = [
   { key: 'about', label: 'Om alltiditid.se' },
-  { key: 'privacy', label: 'Integritetspolicy & cookies' },
+  { key: 'privacy', label: 'Integritet' },
   { key: 'terms', label: 'Ansvarsfriskrivning' },
   { key: 'contact', label: 'Kontakt' },
 ];
 
 const tabText = { lineHeight: 1.6, margin: '0 0 14px 0' } as const;
+const privacyPara = { margin: '0 0 10px 0' } as const;
+const privacyItem = { marginBottom: '8px' } as const;
 
 function TabContent({ tab }: { tab: InfoTab }) {
   switch (tab) {
@@ -27,11 +29,45 @@ function TabContent({ tab }: { tab: InfoTab }) {
       );
     case 'privacy':
       return (
-        <p style={tabText}>
-          Vi samlar inte in personuppgifter genom stationssökningar. Vid annonsering via tredje
-          part (såsom Google AdSense) kan cookies eller liknande tekniker användas för att visa
-          relevanta annonser och mäta trafik.
-        </p>
+        <div style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
+          <p style={privacyPara}>
+            alltiditid.se har inga konton och använder inga kakor för spårning eller annonser. Så
+            här hanteras det lilla som behövs för att tjänsten ska fungera:
+          </p>
+          <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
+            <li style={privacyItem}>
+              <strong>Sparad hållplats.</strong> Den hållplats och riktning du senast tittade på
+              sparas i din webbläsare (local storage), så att sidan öppnas där nästa gång. Den
+              stannar på din enhet och används inte till något annat. Du tar bort den genom att
+              rensa webbplatsdata för alltiditid.se i webbläsaren. Hållplatsen står också i sidans
+              adress, så att du kan dela eller bokmärka tavlan.
+            </li>
+            <li style={privacyItem}>
+              <strong>Hållplatser nära mig.</strong> Din position används bara när du själv trycker
+              på knappen och har tillåtit platsåtkomst. Den avrundas till ungefär 100 meter i din
+              telefon innan den skickas till vår server och vidare till Trafiklab (ResRobot) för att
+              hitta närmaste hållplatser. Positionen sparas inte och kopplas inte till dig. Ett svar
+              för samma avrundade position mellanlagras i högst 5 minuter.
+            </li>
+            <li style={privacyItem}>
+              <strong>Avgångstavlor.</strong> När du visar en tavla hämtar vår server avgångar från
+              Trafiklab, Trafikverket och Västtrafik. Där skickas bara hållplatsens id och namn,
+              inget om dig.
+            </li>
+            <li style={privacyItem}>
+              <strong>Jag är ombord.</strong> Statusmeddelandet skapas i din telefon och delas via
+              telefonens egen delningsfunktion. Vi tar inte emot och sparar inte meddelandet.
+            </li>
+            <li style={privacyItem}>
+              <strong>Drift.</strong> Sajten och servern drivs av Cloudflare, som tar emot din
+              IP-adress för att kunna leverera sidan och skydda den mot attacker. Vi sparar inga
+              IP-adresser.
+            </li>
+          </ul>
+          <p style={privacyPara}>
+            Frågor om hur dina uppgifter hanteras? Mejla kontakt@alltiditid.se.
+          </p>
+        </div>
       );
     case 'terms':
       return (

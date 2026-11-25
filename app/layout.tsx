@@ -24,11 +24,13 @@ export default function RootLayout({
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9262819807175676"
-          crossOrigin="anonymous"
-        />
+        {/*
+          Google AdSense är avstängt tills vidare. Annonskakor kräver samtycke
+          (9 kap. 28 § LEK), och Google kräver en certifierad samtyckesruta (CMP med
+          IAB TCF) för annonser i EES. Lägg tillbaka skriptet först tillsammans med en
+          sådan, och uppdatera integritetstexten i components/InfoFooter.tsx:
+          https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9262819807175676
+        */}
       </head>
       <body
         style={{

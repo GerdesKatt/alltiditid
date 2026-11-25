@@ -59,7 +59,12 @@ export default function NearbyStops({ onSelect }: Props) {
         setStatus({ kind: 'loading' });
         const lat = pos.coords.latitude.toFixed(3);
         const lon = pos.coords.longitude.toFixed(3);
-        fetch(`/api/trafik?action=nearby&lat=${lat}&lon=${lon}`)
+        // POST så att positionen inte hamnar i adressen (och därmed inte i loggar).
+        fetch('/api/trafik?action=nearby', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lat: Number(lat), lon: Number(lon) }),
+        })
           .then(async (res) => {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Kunde inte hämta hållplatser.');
