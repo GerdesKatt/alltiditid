@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { BoardDirection, Departure } from '../lib/types';
 import { colors } from './styles';
+import { COUNTDOWN_MAX_MIN, lineBadge, lineName, parseLocal } from '../lib/lineFormat';
 
 type Props = {
   item: Departure;
@@ -12,31 +13,6 @@ type Props = {
 
 /** Från så här många minuters försening visas en länk om reseersättning. */
 const COMPENSATION_DELAY_MIN = 20;
-/** Längre fram än så här visas klockslag i stället för "N min". */
-const COUNTDOWN_MAX_MIN = 60;
-
-/** 'YYYY-MM-DDTHH:MM' i lokal tid → millisekunder, eller null. */
-function parseLocal(value?: string): number | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value || '');
-  if (!m) return null;
-  return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime();
-}
-
-/** Kort linjebeteckning för märket: "17", "160", "41"; annars första ordet ("Tåg"). */
-function lineBadge(line: string): string {
-  const parts = line.trim().split(/\s+/);
-  const last = parts[parts.length - 1] || '';
-  if (/^[0-9A-ZÅÄÖ]{1,4}$/i.test(last) && parts.length > 1) return last;
-  if (/^[0-9A-ZÅÄÖ]{1,4}$/i.test(line.trim())) return line.trim();
-  return parts[0] || line;
-}
-
-/** Linjens namn utan beteckningen, t.ex. "Gröna linjen", "Buss", "Arlanda Express". */
-function lineName(line: string, badge: string): string {
-  const trimmed = line.trim();
-  const name = trimmed.endsWith(` ${badge}`) ? trimmed.slice(0, -badge.length - 1) : trimmed;
-  return name === badge ? '' : name;
-}
 
 /**
  * En avgång. Störst är hur länge det är kvar ("3 min"), sedan destination och linje.
