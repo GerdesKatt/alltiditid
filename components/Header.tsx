@@ -98,7 +98,7 @@ export default function Header({ onContactClick }: Props) {
         </span>
       </a>
 
-      <nav style={{ display: 'flex', gap: '16px', fontSize: '13px', fontWeight: 600 }}>
+      <nav className="site-nav" style={{ display: 'flex', gap: '16px', fontSize: '13px', fontWeight: 600 }}>
         <a href="#avgangstavla" className="site-nav-board" style={navLink}>
           Tidtabell
         </a>
