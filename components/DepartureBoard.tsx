@@ -12,6 +12,8 @@ type Props = {
   loading: boolean;
   errorMsg: string | null;
   updatedAt: Date | null;
+  /** Ingen uppkoppling: tavlan är den som service workern sparade senast. */
+  offline: boolean;
   now: number;
   source: BoardSource;
   selectedTripId: string | null;
@@ -32,6 +34,7 @@ export default function DepartureBoard({
   loading,
   errorMsg,
   updatedAt,
+  offline,
   now,
   source,
   selectedTripId,
@@ -101,19 +104,21 @@ export default function DepartureBoard({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {updatedAt ? (
             <span
-              role={stale ? 'alert' : undefined}
+              role={stale || offline ? 'alert' : undefined}
               style={{
                 fontSize: '12px',
-                fontWeight: stale ? 700 : 400,
-                color: stale ? colors.amber : colors.textDim,
+                fontWeight: stale || offline ? 700 : 400,
+                color: stale || offline ? colors.amber : colors.textDim,
               }}
             >
-              {stale
+              {offline
+                ? `Ingen uppkoppling. Visar tavlan från ${updatedLabel}.`
+                : stale
                 ? `Ej uppdaterad sedan ${updatedLabel}. Försöker igen…`
                 : `Uppdaterad ${updatedLabel}`}
             </span>
           ) : null}
-          {updatedAt && !stale ? (
+          {updatedAt && !stale && !offline ? (
             <span
               style={{
                 fontSize: '12px',
