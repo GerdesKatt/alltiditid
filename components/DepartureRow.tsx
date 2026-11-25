@@ -36,7 +36,7 @@ export default function DepartureRow({ item, direction, isSelectedTrip, onSelect
     ? 'Enligt tidtabell'
     : 'I tid';
 
-  const metaParts = [item.line, item.operator, item.track].filter(Boolean);
+  const metaParts = [item.line, item.operator, item.stopLabel, item.track].filter(Boolean);
 
   return (
     <div
