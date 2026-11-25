@@ -282,16 +282,33 @@ async function fetchTrafikverketStations(trafikverketKey, context) {
  * Hittas ingen signatur returneras '' och Trafikverket-data används inte alls
  * (tidigare blandades då tider från andra stationer längs sträckan in).
  */
-function findLocationSignature(stations, stopName) {
-  const targetKey = normalizeStationKey(stopName);
-  if (!targetKey) return '';
+/**
+ * Nycklar att jämföra ett hållplatsnamn med Trafikverkets stationsnamn.
+ * Trafiklab skriver t.ex. "Arlanda Södra/ Arlanda Express" medan Trafikverket
+ * förkortar väderstrecket ("Arlanda S"), så båda formerna provas.
+ */
+function stationKeyVariants(name) {
+  const key = normalizeStationKey(String(name || '').split('/')[0]);
+  if (!key) return [];
+  const variants = [key];
+  const m = /^(.+?)(södra|norra|östra|västra)$/.exec(key);
+  if (m) variants.push(m[1] + { södra: 's', norra: 'n', östra: 'ö', västra: 'v' }[m[2]]);
+  return variants;
+}
 
-  const exact = stations.filter(
-    (st) =>
-      normalizeStationKey(st.name) === targetKey ||
-      (st.shortName && normalizeStationKey(st.shortName) === targetKey)
-  );
-  if (exact.length >= 1) return exact[0].signature;
+function findLocationSignature(stations, stopName) {
+  const variants = stationKeyVariants(stopName);
+  if (variants.length === 0) return '';
+  const targetKey = variants[0];
+
+  for (const key of variants) {
+    const exact = stations.filter(
+      (st) =>
+        normalizeStationKey(st.name) === key ||
+        (st.shortName && normalizeStationKey(st.shortName) === key)
+    );
+    if (exact.length >= 1) return exact[0].signature;
+  }
 
   const partial = stations.filter((st) => {
     const key = normalizeStationKey(st.name);
@@ -1035,6 +1052,7 @@ const MAX_COMBINED_STOPS = 4;
 /** Kort hållplatsnamn utan ortsprefix, för att visa vilken del av en sammanslagen tavla. */
 function shortStopLabel(name) {
   return String(name || '')
+    .split('/')[0]
     .replace(/^(göteborg|stockholm|malmö)\s+/i, '')
     .trim();
 }
@@ -1131,9 +1149,14 @@ async function handleBoard(url, keys, context) {
       context
     );
     const label = combined ? shortStopLabel(board.stopName) : '';
+    // Stationen att slå upp hos Trafikverket: varje del för sig i en sammanslagen tavla
+    // (t.ex. Arlanda C, Arlanda Södra och Arlanda Norra), annars namnet från klienten.
+    const tvStation = combined ? board.stopName : clientStopName || board.stopName;
     all = all.concat(
       departures.map((d) =>
-        combined ? { ...d, id: `${board.stopId}-${d.id}`, stopLabel: label } : d
+        combined
+          ? { ...d, id: `${board.stopId}-${d.id}`, stopLabel: label, _tvStation: tvStation }
+          : { ...d, _tvStation: tvStation }
       )
     );
   }
@@ -1144,25 +1167,36 @@ async function handleBoard(url, keys, context) {
     );
   }
 
-  // Trafikverket för tågen (stationsnamnet från klienten, t.ex. "Göteborg Centralstation").
-  const stopName = clientStopName || boards[0].stopName;
-  const trainNumbers = all
-    .filter((d) => d.transportMode === 'train' || d.transportMode === 'commuter')
-    .flatMap((d) => d._trainCandidates || []);
-  const tvUpdates = keys.trafikverket
-    ? await fetchTrafikverketStationUpdates(keys.trafikverket, stopName, trainNumbers, direction, context)
-    : new Map();
+  // Trafikverket för tågen, en uppslagning per station.
+  const trainsByStation = new Map();
+  for (const d of all) {
+    if (d.transportMode !== 'train' && d.transportMode !== 'commuter') continue;
+    const list = trainsByStation.get(d._tvStation) || [];
+    list.push(...(d._trainCandidates || []));
+    trainsByStation.set(d._tvStation, list);
+  }
+  const tvByStation = new Map();
+  if (keys.trafikverket) {
+    await Promise.all(
+      Array.from(trainsByStation, async ([station, numbers]) => {
+        tvByStation.set(
+          station,
+          await fetchTrafikverketStationUpdates(keys.trafikverket, station, numbers, direction, context)
+        );
+      })
+    );
+  }
 
   const departures = all
     .filter((d) => mode === 'all' || d.transportMode === mode)
-    .map((d) => applyTrafikverket(d, tvUpdates, d._trainCandidates || []))
+    .map((d) => applyTrafikverket(d, tvByStation.get(d._tvStation) || new Map(), d._trainCandidates || []))
     .map((d) => ({
       ...d,
       // Förväntad avgångstid i svensk lokal tid, så att klienten kan dölja avgångar som redan gått.
       expectedAt:
         addMinutesLocal(d._scheduledLocal, d.status === 'delayed' ? d.delayMinutes : 0) || undefined,
     }))
-    .map(({ _trainCandidates, _scheduledLocal, _agency, _designation, _coords, ...rest }) => rest);
+    .map(({ _trainCandidates, _scheduledLocal, _agency, _designation, _coords, _tvStation, ...rest }) => rest);
 
   return jsonResponse(
     {
