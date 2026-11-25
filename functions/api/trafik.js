@@ -154,13 +154,6 @@ async function cachePut(key, response, context) {
   }
 }
 
-/** Minuter mellan två tidpunkter (ISO-strängar med eller utan tidszon). */
-function minutesBetween(fromIso, toIso) {
-  const from = Date.parse(fromIso);
-  const to = Date.parse(toIso);
-  if (Number.isNaN(from) || Number.isNaN(to)) return null;
-  return Math.round((to - from) / 60000);
-}
 
 /** Klocktid (HH:MM) i svensk tid för en tidpunkt med tidszon, t.ex. från Trafikverket. */
 function swedishClock(isoWithZone) {
@@ -210,6 +203,18 @@ function addMinutesLocal(local, minutes) {
   const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) + (minutes || 0) * 60000);
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+}
+
+/**
+ * Minuter mellan två lokala tider 'YYYY-MM-DDTHH:MM', räknat på hela minuter (sekunder
+ * kapas på båda sidor). Då stämmer "+6" alltid med klockslagen 18:32 → 18:38.
+ */
+function minutesBetweenLocal(fromLocal, toLocal) {
+  const a = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(String(fromLocal || ''));
+  const b = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(String(toLocal || ''));
+  if (!a || !b) return null;
+  const ms = (m) => Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+  return Math.round((ms(b) - ms(a)) / 60000);
 }
 
 /** "Spår 4" för spårtrafik, "Läge J" för buss, spårvagn och båt – som på skyltarna. */
@@ -398,7 +403,7 @@ async function fetchTrafikverketStationUpdates(
       if (!ident || !advLocal) continue;
 
       const estIso = ann.EstimatedTimeAtLocation || ann.TimeAtLocation || '';
-      const diff = estIso ? minutesBetween(advIso, estIso) : null;
+      const diff = estIso ? minutesBetweenLocal(advLocal, swedishDateTime(estIso)) : null;
 
       const deviationText = (Array.isArray(ann.Deviation) ? ann.Deviation : [ann.Deviation])
         .map((d) => (d && typeof d === 'object' ? d.Description : d))
@@ -542,13 +547,13 @@ function mapRealtimeCall(call, direction) {
   const isCancelled = Boolean(call.canceled);
   const hasRealtime = Boolean(call.is_realtime);
 
-  const delaySeconds = Number(call.delay) || 0;
-  // Hela minuter, så att den nya klocktiden alltid skiljer sig från den ordinarie.
-  const delayMin = hasRealtime ? Math.floor(delaySeconds / 60) : 0;
+  // Avvikelsen räknas på klockslagen (hela minuter), inte på `delay` i sekunder.
+  // 18:32:40 → 18:38:10 är 330 s, men på tavlan står 18:32 → 18:38, alltså +6.
+  const clockDiff = hasRealtime ? minutesBetweenLocal(scheduledIso, realtimeIso) : 0;
+  const offsetMin = !isCancelled && clockDiff !== null ? clockDiff : 0;
+  const delayMin = Math.max(0, offsetMin);
   const isDelayed = !isCancelled && delayMin > 0;
   const newTime = isDelayed ? extractClockTime(realtimeIso) : '';
-  // Signerad avvikelse i hela minuter (negativ = tidig), för expectedAt och "tidig".
-  const offsetMin = hasRealtime && !isCancelled ? Math.trunc(delaySeconds / 60) : 0;
 
   const trainNumber =
     itemMode === 'train' || itemMode === 'commuter'
@@ -890,8 +895,8 @@ function applyVasttrafik(departure, vtUpdates) {
   if (!match.hasRealtime) return result;
 
   result.hasRealtime = true;
-  const diffMs = Date.parse(match.estimated) - Date.parse(match.planned);
-  const delayMin = Number.isNaN(diffMs) ? 0 : Math.trunc(diffMs / 60000);
+  const delayMin =
+    minutesBetweenLocal(swedishDateTime(match.planned), swedishDateTime(match.estimated)) || 0;
   result._offsetMin = delayMin;
   if (delayMin > 0) {
     result.status = 'delayed';
@@ -1211,6 +1216,13 @@ function finalizeTiming(d) {
   const expectedClock = expectedAt ? expectedAt.slice(11, 16) : '';
   const result = { ...d, expectedAt };
 
+  // En försening visar alltid samma minut som nedräkningen räknar mot.
+  if (result.status === 'delayed' && expectedClock && offset > 0) {
+    result.newTime = expectedClock;
+    result.estimatedTime = expectedClock;
+    result.delayMinutes = offset;
+  }
+
   const threshold = rail ? DELAY_THRESHOLD_RAIL_MIN : DELAY_THRESHOLD_OTHER_MIN;
   if (result.status === 'delayed' && offset < threshold) {
     result.status = 'on-time';
@@ -1308,6 +1320,12 @@ async function handleBoard(url, keys, context) {
     .filter((d) => mode === 'all' || d.transportMode === mode)
     .map((d) => applyTrafikverket(d, tvByStation.get(d._tvStation) || new Map(), d._trainCandidates || []))
     .map(finalizeTiming)
+    // Det som går först står först: sortera på förväntad tid, sedan ordinarie.
+    .sort(
+      (a, b) =>
+        String(a.expectedAt || a._scheduledLocal || '').localeCompare(String(b.expectedAt || b._scheduledLocal || '')) ||
+        String(a._scheduledLocal || '').localeCompare(String(b._scheduledLocal || ''))
+    )
     .map(
       ({ _trainCandidates, _scheduledLocal, _agency, _designation, _coords, _tvStation, _offsetMin, ...rest }) =>
         compactDeparture(rest)
