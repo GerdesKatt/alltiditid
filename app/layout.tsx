@@ -10,7 +10,13 @@ export const metadata: Metadata = {
       { url: '/icon.svg', type: 'image/svg+xml' },
     ],
     shortcut: '/icon.svg',
-    apple: '/icon.svg',
+    apple: '/apple-touch-icon.png',
+  },
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    title: 'alltiditid',
+    statusBarStyle: 'default',
   },
 };
 
@@ -22,8 +28,8 @@ export default function RootLayout({
   return (
     <html lang="sv">
       <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#020617" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#eef2f7" media="(prefers-color-scheme: light)" />
         {/*
           Google Analytics (GTM) laddas inte här utan i lib/analytics.ts, och bara efter
           samtycke via ConsentBanner.

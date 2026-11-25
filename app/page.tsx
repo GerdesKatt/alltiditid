@@ -93,12 +93,19 @@ export default function HomePage() {
   }
 
   const [restored, setRestored] = useState(false);
+  const [offline, setOffline] = useState(false);
   const [favorites, setFavorites] = useState<StopOption[]>([]);
   // Inställningarna (region, snabbval, sök, filter) är öppna vid första besöket och
   // fälls ihop när det finns en sparad hållplats, så att tavlan kommer först.
   const [controlsOpen, setControlsOpen] = useState(true);
   useEffect(() => {
     setFavorites(loadFavorites());
+    // Service worker: appen startar från hemskärmen och visar senaste tavlan utan nät.
+    if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
+      navigator.serviceWorker.register('/sw.js').catch(() => {
+        // Utan service worker fungerar sidan som vanligt.
+      });
+    }
     const saved = loadSavedState();
     if (saved) {
       setRegion(saved.region);
@@ -181,16 +188,19 @@ export default function HomePage() {
         .then(async (res) => {
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Fel vid hämtning');
-          return data;
+          // Satt av service workern när nätet inte svarade och en sparad tavla visas.
+          const savedAt = Number(res.headers.get('X-Alltiditid-Sparad')) || 0;
+          return { ...data, savedAt };
         })
         .then((data) => {
           if (!active) return;
+          setOffline(data.savedAt > 0);
           const list: Departure[] = Array.isArray(data.departures) ? data.departures : [];
           hasData = true;
           setDepartures(list);
           setErrorMsg(null);
           setLoading(false);
-          setUpdatedAt(new Date());
+          setUpdatedAt(data.savedAt > 0 ? new Date(data.savedAt) : new Date());
           setNow(Date.now());
           setSource(data.source === 'resrobot' ? 'resrobot' : 'trafiklab-realtime');
 
@@ -203,6 +213,7 @@ export default function HomePage() {
         })
         .catch((err) => {
           if (!active) return;
+          if (typeof navigator !== 'undefined' && navigator.onLine === false) setOffline(true);
           // Vid en misslyckad automatisk uppdatering behålls den senaste tavlan.
           if (!hasData) {
             setErrorMsg(err.message || 'Kunde inte hämta trafikinformation just nu.');
@@ -393,6 +404,7 @@ export default function HomePage() {
         loading={loading}
         errorMsg={errorMsg}
         updatedAt={updatedAt}
+        offline={offline}
         now={now}
         source={source}
         selectedTripId={onBoardTrip ? onBoardTrip.id : null}
