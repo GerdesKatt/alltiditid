@@ -109,8 +109,9 @@ export default function DepartureBoard({
           style={{ color: colors.textDim }}
         >
           Trafiklab.se
-        </a>{' '}
-        och Trafikverket. Avgångar markerade &quot;Enligt tidtabell&quot; saknar realtidsdata.
+        </a>
+        , Trafikverket och Västtrafik. Avgångar markerade &quot;Enligt tidtabell&quot; saknar
+        realtidsdata.
       </p>
     </section>
   );
