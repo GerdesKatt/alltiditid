@@ -378,7 +378,9 @@ async function fetchTrafikverketStationUpdates(
         .join(', ');
 
       updatesMap.set(`${ident}|${advLocal}`, {
-        hasRealtime: Boolean(estIso),
+        // Trafikverket följer alla tåg i realtid. EstimatedTimeAtLocation finns bara
+        // när tåget avviker, så en matchad annonsering utan prognos betyder "i tid".
+        hasRealtime: true,
         newTime: diff !== null && diff > 0 ? swedishClock(estIso) : '',
         delayMinutes: diff !== null && diff > 0 ? diff : 0,
         cancelled: Boolean(ann.Canceled),
