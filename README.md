@@ -49,6 +49,8 @@ public/
 
 `GET /api/trafik?action=search&q=<text>` returnerar `{ stops: [{ id, name }] }`.
 
+`GET /api/trafik?action=nearby&lat=<lat>&lon=<lon>` returnerar `{ stops: [{ id, name, distance }] }`, de närmaste hållplatserna inom 1,5 km (ResRobot Nearby stops). Positionen avrundas till tre decimaler (cirka 100 m) och sparas inte.
+
 `GET /api/trafik?action=departures&stopId=<id>&stopName=<namn>&mode=all&direction=departures|arrivals` returnerar `{ departures: [...] }`.
 
 ## Miljövariabler

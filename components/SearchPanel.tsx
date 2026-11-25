@@ -1,5 +1,6 @@
 import React from 'react';
 import { REGIONS } from '../lib/regions';
+import NearbyStops from './NearbyStops';
 import type { Region, RegionKey, StopOption, TransportMode } from '../lib/types';
 import { colors, textInput } from './styles';
 
@@ -85,6 +86,9 @@ export default function SearchPanel({
       <p style={{ color: colors.textDim, margin: '0 0 14px 0', fontSize: '14px', lineHeight: 1.45 }}>
         Välj stad eller sök hållplats för T-bana, spårvagn, pendel, tåg och buss i realtid.
       </p>
+
+      {/* Närmaste hållplatser via plats (frågar först när knappen trycks) */}
+      <NearbyStops onSelect={onSuggestionSelect} />
 
       {/* Regioner */}
       <div

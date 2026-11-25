@@ -966,6 +966,69 @@ async function handleSearch(url, keys) {
   return jsonResponse({ error: 'Kunde inte söka hållplatser just nu.' }, 502);
 }
 
+/** "GÖTEBORG" -> "Göteborg" (ResRobot skriver vissa samlingshållplatser med versaler). */
+function tidyStopName(name) {
+  const clean = cleanPlaceName(String(name || ''));
+  if (clean && clean === clean.toUpperCase()) {
+    return clean.toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (_, pre, ch) => pre + ch.toUpperCase());
+  }
+  return clean;
+}
+
+/**
+ * Hållplatser nära en position (ResRobot Nearby stops).
+ * Koordinaterna avrundas till tre decimaler (cirka 100 m) innan de skickas
+ * vidare eller används som cachenyckel, och sparas inte.
+ */
+async function handleNearby(url, keys, context) {
+  const lat = Number(url.searchParams.get('lat'));
+  const lon = Number(url.searchParams.get('lon'));
+  // Ungefär Sveriges utbredning; allt annat är fel eller utanför trafikdatan.
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < 55 || lat > 69.2 || lon < 10.5 || lon > 24.3) {
+    return jsonResponse({ stops: [], error: 'Positionen ligger utanför Sverige.' }, 400);
+  }
+  if (!keys.resrobot) {
+    return jsonResponse({ stops: [], error: 'Sök nära mig är inte konfigurerat.' }, 501);
+  }
+
+  const rLat = lat.toFixed(3);
+  const rLon = lon.toFixed(3);
+  const cacheKey = new Request(`https://cache.alltiditid.se/nearby-v1/${rLat},${rLon}`);
+  const cached = await cacheGet(cacheKey);
+  if (cached) return cached;
+
+  const res = await fetch(
+    `${RESROBOT_BASE}/location.nearbystops?originCoordLat=${rLat}&originCoordLong=${rLon}` +
+      `&r=1500&maxNo=10&format=json&accessId=${encodeURIComponent(keys.resrobot)}`
+  );
+  if (!res.ok) return jsonResponse({ stops: [], error: `Trafiklab svarade med status ${res.status}` }, 502);
+  const data = await res.json();
+
+  const raw = Array.isArray(data.stopLocationOrCoordLocation)
+    ? data.stopLocationOrCoordLocation.map((item) => item && item.StopLocation).filter(Boolean)
+    : Array.isArray(data.StopLocation)
+    ? data.StopLocation
+    : [];
+
+  const seen = new Set();
+  const stops = raw
+    .filter((st) => st && st.extId)
+    .map((st) => ({
+      id: String(st.extId),
+      name: tidyStopName(st.name),
+      distance: Number.isFinite(Number(st.dist))
+        ? Math.round(Number(st.dist))
+        : Math.round(distanceMeters(lat, lon, Number(st.lat), Number(st.lon))),
+    }))
+    .filter((st) => st.name && !seen.has(st.id) && seen.add(st.id))
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, 6);
+
+  const response = jsonResponse({ stops }, 200, { 'Cache-Control': 'public, max-age=300' });
+  await cachePut(cacheKey, response.clone(), context);
+  return response;
+}
+
 /** Max antal hållplatser som kan slås ihop till en tavla (t.ex. Göteborg C). */
 const MAX_COMBINED_STOPS = 4;
 
@@ -1141,6 +1204,9 @@ export async function onRequest(context) {
   try {
     if (action === 'search') {
       return await handleSearch(url, keys);
+    }
+    if (action === 'nearby') {
+      return await handleNearby(url, keys, context);
     }
 
     // Avgångstavlor cachas kort i Cloudflare så att automatisk uppdatering
