@@ -1,14 +1,18 @@
 /**
- * Google Tag Manager / Google Analytics, bara med samtycke.
+ * Google Analytics 4, bara med samtycke.
  *
- * Analyskakor kräver samtycke (9 kap. 28 § LEK), så GTM laddas först när
- * användaren har tryckt "Godkänn". Utan beslut eller vid "Neka" laddas ingenting
- * från Google. Valet sparas i localStorage och kan ändras under "Integritet".
+ * Analyskakor kräver samtycke (9 kap. 28 § LEK), så Googles skript laddas först när
+ * besökaren har tryckt "Godkänn". Utan beslut eller vid "Neka" laddas ingenting från
+ * Google. Valet sparas i localStorage och kan ändras under "Integritet".
  *
- * GA4 konfigureras inne i GTM-containern (taggen "Google-tagg" med ditt mätnings-id).
+ * GA_MEASUREMENT_ID är ditt mätnings-id från analytics.google.com (Administratör →
+ * Dataströmmar), t.ex. "G-AB12CD34EF". Det är inte hemligt, det syns ändå i webbläsaren.
+ * Tomt = Google Analytics är avstängt: ingen fråga om samtycke visas och inget laddas.
+ * Besöksstatistik finns ändå i Cloudflare Web Analytics, som inte sätter några kakor.
  */
 
-export const GTM_ID = 'GTM-KDFMDNXF';
+export const GA_MEASUREMENT_ID = '';
+export const ANALYTICS_ENABLED = /^G-[A-Z0-9]{4,}$/.test(GA_MEASUREMENT_ID);
 const STORAGE_KEY = 'alltiditid:statistik';
 
 export type ConsentChoice = 'granted' | 'denied';
@@ -60,9 +64,9 @@ function ensureGtag(): Gtag {
 
 let loaded = false;
 
-/** Laddar GTM. Anropas bara efter samtycke. Statistik tillåts, annonser aldrig. */
+/** Laddar Google Analytics. Anropas bara efter samtycke. Statistik tillåts, annonser aldrig. */
 export function loadAnalytics(): void {
-  if (loaded || typeof document === 'undefined') return;
+  if (!ANALYTICS_ENABLED || loaded || typeof document === 'undefined') return;
   loaded = true;
 
   const gtag = ensureGtag();
@@ -73,11 +77,11 @@ export function loadAnalytics(): void {
     ad_personalization: 'denied',
   });
   gtag('js', new Date());
-  window.dataLayer!.push({ 'gtm.start': Date.now(), event: 'gtm.js' });
+  gtag('config', GA_MEASUREMENT_ID);
 
   const script = document.createElement('script');
   script.async = true;
-  script.src = `https://www.googletagmanager.com/gtm.js?id=${GTM_ID}`;
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
   document.head.appendChild(script);
 }
 

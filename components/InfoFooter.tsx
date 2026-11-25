@@ -1,6 +1,7 @@
 import React from 'react';
 import type { InfoTab } from '../lib/types';
 import { colors } from './styles';
+import { ANALYTICS_ENABLED } from '../lib/analytics';
 
 type Props = {
   activeTab: InfoTab;
@@ -61,28 +62,35 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
               telefonens egen delningsfunktion. Vi tar inte emot och sparar inte meddelandet.
             </li>
             <li style={privacyItem}>
-              <strong>Statistik (bara om du godkänner).</strong> Med ditt samtycke använder vi
-              Google Analytics via Google Tag Manager för att se hur många som besöker sajten och
-              vilka funktioner som används. Då sätts kakor och uppgifter om besöket, som sidvisningar,
-              ungefärlig plats utifrån IP-adress och enhetstyp, skickas till Google, som kan
-              behandla dem i USA. Annonser och personanpassad reklam är avstängt. Nekar du laddas
-              ingenting från Google.{' '}
-              <button
-                type="button"
-                onClick={onChangeAnalyticsChoice}
-                style={{
-                  padding: 0,
-                  border: 'none',
-                  background: 'none',
-                  color: colors.accent,
-                  textDecoration: 'underline',
-                  font: 'inherit',
-                  cursor: 'pointer',
-                }}
-              >
-                Ändra ditt val om statistik
-              </button>
+              <strong>Besöksstatistik.</strong> Vi använder Cloudflare Web Analytics för att se hur
+              många som besöker sajten och hur snabbt den laddar. Den sätter inga kakor, sparar
+              ingenting i din webbläsare och följer dig inte mellan sajter. Vi ser bara
+              sammanräknade siffror, aldrig enskilda besökare.
             </li>
+            {ANALYTICS_ENABLED ? (
+              <li style={privacyItem}>
+                <strong>Google Analytics (bara om du godkänner).</strong> Med ditt samtycke
+                använder vi också Google Analytics för att se vilka funktioner som används. Då
+                sätts kakor och uppgifter om besöket, som sidvisningar, ungefärlig plats utifrån
+                IP-adress och enhetstyp, skickas till Google, som kan behandla dem i USA. Annonser
+                och personanpassad reklam är avstängt. Nekar du laddas ingenting från Google.{' '}
+                <button
+                  type="button"
+                  onClick={onChangeAnalyticsChoice}
+                  style={{
+                    padding: 0,
+                    border: 'none',
+                    background: 'none',
+                    color: colors.accent,
+                    textDecoration: 'underline',
+                    font: 'inherit',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Ändra ditt val om statistik
+                </button>
+              </li>
+            ) : null}
             <li style={privacyItem}>
               <strong>Drift.</strong> Sajten och servern drivs av Cloudflare, som tar emot din
               IP-adress för att kunna leverera sidan och skydda den mot attacker. Vi sparar inga
