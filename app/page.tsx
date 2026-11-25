@@ -9,6 +9,7 @@ import InfoFooter from '../components/InfoFooter';
 import OnBoardPanel from '../components/OnBoardPanel';
 import SearchPanel from '../components/SearchPanel';
 import { REGIONS } from '../lib/regions';
+import { loadSavedState, regionForStop, saveState } from '../lib/savedStop';
 import { buildShareMessage } from '../lib/shareMessage';
 import type {
   BoardDirection,
@@ -43,6 +44,24 @@ export default function HomePage() {
   const [riderStatus, setRiderStatus] = useState<RiderMood>('on-time');
   const [riderNote, setRiderNote] = useState('');
   const [copiedMsg, setCopiedMsg] = useState(false);
+
+  // Senaste hållplats (eller hållplatsen i adressen) läses in innan tavlan hämtas första gången,
+  // så att standardhållplatsen inte hinner visas och hämtas i onödan.
+  const [restored, setRestored] = useState(false);
+  useEffect(() => {
+    const saved = loadSavedState();
+    if (saved) {
+      setRegion(saved.region);
+      setSelectedStop(saved.stop);
+      setDirection(saved.direction);
+    }
+    setRestored(true);
+  }, []);
+
+  useEffect(() => {
+    if (!restored) return;
+    saveState({ stop: selectedStop, direction, region });
+  }, [restored, selectedStop, direction, region]);
 
   const currentRegionObj = REGIONS.find((r) => r.key === region) || REGIONS[0];
 
@@ -81,6 +100,7 @@ export default function HomePage() {
   }, [stationQuery]);
 
   useEffect(() => {
+    if (!restored) return;
     let active = true;
     let hasData = false;
     setLoading(true);
@@ -139,7 +159,7 @@ export default function HomePage() {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [selectedStop, direction]);
+  }, [restored, selectedStop, direction]);
 
   const queryLower = filterText.trim().toLowerCase();
   const filtered = departures.filter((d) => {
@@ -246,7 +266,9 @@ export default function HomePage() {
         suggestions={suggestions}
         onSuggestionSelect={(stop) => {
           setSelectedStop(stop);
-          setRegion('all');
+          // Behåll vald region (och dess snabbval) om hållplatsen inte hör till en annan region.
+          const stopRegion = regionForStop(stop.id);
+          if (stopRegion !== 'all') setRegion(stopRegion);
           setMode('all');
           setStationQuery('');
           setSuggestions([]);
