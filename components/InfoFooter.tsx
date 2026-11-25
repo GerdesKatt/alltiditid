@@ -4,6 +4,7 @@ import { colors } from './styles';
 
 type Props = {
   activeTab: InfoTab;
+  onChangeAnalyticsChoice: () => void;
   onTabChange: (tab: InfoTab) => void;
 };
 
@@ -18,7 +19,7 @@ const tabText = { lineHeight: 1.6, margin: '0 0 14px 0' } as const;
 const privacyPara = { margin: '0 0 10px 0' } as const;
 const privacyItem = { marginBottom: '8px' } as const;
 
-function TabContent({ tab }: { tab: InfoTab }) {
+function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAnalyticsChoice: () => void }) {
   switch (tab) {
     case 'about':
       return (
@@ -31,8 +32,8 @@ function TabContent({ tab }: { tab: InfoTab }) {
       return (
         <div style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
           <p style={privacyPara}>
-            alltiditid.se har inga konton och använder inga kakor för spårning eller annonser. Så
-            här hanteras det lilla som behövs för att tjänsten ska fungera:
+            alltiditid.se har inga konton och visar inga annonser. Kakor används bara för statistik,
+            och bara om du har godkänt det. Så här hanteras det lilla som behövs:
           </p>
           <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
             <li style={privacyItem}>
@@ -57,6 +58,29 @@ function TabContent({ tab }: { tab: InfoTab }) {
             <li style={privacyItem}>
               <strong>Jag är ombord.</strong> Statusmeddelandet skapas i din telefon och delas via
               telefonens egen delningsfunktion. Vi tar inte emot och sparar inte meddelandet.
+            </li>
+            <li style={privacyItem}>
+              <strong>Statistik (bara om du godkänner).</strong> Med ditt samtycke använder vi
+              Google Analytics via Google Tag Manager för att se hur många som besöker sajten och
+              vilka funktioner som används. Då sätts kakor och uppgifter om besöket, som sidvisningar,
+              ungefärlig plats utifrån IP-adress och enhetstyp, skickas till Google, som kan
+              behandla dem i USA. Annonser och personanpassad reklam är avstängt. Nekar du laddas
+              ingenting från Google.{' '}
+              <button
+                type="button"
+                onClick={onChangeAnalyticsChoice}
+                style={{
+                  padding: 0,
+                  border: 'none',
+                  background: 'none',
+                  color: colors.accent,
+                  textDecoration: 'underline',
+                  font: 'inherit',
+                  cursor: 'pointer',
+                }}
+              >
+                Ändra ditt val om statistik
+              </button>
             </li>
             <li style={privacyItem}>
               <strong>Drift.</strong> Sajten och servern drivs av Cloudflare, som tar emot din
@@ -92,7 +116,7 @@ function TabContent({ tab }: { tab: InfoTab }) {
   }
 }
 
-export default function InfoFooter({ activeTab, onTabChange }: Props) {
+export default function InfoFooter({ activeTab, onTabChange, onChangeAnalyticsChoice }: Props) {
   return (
     <footer
       id="sidfot"
@@ -127,7 +151,7 @@ export default function InfoFooter({ activeTab, onTabChange }: Props) {
         ))}
       </div>
 
-      <TabContent tab={activeTab} />
+      <TabContent tab={activeTab} onChangeAnalyticsChoice={onChangeAnalyticsChoice} />
 
       <div
         style={{

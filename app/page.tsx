@@ -4,7 +4,9 @@ import React, { useEffect, useState } from 'react';
 import AboutSection from '../components/AboutSection';
 import DepartureBoard from '../components/DepartureBoard';
 import Header from '../components/Header';
+import ConsentBanner from '../components/ConsentBanner';
 import InfoFooter from '../components/InfoFooter';
+import { clearConsent, loadAnalytics, readConsent, revokeAnalytics, storeConsent } from '../lib/analytics';
 import OnBoardPanel from '../components/OnBoardPanel';
 import SearchPanel from '../components/SearchPanel';
 import SwitchStopButton from '../components/SwitchStopButton';
@@ -61,6 +63,33 @@ export default function HomePage() {
 
   // Senaste hållplats (eller hållplatsen i adressen) läses in innan tavlan hämtas första gången,
   // så att standardhållplatsen inte hinner visas och hämtas i onödan.
+  // Statistik (Google Analytics via GTM) laddas bara efter samtycke.
+  const [consentAsked, setConsentAsked] = useState(false);
+  useEffect(() => {
+    const choice = readConsent();
+    if (choice === 'granted') loadAnalytics();
+    setConsentAsked(choice === null);
+  }, []);
+
+  function acceptAnalytics() {
+    storeConsent('granted');
+    loadAnalytics();
+    setConsentAsked(false);
+  }
+
+  function declineAnalytics() {
+    storeConsent('denied');
+    setConsentAsked(false);
+  }
+
+  /** Från integritetstexten: glöm valet och fråga igen. */
+  function changeAnalyticsChoice() {
+    const wasGranted = readConsent() === 'granted';
+    clearConsent();
+    if (wasGranted) revokeAnalytics();
+    setConsentAsked(true);
+  }
+
   const [restored, setRestored] = useState(false);
   // Inställningarna (region, snabbval, sök, filter) är öppna vid första besöket och
   // fälls ihop när det finns en sparad hållplats, så att tavlan kommer först.
@@ -359,7 +388,22 @@ export default function HomePage() {
 
       <AboutSection />
 
-      <InfoFooter activeTab={activeInfoTab} onTabChange={setActiveInfoTab} />
+      <InfoFooter
+        activeTab={activeInfoTab}
+        onTabChange={setActiveInfoTab}
+        onChangeAnalyticsChoice={changeAnalyticsChoice}
+      />
+
+      {consentAsked ? (
+        <ConsentBanner
+          onAccept={acceptAnalytics}
+          onDecline={declineAnalytics}
+          onReadMore={() => {
+            setActiveInfoTab('privacy');
+            document.getElementById('sidfot')?.scrollIntoView({ block: 'start' });
+          }}
+        />
+      ) : null}
     </div>
   );
 }
