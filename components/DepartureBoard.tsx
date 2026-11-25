@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { BoardDirection, BoardSource, Departure } from '../lib/types';
 import DepartureRow from './DepartureRow';
 import LineGroupRow from './LineGroupRow';
@@ -69,6 +69,28 @@ export default function DepartureBoard({
     return Array.from(map.values());
   }, [departures]);
   const total = view === 'lines' ? groups.length : departures.length;
+
+  // Skärmläsare: säg bara det som ändrats ("2 försenade"), inte hela tavlan varje minut.
+  const [announcement, setAnnouncement] = useState('');
+  const lastSummary = useRef('');
+  useEffect(() => {
+    let summary = '';
+    if (errorMsg) summary = `Fel: ${errorMsg}`;
+    else if (offline) summary = 'Ingen uppkoppling. Visar senast sparade tavla.';
+    else if (!loading && updatedAt) {
+      const delayed = departures.filter((d) => d.status === 'delayed').length;
+      const cancelled = departures.filter((d) => d.status === 'cancelled').length;
+      const parts = [
+        delayed ? `${delayed} ${delayed === 1 ? 'försenad' : 'försenade'}` : '',
+        cancelled ? `${cancelled} ${cancelled === 1 ? 'inställd' : 'inställda'}` : '',
+      ].filter(Boolean);
+      summary = `${stopName}: ${parts.length ? parts.join(', ') : 'inga förseningar'}.`;
+    }
+    if (summary && summary !== lastSummary.current) {
+      lastSummary.current = summary;
+      setAnnouncement(summary);
+    }
+  }, [departures, errorMsg, offline, loading, updatedAt, stopName]);
   const hidden = Math.max(0, total - limit);
 
   const updatedLabel = updatedAt
@@ -80,6 +102,9 @@ export default function DepartureBoard({
 
   return (
     <section id="avgangstavla" style={{ marginBottom: '36px', scrollMarginTop: '12px' }}>
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </div>
       <div
         style={{
           display: 'flex',
@@ -95,9 +120,9 @@ export default function DepartureBoard({
             <span style={{ fontSize: '12px', color: colors.textDim, display: 'block' }}>
               {direction === 'arrivals' ? 'Visar ankomster till' : 'Visar avgångar från'}
             </span>
-            <h2 style={{ fontSize: '22px', fontWeight: 800, margin: 0, color: colors.text }}>
+            <h1 style={{ fontSize: '22px', fontWeight: 800, margin: 0, color: colors.text }}>
               {stopName}
-            </h2>
+            </h1>
           </div>
           <button
             type="button"

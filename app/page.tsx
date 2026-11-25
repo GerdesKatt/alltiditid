@@ -292,10 +292,6 @@ export default function HomePage() {
       setRiderStatus('delayed');
     }
     setCopiedMsg(false);
-    if (typeof window !== 'undefined') {
-      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-      window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
-    }
   }
 
 
@@ -325,7 +321,11 @@ export default function HomePage() {
 
   return (
     <div id="alltiditid-app" style={{ maxWidth: '860px', margin: '0 auto' }}>
+      <a href="#avgangstavla" className="skip-link">
+        Hoppa till avgångar
+      </a>
       <Header onContactClick={() => setActiveInfoTab('contact')} />
+      <main id="innehall">
 
       {onBoardTrip ? (
         <OnBoardPanel
@@ -443,6 +443,7 @@ export default function HomePage() {
       ) : null}
 
       <AboutSection />
+      </main>
 
       <InfoFooter
         activeTab={activeInfoTab}

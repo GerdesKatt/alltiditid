@@ -19,6 +19,7 @@ export default function Header({ onContactClick }: Props) {
   return (
     <header
       id="sidhuvud"
+      className="site-header"
       style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -82,6 +83,7 @@ export default function Header({ onContactClick }: Props) {
             <span style={{ color: colors.textFaint, fontWeight: 700, fontSize: '15px' }}>.se</span>
           </span>
           <span
+            className="site-tagline"
             style={{
               fontSize: '11px',
               fontWeight: 600,
@@ -97,7 +99,7 @@ export default function Header({ onContactClick }: Props) {
       </a>
 
       <nav style={{ display: 'flex', gap: '16px', fontSize: '13px', fontWeight: 600 }}>
-        <a href="#avgangstavla" style={navLink}>
+        <a href="#avgangstavla" className="site-nav-board" style={navLink}>
           Tidtabell
         </a>
         <a href="#om-tjansten" style={navLink}>

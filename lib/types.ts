@@ -23,7 +23,7 @@ export type Departure = {
   gone?: boolean;
   /** false när källan saknar realtidsdata för avgången (bara tidtabell). */
   hasRealtime?: boolean;
-  track: string;
+  track?: string;
   /** Delhållplats i en sammanslagen tavla, t.ex. "Drottningtorget" under Göteborg C. */
   stopLabel?: string;
   deviation?: string;
