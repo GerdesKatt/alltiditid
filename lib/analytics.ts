@@ -11,7 +11,7 @@
  * Besöksstatistik finns ändå i Cloudflare Web Analytics, som inte sätter några kakor.
  */
 
-export const GA_MEASUREMENT_ID = '';
+export const GA_MEASUREMENT_ID = 'G-L1Y7RMBZL7';
 export const ANALYTICS_ENABLED = /^G-[A-Z0-9]{4,}$/.test(GA_MEASUREMENT_ID);
 const STORAGE_KEY = 'alltiditid:statistik';
 
