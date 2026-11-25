@@ -29,7 +29,8 @@ export function lineName(line: string, badge: string): string {
 
 /** Klockslaget avgången väntas gå: ny tid om försenad, annars ordinarie. */
 export function clockFor(item: Departure): string {
-  return item.status === 'delayed' ? item.newTime || item.estimatedTime || item.scheduledTime : item.scheduledTime;
+  if (item.status === 'cancelled') return item.scheduledTime;
+  return item.newTime || item.estimatedTime || item.scheduledTime;
 }
 
 /** "Nu", "7 min" eller klockslag om det är långt dit (eller tiden saknas). */

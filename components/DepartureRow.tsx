@@ -25,7 +25,9 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
   const isCancelled = item.status === 'cancelled';
   const onlySchedule = !isCancelled && !isDelayed && item.hasRealtime === false;
   const newTime = isDelayed ? item.newTime || item.estimatedTime : '';
-  const clock = newTime || item.scheduledTime;
+  // Väntad klocktid: ny tid om försenad, annars prognosen (kan vara en minut eller två från tidtabellen).
+  const clock = newTime || (!isCancelled && item.estimatedTime) || item.scheduledTime;
+  const early = !isCancelled && !isDelayed ? item.earlyMinutes || 0 : 0;
 
   const expected = parseLocal(item.expectedAt);
   const minutesLeft = expected !== null ? Math.floor((expected - now) / 60000) : null;
@@ -59,7 +61,9 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
       ? `inställd, ordinarie tid ${item.scheduledTime}`
       : isDelayed
       ? `försenad${item.delayMinutes ? ` ${item.delayMinutes} min` : ''}, ny tid ${newTime}, ordinarie ${item.scheduledTime}`
-      : `${bigTime === 'Nu' ? 'avgår nu' : bigTime}${onlySchedule ? ', enligt tidtabell' : ''}`
+      : `${bigTime === 'Nu' ? 'avgår nu' : bigTime}${early ? `, ${early} min tidig` : ''}${
+          onlySchedule ? ', enligt tidtabell' : ''
+        }`
   }${details ? `, ${details}` : ''}${item.deviation ? `, ${item.deviation}` : ''}`;
 
   return (
@@ -180,10 +184,15 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
                 <s style={{ color: colors.textFaint }}>{item.scheduledTime}</s> {newTime}
                 {item.delayMinutes ? ` +${item.delayMinutes}` : ''}
               </>
+            ) : early ? (
+              <span style={{ color: colors.okText }}>
+                {showClockUnder ? `${clock} · ` : ''}
+                {early} min tidig
+              </span>
             ) : onlySchedule ? (
               `${showClockUnder ? `${item.scheduledTime} · ` : ''}tidtabell`
             ) : showClockUnder ? (
-              item.scheduledTime
+              clock
             ) : null}
           </span>
         </span>
