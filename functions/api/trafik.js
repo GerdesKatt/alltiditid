@@ -659,7 +659,7 @@ function vasttrafikSearchName(name) {
  */
 async function findVasttrafikStopArea(token, stopId, names, coords, context) {
   const cacheKey = new Request(
-    `https://cache.alltiditid.se/vasttrafik/stoparea-v1/${encodeURIComponent(stopId)}`
+    `https://cache.alltiditid.se/vasttrafik/stoparea-v2/${encodeURIComponent(stopId)}`
   );
   const cached = await cacheGet(cacheKey);
   if (cached) {
@@ -686,17 +686,19 @@ async function findVasttrafikStopArea(token, stopId, names, coords, context) {
     );
     if (areas.length === 0) continue;
 
+    let anyCoords = false;
     if (coords) {
       for (const area of areas) {
-        const lat = Number(area.latitude);
-        const lon = Number(area.longitude);
-        if (Number.isNaN(lat) || Number.isNaN(lon)) continue;
+        const lat = Number(area.latitude ?? area.lat);
+        const lon = Number(area.longitude ?? area.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+        anyCoords = true;
         const dist = distanceMeters(coords.lat, coords.lon, lat, lon);
         if (dist <= 1500 && (!best || dist < best.dist)) best = { gid: String(area.gid), dist };
       }
-    } else {
-      best = { gid: String(areas[0].gid), dist: 0 };
     }
+    // Saknar svaret koordinater: ta första träffen (Västtrafik sorterar på relevans).
+    if (!best && !anyCoords) best = { gid: String(areas[0].gid), dist: 0 };
     if (best) break;
   }
 
@@ -704,7 +706,7 @@ async function findVasttrafikStopArea(token, stopId, names, coords, context) {
   await cachePut(
     cacheKey,
     new Response(JSON.stringify({ gid }), {
-      headers: { 'Cache-Control': `max-age=${gid ? 24 * 60 * 60 : 60 * 60}` },
+      headers: { 'Cache-Control': `max-age=${gid ? 24 * 60 * 60 : 5 * 60}` },
     }),
     context
   );
@@ -715,11 +717,18 @@ async function findVasttrafikStopArea(token, stopId, names, coords, context) {
  * Hämtar Västtrafiks tavla och returnerar en karta
  * `${linjebeteckning}|${ordinarie tid YYYY-MM-DDTHH:MM}` -> realtidsuppgifter.
  */
-async function fetchVasttrafikUpdates(keys, stopId, names, coords, direction, context) {
+async function fetchVasttrafikUpdates(keys, stopId, names, coords, direction, context, diag = {}) {
   const updates = new Map();
+  diag.step = 'token';
   const token = await getVasttrafikToken(keys.vasttrafikKey, keys.vasttrafikSecret, context);
+  diag.step = 'hållplats';
   const gid = await findVasttrafikStopArea(token, stopId, names, coords, context);
-  if (!gid) return updates;
+  diag.stopArea = gid || null;
+  if (!gid) {
+    diag.status = 'ingen hållplats hittad';
+    return updates;
+  }
+  diag.step = 'tavla';
 
   const kind = direction === 'arrivals' ? 'arrivals' : 'departures';
   const baseUrl = `${VASTTRAFIK_BASE}/stop-areas/${encodeURIComponent(gid)}/${kind}?timeSpanInMinutes=70`;
@@ -730,6 +739,9 @@ async function fetchVasttrafikUpdates(keys, stopId, names, coords, direction, co
   if (!res.ok) throw new Error(`Västtrafik ${kind} ${res.status}`);
   const data = await res.json();
   const results = Array.isArray(data.results) ? data.results : [];
+  diag.results = results.length;
+  diag.withEstimate = results.filter((r) => r && r.estimatedTime).length;
+  diag.status = 'ok';
 
   for (const item of results) {
     const line = item.serviceJourney?.line || {};
@@ -956,6 +968,7 @@ async function handleBoard(url, keys, context) {
 
   // Västtrafik: Trafiklab saknar deras realtid, så hämta den direkt från Västtrafik.
   let vtUpdates = null;
+  const vtDiag = { status: 'ej använd' };
   const needsVasttrafik = board.departures.some(
     (d) => isVasttrafikDeparture(d) && !d.hasRealtime
   );
@@ -968,11 +981,16 @@ async function handleBoard(url, keys, context) {
         [board.stopName, clientStopName].filter(Boolean),
         coords,
         direction,
-        context
+        context,
+        vtDiag
       );
-    } catch {
+    } catch (err) {
       vtUpdates = null; // Visa Trafiklabs tidtabell om Västtrafik inte svarar
+      vtDiag.status = 'fel';
+      vtDiag.message = String((err && err.message) || err);
     }
+  } else if (needsVasttrafik) {
+    vtDiag.status = 'nycklar saknas';
   }
 
   const departures = board.departures
@@ -981,8 +999,12 @@ async function handleBoard(url, keys, context) {
     .map((d) => applyVasttrafik(d, vtUpdates))
     .map(({ _trainCandidates, _scheduledLocal, _agency, _designation, _coords, ...rest }) => rest);
 
+  if (vtUpdates) {
+    vtDiag.matched = departures.filter((d) => d.hasRealtime).length;
+  }
+
   return jsonResponse(
-    { departures, source, updatedAt: new Date().toISOString() },
+    { departures, source, updatedAt: new Date().toISOString(), vasttrafik: vtDiag },
     200,
     { 'Cache-Control': `public, max-age=${BOARD_CACHE_SECONDS}` }
   );
