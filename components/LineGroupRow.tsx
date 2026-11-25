@@ -10,7 +10,7 @@ type Props = {
 };
 
 /** Så många kommande avgångar visas per linje. */
-const TIMES_PER_GROUP = 4;
+const TIMES_PER_GROUP = 3;
 
 /** En linje mot ett mål, med de närmaste avgångarna i rad: "3 min · 11 min · 19 min". */
 export default function LineGroupRow({ items, direction, now }: Props) {
@@ -30,7 +30,7 @@ export default function LineGroupRow({ items, direction, now }: Props) {
     .map((t) => {
       const label = countdownFor(t, now);
       if (t.status === 'cancelled') return `${t.scheduledTime} inställd`;
-      if (t.status === 'delayed') return `${label} försenad`;
+      if (t.status === 'delayed') return `${label === "Nu" ? "nu" : label}, försenad`;
       return label === 'Nu' ? 'nu' : label;
     })
     .join(', ')}`;
