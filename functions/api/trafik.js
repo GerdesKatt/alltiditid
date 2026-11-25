@@ -212,9 +212,13 @@ function addMinutesLocal(local, minutes) {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 }
 
-function trackLabelFor(value) {
+/** "Spår 4" för spårtrafik, "Läge J" för buss, spårvagn och båt – som på skyltarna. */
+function trackLabelFor(value, mode) {
   const v = String(value || '').trim();
-  return v ? `Spår/Läge ${v}` : '';
+  if (!v) return '';
+  const rail = mode === 'train' || mode === 'commuter' || mode === 'subway';
+  return `${rail ? 'Spår' : 'Läge'} ${v}`;
+}` : '';
 }
 
 // ---------------------------------------------------------------------------
@@ -457,7 +461,7 @@ function applyTrafikverket(departure, tvUpdates, trainNumberCandidates) {
       result.estimatedTime = result.scheduledTime;
     }
   }
-  if (match.track) result.track = trackLabelFor(match.track);
+  if (match.track) result.track = trackLabelFor(match.track, departure.transportMode);
   if (match.deviation) result.deviation = match.deviation;
   return result;
 }
@@ -567,7 +571,7 @@ function mapRealtimeCall(call, direction) {
     delayMinutes: isDelayed ? delayMin : 0,
     status: isCancelled ? 'cancelled' : isDelayed ? 'delayed' : 'on-time',
     hasRealtime,
-    track: trackLabelFor(platform),
+    track: trackLabelFor(platform, itemMode),
     deviation: alertsToText(call.alerts),
     viaStops: [],
     directionType: direction,
@@ -841,7 +845,7 @@ function applyVasttrafik(departure, vtUpdates) {
   if (!match) return departure;
 
   const result = { ...departure };
-  if (match.platform && !result.track) result.track = trackLabelFor(match.platform);
+  if (match.platform && !result.track) result.track = trackLabelFor(match.platform, departure.transportMode);
 
   if (match.cancelled) {
     result.status = 'cancelled';
@@ -914,7 +918,7 @@ function mapResrobotItem(item, direction) {
     delayMinutes: isDelayed ? rawDiff : 0,
     status: isCancelled ? 'cancelled' : isDelayed ? 'delayed' : 'on-time',
     hasRealtime,
-    track: trackLabelFor(item.rtTrack || item.track),
+    track: trackLabelFor(item.rtTrack || item.track, itemMode),
     deviation: '',
     viaStops,
     directionType: direction,

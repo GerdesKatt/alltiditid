@@ -1,45 +1,90 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { BoardDirection, Departure } from '../lib/types';
 import { colors } from './styles';
 
 type Props = {
   item: Departure;
   direction: BoardDirection;
+  now: number;
   isSelectedTrip: boolean;
   onSelectOnBoard: (item: Departure) => void;
 };
 
-const STATUS_COLORS = {
-  cancelled: { bg: colors.cancelledBg, border: colors.cancelledBorder, text: colors.cancelledText },
-  delayed: { bg: colors.delayedBg, border: colors.delayedBorder, text: colors.delayedText },
-  'on-time': { bg: colors.okBg, border: colors.okBorder, text: colors.okText },
-  scheduled: { bg: colors.scheduledBg, border: colors.scheduledBorder, text: colors.scheduledText },
-} as const;
-
 /** Från så här många minuters försening visas en länk om reseersättning. */
 const COMPENSATION_DELAY_MIN = 20;
+/** Längre fram än så här visas klockslag i stället för "N min". */
+const COUNTDOWN_MAX_MIN = 60;
 
-export default function DepartureRow({ item, direction, isSelectedTrip, onSelectOnBoard }: Props) {
+/** 'YYYY-MM-DDTHH:MM' i lokal tid → millisekunder, eller null. */
+function parseLocal(value?: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value || '');
+  if (!m) return null;
+  return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime();
+}
+
+/** Kort linjebeteckning för märket: "17", "160", "41"; annars första ordet ("Tåg"). */
+function lineBadge(line: string): string {
+  const parts = line.trim().split(/\s+/);
+  const last = parts[parts.length - 1] || '';
+  if (/^[0-9A-ZÅÄÖ]{1,4}$/i.test(last) && parts.length > 1) return last;
+  if (/^[0-9A-ZÅÄÖ]{1,4}$/i.test(line.trim())) return line.trim();
+  return parts[0] || line;
+}
+
+/** Linjens namn utan beteckningen, t.ex. "Gröna linjen", "Buss", "Arlanda Express". */
+function lineName(line: string, badge: string): string {
+  const trimmed = line.trim();
+  const name = trimmed.endsWith(` ${badge}`) ? trimmed.slice(0, -badge.length - 1) : trimmed;
+  return name === badge ? '' : name;
+}
+
+/**
+ * En avgång. Störst är hur länge det är kvar ("3 min"), sedan destination och linje.
+ * Avvikelser (försenad, inställd, bara tidtabell) syns; "i tid" behöver inget märke.
+ * Ett tryck på raden visar mer: operatör, "Jag är ombord" och ersättning.
+ */
+export default function DepartureRow({ item, direction, now, isSelectedTrip, onSelectOnBoard }: Props) {
+  const [open, setOpen] = useState(false);
   const isDelayed = item.status === 'delayed';
   const isCancelled = item.status === 'cancelled';
-  const displayedNewTime = isDelayed ? item.newTime || item.estimatedTime : '';
-
-  // Utan realtidsdata vet vi inte om avgången är i tid – visa då bara tidtabellen.
   const onlySchedule = !isCancelled && !isDelayed && item.hasRealtime === false;
+  const newTime = isDelayed ? item.newTime || item.estimatedTime : '';
+  const clock = newTime || item.scheduledTime;
 
-  const badge =
-    STATUS_COLORS[
-      isCancelled ? 'cancelled' : isDelayed ? 'delayed' : onlySchedule ? 'scheduled' : 'on-time'
-    ];
-  const statusLabel = isCancelled
-    ? 'Inställd'
+  const expected = parseLocal(item.expectedAt);
+  const minutesLeft = expected !== null ? Math.floor((expected - now) / 60000) : null;
+  const bigTime = isCancelled
+    ? item.scheduledTime
+    : minutesLeft === null || minutesLeft >= COUNTDOWN_MAX_MIN
+    ? clock
+    : minutesLeft <= 0
+    ? 'Nu'
+    : `${minutesLeft} min`;
+  const showClockUnder = !isCancelled && bigTime !== clock;
+
+  const badge = lineBadge(item.line);
+  const name = lineName(item.line, badge);
+  const towards = direction === 'arrivals' ? `Från ${item.destination}` : item.destination;
+  const details = [item.stopLabel, item.track].filter(Boolean).join(' · ');
+  const compensation =
+    isCancelled || (isDelayed && (item.delayMinutes || 0) >= COMPENSATION_DELAY_MIN);
+
+  const timeColor = isCancelled
+    ? colors.cancelledText
     : isDelayed
-    ? `Ny tid ${displayedNewTime}${item.delayMinutes ? ` (+${item.delayMinutes} min)` : ''}`
+    ? colors.amber
     : onlySchedule
-    ? 'Enligt tidtabell'
-    : 'I tid';
+    ? colors.textDim
+    : colors.text;
 
-  const metaParts = [item.line, item.operator, item.stopLabel, item.track].filter(Boolean);
+  // Hela raden läses upp som en mening, t.ex. "Buss 160 mot Årstaberg, 3 min, Läge J".
+  const spoken = `${item.line} ${direction === 'arrivals' ? 'från' : 'mot'} ${item.destination}, ${
+    isCancelled
+      ? `inställd, ordinarie tid ${item.scheduledTime}`
+      : isDelayed
+      ? `försenad${item.delayMinutes ? ` ${item.delayMinutes} min` : ''}, ny tid ${newTime}, ordinarie ${item.scheduledTime}`
+      : `${bigTime === 'Nu' ? 'avgår nu' : bigTime}${onlySchedule ? ', enligt tidtabell' : ''}`
+  }${details ? `, ${details}` : ''}${item.deviation ? `, ${item.deviation}` : ''}`;
 
   return (
     <div
@@ -47,146 +92,176 @@ export default function DepartureRow({ item, direction, isSelectedTrip, onSelect
         backgroundColor: isSelectedTrip ? colors.selectedRowBg : colors.surface,
         border: isSelectedTrip ? `1px solid ${colors.accent}` : `1px solid ${colors.border}`,
         borderRadius: '13px',
-        padding: '13px 16px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: '12px',
-        flexWrap: 'wrap',
+        overflow: 'hidden',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-        {/* Tider */}
-        <div
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-label={spoken}
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          padding: '12px 14px',
+          minHeight: '64px',
+          border: 'none',
+          background: 'none',
+          color: colors.text,
+          textAlign: 'left',
+          cursor: 'pointer',
+          font: 'inherit',
+        }}
+      >
+        {/* Linjemärke */}
+        <span
+          aria-hidden="true"
           style={{
-            minWidth: '82px',
-            paddingRight: '12px',
-            borderRight: `1px solid ${colors.border}`,
+            flexShrink: 0,
+            minWidth: '44px',
+            padding: '4px 6px',
+            borderRadius: '8px',
+            border: `1px solid ${colors.accent}`,
+            backgroundColor: colors.accentTint,
+            color: colors.text,
+            fontWeight: 800,
+            fontSize: '14px',
+            textAlign: 'center',
+            fontVariantNumeric: 'tabular-nums',
           }}
         >
-          <div style={{ fontSize: '12px', color: colors.textFaint, fontWeight: 700 }}>
-            ORD. TID
-          </div>
-          <div
-            style={{
-              fontSize: '18px',
-              fontWeight: 800,
-              fontVariantNumeric: 'tabular-nums',
-              textDecoration: isDelayed || isCancelled ? 'line-through' : 'none',
-              color: isDelayed || isCancelled ? colors.textFaint : colors.text,
-            }}
-          >
-            {item.scheduledTime}
-          </div>
-          {displayedNewTime ? (
-            <div style={{ marginTop: '3px' }}>
-              <span
-                style={{
-                  display: 'block',
-                  fontSize: '12px',
-                  color: colors.amber,
-                  fontWeight: 800,
-                }}
-              >
-                NY TID
-              </span>
-              <span
-                style={{
-                  fontSize: '15px',
-                  fontWeight: 800,
-                  fontVariantNumeric: 'tabular-nums',
-                  color: colors.amber,
-                }}
-              >
-                {displayedNewTime}
-              </span>
-            </div>
-          ) : null}
-        </div>
+          {badge}
+        </span>
 
         {/* Destination och detaljer */}
-        <div>
-          <div style={{ fontSize: '15px', fontWeight: 700, color: colors.text }}>
-            {direction === 'arrivals' ? `Från ${item.destination}` : item.destination}
-          </div>
-          <div style={{ fontSize: '12px', color: colors.textDim, marginTop: '3px' }}>
-            {metaParts.map((part, i) => (
-              <React.Fragment key={i}>
-                {i > 0 ? ' | ' : ''}
-                <span style={i === 0 ? { color: colors.accent, fontWeight: 600 } : undefined}>
-                  {part}
-                </span>
-              </React.Fragment>
-            ))}
-          </div>
-          {isCancelled || (isDelayed && (item.delayMinutes || 0) >= COMPENSATION_DELAY_MIN) ? (
+        <span aria-hidden="true" style={{ flex: 1, minWidth: 0 }}>
+          <span
+            style={{
+              display: 'block',
+              fontSize: '16px',
+              fontWeight: 700,
+              color: colors.text,
+              textDecoration: isCancelled ? 'line-through' : 'none',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {towards}
+          </span>
+          <span
+            style={{
+              display: 'block',
+              fontSize: '12px',
+              color: colors.textDim,
+              marginTop: '2px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {[name, details].filter(Boolean).join(' · ')}
+            {item.deviation ? (
+              <span style={{ color: colors.amber, fontWeight: 600 }}>
+                {name || details ? ' · ' : ''}
+                {item.deviation}
+              </span>
+            ) : null}
+          </span>
+        </span>
+
+        {/* Tid: minuter kvar störst */}
+        <span aria-hidden="true" style={{ flexShrink: 0, textAlign: 'right' }}>
+          <span
+            style={{
+              display: 'block',
+              fontSize: '20px',
+              fontWeight: 800,
+              fontVariantNumeric: 'tabular-nums',
+              color: timeColor,
+              textDecoration: isCancelled ? 'line-through' : 'none',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {bigTime}
+          </span>
+          <span
+            style={{
+              display: 'block',
+              fontSize: '12px',
+              fontWeight: 600,
+              fontVariantNumeric: 'tabular-nums',
+              color: isCancelled ? colors.cancelledText : isDelayed ? colors.amber : colors.textDim,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {isCancelled ? (
+              'Inställd'
+            ) : isDelayed ? (
+              <>
+                <s style={{ color: colors.textFaint }}>{item.scheduledTime}</s> {newTime}
+                {item.delayMinutes ? ` +${item.delayMinutes}` : ''}
+              </>
+            ) : onlySchedule ? (
+              `${showClockUnder ? `${item.scheduledTime} · ` : ''}tidtabell`
+            ) : showClockUnder ? (
+              item.scheduledTime
+            ) : null}
+          </span>
+        </span>
+      </button>
+
+      {open ? (
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '0 14px 12px 70px',
+            fontSize: '13px',
+            color: colors.textDim,
+          }}
+        >
+          <span style={{ flexBasis: '100%' }}>
+            {item.line} · {item.operator}
+            {onlySchedule ? ' · Realtid kommer när avgången närmar sig.' : ''}
+          </span>
+          <button
+            type="button"
+            aria-pressed={isSelectedTrip}
+            aria-label={`${isSelectedTrip ? 'Vald resa' : 'Jag är ombord'}: ${item.line} ${
+              direction === 'arrivals' ? 'från' : 'mot'
+            } ${item.destination} ${item.scheduledTime}`}
+            onClick={() => onSelectOnBoard(item)}
+            style={{
+              minHeight: '44px',
+              padding: '0 14px',
+              borderRadius: '8px',
+              border: isSelectedTrip ? `1px solid ${colors.accent}` : `1px solid ${colors.borderStrong}`,
+              backgroundColor: isSelectedTrip ? colors.accentStrong : colors.surfaceRaised,
+              color: isSelectedTrip ? colors.onAccent : colors.text,
+              fontSize: '13px',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            {isSelectedTrip ? 'Vald resa' : 'Jag är ombord'}
+          </button>
+          {compensation ? (
             <a
               href="https://www.hallakonsument.se/varor-och-tjanster/resor/"
               target="_blank"
               rel="noopener noreferrer"
-              style={{
-                display: 'inline-block',
-                marginTop: '4px',
-                fontSize: '12px',
-                fontWeight: 600,
-                color: colors.amber,
-              }}
+              style={{ fontSize: '13px', fontWeight: 600, color: colors.amber }}
             >
               Rätt till ersättning?
             </a>
           ) : null}
-          {item.deviation ? (
-            <div
-              style={{
-                fontSize: '12px',
-                color: colors.amber,
-                fontWeight: 600,
-                marginTop: '4px',
-              }}
-            >
-              Avvikelse: {item.deviation}
-            </div>
-          ) : null}
         </div>
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' }}>
-        <button
-          type="button"
-          aria-pressed={isSelectedTrip}
-          aria-label={`${isSelectedTrip ? 'Vald resa' : 'Jag är ombord'}: ${item.line} ${
-            direction === 'arrivals' ? 'från' : 'mot'
-          } ${item.destination} ${item.scheduledTime}`}
-          onClick={() => onSelectOnBoard(item)}
-          style={{
-            padding: '6px 11px',
-            borderRadius: '8px',
-            border: isSelectedTrip ? `1px solid ${colors.accent}` : `1px solid ${colors.borderStrong}`,
-            backgroundColor: isSelectedTrip ? colors.accentStrong : colors.surfaceRaised,
-            color: isSelectedTrip ? colors.onAccent : colors.text,
-            fontSize: '12px',
-            fontWeight: 700,
-            cursor: 'pointer',
-          }}
-        >
-          {isSelectedTrip ? 'Vald resa' : 'Jag är ombord'}
-        </button>
-
-        <span
-          style={{
-            backgroundColor: badge.bg,
-            border: `1px solid ${badge.border}`,
-            color: badge.text,
-            padding: '5px 11px',
-            borderRadius: '999px',
-            fontSize: '12px',
-            fontWeight: 700,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {statusLabel}
-        </span>
-      </div>
+      ) : null}
     </div>
   );
 }

@@ -116,12 +116,13 @@ export default function DepartureBoard({
           <strong>Alla</strong> eller byt station.
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {departures.map((item) => (
             <DepartureRow
               key={item.id}
               item={item}
               direction={direction}
+              now={now}
               isSelectedTrip={selectedTripId === item.id}
               onSelectOnBoard={onSelectOnBoard}
             />
@@ -139,7 +140,7 @@ export default function DepartureBoard({
         >
           Trafiklab.se
         </a>
-        , Trafikverket och Västtrafik. Avgångar markerade &quot;Enligt tidtabell&quot; saknar
+        , Trafikverket och Västtrafik. Avgångar märkta &quot;tidtabell&quot; saknar
         realtidsdata.
       </p>
     </section>
