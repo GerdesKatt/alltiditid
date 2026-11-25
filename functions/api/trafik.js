@@ -657,9 +657,9 @@ function vasttrafikSearchName(name) {
  * Väljer den träff som ligger närmast Trafiklabs koordinater, om de finns.
  * Cachas ett dygn per Trafiklab-id.
  */
-async function findVasttrafikStopArea(token, stopId, names, coords, context) {
+async function findVasttrafikStopArea(token, stopId, names, coords, context, diag = {}) {
   const cacheKey = new Request(
-    `https://cache.alltiditid.se/vasttrafik/stoparea-v2/${encodeURIComponent(stopId)}`
+    `https://cache.alltiditid.se/vasttrafik/stoparea-v3/${encodeURIComponent(stopId)}`
   );
   const cached = await cacheGet(cacheKey);
   if (cached) {
@@ -679,11 +679,20 @@ async function findVasttrafikStopArea(token, stopId, names, coords, context) {
       `${VASTTRAFIK_BASE}/locations/by-text?q=${encodeURIComponent(q)}&types=stoparea&limit=10`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
+    diag.search = diag.search || [];
+    const searchInfo = { q, status: res.status };
+    diag.search.push(searchInfo);
     if (!res.ok) continue;
     const data = await res.json();
-    const areas = (Array.isArray(data.results) ? data.results : []).filter(
-      (r) => r && r.gid && (!r.locationType || r.locationType === 'stoparea')
+    const all = Array.isArray(data.results) ? data.results : [];
+    const areas = all.filter(
+      (r) => r && r.gid && (!r.locationType || String(r.locationType).toLowerCase() === 'stoparea')
     );
+    searchInfo.results = all.length;
+    searchInfo.stopAreas = areas.length;
+    if (all[0]) {
+      searchInfo.first = { name: all[0].name, type: all[0].locationType, keys: Object.keys(all[0]).slice(0, 12) };
+    }
     if (areas.length === 0) continue;
 
     let anyCoords = false;
@@ -697,8 +706,13 @@ async function findVasttrafikStopArea(token, stopId, names, coords, context) {
         if (dist <= 1500 && (!best || dist < best.dist)) best = { gid: String(area.gid), dist };
       }
     }
-    // Saknar svaret koordinater: ta första träffen (Västtrafik sorterar på relevans).
-    if (!best && !anyCoords) best = { gid: String(areas[0].gid), dist: 0 };
+    // Saknar svaret koordinater, eller ligger ingen träff nära: ta första träffen
+    // (Västtrafik sorterar på relevans).
+    if (best) searchInfo.distance = Math.round(best.dist);
+    if (!best) {
+      searchInfo.fallback = anyCoords ? 'ingen nära, tog första' : 'inga koordinater, tog första';
+      best = { gid: String(areas[0].gid), dist: 0 };
+    }
     if (best) break;
   }
 
@@ -722,7 +736,7 @@ async function fetchVasttrafikUpdates(keys, stopId, names, coords, direction, co
   diag.step = 'token';
   const token = await getVasttrafikToken(keys.vasttrafikKey, keys.vasttrafikSecret, context);
   diag.step = 'hållplats';
-  const gid = await findVasttrafikStopArea(token, stopId, names, coords, context);
+  const gid = await findVasttrafikStopArea(token, stopId, names, coords, context, diag);
   diag.stopArea = gid || null;
   if (!gid) {
     diag.status = 'ingen hållplats hittad';
