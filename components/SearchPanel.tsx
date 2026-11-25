@@ -1,0 +1,293 @@
+import React from 'react';
+import { REGIONS } from '../lib/regions';
+import type { BoardDirection, Region, RegionKey, StopOption, TransportMode } from '../lib/types';
+import { colors, textInput } from './styles';
+
+type Props = {
+  region: RegionKey;
+  currentRegion: Region;
+  onRegionChange: (region: RegionKey) => void;
+  selectedStop: StopOption;
+  onQuickStopSelect: (stop: StopOption) => void;
+  direction: BoardDirection;
+  onDirectionChange: (direction: BoardDirection) => void;
+  mode: TransportMode;
+  onModeChange: (mode: TransportMode) => void;
+  stationQuery: string;
+  onStationQueryChange: (query: string) => void;
+  searchingStops: boolean;
+  suggestions: StopOption[];
+  onSuggestionSelect: (stop: StopOption) => void;
+  filterText: string;
+  onFilterTextChange: (text: string) => void;
+};
+
+function DirectionButton({
+  active,
+  activeBorder,
+  activeBg,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  activeBorder: string;
+  activeBg: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        padding: '7px 14px',
+        borderRadius: '9px',
+        border: active ? `1px solid ${activeBorder}` : `1px solid ${colors.borderStrong}`,
+        backgroundColor: active ? activeBg : colors.surface,
+        color: colors.text,
+        fontWeight: 800,
+        fontSize: '12px',
+        cursor: 'pointer',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+export default function SearchPanel({
+  region,
+  currentRegion,
+  onRegionChange,
+  selectedStop,
+  onQuickStopSelect,
+  direction,
+  onDirectionChange,
+  mode,
+  onModeChange,
+  stationQuery,
+  onStationQueryChange,
+  searchingStops,
+  suggestions,
+  onSuggestionSelect,
+  filterText,
+  onFilterTextChange,
+}: Props) {
+  return (
+    <section
+      id="sok-och-filter"
+      style={{
+        marginBottom: '20px',
+        padding: '18px 20px',
+        borderRadius: '18px',
+        background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)',
+        border: `1px solid ${colors.borderStrong}`,
+        boxShadow: '0 14px 35px rgba(2, 6, 23, 0.45)',
+      }}
+    >
+      <h1
+        style={{
+          fontSize: '26px',
+          fontWeight: 900,
+          letterSpacing: '-0.02em',
+          margin: '0 0 4px 0',
+          color: colors.text,
+        }}
+      >
+        Koll på resan i realtid
+      </h1>
+      <p style={{ color: colors.textDim, margin: '0 0 14px 0', fontSize: '14px', lineHeight: 1.45 }}>
+        Välj stad eller sök hållplats för T-bana, spårvagn, pendel, tåg och buss i realtid.
+      </p>
+
+      {/* Regioner */}
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: '8px',
+          marginBottom: '12px',
+        }}
+      >
+        {REGIONS.map((reg) => {
+          const active = region === reg.key;
+          return (
+            <button
+              key={reg.key}
+              type="button"
+              onClick={() => onRegionChange(reg.key)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '9px',
+                border: active ? `1px solid ${colors.accent}` : `1px solid ${colors.borderStrong}`,
+                backgroundColor: active ? 'rgba(56, 189, 248, 0.2)' : colors.surface,
+                color: active ? colors.accentSoft : colors.textDim,
+                fontWeight: 800,
+                fontSize: '12px',
+                cursor: 'pointer',
+              }}
+            >
+              {reg.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Snabbval av station */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px', marginBottom: '12px' }}>
+        {currentRegion.stations.map((stop) => {
+          const active = selectedStop.id === stop.id;
+          return (
+            <button
+              key={stop.id}
+              type="button"
+              onClick={() => onQuickStopSelect(stop)}
+              style={{
+                padding: '5px 12px',
+                borderRadius: '999px',
+                border: active ? `1px solid ${colors.green}` : `1px solid ${colors.borderStrong}`,
+                backgroundColor: active ? 'rgba(16, 185, 129, 0.18)' : 'rgba(15, 23, 42, 0.7)',
+                color: active ? colors.greenSoft : colors.textMuted,
+                fontWeight: 600,
+                fontSize: '12px',
+                cursor: 'pointer',
+              }}
+            >
+              {stop.shortName || stop.name}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Riktning och trafikslag */}
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '10px',
+          marginBottom: '12px',
+        }}
+      >
+        <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
+          <DirectionButton
+            active={direction === 'departures'}
+            activeBorder={colors.accent}
+            activeBg="#0369a1"
+            onClick={() => onDirectionChange('departures')}
+          >
+            Avgångar
+          </DirectionButton>
+          <DirectionButton
+            active={direction === 'arrivals'}
+            activeBorder={colors.green}
+            activeBg="#047857"
+            onClick={() => onDirectionChange('arrivals')}
+          >
+            Ankomster
+          </DirectionButton>
+        </div>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          {currentRegion.modes.map((m) => {
+            const active = mode === m.key;
+            return (
+              <button
+                key={m.key}
+                type="button"
+                onClick={() => onModeChange(m.key)}
+                style={{
+                  padding: '7px 12px',
+                  borderRadius: '9px',
+                  border: active ? `1px solid ${colors.accent}` : `1px solid ${colors.borderStrong}`,
+                  backgroundColor: active ? colors.accentStrong : colors.surface,
+                  color: colors.text,
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                }}
+              >
+                {m.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Sök station + filtrera */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+          gap: '10px',
+        }}
+      >
+        <div style={{ position: 'relative' }}>
+          <input
+            type="text"
+            value={stationQuery}
+            onChange={(e) => onStationQueryChange(e.target.value)}
+            placeholder="Sök valfri station eller hållplats i Sverige..."
+            style={textInput(colors.accent)}
+          />
+
+          {searchingStops || suggestions.length > 0 ? (
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                marginTop: '6px',
+                backgroundColor: colors.surface,
+                border: `1px solid ${colors.accent}`,
+                borderRadius: '11px',
+                zIndex: 20,
+                overflow: 'hidden',
+                boxShadow: '0 14px 30px rgba(0,0,0,0.65)',
+              }}
+            >
+              {searchingStops ? (
+                <div style={{ padding: '11px 14px', color: colors.textDim, fontSize: '13px' }}>
+                  Söker platser...
+                </div>
+              ) : (
+                suggestions.map((stop) => (
+                  <button
+                    key={stop.id}
+                    type="button"
+                    onClick={() => onSuggestionSelect(stop)}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '11px 14px',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      borderBottom: `1px solid ${colors.border}`,
+                      color: colors.text,
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {stop.name}
+                  </button>
+                ))
+              )}
+            </div>
+          ) : null}
+        </div>
+
+        <input
+          type="text"
+          value={filterText}
+          onChange={(e) => onFilterTextChange(e.target.value)}
+          placeholder="Filtrera linje (t.ex. 19, 4, 535), destination eller stopp..."
+          style={textInput(colors.borderStrong)}
+        />
+      </div>
+    </section>
+  );
+}
