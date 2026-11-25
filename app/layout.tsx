@@ -25,6 +25,9 @@ export default function RootLayout({
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         {/*
+          Google Analytics (GTM) laddas inte här utan i lib/analytics.ts, och bara efter
+          samtycke via ConsentBanner.
+
           Google AdSense är avstängt tills vidare. Annonskakor kräver samtycke
           (9 kap. 28 § LEK), och Google kräver en certifierad samtyckesruta (CMP med
           IAB TCF) för annonser i EES. Lägg tillbaka skriptet först tillsammans med en
