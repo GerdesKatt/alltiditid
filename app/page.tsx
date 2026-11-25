@@ -12,6 +12,7 @@ import { REGIONS } from '../lib/regions';
 import { buildShareMessage } from '../lib/shareMessage';
 import type {
   BoardDirection,
+  BoardSource,
   Departure,
   InfoTab,
   RegionKey,
@@ -21,7 +22,18 @@ import type {
 } from '../lib/types';
 
 /** Hur ofta tavlan hämtas på nytt (ms). */
-const REFRESH_INTERVAL_MS = 60_000;
+const REFRESH_INTERVAL_MS = 30_000;
+/** Hur ofta klockan i appen tickar, så att avgångna rader försvinner mellan hämtningarna (ms). */
+const CLOCK_TICK_MS = 15_000;
+/** Avgångar vars förväntade tid passerats med mer än så här döljs (ms). */
+const DEPARTED_GRACE_MS = 60_000;
+
+/** 'YYYY-MM-DDTHH:MM' i lokal tid → millisekunder, eller null. */
+function parseLocal(value?: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value || '');
+  if (!m) return null;
+  return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime();
+}
 
 export default function HomePage() {
   const [region, setRegion] = useState<RegionKey>('all');
@@ -37,6 +49,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [source, setSource] = useState<BoardSource>('');
+  const [now, setNow] = useState(() => Date.now());
   const [activeInfoTab, setActiveInfoTab] = useState<InfoTab>('about');
 
   const [onBoardTrip, setOnBoardTrip] = useState<Departure | null>(null);
@@ -106,11 +120,14 @@ export default function HomePage() {
           setErrorMsg(null);
           setLoading(false);
           setUpdatedAt(new Date());
+          setNow(Date.now());
+          setSource(data.source === 'resrobot' ? 'resrobot' : 'trafiklab-realtime');
 
           setOnBoardTrip((prev) => {
             if (!prev) return null;
             const match = list.find((item) => item.id === prev.id);
-            return match || prev;
+            // Finns resan inte längre på tavlan (t.ex. har gått) slutar den uppdateras: markera det.
+            return match || { ...prev, gone: true };
           });
         })
         .catch((err) => {
@@ -141,8 +158,19 @@ export default function HomePage() {
     };
   }, [selectedStop, direction]);
 
+  // Klockan tickar så att avgångar som redan gått försvinner även mellan hämtningarna.
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), CLOCK_TICK_MS);
+    return () => clearInterval(tick);
+  }, []);
+
   const queryLower = filterText.trim().toLowerCase();
   const filtered = departures.filter((d) => {
+    const expected = parseLocal(d.expectedAt);
+    if (expected !== null && expected < now - DEPARTED_GRACE_MS) {
+      return false;
+    }
+
     if (mode !== 'all' && d.transportMode !== mode) {
       return false;
     }
@@ -264,6 +292,8 @@ export default function HomePage() {
         loading={loading}
         errorMsg={errorMsg}
         updatedAt={updatedAt}
+        now={now}
+        source={source}
         selectedTripId={onBoardTrip ? onBoardTrip.id : null}
         onSelectOnBoard={handleSelectOnBoard}
       />

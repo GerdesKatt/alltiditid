@@ -15,6 +15,10 @@ export type Departure = {
   estimatedTime: string;
   delayMinutes?: number;
   status: 'on-time' | 'delayed' | 'cancelled';
+  /** Förväntad tid i svensk lokal tid, 'YYYY-MM-DDTHH:MM' (ny tid om försenad). */
+  expectedAt?: string;
+  /** Sätts i appen när en vald resa inte längre finns på tavlan. */
+  gone?: boolean;
   /** false när källan saknar realtidsdata för avgången (bara tidtabell). */
   hasRealtime?: boolean;
   track: string;
@@ -38,3 +42,5 @@ export type Region = {
   stations: StopOption[];
   modes: { key: TransportMode; label: string }[];
 };
+
+export type BoardSource = 'trafiklab-realtime' | 'resrobot' | '';

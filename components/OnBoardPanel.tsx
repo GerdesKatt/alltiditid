@@ -112,6 +112,25 @@ export default function OnBoardPanel({
         </button>
       </div>
 
+      {trip.gone ? (
+        <p
+          role="status"
+          style={{
+            margin: '0 0 12px 0',
+            padding: '10px 12px',
+            borderRadius: '10px',
+            border: '1px solid #d97706',
+            backgroundColor: 'rgba(120, 53, 15, 0.35)',
+            color: '#fde68a',
+            fontSize: '13px',
+            lineHeight: 1.45,
+          }}
+        >
+          Resan finns inte längre på tavlan, troligen för att den redan har gått. Tiderna nedan
+          uppdateras inte längre.
+        </p>
+      ) : null}
+
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
         {RIDER_OPTIONS.map((opt) => {
           const active = riderStatus === opt.key;
