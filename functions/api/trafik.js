@@ -547,6 +547,12 @@ function mapRealtimeCall(call, direction) {
     directionType: direction,
     transportMode: itemMode,
     _trainCandidates: [route.designation, call.trip?.technical_number],
+    _agency: String(call.agency?.name || ''),
+    _designation: String(route.designation || ''),
+    _coords:
+      call.stop && call.stop.lat != null && call.stop.lon != null
+        ? { lat: Number(call.stop.lat), lon: Number(call.stop.lon) }
+        : null,
     _scheduledLocal: scheduledIso.slice(0, 16),
   };
 }
@@ -578,6 +584,219 @@ async function realtimeSearch(key, q) {
     .sort((a, b) => (Number(b.average_daily_stop_times) || 0) - (Number(a.average_daily_stop_times) || 0))
     .slice(0, 8)
     .map((g) => ({ id: String(g.id), name: cleanPlaceName(String(g.name)) }));
+}
+
+// ---------------------------------------------------------------------------
+// Västtrafik Planera Resa v4 (realtid i Västra Götaland, som Trafiklab saknar)
+// ---------------------------------------------------------------------------
+
+const VASTTRAFIK_TOKEN_URL = 'https://ext-api.vasttrafik.se/token';
+const VASTTRAFIK_BASE = 'https://ext-api.vasttrafik.se/pr/v4';
+
+function isVasttrafikDeparture(d) {
+  return /västtrafik|vasttrafik/i.test(String(d._agency || ''));
+}
+
+/** OAuth2-token (client credentials), cachad tills strax innan den går ut. */
+async function getVasttrafikToken(key, secret, context) {
+  const cacheKey = new Request('https://cache.alltiditid.se/vasttrafik/token-v1');
+  const cached = await cacheGet(cacheKey);
+  if (cached) {
+    try {
+      const data = await cached.json();
+      if (data.token) return data.token;
+    } catch {
+      // Hämta ny nedan
+    }
+  }
+
+  const res = await fetch(VASTTRAFIK_TOKEN_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${btoa(`${key}:${secret}`)}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: 'grant_type=client_credentials',
+  });
+  if (!res.ok) throw new Error(`Västtrafik token ${res.status}`);
+  const data = await res.json();
+  if (!data.access_token) throw new Error('Västtrafik gav ingen token');
+
+  const ttl = Math.max(60, (Number(data.expires_in) || 3600) - 300);
+  await cachePut(
+    cacheKey,
+    new Response(JSON.stringify({ token: data.access_token }), {
+      headers: { 'Cache-Control': `max-age=${ttl}` },
+    }),
+    context
+  );
+  return data.access_token;
+}
+
+function distanceMeters(lat1, lon1, lat2, lon2) {
+  const toRad = (x) => (x * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/** Tar bort "Göteborg " och liknande prefix som Trafiklab har men inte Västtrafik. */
+function vasttrafikSearchName(name) {
+  return String(name || '')
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/^(göteborg|gbg)\s+/i, '')
+    .replace(/\s+(t-bana|spårv|buss|station)$/i, '')
+    .trim();
+}
+
+/**
+ * Hittar Västtrafiks hållplatsområde (gid) för en hållplats.
+ * Väljer den träff som ligger närmast Trafiklabs koordinater, om de finns.
+ * Cachas ett dygn per Trafiklab-id.
+ */
+async function findVasttrafikStopArea(token, stopId, names, coords, context) {
+  const cacheKey = new Request(
+    `https://cache.alltiditid.se/vasttrafik/stoparea-v1/${encodeURIComponent(stopId)}`
+  );
+  const cached = await cacheGet(cacheKey);
+  if (cached) {
+    try {
+      const data = await cached.json();
+      if (data.gid !== undefined) return data.gid;
+    } catch {
+      // Slå upp nedan
+    }
+  }
+
+  let best = null;
+  for (const rawName of names) {
+    const q = vasttrafikSearchName(rawName);
+    if (q.length < 2) continue;
+    const res = await fetch(
+      `${VASTTRAFIK_BASE}/locations/by-text?q=${encodeURIComponent(q)}&types=stoparea&limit=10`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!res.ok) continue;
+    const data = await res.json();
+    const areas = (Array.isArray(data.results) ? data.results : []).filter(
+      (r) => r && r.gid && (!r.locationType || r.locationType === 'stoparea')
+    );
+    if (areas.length === 0) continue;
+
+    if (coords) {
+      for (const area of areas) {
+        const lat = Number(area.latitude);
+        const lon = Number(area.longitude);
+        if (Number.isNaN(lat) || Number.isNaN(lon)) continue;
+        const dist = distanceMeters(coords.lat, coords.lon, lat, lon);
+        if (dist <= 1500 && (!best || dist < best.dist)) best = { gid: String(area.gid), dist };
+      }
+    } else {
+      best = { gid: String(areas[0].gid), dist: 0 };
+    }
+    if (best) break;
+  }
+
+  const gid = best ? best.gid : '';
+  await cachePut(
+    cacheKey,
+    new Response(JSON.stringify({ gid }), {
+      headers: { 'Cache-Control': `max-age=${gid ? 24 * 60 * 60 : 60 * 60}` },
+    }),
+    context
+  );
+  return gid;
+}
+
+/**
+ * Hämtar Västtrafiks tavla och returnerar en karta
+ * `${linjebeteckning}|${ordinarie tid YYYY-MM-DDTHH:MM}` -> realtidsuppgifter.
+ */
+async function fetchVasttrafikUpdates(keys, stopId, names, coords, direction, context) {
+  const updates = new Map();
+  const token = await getVasttrafikToken(keys.vasttrafikKey, keys.vasttrafikSecret, context);
+  const gid = await findVasttrafikStopArea(token, stopId, names, coords, context);
+  if (!gid) return updates;
+
+  const kind = direction === 'arrivals' ? 'arrivals' : 'departures';
+  const baseUrl = `${VASTTRAFIK_BASE}/stop-areas/${encodeURIComponent(gid)}/${kind}?timeSpanInMinutes=70`;
+  let res = await fetch(`${baseUrl}&limit=100`, { headers: { Authorization: `Bearer ${token}` } });
+  if (res.status === 400) {
+    res = await fetch(baseUrl, { headers: { Authorization: `Bearer ${token}` } });
+  }
+  if (!res.ok) throw new Error(`Västtrafik ${kind} ${res.status}`);
+  const data = await res.json();
+  const results = Array.isArray(data.results) ? data.results : [];
+
+  for (const item of results) {
+    const line = item.serviceJourney?.line || {};
+    const planned = item.plannedTime;
+    if (!planned) continue;
+    const plannedLocal = swedishDateTime(planned);
+    const estimated = item.estimatedTime || '';
+    const platformRaw = item.stopPoint?.platform;
+    const platform =
+      platformRaw && typeof platformRaw === 'object' ? platformRaw.name : platformRaw;
+
+    const update = {
+      hasRealtime: Boolean(estimated),
+      estimated,
+      planned,
+      cancelled: Boolean(item.isCancelled),
+      platform: String(platform || '').trim(),
+    };
+    const designations = new Set(
+      [line.shortName, line.designation, line.name]
+        .map((v) => String(v || '').trim().toLowerCase())
+        .filter(Boolean)
+    );
+    for (const des of designations) {
+      updates.set(`${des}|${plannedLocal}`, update);
+    }
+  }
+  return updates;
+}
+
+/** Lägger Västtrafiks realtid ovanpå en avgång från Trafiklab. */
+function applyVasttrafik(departure, vtUpdates) {
+  if (!vtUpdates || vtUpdates.size === 0 || !isVasttrafikDeparture(departure)) return departure;
+  if (departure.hasRealtime) return departure;
+
+  const des = String(departure._designation || '').trim().toLowerCase();
+  const match = des ? vtUpdates.get(`${des}|${departure._scheduledLocal}`) : null;
+  if (!match) return departure;
+
+  const result = { ...departure };
+  if (match.platform && !result.track) result.track = trackLabelFor(match.platform);
+
+  if (match.cancelled) {
+    result.status = 'cancelled';
+    result.hasRealtime = true;
+    result.newTime = '';
+    result.delayMinutes = 0;
+    result.estimatedTime = result.scheduledTime;
+    return result;
+  }
+  if (!match.hasRealtime) return result;
+
+  result.hasRealtime = true;
+  const diffMs = Date.parse(match.estimated) - Date.parse(match.planned);
+  const delayMin = Number.isNaN(diffMs) ? 0 : Math.floor(diffMs / 60000);
+  if (delayMin > 0) {
+    result.status = 'delayed';
+    result.newTime = swedishClock(match.estimated);
+    result.delayMinutes = delayMin;
+    result.estimatedTime = result.newTime;
+  } else {
+    result.status = 'on-time';
+    result.newTime = '';
+    result.delayMinutes = 0;
+    result.estimatedTime = result.scheduledTime;
+  }
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -735,10 +954,32 @@ async function handleBoard(url, keys, context) {
     ? await fetchTrafikverketStationUpdates(keys.trafikverket, stopName, trainNumbers, direction, context)
     : new Map();
 
+  // Västtrafik: Trafiklab saknar deras realtid, så hämta den direkt från Västtrafik.
+  let vtUpdates = null;
+  const needsVasttrafik = board.departures.some(
+    (d) => isVasttrafikDeparture(d) && !d.hasRealtime
+  );
+  if (keys.vasttrafikKey && keys.vasttrafikSecret && needsVasttrafik) {
+    try {
+      const coords = board.departures.find((d) => isVasttrafikDeparture(d) && d._coords)?._coords || null;
+      vtUpdates = await fetchVasttrafikUpdates(
+        keys,
+        stopId,
+        [board.stopName, clientStopName].filter(Boolean),
+        coords,
+        direction,
+        context
+      );
+    } catch {
+      vtUpdates = null; // Visa Trafiklabs tidtabell om Västtrafik inte svarar
+    }
+  }
+
   const departures = board.departures
     .filter((d) => mode === 'all' || d.transportMode === mode)
     .map((d) => applyTrafikverket(d, tvUpdates, d._trainCandidates || []))
-    .map(({ _trainCandidates, _scheduledLocal, ...rest }) => rest);
+    .map((d) => applyVasttrafik(d, vtUpdates))
+    .map(({ _trainCandidates, _scheduledLocal, _agency, _designation, _coords, ...rest }) => rest);
 
   return jsonResponse(
     { departures, source, updatedAt: new Date().toISOString() },
@@ -756,6 +997,8 @@ export async function onRequest(context) {
     realtime: env.TRAFIKLAB_REALTIME_API_KEY,
     resrobot: env.TRAFIKLAB_RESROBOT_KEY || env.TRAFIKLAB_API_KEY || env.TRAFIKLAB_REALTIME_KEY,
     trafikverket: env.TRAFIKVERKET_API_KEY,
+    vasttrafikKey: env.VASTTRAFIK_KEY,
+    vasttrafikSecret: env.VASTTRAFIK_SECRET,
   };
 
   if (!keys.realtime && !keys.resrobot) {
