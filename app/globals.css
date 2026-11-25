@@ -175,3 +175,11 @@ input[type='search'] {
 input[type='search']::-webkit-search-decoration {
   -webkit-appearance: none;
 }
+
+/* Favoritraden: scrollbar i sidled utan synlig rullningslist på mobilen. */
+.favorites-scroll {
+  scrollbar-width: none;
+}
+.favorites-scroll::-webkit-scrollbar {
+  display: none;
+}

@@ -37,9 +37,10 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
           </p>
           <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
             <li style={privacyItem}>
-              <strong>Sparad hållplats.</strong> Den hållplats och riktning du senast tittade på
-              sparas i din webbläsare (local storage), så att sidan öppnas där nästa gång. Den
-              stannar på din enhet och används inte till något annat. Du tar bort den genom att
+              <strong>Sparade hållplatser.</strong> Den hållplats och riktning du senast tittade på,
+              och de hållplatser du själv sparar med ☆ Spara, lagras i din webbläsare (local
+              storage), så att sidan öppnas där nästa gång. De stannar på din enhet och används inte
+              till något annat. Du tar bort dem genom att
               rensa webbplatsdata för alltiditid.se i webbläsaren. Hållplatsen står också i sidans
               adress, så att du kan dela eller bokmärka tavlan.
             </li>
