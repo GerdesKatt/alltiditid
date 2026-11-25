@@ -15,7 +15,12 @@ export const REGIONS: Region[] = [
       },
       { id: '740000003', name: 'Malmö Centralstation', shortName: 'Malmö C' },
       { id: '740000120', name: 'Lund Centralstation', shortName: 'Lund C' },
-      { id: '740000556', name: 'Stockholm Arlanda Airport', shortName: 'Arlanda' },
+      {
+        // Arlanda C (SJ, Mälartåg, SL) + Arlanda Södra och Norra (Arlanda Express)
+        id: '740000556,740000492,740000708',
+        name: 'Stockholm Arlanda Airport',
+        shortName: 'Arlanda',
+      },
     ],
     modes: [
       { key: 'all', label: 'Alla' },
