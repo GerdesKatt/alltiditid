@@ -598,9 +598,9 @@ function isVasttrafikDeparture(d) {
 }
 
 /** OAuth2-token (client credentials), cachad tills strax innan den går ut. */
-async function getVasttrafikToken(key, secret, context) {
-  const cacheKey = new Request('https://cache.alltiditid.se/vasttrafik/token-v1');
-  const cached = await cacheGet(cacheKey);
+async function getVasttrafikToken(key, secret, context, forceNew = false) {
+  const cacheKey = new Request('https://cache.alltiditid.se/vasttrafik/token-v2');
+  const cached = forceNew ? null : await cacheGet(cacheKey);
   if (cached) {
     try {
       const data = await cached.json();
@@ -657,7 +657,7 @@ function vasttrafikSearchName(name) {
  * Väljer den träff som ligger närmast Trafiklabs koordinater, om de finns.
  * Cachas ett dygn per Trafiklab-id.
  */
-async function findVasttrafikStopArea(token, stopId, names, coords, context, diag = {}) {
+async function findVasttrafikStopArea(auth, stopId, names, coords, context, diag = {}) {
   const cacheKey = new Request(
     `https://cache.alltiditid.se/vasttrafik/stoparea-v3/${encodeURIComponent(stopId)}`
   );
@@ -675,9 +675,8 @@ async function findVasttrafikStopArea(token, stopId, names, coords, context, dia
   for (const rawName of names) {
     const q = vasttrafikSearchName(rawName);
     if (q.length < 2) continue;
-    const res = await fetch(
-      `${VASTTRAFIK_BASE}/locations/by-text?q=${encodeURIComponent(q)}&types=stoparea&limit=10`,
-      { headers: { Authorization: `Bearer ${token}` } }
+    const res = await auth.fetch(
+      `${VASTTRAFIK_BASE}/locations/by-text?q=${encodeURIComponent(q)}&types=stoparea&limit=10`
     );
     diag.search = diag.search || [];
     const searchInfo = { q, status: res.status };
@@ -734,9 +733,24 @@ async function findVasttrafikStopArea(token, stopId, names, coords, context, dia
 async function fetchVasttrafikUpdates(keys, stopId, names, coords, direction, context, diag = {}) {
   const updates = new Map();
   diag.step = 'token';
-  const token = await getVasttrafikToken(keys.vasttrafikKey, keys.vasttrafikSecret, context);
+  // Token från Västtrafik bär med sig applikationens prenumerationer. Svarar
+  // API:et 401/403 hämtas en ny token en gång (t.ex. efter ny prenumeration).
+  let token = await getVasttrafikToken(keys.vasttrafikKey, keys.vasttrafikSecret, context);
+  let renewed = false;
+  const auth = {
+    async fetch(url) {
+      let res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if ((res.status === 401 || res.status === 403) && !renewed) {
+        renewed = true;
+        diag.tokenRenewed = true;
+        token = await getVasttrafikToken(keys.vasttrafikKey, keys.vasttrafikSecret, context, true);
+        res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      }
+      return res;
+    },
+  };
   diag.step = 'hållplats';
-  const gid = await findVasttrafikStopArea(token, stopId, names, coords, context, diag);
+  const gid = await findVasttrafikStopArea(auth, stopId, names, coords, context, diag);
   diag.stopArea = gid || null;
   if (!gid) {
     diag.status = 'ingen hållplats hittad';
@@ -746,10 +760,11 @@ async function fetchVasttrafikUpdates(keys, stopId, names, coords, direction, co
 
   const kind = direction === 'arrivals' ? 'arrivals' : 'departures';
   const baseUrl = `${VASTTRAFIK_BASE}/stop-areas/${encodeURIComponent(gid)}/${kind}?timeSpanInMinutes=70`;
-  let res = await fetch(`${baseUrl}&limit=100`, { headers: { Authorization: `Bearer ${token}` } });
+  let res = await auth.fetch(`${baseUrl}&limit=100`);
   if (res.status === 400) {
-    res = await fetch(baseUrl, { headers: { Authorization: `Bearer ${token}` } });
+    res = await auth.fetch(baseUrl);
   }
+  diag.boardStatus = res.status;
   if (!res.ok) throw new Error(`Västtrafik ${kind} ${res.status}`);
   const data = await res.json();
   const results = Array.isArray(data.results) ? data.results : [];
