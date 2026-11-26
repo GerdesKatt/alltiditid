@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import type { BoardDirection, Flight, SecurityQueue } from '../lib/types';
-import { AIRPORTS, airportByIata } from '../lib/flights.mjs';
+import { AIRPORTS, airportByIata, flightMatches } from '../lib/flights.mjs';
 import { parseLocal } from '../lib/lineFormat';
 import DirectionToggle from './DirectionToggle';
 import { colors, emptyState, fonts } from './styles';
@@ -143,13 +143,8 @@ export default function FlightView({ initialAirport }: Props) {
   }, [ready, airport, direction, hasQueues]);
 
   const shown = useMemo(() => {
-    const q = filter.trim().toLowerCase().replace(/\s+/g, '');
-    if (!q) return flights;
-    return flights.filter((f) =>
-      [f.flightId, ...(f.codeshare || []), f.place || '', f.airline || '']
-        .map((s) => s.toLowerCase().replace(/\s+/g, ''))
-        .some((s) => s.includes(q))
-    );
+    if (!filter.trim()) return flights;
+    return flights.filter((f) => flightMatches(f, filter));
   }, [flights, filter]);
 
   const airportObj = airportByIata(airport)!;
@@ -203,7 +198,7 @@ export default function FlightView({ initialAirport }: Props) {
           type="search"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Flightnummer eller stad"
+          placeholder="Flightnummer, stad eller flygplats (t.ex. CPH)"
           aria-label="Filtrera på flightnummer, stad eller flygbolag"
           style={{
             flex: '1 1 160px',
