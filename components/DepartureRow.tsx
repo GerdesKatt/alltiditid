@@ -24,6 +24,8 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
   const isDelayed = item.status === 'delayed';
   const isCancelled = item.status === 'cancelled';
   const onlySchedule = !isCancelled && !isDelayed && item.hasRealtime === false;
+  // Hallonpricken betyder realtid (brand guiden). Ingen prick: tidtabell eller okänt.
+  const realtime = !isCancelled && item.hasRealtime === true;
   const newTime = isDelayed ? item.newTime || item.estimatedTime : '';
   // Väntad klocktid: ny tid om försenad, annars prognosen (kan vara en minut eller två från tidtabellen).
   const clock = newTime || (!isCancelled && item.estimatedTime) || item.scheduledTime;
@@ -53,9 +55,14 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
   const compensation =
     isCancelled || (isDelayed && (item.delayMinutes || 0) >= COMPENSATION_DELAY_MIN);
 
-  const shownBig = booked ? item.scheduledTime : bigTime;
+  // Tidtabellstider är ungefärliga: "~12 min".
+  const shownBig = booked
+    ? item.scheduledTime
+    : onlySchedule && /min$/.test(bigTime)
+    ? `~${bigTime}`
+    : bigTime;
   const timeColor = isCancelled
-    ? colors.cancelledText
+    ? colors.textDim
     : isDelayed && booked
     ? colors.text // den ordinarie tiden står kvar; "Ny tid" är orange under
     : isDelayed
@@ -84,7 +91,7 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
       style={{
         backgroundColor: isSelectedTrip ? colors.selectedRowBg : colors.surface,
         border: isSelectedTrip ? `1px solid ${colors.accent}` : `1px solid ${colors.border}`,
-        borderRadius: '13px',
+        borderRadius: 'var(--radius-card)',
         overflow: 'hidden',
       }}
     >
@@ -115,9 +122,12 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
             flexShrink: 0,
             minWidth: '44px',
             padding: '4px 6px',
+            boxSizing: 'border-box',
             borderRadius: 'var(--radius-badge)',
-            backgroundColor: colors.badgeBg,
-            color: colors.badgeText,
+            // Bokade tåg har kontur, inställda är grå, övriga fyllda i bläck.
+            border: `1.5px solid ${isCancelled ? colors.borderStrong : colors.badgeBg}`,
+            backgroundColor: isCancelled ? colors.surfaceRaised : booked ? 'transparent' : colors.badgeBg,
+            color: isCancelled ? colors.textDim : booked ? colors.text : colors.badgeText,
             fontFamily: fonts.display,
             fontWeight: 800,
             fontSize: '14px',
@@ -135,7 +145,7 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
               display: 'block',
               fontSize: '16px',
               fontWeight: 700,
-              color: colors.text,
+              color: isCancelled ? colors.textDim : colors.text,
               textDecoration: isCancelled ? 'line-through' : 'none',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -147,7 +157,7 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
           <span
             style={{
               display: 'block',
-              fontSize: '12px',
+              fontSize: '13px',
               color: colors.textDim,
               marginTop: '2px',
               overflow: 'hidden',
@@ -156,7 +166,7 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
             }}
           >
             {[name, details].filter(Boolean).join(' · ')}
-            {item.deviation ? (
+            {item.deviation && !(isCancelled && item.deviation === 'Inställd') ? (
               <span style={{ color: colors.amber, fontWeight: 600 }}>
                 {name || details ? ' · ' : ''}
                 {item.deviation}
@@ -169,23 +179,28 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
         <span aria-hidden="true" style={{ flexShrink: 0, textAlign: 'right' }}>
           <span
             style={{
-              display: 'block',
               fontFamily: fonts.display,
               fontSize: '22px',
               fontWeight: 800,
+              letterSpacing: '-0.02em',
               fontVariantNumeric: 'tabular-nums',
               color: timeColor,
               textDecoration: isCancelled ? 'line-through' : 'none',
               whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: '6px',
             }}
           >
+            {realtime ? <span key={item.expectedAt} className="rt-dot" /> : null}
             {shownBig}
           </span>
           <span
             style={{
               display: 'block',
-              fontSize: '12px',
-              fontWeight: 600,
+              fontSize: '13px',
+              fontWeight: 500,
               fontVariantNumeric: 'tabular-nums',
               color: isCancelled ? colors.cancelledText : isDelayed ? colors.amber : colors.textDim,
               whiteSpace: 'nowrap',
@@ -198,9 +213,10 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
               <>
                 {isDelayed ? `Ny tid ${newTime}${item.delayMinutes ? ` +${item.delayMinutes}` : ''}` : ''}
                 {early ? <span style={{ color: colors.okText }}>{`${clock} · ${early} min tidig`}</span> : ''}
-                {(isDelayed || early) && countdown ? ' · ' : ''}
-                {countdown}
-                {onlySchedule ? `${countdown ? ' · ' : ''}tidtabell` : ''}
+                {/* Försenat: "Ny tid 14:17 +7" räcker, nedräkningen får inte plats bredvid. */}
+                {early && countdown ? ' · ' : ''}
+                {isDelayed ? '' : countdown}
+                {onlySchedule ? `${countdown ? ' · ' : ''}ingen realtid` : ''}
               </>
             ) : isDelayed ? (
               <>
@@ -213,12 +229,12 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
               </span>
             ) : bigTime === clock ? (
               // Långt fram står klockslaget redan stort.
-              onlySchedule ? 'tidtabell' : null
+              onlySchedule ? 'ingen realtid' : null
             ) : (
               <>
                 {item.scheduledTime}
                 {shifted ? ` → ${clock}` : ''}
-                {onlySchedule ? ' · tidtabell' : ''}
+                {onlySchedule ? ' · ingen realtid' : ''}
               </>
             )}
           </span>
@@ -251,8 +267,8 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
             style={{
               minHeight: '44px',
               padding: '0 14px',
-              borderRadius: '8px',
-              border: isSelectedTrip ? `1px solid ${colors.accent}` : `1px solid ${colors.borderStrong}`,
+              borderRadius: 'var(--radius-control)',
+              border: isSelectedTrip ? `1px solid ${colors.accentStrong}` : `1px solid ${colors.borderStrong}`,
               backgroundColor: isSelectedTrip ? colors.accentStrong : colors.surfaceRaised,
               color: isSelectedTrip ? colors.onAccent : colors.text,
               fontSize: '13px',
