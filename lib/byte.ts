@@ -16,6 +16,8 @@ export type Connection = {
   status: string;
   track?: string;
   margin: number | null;
+  /** Hållplatserna efter bytesstationen (med stops=1), för att söka på ett mål längs linjen. */
+  stopsAfter?: string[];
 };
 
 type Part = { scheduled: string; estimated?: string; actual?: string };

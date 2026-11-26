@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { colors, fonts } from './styles';
 import { arrivalAt, loadByte, storeByte, verdict } from '../lib/byte';
 import type { Connection, SavedByte } from '../lib/byte';
+import { matchConnection } from '../lib/transferMatch.mjs';
 import { lineLabel, trackLabel, trainPosition, translator, useLang, type Lang } from '../lib/i18n';
 
 type Part = { scheduled: string; estimated?: string; actual?: string; delay: number };
@@ -107,8 +108,19 @@ export default function TrainSheet({
   const [transfer, setTransfer] = useState(4);
   const [connError, setConnError] = useState<string | null>(null);
   const [saved, setSaved] = useState<SavedByte | null>(null);
+  // Målet man skriver in ("Fruängen"). När man börjat skriva hämtas linjernas hållplatser en gång.
+  const [destQuery, setDestQuery] = useState('');
+  const [wantStops, setWantStops] = useState(false);
+  const [stopsReady, setStopsReady] = useState(false);
 
-  useEffect(() => setConnLimit(6), [byteStation]);
+  useEffect(() => {
+    setConnLimit(6);
+    setDestQuery('');
+    setWantStops(false);
+  }, [byteStation]);
+  useEffect(() => {
+    if (destQuery.trim()) setWantStops(true);
+  }, [destQuery]);
   useEffect(() => {
     const b = loadByte(number);
     setSaved(b);
@@ -128,11 +140,13 @@ export default function TrainSheet({
     }
     let active = true;
     setConnError(null);
-    setConnections(null);
+    // Hållplatserna hämtas ovanpå listan som redan visas, så den blinkar inte bort.
+    if (!wantStops) setConnections(null);
+    setStopsReady(false);
     fetch(
       `/api/trafik?action=connections&station=${encodeURIComponent(connStation)}&arrival=${encodeURIComponent(
         byteArrival
-      )}&train=${encodeURIComponent(number)}`
+      )}&train=${encodeURIComponent(number)}${wantStops ? '&stops=1' : ''}`
     )
       .then(async (res) => ({ ok: res.ok, data: await res.json() }))
       .then(({ ok, data }) => {
@@ -144,12 +158,14 @@ export default function TrainSheet({
         }
         setTransfer(Number(data.transfer) || 4);
         setConnections(Array.isArray(data.departures) ? data.departures : []);
+        setStopsReady(Boolean(data.stops));
       })
-      .catch(() => active && setConnError(t('Kunde inte hämta anslutningarna.', 'Could not load connections.')));
+      .catch(() => active && setConnError(t('Kunde inte hämta anslutningarna.', 'Could not load connections.')))
+      .finally(() => active && wantStops && setStopsReady(true));
     return () => {
       active = false;
     };
-  }, [connStation, byteArrival, number]);
+  }, [connStation, byteArrival, number, wantStops]);
 
   const savedConn =
     saved && connections
@@ -206,6 +222,14 @@ export default function TrainSheet({
   }, [number, trip?.id, trip?.date]);
 
 
+  // Filtret på mål: slutstationen, eller en hållplats längre fram när linjernas hållplatser hämtats.
+  const destTrimmed = destQuery.trim();
+  const shownConnections = !connections
+    ? []
+    : connections
+        .map((c) => ({ c, m: matchConnection(c, destTrimmed) }))
+        .filter(({ m }) => m.hit);
+
   // Anslutningarna visas direkt under stationen man tryckte på.
   const connectionList = !connections ? null : (
 
@@ -242,13 +266,58 @@ export default function TrainSheet({
                 </button>
               </div>
               {connError ? <p style={{ color: colors.errorText, fontSize: '0.875rem' }}>{connError}</p> : null}
+              {connections.length > 0 ? (
+                <div style={{ margin: '2px 0 8px' }}>
+                  <label htmlFor="byte-dest" className="sr-only">
+                    {t('Vart ska du?', 'Where are you going?')}
+                  </label>
+                  <input
+                    id="byte-dest"
+                    type="search"
+                    value={destQuery}
+                    onChange={(e) => {
+                      setDestQuery(e.target.value);
+                      setConnLimit(6);
+                    }}
+                    placeholder={t('Vart ska du? T.ex. Fruängen', 'Where to? E.g. Fruängen')}
+                    autoComplete="off"
+                    enterKeyHint="search"
+                    style={{
+                      width: '100%',
+                      minHeight: '44px',
+                      padding: '0 12px',
+                      borderRadius: 'var(--radius-control)',
+                      border: `1px solid ${colors.borderStrong}`,
+                      backgroundColor: colors.surface,
+                      color: colors.text,
+                      fontSize: '1rem',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  {destTrimmed && !stopsReady ? (
+                    <span role="status" style={{ display: 'block', marginTop: '4px', fontSize: '0.8125rem', color: colors.textDim }}>
+                      {t('Letar även bland hållplatserna längs linjerna…', 'Also checking the stops along each line…')}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
               {connections.length === 0 && !connError ? (
                 <p style={{ color: colors.textDim, fontSize: '0.875rem' }}>
                   {t('Inga avgångar timmen efter ankomsten.', 'No departures in the hour after arrival.')}
                 </p>
               ) : null}
+              {connections.length > 0 && shownConnections.length === 0 && destTrimmed ? (
+                <p style={{ color: colors.textDim, fontSize: '0.875rem' }}>
+                  {stopsReady
+                    ? t(
+                        `Ingen anslutning mot ${destTrimmed} timmen efter ankomsten.`,
+                        `No connection towards ${destTrimmed} in the hour after arrival.`
+                      )
+                    : t('Inget mål som matchar än, letar längs linjerna…', 'No match yet, checking along the lines…')}
+                </p>
+              ) : null}
               <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {connections.slice(0, connLimit).map((c) => {
+                {shownConnections.slice(0, connLimit).map(({ c, m }) => {
                   const v = verdict(c, transfer, lang);
                   const chosen = saved && saved.line === c.line && saved.scheduledTime === c.scheduledTime;
                   const color = v.tone === 'miss' ? colors.textDim : v.tone === 'tight' ? colors.amber : colors.text;
@@ -289,6 +358,7 @@ export default function TrainSheet({
                           <strong style={{ display: 'block' }}>{c.line}</strong>
                           <span style={{ color: colors.textDim }}>
                             {t('mot', 'to')} {c.destination}
+                            {m.via ? ` · ${t('stannar i', 'stops at')} ${m.via}` : ''}
                             {c.track ? ` · ${trackLabel(c.track, lang)}` : ''}
                           </span>
                         </span>
@@ -298,13 +368,13 @@ export default function TrainSheet({
                   );
                 })}
               </ul>
-              {connections.length > connLimit ? (
+              {shownConnections.length > connLimit ? (
                 <button
                   type="button"
                   onClick={() => setConnLimit((n) => n + 10)}
                   style={{ ...stopAction(false), marginTop: '6px', width: '100%' }}
                 >
-                  {t(`Visa fler (${connections.length - connLimit} till)`, `Show more (${connections.length - connLimit} more)`)}
+                  {t(`Visa fler (${shownConnections.length - connLimit} till)`, `Show more (${shownConnections.length - connLimit} more)`)}
                 </button>
               ) : null}
             </div>

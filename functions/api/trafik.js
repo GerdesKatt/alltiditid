@@ -2,6 +2,7 @@ import { historyRows, saveHistory } from '../../lib/history.mjs';
 import { airportByIata, datesToFetch, flightBoard, waitTimes } from '../../lib/flights.mjs';
 import { missingTrains, trainJourney } from '../../lib/trains.mjs';
 import { tripJourney } from '../../lib/trips.mjs';
+import { stopsAfter } from '../../lib/transferMatch.mjs';
 import { pickSearchHits } from '../../lib/searchHits.mjs';
 
 function parseTimeToMinutes(timeStr) {
@@ -657,11 +658,77 @@ async function handleConnections(url, keys, context) {
     })
     .filter((d) => d.margin === null || d.margin >= -2)
     .slice(0, 40);
+  // stops=1: hållplatserna efter bytet, så att man kan söka på ett mål längs linjen.
+  const withStops = url.searchParams.get('stops') === '1' && Boolean(keys.realtime);
+  if (withStops) await addStopsAfter(departures, station, keys, context);
   return jsonResponse(
-    { station, stop, arrival, transfer, departures, updatedAt: new Date().toISOString() },
+    { station, stop, arrival, transfer, departures, ...(withStops ? { stops: true } : {}), updatedAt: new Date().toISOString() },
     200,
     { 'Cache-Control': 'public, max-age=30' }
   );
+}
+
+/** Så många linjer (linje + riktning) slås upp per byte. Resten matchas bara på slutstationen. */
+const MAX_ROUTE_LOOKUPS = 24;
+/** En linjes hållplatser ändras sällan under dagen: sparas sex timmar per station, linje och riktning. */
+const ROUTE_STOPS_TTL_S = 6 * 3600;
+
+/**
+ * Sätter `stopsAfter` (hållplatserna efter bytesstationen) på avgångarna.
+ * En tur slås upp per linje och riktning, och svaret delas av alla avgångar på den.
+ */
+async function addStopsAfter(departures, station, keys, context) {
+  const groups = new Map();
+  for (const d of departures) {
+    if (!d.tripId || !d.tripDate) continue;
+    const key = `${d.line}|${d.destination}`;
+    if (!groups.has(key)) groups.set(key, d);
+  }
+  const lookups = [...groups.entries()].slice(0, MAX_ROUTE_LOOKUPS);
+  const found = new Map(
+    await Promise.all(lookups.map(async ([key, d]) => [key, await routeStopsAfter(d, station, keys, context)]))
+  );
+  for (const d of departures) {
+    const names = found.get(`${d.line}|${d.destination}`);
+    if (names && names.length) d.stopsAfter = names;
+  }
+}
+
+async function routeStopsAfter(d, station, keys, context) {
+  const cacheKey = new Request(
+    `https://alltiditid.se/api/trafik?action=route-stops&station=${encodeURIComponent(station.toLowerCase())}&line=${encodeURIComponent(
+      d.line
+    )}&to=${encodeURIComponent(d.destination)}`,
+    { method: 'GET' }
+  );
+  const cached = await cacheGet(cacheKey);
+  if (cached) {
+    try {
+      return (await cached.json()).stops || null;
+    } catch {
+      // Trasig post: slå upp turen igen.
+    }
+  }
+  let names = null;
+  try {
+    const res = await fetch(
+      `${REALTIME_BASE}/trips/${encodeURIComponent(d.tripId)}/${encodeURIComponent(d.tripDate)}?key=${encodeURIComponent(keys.realtime)}`
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const journey = tripJourney(data, '', { cleanName: (name) => cleanPlaceName(name) || name });
+    names = stopsAfter(journey, d.scheduledTime);
+  } catch {
+    return null;
+  }
+  if (names) {
+    await cachePut(
+      cacheKey,
+      jsonResponse({ stops: names }, 200, { 'Cache-Control': `public, max-age=${ROUTE_STOPS_TTL_S}` }),
+      context
+    );
+  }
+  return names;
 }
 
 /** Lägger Trafikverkets uppgifter ovanpå en avgång (bara tåg, bara exakt matchning). */
