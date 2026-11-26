@@ -37,6 +37,8 @@ function store(v: Saved): void {
   }
 }
 
+export type Walk = ReturnType<typeof useWalk>;
+
 export function useWalk(stopId: string) {
   const [saved, setSaved] = useState<Saved>({ on: false, pace: 'normal' });
   const [position, setPosition] = useState<{ lat: number; lon: number } | null>(null);

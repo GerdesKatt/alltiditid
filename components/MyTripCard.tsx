@@ -1,8 +1,9 @@
 import React from 'react';
 import type { Departure } from '../lib/types';
 import type { MyTrip } from '../lib/myTrip';
-import { clockFor, countdownFor, lineBadge, lineColor, lineName } from '../lib/lineFormat';
+import { clockFor, countdownFor, lineBadge, lineColor, lineName, parseLocal } from '../lib/lineFormat';
 import { colors, fonts } from './styles';
+import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { lineLabel, useLang } from '../lib/i18n';
 
 type Props = {
@@ -16,13 +17,30 @@ type Props = {
   onRemove: () => void;
   /** Nästa avgång är inställd: det man tar i stället. */
   alternative?: Departure | null;
+  /** Inte sparad: ett förslag (den du brukar ta, eller nästa avgång). Visar Spara i stället för Ta bort. */
+  auto?: 'habit' | 'next';
+  onSave?: () => void;
+  /** Gångtid till hållplatsen i minuter, när "Gångtid" är på. */
+  walkMinutes?: number | null;
 };
 
 /**
  * "Min resa" överst: de tre nästa avgångarna för en sparad linje och riktning,
  * så att svaret på "när går nästa?" syns utan ett enda tryck.
  */
-export default function MyTripCard({ trip, next, loading, now, showingStop, onShowStop, onRemove, alternative = null }: Props) {
+export default function MyTripCard({
+  trip,
+  next,
+  loading,
+  now,
+  showingStop,
+  onShowStop,
+  onRemove,
+  alternative = null,
+  auto,
+  onSave,
+  walkMinutes = null,
+}: Props) {
   const { lang, t } = useLang();
   const badge = lineBadge(trip.line);
   const name = lineLabel(lineName(trip.line, badge), lang);
@@ -45,6 +63,12 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
   const headDelayed = head?.status === 'delayed';
   const headSchedule = head && !headCancelled && !headDelayed && head.hasRealtime === false;
   const headBig = head ? nu(countdownFor(head, now)) : '';
+  // Gå nu / Gå om X min / Hinner inte: samma regel som på tavlan.
+  const headAt = head ? parseLocal(head.expectedAt) : null;
+  const verdict =
+    head && walkMinutes !== null && headAt !== null && !headCancelled
+      ? walkVerdict(Math.floor((headAt - now) / 60000), walkMinutes, platformMinutes(head.transportMode))
+      : null;
   const label = (text: string) => (
     <span style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', color: colors.textDim }}>
       {text}
@@ -54,7 +78,7 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
   return (
     <section
       className="invert"
-      aria-label={`${t('Min resa', 'My trip')}: ${lineLabel(trip.line, lang)} ${t('mot', 'to')} ${trip.destination} ${t(
+      aria-label={`${auto ? t('Din avgång', 'Your departure') : t('Min resa', 'My trip')}: ${lineLabel(trip.line, lang)} ${t('mot', 'to')} ${trip.destination} ${t(
         'från',
         'from'
       )} ${trip.stopName}`}
@@ -72,10 +96,16 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
           {lineLabel(badge, lang)} {t('mot', 'to')} {trip.destination}
           {name ? <span className="sr-only">, {name}</span> : null}
         </span>
-        {label(t('Din avgång', 'Your departure'))}
+        {label(
+          auto === 'habit'
+            ? t('Du brukar ta', 'You usually take')
+            : auto === 'next'
+            ? t('Nästa avgång', 'Next departure')
+            : t('Din avgång', 'Your departure')
+        )}
       </div>
 
-      <p className="sr-only" aria-live="polite">
+      <p className="sr-only" aria-live={auto ? undefined : 'polite'}>
         {next.length ? `${t('Nästa', 'Next')}: ${spokenTimes}` : ''}
       </p>
 
@@ -101,7 +131,32 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
               overflowWrap: 'anywhere',
             }}
           >
-            {headSchedule && /min$/.test(headBig) ? `~${headBig}` : headBig}
+            <span style={{ flex: 1, minWidth: 0 }}>{headSchedule && /min$/.test(headBig) ? `~${headBig}` : headBig}</span>
+            {verdict ? (
+              <span
+                style={{
+                  flexShrink: 0,
+                  alignSelf: 'flex-end',
+                  padding: '8px 10px',
+                  backgroundColor: verdict.kind === 'missed' ? 'transparent' : colors.text,
+                  color: verdict.kind === 'missed' ? colors.amber : colors.bg,
+                  border: verdict.kind === 'missed' ? `1px solid ${colors.amber}` : 'none',
+                  fontFamily: fonts.text,
+                  fontSize: '0.8125rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  lineHeight: 1,
+                  textDecoration: 'none',
+                }}
+              >
+                {verdict.kind === 'go'
+                  ? t('Gå nu', 'Go now')
+                  : verdict.kind === 'missed'
+                  ? t('Hinner inte', "Won't make it")
+                  : t(`Gå om ${verdict.leaveIn} min`, `Leave in ${verdict.leaveIn} min`)}
+              </span>
+            ) : null}
           </div>
           <div
             style={{
@@ -169,10 +224,16 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
               {t('Visa tavlan', 'Show board')}
             </button>
           ) : null}
-          <button type="button" onClick={onRemove} style={textButton}>
-            {t('Ta bort', 'Remove')}
-            <span className="sr-only"> {t('min resa', 'my trip')}</span>
-          </button>
+          {auto ? (
+            <button type="button" onClick={onSave} style={textButton}>
+              {t('Spara som min resa', 'Save as my trip')}
+            </button>
+          ) : (
+            <button type="button" onClick={onRemove} style={textButton}>
+              {t('Ta bort', 'Remove')}
+              <span className="sr-only"> {t('min resa', 'my trip')}</span>
+            </button>
+          )}
         </span>
       </div>
     </section>
