@@ -349,3 +349,11 @@ details[open] .disruption-teaser {
     display: none;
   }
 }
+
+/* Snabbval som rullar i sidled i stället för att ta flera rader (flygplatserna). */
+.chip-scroll {
+  scrollbar-width: none;
+}
+.chip-scroll::-webkit-scrollbar {
+  display: none;
+}

@@ -1,4 +1,5 @@
 import { historyRows, saveHistory } from '../../lib/history.mjs';
+import { airportByIata, datesToFetch, flightBoard, waitTimes } from '../../lib/flights.mjs';
 
 function parseTimeToMinutes(timeStr) {
   if (!timeStr || typeof timeStr !== 'string') return null;
@@ -1677,10 +1678,154 @@ async function handleBoard(url, keys, context) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Flyg från Swedavia (FlightInfo v2) och kötider i säkerhetskontrollen (WaitTime).
+//
+// Gratisprenumerationen på FlightInfo tillåter omkring 10 000 anrop per 30 dagar.
+// Därför: ett anrop ger hela dagen för en flygplats och riktning, svaret cachas i
+// 10 minuter och delas av alla besökare, och högst FLIGHT_CALLS_PER_DAY anrop görs
+// per dygn (räknat i D1). Nås gränsen visas den senast hämtade tavlan.
+// ---------------------------------------------------------------------------
+
+const FLIGHT_CACHE_SECONDS = 600;
+const FLIGHT_STALE_SECONDS = 86400;
+const FLIGHT_CALLS_PER_DAY = 300;
+const WAIT_CACHE_SECONDS = 120;
+const WAIT_CALLS_PER_DAY = 3000;
+const SWEDAVIA = 'https://api.swedavia.se';
+
+/** Räknar ett anrop och svarar om det ryms i dygnets gräns. Utan D1 tillåts det. */
+async function allowCall(env, api, limit) {
+  const db = env && env.HISTORY;
+  if (!db) return true;
+  try {
+    const day = new Date().toISOString().slice(0, 10);
+    await db
+      .prepare('CREATE TABLE IF NOT EXISTS api_calls (day TEXT NOT NULL, api TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (day, api))')
+      .run();
+    const row = await db
+      .prepare('INSERT INTO api_calls (day, api, n) VALUES (?1, ?2, 1) ON CONFLICT (day, api) DO UPDATE SET n = n + 1 RETURNING n')
+      .bind(day, api)
+      .first();
+    return !row || Number(row.n) <= limit;
+  } catch {
+    return true;
+  }
+}
+
+async function swedaviaGet(path, key) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const res = await fetch(`${SWEDAVIA}${path}`, {
+      headers: { 'Ocp-Apim-Subscription-Key': key, Accept: 'application/json', 'Cache-Control': 'no-cache' },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`Swedavia ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function cacheKeyFor(kind, ...parts) {
+  return new Request(`https://alltiditid.se/__cache/${kind}/${parts.join('/')}`, { method: 'GET' });
+}
+
+async function staleOr(staleKey, fallbackBody, status) {
+  const stale = await cacheGet(staleKey);
+  if (stale) {
+    const body = await stale.json();
+    return jsonResponse({ ...body, stale: true }, 200, { 'Cache-Control': 'public, max-age=60' });
+  }
+  return jsonResponse(fallbackBody, status);
+}
+
+async function handleFlights(url, env, context) {
+  const airport = airportByIata(url.searchParams.get('airport'));
+  if (!airport) return jsonResponse({ error: 'Okänd flygplats.' }, 400);
+  const direction = url.searchParams.get('direction') === 'arrivals' ? 'arrivals' : 'departures';
+  const key = env && env.SWEDAVIA_FLIGHTINFO_KEY;
+  if (!key) return jsonResponse({ error: 'Flyg är inte påslaget (nyckel saknas i Cloudflare).' }, 503);
+
+  const freshKey = cacheKeyFor('flyg', airport.iata, direction);
+  const staleKey = cacheKeyFor('flyg-sparad', airport.iata, direction);
+  const fresh = await cacheGet(freshKey);
+  if (fresh) return fresh;
+
+  const dates = datesToFetch(Date.now());
+  for (const _ of dates) {
+    if (!(await allowCall(env, 'swedavia-flightinfo', FLIGHT_CALLS_PER_DAY))) {
+      return staleOr(staleKey, { error: 'Flygtiderna uppdateras igen senare.' }, 503);
+    }
+  }
+
+  let bodies;
+  try {
+    bodies = await Promise.all(
+      dates.map((date) => swedaviaGet(`/flightinfo/v2/${airport.iata}/${direction}/${date}`, key))
+    );
+  } catch {
+    return staleOr(staleKey, { error: 'Kunde inte hämta flygen från Swedavia just nu.' }, 502);
+  }
+
+  const body = {
+    airport: airport.iata,
+    airportName: airport.name,
+    direction,
+    flights: flightBoard(bodies, direction, swedishDateTime(new Date().toISOString())),
+    source: 'swedavia',
+    updatedAt: new Date().toISOString(),
+  };
+  const response = jsonResponse(body, 200, { 'Cache-Control': `public, max-age=${FLIGHT_CACHE_SECONDS}` });
+  await cachePut(freshKey, response.clone(), context);
+  await cachePut(
+    staleKey,
+    jsonResponse(body, 200, { 'Cache-Control': `public, max-age=${FLIGHT_STALE_SECONDS}` }),
+    context
+  );
+  return response;
+}
+
+async function handleWaitTimes(url, env, context) {
+  const airport = airportByIata(url.searchParams.get('airport'));
+  if (!airport || !airport.waitTimes) return jsonResponse({ queues: [] }, 200, { 'Cache-Control': 'public, max-age=3600' });
+  const key = env && env.SWEDAVIA_WAITTIME_KEY;
+  if (!key) return jsonResponse({ queues: [] }, 200, { 'Cache-Control': 'public, max-age=300' });
+
+  const freshKey = cacheKeyFor('koer', airport.iata);
+  const fresh = await cacheGet(freshKey);
+  if (fresh) return fresh;
+  if (!(await allowCall(env, 'swedavia-waittime', WAIT_CALLS_PER_DAY))) {
+    return jsonResponse({ queues: [] }, 200, { 'Cache-Control': 'public, max-age=300' });
+  }
+  let queues = [];
+  try {
+    queues = waitTimes(await swedaviaGet(`/waittimepublic/v1/airports/${airport.iata}`, key));
+  } catch {
+    return jsonResponse({ queues: [] }, 200, { 'Cache-Control': 'public, max-age=60' });
+  }
+  const response = jsonResponse(
+    { airport: airport.iata, queues, updatedAt: new Date().toISOString() },
+    200,
+    { 'Cache-Control': `public, max-age=${WAIT_CACHE_SECONDS}` }
+  );
+  await cachePut(freshKey, response.clone(), context);
+  return response;
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const action = url.searchParams.get('action') || 'departures';
+
+  // Flyg och kötider kräver inga Trafiklab-nycklar.
+  try {
+    if (action === 'flights') return await handleFlights(url, env, context);
+    if (action === 'waittimes') return await handleWaitTimes(url, env, context);
+  } catch {
+    return jsonResponse({ error: 'Ett fel uppstod vid hämtning av flygdata.' }, 500);
+  }
 
   const keys = {
     realtime: env.TRAFIKLAB_REALTIME_API_KEY,

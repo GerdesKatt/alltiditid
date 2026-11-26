@@ -56,3 +56,39 @@ export type Disruption = {
 };
 
 export type BoardSource = 'trafiklab-realtime' | 'resrobot' | '';
+
+/** Ett flyg från Swedavia (functions/api/trafik.js, action=flights). */
+export type Flight = {
+  id: string;
+  flightId: string;
+  airline?: string;
+  airlineIata?: string;
+  /** Destination vid avgångar, avreseort vid ankomster. */
+  place?: string;
+  via?: string[];
+  scheduledAt: string;
+  scheduledTime: string;
+  expectedAt: string;
+  status: 'on-time' | 'delayed' | 'cancelled';
+  delayMinutes?: number;
+  newTime?: string;
+  /** Har lyft eller landat. */
+  done?: boolean;
+  statusText?: string;
+  terminal?: string;
+  gate?: string;
+  gateText?: string;
+  checkIn?: string;
+  codeshare?: string[];
+  remarks?: string[];
+  domestic?: boolean;
+};
+
+/** Kötid i en säkerhetskontroll (action=waittimes). */
+export type SecurityQueue = {
+  name: string;
+  terminal?: string;
+  minutes: number;
+  fastTrack?: boolean;
+  at?: string;
+};
