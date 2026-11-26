@@ -1659,7 +1659,8 @@ function tidyStopName(name) {
  * vidare eller används som cachenyckel, och sparas inte.
  */
 /** Reseplaneraren får högst så här många ResRobot-anrop per dygn (sökning + resa räknas var för sig). */
-const PLAN_CALLS_PER_DAY = 3000;
+// Brons-nyckeln ger 30 000 anrop i månaden och delas med Nära mig; 700 om dagen lämnar plats åt den.
+const PLAN_CALLS_PER_DAY = 700;
 
 const inSweden = (lat, lon) =>
   Number.isFinite(lat) && Number.isFinite(lon) && lat >= 55 && lat <= 69.2 && lon >= 10.5 && lon <= 24.3;
