@@ -22,6 +22,7 @@ import { loadSavedState, regionForStop, saveState } from '../lib/savedStop';
 import { loadFavorites, MAX_FAVORITES, storeFavorites, toggleFavorite } from '../lib/favorites';
 import FavoritesBar from '../components/FavoritesBar';
 import MyTripCard from '../components/MyTripCard';
+import { loadRecentStops, rememberStop } from '../lib/recentStops';
 import { loadMyTrip, nextForTrip, storeMyTrip, tripFrom, type MyTrip } from '../lib/myTrip';
 import { boardUrl, takePrefetch } from '../lib/prefetch';
 import type { BoardView } from '../components/DepartureBoard';
@@ -156,6 +157,7 @@ export default function HomePage() {
   }, []);
   const [favorites, setFavorites] = useState<StopOption[]>([]);
   const [myTrip, setMyTrip] = useState<MyTrip | null>(null);
+  const [recentStops, setRecentStops] = useState<StopOption[]>([]);
   // Resans egna avgångar när tavlan visar en annan hållplats.
   const [tripDepartures, setTripDepartures] = useState<Departure[]>([]);
   const [tripLoading, setTripLoading] = useState(false);
@@ -165,6 +167,7 @@ export default function HomePage() {
   useEffect(() => {
     setFavorites(loadFavorites());
     setMyTrip(loadMyTrip());
+    setRecentStops(loadRecentStops());
     try {
       if (window.localStorage.getItem(VIEW_KEY) === 'lines') setView('lines');
     } catch {
@@ -459,8 +462,10 @@ export default function HomePage() {
           onStationQueryChange={setStationQuery}
           searchingStops={searchingStops}
           suggestions={suggestions}
+          recentStops={recentStops}
           onSuggestionSelect={(stop) => {
-            setSelectedStop(stop);
+            setSelectedStop({ id: stop.id, name: stop.name });
+            setRecentStops((list) => rememberStop(list, stop));
             // Behåll vald region (och dess snabbval) om hållplatsen inte hör till en annan region.
             const stopRegion = regionForStop(stop.id);
             if (stopRegion !== 'all') setRegion(stopRegion);

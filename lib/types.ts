@@ -36,6 +36,10 @@ export type StopOption = {
   id: string;
   name: string;
   shortName?: string;
+  /** Ort i sökförslag, t.ex. "Karlstad". */
+  place?: string;
+  /** Trafikslag i sökförslag, t.ex. ["Tåg", "Buss"]. */
+  modes?: string[];
 };
 
 export type Region = {

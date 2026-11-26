@@ -145,8 +145,8 @@ export default function DepartureBoard({
               flexShrink: 0,
               minHeight: '44px',
               padding: '0 14px',
-              borderRadius: '999px',
-              border: isFavorite ? `1px solid ${colors.amber}` : `1px solid ${colors.borderStrong}`,
+              borderRadius: 'var(--radius-control)',
+              border: `1px solid ${colors.borderStrong}`,
               backgroundColor: colors.surface,
               color: colors.text,
               fontSize: '14px',
@@ -156,7 +156,7 @@ export default function DepartureBoard({
               whiteSpace: 'nowrap',
             }}
           >
-            <span aria-hidden="true" style={{ color: colors.amber, marginRight: '6px' }}>
+            <span aria-hidden="true" style={{ color: colors.brand, marginRight: '6px' }}>
               {isFavorite ? '★' : '☆'}
             </span>
             {isFavorite ? 'Sparad' : favoritesFull ? 'Listan full' : 'Spara'}

@@ -21,6 +21,8 @@ type Props = {
   onSuggestionSelect: (stop: StopOption) => void;
   filterText: string;
   onFilterTextChange: (text: string) => void;
+  /** Senast sökta hållplatser, visas när sökfältet är tomt. */
+  recentStops: StopOption[];
 };
 
 export default function SearchPanel({
@@ -39,6 +41,7 @@ export default function SearchPanel({
   onSuggestionSelect,
   filterText,
   onFilterTextChange,
+  recentStops,
 }: Props) {
   // Kombobox för sökförslagen (ARIA-mönstret): piltangenter, Enter och Esc.
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -104,7 +107,7 @@ export default function SearchPanel({
       <h2
         style={{
           fontSize: '26px',
-          fontWeight: 900,
+          fontWeight: 800,
           letterSpacing: '-0.02em',
           margin: '0 0 4px 0',
           color: colors.text,
@@ -138,13 +141,14 @@ export default function SearchPanel({
               aria-pressed={active}
               onClick={() => onRegionChange(reg.key)}
               style={{
-                padding: '6px 12px',
-                borderRadius: '9px',
-                border: active ? `1px solid ${colors.accent}` : `1px solid ${colors.borderStrong}`,
-                backgroundColor: active ? colors.accentTint : colors.surface,
-                color: active ? colors.accentSoft : colors.textDim,
-                fontWeight: 800,
-                fontSize: '12px',
+                minHeight: '36px',
+                padding: '0 12px',
+                borderRadius: 'var(--radius-control)',
+                border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
+                backgroundColor: active ? colors.accentStrong : colors.surface,
+                color: active ? colors.onAccent : colors.text,
+                fontWeight: 700,
+                fontSize: '13px',
                 cursor: 'pointer',
               }}
             >
@@ -166,13 +170,14 @@ export default function SearchPanel({
               aria-pressed={active}
               onClick={() => onQuickStopSelect(stop)}
               style={{
-                padding: '5px 12px',
-                borderRadius: '999px',
-                border: active ? `1px solid ${colors.green}` : `1px solid ${colors.borderStrong}`,
-                backgroundColor: active ? colors.greenTint : colors.chipBg,
-                color: active ? colors.greenSoft : colors.textMuted,
+                minHeight: '36px',
+                padding: '0 12px',
+                borderRadius: 'var(--radius-control)',
+                border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
+                backgroundColor: active ? colors.accentStrong : colors.chipBg,
+                color: active ? colors.onAccent : colors.text,
                 fontWeight: 600,
-                fontSize: '12px',
+                fontSize: '13px',
                 cursor: 'pointer',
               }}
             >
@@ -204,9 +209,10 @@ export default function SearchPanel({
                 aria-pressed={active}
                 onClick={() => onModeChange(m.key)}
                 style={{
-                  padding: '7px 12px',
-                  borderRadius: '9px',
-                  border: active ? `1px solid ${colors.accent}` : `1px solid ${colors.borderStrong}`,
+                  minHeight: '36px',
+                  padding: '0 12px',
+                  borderRadius: 'var(--radius-control)',
+                  border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
                   backgroundColor: active ? colors.accentStrong : colors.surface,
                   color: active ? colors.onAccent : colors.text,
                   fontWeight: 700,
@@ -247,8 +253,41 @@ export default function SearchPanel({
             onKeyDown={onSearchKeyDown}
             onChange={(e) => onStationQueryChange(e.target.value)}
             placeholder="Sök valfri station eller hållplats i Sverige..."
-            style={textInput(colors.accent)}
+            style={textInput(colors.borderStrong)}
           />
+
+          {!stationQuery && recentStops.some((s) => s.id !== selectedStop.id) ? (
+            <div style={{ marginTop: '10px' }}>
+              <span style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: colors.textDim, marginBottom: '6px' }}>
+                Senast
+              </span>
+              <ul style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', listStyle: 'none', margin: 0, padding: 0 }}>
+                {recentStops
+                  .filter((s) => s.id !== selectedStop.id)
+                  .map((stop) => (
+                    <li key={stop.id}>
+                      <button
+                        type="button"
+                        onClick={() => onSuggestionSelect(stop)}
+                        style={{
+                          minHeight: '40px',
+                          padding: '0 14px',
+                          borderRadius: 'var(--radius-control)',
+                          border: 'none',
+                          backgroundColor: colors.surfaceRaised,
+                          color: colors.text,
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {stop.name}
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ) : null}
 
           {listOpen ? (
             <div
@@ -263,8 +302,8 @@ export default function SearchPanel({
                 right: 0,
                 marginTop: '6px',
                 backgroundColor: colors.surface,
-                border: `1px solid ${colors.accent}`,
-                borderRadius: '11px',
+                border: `1px solid ${colors.border}`,
+                borderRadius: 'var(--radius-card)',
                 zIndex: 20,
                 overflow: 'hidden',
                 boxShadow: `0 14px 30px ${colors.shadow}`,
@@ -290,17 +329,21 @@ export default function SearchPanel({
                       width: '100%',
                       boxSizing: 'border-box',
                       textAlign: 'left',
-                      padding: '13px 14px',
-                      minHeight: '44px',
+                      padding: '9px 14px',
+                      minHeight: '52px',
                       backgroundColor: i === activeIndex ? colors.accentTint : 'transparent',
                       border: 'none',
                       borderBottom: `1px solid ${colors.border}`,
                       color: colors.text,
-                      fontSize: '13px',
                       cursor: 'pointer',
                     }}
                   >
-                    {stop.name}
+                    <span style={{ display: 'block', fontSize: '15px', fontWeight: 700 }}>{stop.name}</span>
+                    {stop.place || stop.modes?.length ? (
+                      <span style={{ display: 'block', fontSize: '13px', color: colors.textDim, marginTop: '1px' }}>
+                        {[stop.place, stop.modes?.join(', ')].filter(Boolean).join(' · ')}
+                      </span>
+                    ) : null}
                   </div>
                 ))
               )}

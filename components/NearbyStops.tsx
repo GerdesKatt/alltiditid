@@ -101,9 +101,9 @@ export default function NearbyStops({ onSelect }: Props) {
         style={{
           minHeight: '44px',
           padding: '0 16px',
-          borderRadius: '10px',
-          border: `1px solid ${colors.accent}`,
-          backgroundColor: busy ? colors.surface : colors.accentTint,
+          borderRadius: 'var(--radius-control)',
+          border: `1px solid ${colors.borderStrong}`,
+          backgroundColor: colors.surface,
           color: colors.text,
           fontWeight: 700,
           fontSize: '14px',
