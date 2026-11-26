@@ -779,7 +779,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
               'Sök på en station, en hållplats eller ett tågnummer, välj ett snabbval eller tryck på',
               'Search for a station, a stop or a train number, pick a shortcut or tap'
             )}{' '}
-            <strong style={{ color: colors.text }}>{t('Hållplatser nära mig', 'Stops near me')}</strong>.
+            <strong style={{ color: colors.text }}>{t('Nära mig', 'Near me')}</strong>.
           </p>
         </section>
       ) : null}

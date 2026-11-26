@@ -107,15 +107,17 @@ export default function NearbyStops({ onSelect, trailing }: Props) {
 
   return (
     <div style={{ marginBottom: '10px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 8px' }}>
       {supported ? (
       <button
         type="button"
         onClick={locate}
         disabled={busy}
+        aria-label={status.kind === 'idle' ? t('Hållplatser nära mig', 'Stops near me') : undefined}
         style={{
-          minHeight: '40px',
+          minHeight: '44px',
           display: 'inline-flex',
+          textAlign: 'left',
           alignItems: 'center',
           gap: '6px',
           padding: '0 12px 0 10px',
@@ -139,8 +141,8 @@ export default function NearbyStops({ onSelect, trailing }: Props) {
           : status.kind === 'loading'
           ? t('Söker hållplatser…', 'Searching for stops…')
           : status.kind === 'done'
-          ? t('Uppdatera närmaste hållplatser', 'Refresh nearest stops')
-          : t('Hållplatser nära mig', 'Stops near me')}
+          ? t('Uppdatera nära mig', 'Refresh near me')
+          : t('Nära mig', 'Near me')}
       </button>
       ) : null}
       {trailing}

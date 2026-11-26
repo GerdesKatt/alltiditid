@@ -122,7 +122,7 @@ export default function SearchPanel({
           onClick={onClose}
           style={{
             float: 'right',
-            minHeight: '40px',
+            minHeight: '44px',
             marginTop: '-4px',
             padding: '0 14px',
             borderRadius: '10px',
@@ -333,10 +333,12 @@ export default function SearchPanel({
               style={{
                 appearance: 'none',
                 WebkitAppearance: 'none',
-                minHeight: '40px',
+                minHeight: '44px',
+                maxWidth: '100%',
                 padding: '0 32px 0 12px',
                 borderRadius: 'var(--radius-control)',
-                border: `1px solid ${colors.border}`,
+                // Ram på ett reglage: minst 3:1 mot bakgrunden.
+                border: `1px solid ${colors.borderStrong}`,
                 backgroundColor: 'transparent',
                 color: colors.textDim,
                 fontFamily: 'inherit',
@@ -421,7 +423,7 @@ export default function SearchPanel({
             onClick={() => setFiltersOpen((o) => !o)}
             style={{
               width: '100%',
-              minHeight: '40px',
+              minHeight: '44px',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',

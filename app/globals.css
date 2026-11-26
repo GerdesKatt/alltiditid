@@ -251,7 +251,8 @@ input[type='search']::-webkit-search-decoration {
   .site-header {
     padding: 2px 12px !important;
     margin-bottom: 10px !important;
-    flex-wrap: nowrap !important;
+    /* Får radbrytas: vid stor text hamnar språkväljaren under loggan. */
+    gap: 2px 12px !important;
   }
   .site-tagline,
   .site-nav-board {
