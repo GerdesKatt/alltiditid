@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ferryDepartures, ferryHarbors, searchFerryHarbors } from '../lib/ferries.mjs';
+import { ferryBoard, ferryDepartures, ferryHarbors, searchFerryHarbors } from '../lib/ferries.mjs';
 
 const routes = [
   { Id: 1, Name: 'Hönöleden', Shortname: 'Hönö', Harbors: [{ Id: 11, Name: 'Lilla Varholmen' }, { Id: 12, Name: 'Hönö Pinan' }] },
@@ -47,6 +47,26 @@ test('avgångar: tid i svensk tid, mål, info och sortering', () => {
   assert.equal(deps[0].expectedAt, '2026-11-26T14:40');
   assert.equal(deps[0].hasRealtime, false);
   assert.equal(deps[0].transportMode, 'ferry');
+});
+
+test('tavlan: ordningsregler visas inte, text på alla avgångar visas en gång överst', () => {
+  const toLocal = (iso) => iso.slice(0, 16);
+  const rule = 'På färjan: Kör så nära framförvarande bil som möjligt. Släck ljuset.';
+  const ann = (id, time, info) => ({ Id: id, DepartureTime: `2026-11-26T${time}:00.000+01:00`, ToHarbor: { Name: 'Lilla Varholmen' }, Route: { Name: 'Hönöleden' }, Info: info });
+  const board = ferryBoard(
+    [
+      ann(1, '16:05', [rule, 'Begränsad vikt 20 ton']),
+      ann(2, '16:15', [rule, 'Begränsad vikt 20 ton', 'Farligt gods']),
+      ann(3, '16:25', [rule, 'Begränsad vikt 20 ton']),
+    ],
+    toLocal
+  );
+  assert.deepEqual(board.departures.map((d) => d.deviation), ['', 'Farligt gods', '']);
+  assert.deepEqual(board.disruptions, [{ text: 'Begränsad vikt 20 ton', lines: ['Hönöleden'] }]);
+  // Få avgångar: texten står kvar på raden, ordningsregeln visas ändå inte.
+  const few = ferryBoard([ann(1, '16:05', [rule, 'Extratur'])], toLocal);
+  assert.deepEqual(few.departures.map((d) => d.deviation), ['Extratur']);
+  assert.deepEqual(few.disruptions, []);
 });
 
 // Hela vägen genom API:t: sökning som hittar färjeläget, och tavlan för det.
