@@ -100,7 +100,7 @@ export default function DisruptionBox({ disruptions }: Props) {
       aria-label={t('Störningar', 'Disruptions')}
       style={{
         marginBottom: '10px',
-        borderRadius: '11px',
+        borderRadius: 0,
         border: `1px solid ${colors.delayedBorder}`,
         backgroundColor: colors.delayedBg,
         color: colors.text,

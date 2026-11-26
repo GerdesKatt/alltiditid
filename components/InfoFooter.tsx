@@ -272,7 +272,7 @@ export default function InfoFooter({ activeTab, onTabChange, onChangeAnalyticsCh
             onClick={() => onTabChange(tab.key)}
             style={{
               padding: '6px 12px',
-              borderRadius: '8px',
+              borderRadius: 0,
               border: `1px solid ${colors.borderStrong}`,
               backgroundColor: activeTab === tab.key ? colors.surfaceRaised : 'transparent',
               color: colors.text,

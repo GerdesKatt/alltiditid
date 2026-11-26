@@ -285,7 +285,7 @@ export default function DepartureBoard({
                 {t('Ankomster till', 'Arrivals at')}
               </span>
             ) : null}
-            <h1 style={{ fontSize: '1.375rem', fontWeight: 800, margin: 0, color: colors.text, overflowWrap: 'anywhere' }}>
+            <h1 style={{ fontSize: 'clamp(2rem, 9vw, 2.75rem)', fontWeight: 900, lineHeight: 1, letterSpacing: '-0.045em', margin: 0, color: colors.text, overflowWrap: 'anywhere' }}>
               {stopName}
             </h1>
           </div>
@@ -408,7 +408,7 @@ export default function DepartureBoard({
                     flexShrink: 0,
                     minHeight: '40px',
                     padding: '0 14px',
-                    borderRadius: '999px',
+                    borderRadius: 0,
                     border: `1px solid ${active ? colors.accentStrong : colors.borderMuted}`,
                     backgroundColor: active ? colors.accentStrong : 'transparent',
                     color: active ? colors.onAccent : colors.text,
@@ -435,8 +435,10 @@ export default function DepartureBoard({
                 alignItems: 'center',
                 gap: '6px',
                 marginRight: 'auto',
-                fontSize: '0.8125rem',
+                fontSize: '0.6875rem',
                 fontWeight: 600,
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
                 color: limited ? colors.amber : colors.textDim,
               }}
             >
@@ -511,7 +513,7 @@ export default function DepartureBoard({
             backgroundColor: colors.errorBg,
             color: colors.errorText,
             padding: '16px',
-            borderRadius: '12px',
+            borderRadius: 0,
             fontSize: '0.875rem',
           }}
         >
@@ -603,7 +605,7 @@ export default function DepartureBoard({
                 width: '100%',
                 minHeight: '44px',
                 marginTop: '10px',
-                borderRadius: '11px',
+                borderRadius: 0,
                 border: `1px solid ${colors.borderStrong}`,
                 backgroundColor: colors.surface,
                 color: colors.text,

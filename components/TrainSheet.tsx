@@ -418,7 +418,7 @@ export default function TrainSheet({
       tabIndex={-1}
       style={{
         padding: '18px',
-        borderRadius: '18px 18px 0 0',
+        borderRadius: 0,
         outline: 'none',
         backgroundColor: colors.surface,
         border: `1px solid ${colors.border}`,

@@ -12,7 +12,7 @@ export default function AboutSection() {
       style={{
         backgroundColor: colors.surface,
         border: `1px solid ${colors.border}`,
-        borderRadius: '16px',
+        borderRadius: 0,
         padding: '20px',
         marginBottom: '26px',
       }}

@@ -39,168 +39,100 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
     )
     .join('; ');
 
+  const [head, ...rest] = next;
+  const headCancelled = head?.status === 'cancelled';
+  const headDelayed = head?.status === 'delayed';
+  const headSchedule = head && !headCancelled && !headDelayed && head.hasRealtime === false;
+  const headBig = head ? nu(countdownFor(head, now)) : '';
+  const label = (text: string) => (
+    <span style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', color: colors.textDim }}>
+      {text}
+    </span>
+  );
+
   return (
     <section
+      className="invert"
       aria-label={`${t('Min resa', 'My trip')}: ${lineLabel(trip.line, lang)} ${t('mot', 'to')} ${trip.destination} ${t(
         'från',
         'from'
       )} ${trip.stopName}`}
-      style={{
-        marginBottom: '14px',
-        padding: '14px',
-        borderRadius: 'var(--radius-card)',
-        backgroundColor: colors.surface,
-        border: `1px solid ${colors.border}`,
-      }}
+      style={{ marginBottom: '18px', padding: '14px 18px 16px', maxWidth: '40rem' }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '-10px' }}>
-        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>{t('Min resa', 'My trip')}</span>
-        <button
-          type="button"
-          onClick={onRemove}
-          style={{
-            minHeight: '44px',
-            padding: '0 4px 0 12px',
-            marginRight: '-4px',
-            borderRadius: 'var(--radius-control)',
-            border: 'none',
-            background: 'none',
-            color: colors.textDim,
-            fontSize: '0.8125rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
-        >
-          {t('Ta bort', 'Remove')}
-          <span className="sr-only"> {t('min resa', 'my trip')}</span>
-        </button>
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <span
-          aria-hidden="true"
-          style={{
-            flexShrink: 0,
-            minWidth: '44px',
-            padding: '4px 6px',
-            boxSizing: 'border-box',
-            borderRadius: 'var(--radius-badge)',
-            backgroundColor: colors.badgeBg,
-            color: colors.badgeText,
-            fontFamily: fonts.display,
-            fontWeight: 800,
-            fontSize: '0.875rem',
-            textAlign: 'center',
-          }}
-        >
-          {lineLabel(badge, lang)}
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
+        <span style={{ minWidth: 0, fontSize: '0.9375rem', fontWeight: 600 }}>
+          {lineLabel(badge, lang)} {t('mot', 'to')} {trip.destination}
+          {name ? <span className="sr-only">, {name}</span> : null}
         </span>
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span
-            style={{
-              display: 'block',
-              fontSize: '1rem',
-              fontWeight: 700,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {trip.stopName} → {trip.destination}
-          </span>
-          {name ? <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim }}>{name}</span> : null}
-        </span>
+        {label(t('Din avgång', 'Your departure'))}
       </div>
 
       <p className="sr-only" aria-live="polite">
         {next.length ? `${t('Nästa', 'Next')}: ${spokenTimes}` : ''}
       </p>
 
-      <div
-        aria-hidden="true"
-        style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px', marginTop: '12px' }}
-      >
-        {next.length === 0 ? (
-          <span style={{ gridColumn: '1 / -1', fontSize: '0.875rem', color: colors.textDim, padding: '10px 0' }}>
-            {loading ? t('Hämtar avgångar…', 'Loading departures…') : t('Inga avgångar den närmaste tiden.', 'No departures in the near future.')}
-          </span>
-        ) : (
-          next.map((d, i) => {
-            const cancelled = d.status === 'cancelled';
-            const delayed = d.status === 'delayed';
-            const realtime = !cancelled && d.hasRealtime === true;
-            const schedule = !cancelled && !delayed && d.hasRealtime === false;
-            const big = nu(countdownFor(d, now));
-            const shown = schedule && /min$/.test(big) ? `~${big}` : big;
-            const clock = clockFor(d);
-            return (
-              <div
-                key={d.id}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '2px',
-                  padding: '10px',
-                  borderRadius: 'var(--radius-control)',
-                  backgroundColor: colors.bg,
-                  minWidth: 0,
-                }}
-              >
-                <span
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontFamily: fonts.display,
-                    fontSize: i === 0 ? '1.5rem' : '1.25rem',
-                    fontWeight: 800,
-                    letterSpacing: '-0.02em',
-                    whiteSpace: 'nowrap',
-                    color: cancelled ? colors.textDim : delayed ? colors.amber : schedule ? colors.textDim : colors.text,
-                    textDecoration: cancelled ? 'line-through' : 'none',
-                  }}
-                >
-                  {realtime ? <span key={d.expectedAt} className="rt-dot" /> : null}
-                  {shown}
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.8125rem',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    color: cancelled ? colors.cancelledText : delayed ? colors.amber : colors.textDim,
-                    fontWeight: cancelled ? 600 : 500,
-                  }}
-                >
-                  {cancelled
-                    ? t('Inställd', 'Cancelled')
-                    : delayed
-                    ? `${clock}${d.delayMinutes ? ` +${d.delayMinutes}` : ''}`
-                    : clock === big
-                    ? schedule
-                      ? t('ingen realtid', 'no real-time')
-                      : ''
-                    : clock}
-                </span>
-              </div>
-            );
-          })
-        )}
-      </div>
+      {!head ? (
+        <p style={{ margin: '14px 0 4px', fontSize: '0.9375rem', color: colors.textDim }}>
+          {loading ? t('Hämtar avgångar…', 'Loading departures…') : t('Inga avgångar den närmaste tiden.', 'No departures in the near future.')}
+        </p>
+      ) : (
+        <div aria-hidden="true">
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              marginTop: '6px',
+              fontFamily: fonts.display,
+              fontSize: 'clamp(3rem, 16vw, 4.5rem)',
+              fontWeight: 900,
+              lineHeight: 0.95,
+              letterSpacing: '-0.05em',
+              color: headCancelled || headDelayed ? colors.amber : colors.text,
+              textDecoration: headCancelled ? 'line-through' : 'none',
+              overflowWrap: 'anywhere',
+            }}
+          >
+            {headSchedule && /min$/.test(headBig) ? `~${headBig}` : headBig}
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'space-between',
+              gap: '4px 12px',
+              marginTop: '12px',
+              paddingTop: '10px',
+              borderTop: `1px solid ${colors.text}`,
+              fontSize: '0.875rem',
+            }}
+          >
+            <span style={{ color: headCancelled || headDelayed ? colors.amber : colors.text, fontWeight: headCancelled ? 700 : 500 }}>
+              {headCancelled
+                ? t('Inställd', 'Cancelled')
+                : headDelayed
+                ? `${t('Försenad', 'Delayed')}${head.delayMinutes ? ` +${head.delayMinutes}` : ''} · ${clockFor(head)}`
+                : headSchedule
+                ? `${t('Enligt tidtabell', 'Scheduled')} · ${clockFor(head)}`
+                : `${t('I tid', 'On time')} · ${clockFor(head)}`}
+              {head.track ? ` · ${head.track}` : ''}
+            </span>
+            {rest.length ? (
+              <span style={{ color: colors.textDim }}>
+                {t('sedan', 'then')}{' '}
+                {rest
+                  .map((d) => (d.status === 'cancelled' ? t('inställd', 'cancelled') : nu(countdownFor(d, now))))
+                  .join(', ')}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       {next[0]?.status === 'cancelled' && alternative ? (
         // Inställt: alltid ett nästa steg.
-        <p
-          style={{
-            margin: '10px 0 0',
-            padding: '8px 10px',
-            borderRadius: '8px',
-            backgroundColor: colors.surfaceRaised,
-            fontSize: '0.875rem',
-          }}
-        >
-          <strong>{t('Inställd. Ta istället:', 'Cancelled. Take instead:')}</strong>{' '}
+        <p style={{ margin: '10px 0 0', fontSize: '0.9375rem', color: colors.amber }}>
+          <strong>{t('Ta istället:', 'Take instead:')}</strong>{' '}
           {lineLabel(alternative.line, lang)} {t('mot', 'to')} {alternative.destination} ·{' '}
           {alternative.newTime || alternative.estimatedTime || alternative.scheduledTime}
         </p>
@@ -210,9 +142,6 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
         <p
           style={{
             margin: '10px 0 0',
-            padding: '6px 10px',
-            borderRadius: '8px',
-            backgroundColor: colors.delayedBg,
             color: colors.delayedText,
             fontSize: '0.8125rem',
           }}
@@ -222,27 +151,35 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
         </p>
       ) : null}
 
-      {!showingStop ? (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
-          <button
-            type="button"
-            onClick={onShowStop}
-            style={{
-              minHeight: '44px',
-              padding: '0 14px',
-              borderRadius: 'var(--radius-control)',
-              border: `1px solid ${colors.borderStrong}`,
-              backgroundColor: colors.surface,
-              color: colors.text,
-              fontSize: '0.8125rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            {t('Visa', 'Show')} {trip.stopName}
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '0 12px', marginTop: '6px', marginBottom: '-10px' }}>
+        <span style={{ display: 'flex', alignItems: 'center', fontSize: '0.8125rem', color: colors.textDim }}>
+          {t('från', 'from')} {trip.stopName}
+        </span>
+        <span style={{ display: 'flex' }}>
+          {!showingStop ? (
+            <button type="button" onClick={onShowStop} style={textButton}>
+              {t('Visa tavlan', 'Show board')}
+            </button>
+          ) : null}
+          <button type="button" onClick={onRemove} style={textButton}>
+            {t('Ta bort', 'Remove')}
+            <span className="sr-only"> {t('min resa', 'my trip')}</span>
           </button>
-        </div>
-      ) : null}
+        </span>
+      </div>
     </section>
   );
 }
+
+const textButton: React.CSSProperties = {
+  minHeight: '44px',
+  padding: '0 0 0 14px',
+  border: 'none',
+  background: 'none',
+  color: colors.text,
+  fontSize: '0.8125rem',
+  fontWeight: 600,
+  textDecoration: 'underline',
+  textUnderlineOffset: '3px',
+  cursor: 'pointer',
+};
