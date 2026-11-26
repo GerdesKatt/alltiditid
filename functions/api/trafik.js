@@ -627,7 +627,47 @@ async function realtimeSearch(key, q) {
     .filter((g) => g && g.id && (!Array.isArray(g.transport_modes) || g.transport_modes.length > 0))
     .sort((a, b) => (Number(b.average_daily_stop_times) || 0) - (Number(a.average_daily_stop_times) || 0))
     .slice(0, 8)
-    .map((g) => ({ id: String(g.id), name: cleanPlaceName(String(g.name)) }));
+    .map((g) => {
+      const out = { id: String(g.id), name: cleanPlaceName(String(g.name)) };
+      const place = placeOfStopGroup(g);
+      if (place) out.place = place;
+      const modes = searchModes(g.transport_modes);
+      if (modes.length) out.modes = modes;
+      return out;
+    });
+}
+
+const SEARCH_MODE_LABELS = {
+  TRAIN: 'Tåg',
+  METRO: 'T-bana',
+  TRAM: 'Spårvagn',
+  BUS: 'Buss',
+  FERRY: 'Båt',
+  SHIP: 'Båt',
+  TAXI: 'Anropsstyrd',
+};
+
+/** Trafikslagen på hållplatsen som korta ord i fast ordning: ["Tåg", "Buss"]. */
+function searchModes(modes) {
+  if (!Array.isArray(modes)) return [];
+  const labels = [];
+  for (const key of Object.keys(SEARCH_MODE_LABELS)) {
+    const label = SEARCH_MODE_LABELS[key];
+    if (modes.includes(key) && !labels.includes(label)) labels.push(label);
+  }
+  return labels;
+}
+
+/**
+ * Orten, ur delhållplatsens namn: "Karlstad, Residenstorget" ger "Karlstad".
+ * Trafiklab har inget eget fält för kommun eller ort.
+ */
+function placeOfStopGroup(group) {
+  const child = Array.isArray(group.stops) ? group.stops.find((st) => st && st.name) : null;
+  const name = child ? String(child.name) : '';
+  const comma = name.indexOf(',');
+  if (comma < 2 || comma > 40) return '';
+  return cleanPlaceName(name.slice(0, comma));
 }
 
 // ---------------------------------------------------------------------------

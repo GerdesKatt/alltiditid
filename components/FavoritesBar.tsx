@@ -35,17 +35,17 @@ export default function FavoritesBar({ favorites, currentId, onSelect }: Props) 
                 style={{
                   minHeight: '40px',
                   padding: '0 14px',
-                  borderRadius: '999px',
-                  border: current ? `2px solid ${colors.accent}` : `1px solid ${colors.borderStrong}`,
-                  backgroundColor: current ? colors.accentTint : colors.surface,
-                  color: colors.text,
+                  borderRadius: 'var(--radius-control)',
+                  border: `1px solid ${current ? colors.accentStrong : colors.borderStrong}`,
+                  backgroundColor: current ? colors.accentStrong : colors.surface,
+                  color: current ? colors.onAccent : colors.text,
                   fontSize: '14px',
                   fontWeight: current ? 800 : 600,
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                 }}
               >
-                <span aria-hidden="true" style={{ color: colors.amber, marginRight: '6px' }}>
+                <span aria-hidden="true" style={{ color: current ? colors.onAccent : colors.brand, marginRight: '6px' }}>
                   ★
                 </span>
                 {stop.shortName || stop.name}
