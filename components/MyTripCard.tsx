@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Departure } from '../lib/types';
 import type { MyTrip } from '../lib/myTrip';
-import { clockFor, countdownFor, lineBadge, lineName } from '../lib/lineFormat';
+import { clockFor, countdownFor, lineBadge, lineColor, lineName } from '../lib/lineFormat';
 import { colors, fonts } from './styles';
 import { lineLabel, useLang } from '../lib/i18n';
 
@@ -40,6 +40,7 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
     .join('; ');
 
   const [head, ...rest] = next;
+  const tint = lineColor({ line: trip.line, transportMode: head?.transportMode });
   const headCancelled = head?.status === 'cancelled';
   const headDelayed = head?.status === 'delayed';
   const headSchedule = head && !headCancelled && !headDelayed && head.hasRealtime === false;
@@ -57,7 +58,14 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
         'från',
         'from'
       )} ${trip.stopName}`}
-      style={{ marginBottom: '18px', padding: '14px 18px 16px', maxWidth: '40rem' }}
+      style={{
+        marginBottom: '18px',
+        padding: '14px 18px 16px',
+        maxWidth: '40rem',
+        // Linjens färg som en kant, samma som på brickan.
+        boxShadow: tint ? `inset 6px 0 0 ${tint}` : 'none',
+        paddingLeft: tint ? '24px' : '18px',
+      }}
     >
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
         <span style={{ minWidth: 0, fontSize: '0.9375rem', fontWeight: 600 }}>

@@ -73,6 +73,8 @@ export default function LineGroupRow({ items, direction, now }: Props) {
           borderRadius: 'var(--radius-badge)',
           boxSizing: 'border-box',
           border: `1.5px solid ${colors.badgeBorder}`,
+          boxShadow: tint ? `inset 5px 0 0 ${tint}` : 'none',
+          paddingLeft: tint ? '10px' : '6px',
           backgroundColor: colors.badgeBg,
           color: colors.badgeText,
           fontFamily: fonts.display,

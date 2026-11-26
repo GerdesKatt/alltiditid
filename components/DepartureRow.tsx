@@ -194,6 +194,9 @@ export default function DepartureRow({
             borderRadius: 'var(--radius-badge)',
             // Kontur i bläck; inställda är grå. Bokade tåg har streckad kontur.
             border: `1.5px ${booked ? 'dashed' : 'solid'} ${isCancelled ? colors.borderStrong : colors.badgeBorder}`,
+            // Linjens färg (tunnelbana, pendeltåg) som en kant i brickan, för igenkänningen.
+            boxShadow: tint && !isCancelled ? `inset 5px 0 0 ${tint}` : 'none',
+            paddingLeft: tint && !isCancelled ? '10px' : '6px',
             backgroundColor: isCancelled ? colors.surfaceRaised : colors.badgeBg,
             color: isCancelled ? colors.textDim : colors.badgeText,
             fontFamily: fonts.display,
