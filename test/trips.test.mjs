@@ -88,3 +88,47 @@ test('samma störning skriven på två sätt visas en gång', () => {
   );
   assert.deepEqual(uniqueAlerts(undefined), []);
 });
+
+import { applyGps, distanceText } from '../lib/trips.mjs';
+import { locateOnRoute } from '../lib/gtfsrt.mjs';
+
+const geo = (calls) => calls.map((c, i) => ({ ...c, stop: { ...c.stop, lat: 59.3 + i * 0.01, lon: 18.0 } }));
+
+test('GPS: läget hamnar mellan rätt hållplatser och passerade följer GPS', () => {
+  const j = tripJourney(trip(geo(four)), '2026-11-26T14:08');
+  // Tiderna säger "lämnat Skanstull", GPS säger en kvart in på sträckan Skanstull–Zinkensdamm.
+  const loc = locateOnRoute(j.stops, 59.3125, 18.0);
+  const g = applyGps(j, loc, { lat: 59.3125, lon: 18.0, at: 1000 }, 1030);
+  assert.equal(g.position, 'Mellan Skanstull och Zinkensdamm · 850 m kvar · 3 min sen');
+  assert.deepEqual(g.stops.map((s) => s.passed), [true, true, false, false]);
+  assert.equal(g.gps.after, 1);
+  assert.equal(g.gps.metersToNext, loc.metersToNext);
+});
+
+test('GPS: nära nästa hållplats står det Vid, och GPS före tiderna flyttar passerade', () => {
+  const j = tripJourney(trip(geo(four)), '2026-11-26T14:08');
+  const g = applyGps(j, locateOnRoute(j.stops, 59.3297, 18.0), { lat: 59.3297, lon: 18.0, at: 1000 }, 1010);
+  assert.equal(g.position, 'Vid Radiohuset · 3 min sen');
+  assert.deepEqual(g.stops.map((s) => s.passed), [true, true, true, false]);
+});
+
+test('GPS som inte går att lita på ändrar ingenting', () => {
+  const j = tripJourney(trip(geo(four)), '2026-11-26T14:08');
+  const loc = locateOnRoute(j.stops, 59.3125, 18.0);
+  // Gammal punkt.
+  assert.equal(applyGps(j, loc, { lat: 59.3125, lon: 18.0, at: 1000 }, 1400), j);
+  // Långt från linjen.
+  assert.equal(applyGps(j, locateOnRoute(j.stops, 59.3125, 18.05), { lat: 59.3125, lon: 18.05, at: 1000 }, 1010), j);
+  // Ingen sträcka (koordinater saknas).
+  const bare = tripJourney(trip(four), '2026-11-26T14:08');
+  assert.equal(applyGps(bare, locateOnRoute(bare.stops, 59.3, 18.0), { lat: 59.3, lon: 18.0, at: 1000 }, 1010), bare);
+  // Framme enligt tiderna.
+  const done = tripJourney(trip(geo(four)), '2026-11-26T14:40');
+  assert.equal(applyGps(done, locateOnRoute(done.stops, 59.31, 18.0), { lat: 59.31, lon: 18.0, at: 1000 }, 1010), done);
+});
+
+test('avstånd skrivs i jämna 50 m eller km med en decimal', () => {
+  assert.equal(distanceText(20), '50 m');
+  assert.equal(distanceText(834), '850 m');
+  assert.equal(distanceText(1240), '1,2 km');
+});

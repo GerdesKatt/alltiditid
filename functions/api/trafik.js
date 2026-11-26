@@ -1,7 +1,8 @@
 import { historyRows, saveHistory } from '../../lib/history.mjs';
 import { airportByIata, datesToFetch, flightBoard, waitTimes } from '../../lib/flights.mjs';
 import { missingTrains, trainJourney } from '../../lib/trains.mjs';
-import { tripJourney, uniqueAlerts } from '../../lib/trips.mjs';
+import { applyGps, tripJourney, uniqueAlerts } from '../../lib/trips.mjs';
+import { locateOnRoute, vehiclePositions } from '../../lib/gtfsrt.mjs';
 import { FERRY_PREFIX, ferryDepartures, ferryHarbors, searchFerryHarbors } from '../../lib/ferries.mjs';
 import { pickSearchHits } from '../../lib/searchHits.mjs';
 
@@ -550,6 +551,74 @@ async function handleTrain(url, keys, context) {
 }
 
 /**
+ * Operatörens kortnamn i GTFS Sweden 3 Realtime, ur namnet i tavlans data.
+ * Okända operatörer får inget GPS-läge (läget räknas då ur tiderna som förut).
+ */
+const GTFS_OPERATORS = [
+  [/^sl$|storstockholms/i, 'sl'],
+  [/^ul$|upplands lokaltrafik/i, 'ul'],
+  [/västtrafik/i, 'vt'],
+  [/skånetrafiken/i, 'skane'],
+  [/östgötatrafiken/i, 'otraf'],
+  [/^jlt$|jönköpings länstrafik/i, 'jlt'],
+  [/kronoberg/i, 'krono'],
+  [/^klt$|kalmar länstrafik/i, 'klt'],
+  [/blekingetrafiken/i, 'blekinge'],
+  [/värmlandstrafik/i, 'varm'],
+  [/örebro/i, 'orebro'],
+  [/västmanland|^vl$/i, 'vastmanland'],
+  [/dalatrafik/i, 'dt'],
+  [/x-trafik/i, 'xt'],
+  [/din tur/i, 'dintur'],
+  [/gotland/i, 'gotland'],
+];
+function gtfsOperator(agency) {
+  const name = String(agency?.name || '').trim();
+  const hit = GTFS_OPERATORS.find(([re]) => re.test(name));
+  return hit ? hit[1] : '';
+}
+
+/** Bronskvoten är 30 000 anrop i månaden: högst så här många per dygn, sedan räknas läget ur tiderna. */
+const GTFS_RT_DAILY_LIMIT = 900;
+/** Så länge gäller en hämtad lista med positioner. Ett anrop per operatör och period, bara när någon tittar. */
+const GTFS_RT_CACHE_SECONDS = 90;
+
+/** Alla fordons positioner hos en operatör: { tur-id: [lat, lon, tid] }. Tomt om något går fel. */
+async function operatorPositions(key, operator, context) {
+  const cacheKey = new Request(`https://cache.alltiditid.se/gtfs-rt/${operator}/positioner-v1`);
+  const cached = await cacheGet(cacheKey);
+  if (cached) {
+    try {
+      return await cached.json();
+    } catch {
+      // Hämta om nedan
+    }
+  }
+  if (!(await allowCall(context && context.env, 'gtfsrt', GTFS_RT_DAILY_LIMIT))) return {};
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6000);
+  let positions = {};
+  try {
+    const res = await fetch(
+      `https://opendata.samtrafiken.se/gtfs-rt-sweden/${operator}/VehiclePositionsSweden.pb?key=${encodeURIComponent(key)}`,
+      { signal: controller.signal }
+    );
+    if (res.ok) positions = vehiclePositions(new Uint8Array(await res.arrayBuffer()));
+  } catch {
+    positions = {};
+  } finally {
+    clearTimeout(timer);
+  }
+  // Även ett tomt svar sparas, så att ett fel inte ger ett anrop per besökare.
+  await cachePut(
+    cacheKey,
+    new Response(JSON.stringify(positions), { headers: { 'Cache-Control': `max-age=${GTFS_RT_CACHE_SECONDS}` } }),
+    context
+  );
+  return positions;
+}
+
+/**
  * En bussturs, tunnelbanetågs, spårvagns eller båts hela resa (Trafiklab Trips).
  * Svaret sparas en minut i Cloudflare: Trafiklab uppdaterar inte oftare än så,
  * och många som följer samma buss ska inte kosta ett anrop var.
@@ -585,7 +654,28 @@ async function handleTrip(url, keys, context) {
     cleanName: (name) => cleanPlaceName(name) || name,
   });
   if (journey.stops.length === 0) return jsonResponse({ error: 'Hittade inte turen.' }, 404);
-  const response = jsonResponse({ ...journey, mode, updatedAt: nowIso }, 200, { 'Cache-Control': 'public, max-age=60' });
+
+  // Fordonets GPS-läge, om operatören har det och turen är på väg. Får aldrig stoppa svaret.
+  let located = journey;
+  try {
+    const operator = gtfsOperator(data.agency);
+    const underway = journey.stops.some((st) => st.passed) && !journey.stops.every((st) => st.passed);
+    if (keys.gtfsRt && operator && underway) {
+      const positions = await operatorPositions(keys.gtfsRt, operator, context);
+      const fix = positions[id];
+      if (fix) {
+        located = applyGps(
+          journey,
+          locateOnRoute(journey.stops, fix[0], fix[1]),
+          { lat: fix[0], lon: fix[1], at: fix[2] },
+          Math.floor(Date.now() / 1000)
+        );
+      }
+    }
+  } catch {
+    located = journey;
+  }
+  const response = jsonResponse({ ...located, mode, updatedAt: nowIso }, 200, { 'Cache-Control': 'public, max-age=60' });
   await cachePut(cacheKey, response.clone(), context);
   return response;
 }
@@ -2206,6 +2296,8 @@ export async function onRequest(context) {
     realtime: env.TRAFIKLAB_REALTIME_API_KEY,
     resrobot: env.TRAFIKLAB_RESROBOT_KEY || env.TRAFIKLAB_API_KEY || env.TRAFIKLAB_REALTIME_KEY,
     trafikverket: env.TRAFIKVERKET_API_KEY,
+    // GTFS Sweden 3 Realtime: fordonens GPS-läge i Hela resan.
+    gtfsRt: env.TRAFIKLAB_GTFS_RT_KEY || env.TRAFIKLAB_GTFS_REALTIME_KEY || env.GTFS_RT_KEY,
     vasttrafikKey: env.VASTTRAFIK_KEY,
     vasttrafikSecret: env.VASTTRAFIK_SECRET,
   };
