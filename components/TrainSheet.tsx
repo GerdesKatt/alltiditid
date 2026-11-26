@@ -138,11 +138,13 @@ export default function TrainSheet({
   useEffect(() => {
     if (destQuery.trim()) setWantStops(true);
   }, [destQuery]);
+  // Bytet sparas per tåg (tågnummer) eller per tur (buss, T-bana, spårvagn, båt).
+  const byteKey = trip ? `tur:${trip.id}` : number;
   useEffect(() => {
-    const b = loadByte(number);
+    const b = loadByte(byteKey);
     setSaved(b);
     setByteStation(null);
-  }, [number]);
+  }, [byteKey]);
 
   // Anslutningarna hämtas för stationen man tittar på, annars för det sparade bytet.
   const connStation = byteStation || saved?.station || null;
@@ -244,6 +246,8 @@ export default function TrainSheet({
   const shownConnections = !connections
     ? []
     : connections
+        // Turen man sitter på är ingen anslutning.
+        .filter((c) => !trip || c.tripId !== trip.id)
         .map((c) => ({ c, m: matchConnection(c, destTrimmed) }))
         .filter(({ m }) => m.hit);
 
@@ -344,7 +348,7 @@ export default function TrainSheet({
                         type="button"
                         aria-pressed={Boolean(chosen)}
                         onClick={() => {
-                          const b = { train: number, station: byteStation, line: c.line, destination: c.destination, scheduledTime: c.scheduledTime };
+                          const b = { train: byteKey, station: byteStation, line: c.line, destination: c.destination, scheduledTime: c.scheduledTime };
                           setSaved(b);
                           storeByte(b);
                           // Valt: listan fälls ihop, bytet står överst (eller på kortet under Min resa).
@@ -622,7 +626,7 @@ export default function TrainSheet({
                 </span>
                 {openStop === st.name ? (
                   <span style={{ gridColumn: '2 / -1', display: 'flex', flexWrap: 'wrap', gap: '8px', paddingBottom: '4px' }}>
-                    {!trip && !st.passed && st.arrival && !st.cancelled ? (
+                    {!st.passed && st.arrival && !st.cancelled ? (
                       <button
                         type="button"
                         aria-pressed={byteStation === st.name}

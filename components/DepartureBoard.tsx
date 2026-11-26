@@ -4,6 +4,7 @@ import DepartureRow from './DepartureRow';
 import LineGroupRow from './LineGroupRow';
 import DisruptionBox from './DisruptionBox';
 import WalkBar from './WalkBar';
+import FindTrip from './FindTrip';
 import { useWalk } from '../lib/useWalk';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { parseLocal } from '../lib/lineFormat';
@@ -380,14 +381,18 @@ export default function DepartureBoard({
       {!errorMsg ? <DisruptionBox disruptions={disruptions} /> : null}
 
       {direction === 'departures' && !errorMsg ? (
-        <WalkBar
-          stopName={stopName}
-          state={walk.state}
-          pace={walk.pace}
-          onTurnOn={walk.turnOn}
-          onTurnOff={walk.turnOff}
-          onPace={walk.setPace}
-        />
+        // Två verktyg på en rad när de är stängda; öppnade tar de hela bredden.
+        <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: '4px', alignItems: 'flex-start' }}>
+          <WalkBar
+            stopName={stopName}
+            state={walk.state}
+            pace={walk.pace}
+            onTurnOn={walk.turnOn}
+            onTurnOff={walk.turnOff}
+            onPace={walk.setPace}
+          />
+          <FindTrip stop={{ id: stopId, name: stopName }} mode={mode} onShowTrain={onShowTrain} onShowTrip={onShowTrip} />
+        </div>
       ) : null}
 
       {errorMsg ? (

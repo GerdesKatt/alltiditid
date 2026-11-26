@@ -91,6 +91,8 @@ export default function WalkBar({ stopName, state, pace, onTurnOn, onTurnOff, on
         flexWrap: 'wrap',
         alignItems: 'center',
         gap: '8px',
+        flexBasis: '100%',
+        boxSizing: 'border-box',
         marginBottom: '12px',
         padding: '10px 12px',
         borderRadius: 'var(--radius-card)',
