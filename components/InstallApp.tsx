@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { colors } from './styles';
+import { colors, fonts } from './styles';
 import { useLang } from '../lib/i18n';
 import { track } from '../lib/track';
 
@@ -85,8 +85,11 @@ export default function InstallApp() {
           aria-expanded={ios ? showSteps : undefined}
           style={{
             flex: 1,
-            minHeight: '48px',
-            padding: '0 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            minHeight: '56px',
+            padding: '8px 14px 8px 8px',
             border: `1px solid ${colors.text}`,
             background: 'transparent',
             color: colors.text,
@@ -96,7 +99,13 @@ export default function InstallApp() {
             cursor: 'pointer',
           }}
         >
-          {t('Lägg alltid i tid på hemskärmen', 'Add alltid i tid to your home screen')}
+          {/* Appens egen ikon och ordmärket: det ska synas att det är just den här appen. */}
+          <img src="/icon-192.png" alt="" width={40} height={40} style={{ flexShrink: 0, display: 'block' }} />
+          <span>
+            {t('Lägg', 'Add')}{' '}
+            <span style={{ fontFamily: fonts.display, fontWeight: 800, letterSpacing: '-0.04em', fontSize: '1.0625rem' }}>alltid i tid</span>{' '}
+            {t('på hemskärmen', 'to your home screen')}
+          </span>
         </button>
         <button
           type="button"
