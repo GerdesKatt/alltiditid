@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Disruption } from '../lib/types';
 import { colors } from './styles';
 
@@ -30,11 +30,63 @@ export function formatLines(lines: string[]): string {
 /** Så många rutor syns direkt; resten bakom "Visa N störningar till". */
 const VISIBLE = 1;
 
+const linkButton = {
+  alignSelf: 'flex-start',
+  minHeight: '44px',
+  padding: '0 8px',
+  border: 'none',
+  background: 'none',
+  color: colors.delayedText,
+  fontSize: '13px',
+  fontWeight: 700,
+  cursor: 'pointer',
+  textDecoration: 'underline',
+} as const;
+
+/** Störningar man har dolt, per text. Gäller i dagens session; en ny text syns igen. */
+const DISMISSED_KEY = 'alltiditid:dolda-storningar';
+
+function loadDismissed(): string[] {
+  try {
+    const v = JSON.parse(window.sessionStorage.getItem(DISMISSED_KEY) || '[]');
+    return Array.isArray(v) ? v.map(String).slice(-50) : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function DisruptionBox({ disruptions }: Props) {
   const [showAll, setShowAll] = useState(false);
-  if (disruptions.length === 0) return null;
-  const shown = showAll ? disruptions : disruptions.slice(0, VISIBLE);
-  const hidden = disruptions.length - shown.length;
+  const [dismissed, setDismissed] = useState<string[]>([]);
+  useEffect(() => setDismissed(loadDismissed()), []);
+  const active = disruptions.filter((d) => !dismissed.includes(d.text));
+  if (active.length === 0) {
+    return dismissed.length && disruptions.length ? (
+      <button type="button" onClick={() => restore()} style={linkButton}>
+        Visa {disruptions.length} dolda {disruptions.length === 1 ? 'störning' : 'störningar'}
+      </button>
+    ) : null;
+  }
+  const shown = showAll ? active : active.slice(0, VISIBLE);
+  const hidden = active.length - shown.length;
+
+  function dismiss(text: string) {
+    const next = [...dismissed, text];
+    setDismissed(next);
+    try {
+      window.sessionStorage.setItem(DISMISSED_KEY, JSON.stringify(next));
+    } catch {
+      // Gäller tills sidan laddas om.
+    }
+  }
+  function restore() {
+    setDismissed([]);
+    try {
+      window.sessionStorage.removeItem(DISMISSED_KEY);
+    } catch {
+      // Ingen lagring.
+    }
+  }
   return (
     <section aria-label="Störningar" style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px' }}>
       {shown.map((d) => (
@@ -67,11 +119,31 @@ export default function DisruptionBox({ disruptions }: Props) {
               {d.text}
             </span>
           </summary>
-          <p style={{ margin: 0, padding: '0 12px 12px', fontSize: '13px', lineHeight: 1.5, color: colors.textSoft }}>
+          <p style={{ margin: 0, padding: '0 12px 4px', fontSize: '13px', lineHeight: 1.5, color: colors.textSoft }}>
             {d.text}
           </p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '4px', padding: '0 4px 4px' }}>
+            <button
+              type="button"
+              onClick={(e) => {
+                const box = (e.currentTarget.closest('details') as HTMLDetailsElement | null);
+                if (box) box.open = false;
+              }}
+              style={linkButton}
+            >
+              Fäll ihop
+            </button>
+            <button type="button" onClick={() => dismiss(d.text)} style={linkButton}>
+              Dölj störningen
+            </button>
+          </div>
         </details>
       ))}
+      {showAll && active.length > VISIBLE ? (
+        <button type="button" onClick={() => setShowAll(false)} style={linkButton}>
+          Visa färre störningar
+        </button>
+      ) : null}
       {hidden > 0 ? (
         <button
           type="button"
