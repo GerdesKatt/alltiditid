@@ -9,7 +9,7 @@
  *   rörs inte och sparas aldrig.
  */
 
-const VERSION = 'v2';
+const VERSION = 'v3';
 const SHELL = `alltiditid-skal-${VERSION}`;
 const BOARDS = `alltiditid-tavlor-${VERSION}`;
 const MAX_BOARDS = 12;
@@ -65,10 +65,14 @@ async function page(request) {
   const cache = await caches.open(SHELL);
   try {
     const response = await fetch(request);
-    if (response.ok) cache.put('/', response.clone());
+    // Varje sida sparas under sin egen adress (/slussen-t-bana är inte startsidan).
+    if (response.ok) cache.put(new URL(request.url).pathname, response.clone());
     return response;
   } catch (err) {
-    const cached = (await cache.match('/')) || (await cache.match(request, { ignoreSearch: true }));
+    const cached =
+      (await cache.match(new URL(request.url).pathname)) ||
+      (await cache.match(request, { ignoreSearch: true })) ||
+      (await cache.match('/'));
     if (cached) return cached;
     throw err;
   }

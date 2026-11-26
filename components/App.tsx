@@ -487,7 +487,30 @@ export default function App({ initialStop, intro }: AppProps) {
       <div hidden={tab === 'flyg'}>
 
       {trainNumber && !onBoardTrip ? (
-        <TrainSheet number={trainNumber} onClose={() => setTrainNumber(null)} />
+        <TrainSheet
+          number={trainNumber}
+          onClose={() => setTrainNumber(null)}
+          onOpenStation={(name) => {
+            // "Linköping C" (Trafikverket) heter "Linköping Centralstation" hos Trafiklab.
+            const q = name.replace(/\s+C$/i, ' Centralstation');
+            fetch(`/api/trafik?action=search&q=${encodeURIComponent(q)}`)
+              .then((res) => res.json())
+              .then((data) => {
+                const stops: StopOption[] = Array.isArray(data.stops) ? data.stops : [];
+                const hit = stops.find((st) => !st.modes || st.modes.includes('Tåg')) || stops[0];
+                if (!hit) return;
+                setTrainNumber(null);
+                setTab('trafik');
+                setSelectedStop({ id: hit.id, name: hit.name });
+                setRecentStops((list) => rememberStop(list, hit));
+                const stopRegion = regionForStop(hit.id);
+                if (stopRegion !== 'all') setRegion(stopRegion);
+                setMode('all');
+                showBoard();
+              })
+              .catch(() => {});
+          }}
+        />
       ) : null}
 
       {stationOpen && !onBoardTrip && !trainNumber ? (

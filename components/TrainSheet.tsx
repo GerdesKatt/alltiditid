@@ -25,6 +25,20 @@ type Journey = {
 };
 
 const REFRESH_MS = 60_000;
+
+function stopAction(active: boolean): React.CSSProperties {
+  return {
+    minHeight: '44px',
+    padding: '0 14px',
+    borderRadius: 'var(--radius-control)',
+    border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
+    backgroundColor: active ? colors.accentStrong : colors.surface,
+    color: active ? colors.onAccent : colors.text,
+    fontSize: '14px',
+    fontWeight: 700,
+    cursor: 'pointer',
+  };
+}
 const BYTE_KEY = 'alltiditid:byte';
 
 type Connection = {
@@ -98,7 +112,18 @@ function timeCell(p: Part | undefined, label: string) {
 }
 
 /** Ett tågs hela resa: var tåget är nu och alla stationer med tider och spår. */
-export default function TrainSheet({ number, onClose }: { number: string; onClose: () => void }) {
+export default function TrainSheet({
+  number,
+  onClose,
+  onOpenStation,
+}: {
+  number: string;
+  onClose: () => void;
+  /** Visar tavlan för en station på tågets väg. */
+  onOpenStation?: (name: string) => void;
+}) {
+  // Stationen vars val (Byte här, Visa tavlan) är utfällda.
+  const [openStop, setOpenStop] = useState<string | null>(null);
   const sheetRef = useRef<HTMLElement>(null);
   const [journey, setJourney] = useState<Journey | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -392,16 +417,31 @@ export default function TrainSheet({ number, onClose }: { number: string; onClos
                   }}
                 />
                 <span style={{ minWidth: 0 }}>
-                  <span
+                  <button
+                    type="button"
+                    aria-expanded={openStop === st.name}
+                    onClick={() => setOpenStop(openStop === st.name ? null : st.name)}
                     style={{
-                      display: 'block',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      minHeight: '32px',
+                      padding: 0,
+                      border: 'none',
+                      background: 'none',
+                      color: colors.text,
                       fontWeight: 700,
                       fontSize: '15px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
                       textDecoration: st.cancelled ? 'line-through' : 'none',
                     }}
                   >
                     {st.name}
-                  </span>
+                    <span aria-hidden="true" style={{ color: colors.textDim, fontWeight: 500 }}>
+                      {openStop === st.name ? '▴' : '▾'}
+                    </span>
+                  </button>
                   <span style={{ display: 'block', fontSize: '13px', color: st.cancelled ? colors.cancelledText : colors.textDim }}>
                     {[st.cancelled ? 'Inställd här' : '', st.track ? `Spår ${st.track}` : '', ...(st.deviation || [])]
                       .filter(Boolean)
@@ -411,32 +451,31 @@ export default function TrainSheet({ number, onClose }: { number: string; onClos
                 <span style={{ textAlign: 'right', fontSize: '14px', fontVariantNumeric: 'tabular-nums' }}>
                   {timeCell(st.arrival, 'Ankomst')}
                   {timeCell(st.departure, 'Avgång')}
-                  {!st.passed && st.arrival && !st.cancelled ? (
-                    <button
-                      type="button"
-                      aria-pressed={byteStation === st.name}
-                      onClick={() => {
-                        setByteStation(byteStation === st.name ? null : st.name);
-                        // Anslutningarna visas överst i bladet.
-                        sheetRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-                      }}
-                      style={{
-                        marginTop: '4px',
-                        minHeight: '32px',
-                        padding: '0 10px',
-                        borderRadius: 'var(--radius-control)',
-                        border: `1px solid ${byteStation === st.name ? colors.accentStrong : colors.borderStrong}`,
-                        backgroundColor: byteStation === st.name ? colors.accentStrong : colors.surface,
-                        color: byteStation === st.name ? colors.onAccent : colors.text,
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Byte här
-                    </button>
-                  ) : null}
                 </span>
+                {openStop === st.name ? (
+                  <span style={{ gridColumn: '2 / -1', display: 'flex', flexWrap: 'wrap', gap: '8px', paddingBottom: '4px' }}>
+                    {!st.passed && st.arrival && !st.cancelled ? (
+                      <button
+                        type="button"
+                        aria-pressed={byteStation === st.name}
+                        onClick={() => {
+                          setByteStation(byteStation === st.name ? null : st.name);
+                          setOpenStop(null);
+                          // Anslutningarna visas överst i bladet.
+                          sheetRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        style={stopAction(byteStation === st.name)}
+                      >
+                        {byteStation === st.name ? 'Byte här ✓' : 'Byte här'}
+                      </button>
+                    ) : null}
+                    {onOpenStation ? (
+                      <button type="button" onClick={() => onOpenStation(st.name)} style={stopAction(false)}>
+                        Visa tavlan för {st.name}
+                      </button>
+                    ) : null}
+                  </span>
+                ) : null}
               </li>
             ))}
           </ol>
