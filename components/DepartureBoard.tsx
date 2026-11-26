@@ -5,7 +5,7 @@ import LineGroupRow from './LineGroupRow';
 import DisruptionBox from './DisruptionBox';
 import WalkBar from './WalkBar';
 import FindTrip from './FindTrip';
-import { useWalk } from '../lib/useWalk';
+import type { Walk } from '../lib/useWalk';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { parseLocal } from '../lib/lineFormat';
 import { groupKey } from '../lib/lineFormat';
@@ -53,6 +53,8 @@ type Props = {
   onViewChange: (view: BoardView) => void;
   /** En rad fälldes ut (för "Brukar du ta …?"). */
   onRowOpen?: (item: Departure) => void;
+  /** Gångtiden till hållplatsen (App äger den, så att Din avgång också kan säga Gå nu). */
+  walk: Walk;
 };
 
 export type BoardView = 'list' | 'lines';
@@ -72,9 +74,8 @@ function listStyle(count: number): React.CSSProperties {
   return {
     display: 'flex',
     flexDirection: 'column',
-    borderRadius: 'var(--radius-card)',
-    border: `1px solid ${colors.border}`,
-    borderBottom: 'none',
+    // En lista med linjer emellan, inga rutor: bara en linje överst.
+    borderTop: `1px solid ${colors.text}`,
     overflow: 'hidden',
     margin: 0,
     padding: 0,
@@ -170,9 +171,9 @@ export default function DepartureBoard({
   view,
   onViewChange,
   onRowOpen,
+  walk,
 }: Props) {
   const { lang, t } = useLang();
-  const walk = useWalk(stopId);
   const walkMin = direction === 'departures' && walk.state.kind === 'ready' ? walk.state.minutes : null;
   // Gångbeskedet visas bara på den första avgången man hinner till, så att tavlan inte blir rörig.
   const walkTargetId = useMemo(() => {
@@ -280,11 +281,19 @@ export default function DepartureBoard({
       >
         <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'flex-end', gap: '6px' }}>
           <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-            {direction === 'arrivals' ? (
-              <span style={{ fontSize: '0.8125rem', color: colors.textDim, display: 'block' }}>
-                {t('Ankomster till', 'Arrivals at')}
-              </span>
-            ) : null}
+            <span
+              style={{
+                display: 'block',
+                marginBottom: '4px',
+                fontSize: '0.6875rem',
+                fontWeight: 600,
+                letterSpacing: '0.16em',
+                textTransform: 'uppercase',
+                color: colors.textDim,
+              }}
+            >
+              {direction === 'arrivals' ? t('Ankomster till', 'Arrivals at') : t('Avgångar från', 'Departures from')}
+            </span>
             <h1 style={{ fontSize: 'clamp(2rem, 9vw, 2.75rem)', fontWeight: 900, lineHeight: 1, letterSpacing: '-0.045em', margin: 0, color: colors.text, overflowWrap: 'anywhere' }}>
               {stopName}
             </h1>
@@ -422,6 +431,41 @@ export default function DepartureBoard({
                 </button>
               );
             })}
+          </div>
+        ) : null}
+
+        {direction === 'arrivals' ? (
+          // Ankomster är ett sällanval: alltid en tydlig väg tillbaka till avgångar.
+          <div
+            style={{
+              flexBasis: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+              padding: '8px 12px',
+              backgroundColor: colors.surfaceRaised,
+              fontSize: '0.875rem',
+            }}
+          >
+            <span>{t('Du ser ankomster, inte avgångar.', 'You are viewing arrivals, not departures.')}</span>
+            <button
+              type="button"
+              onClick={() => onDirectionChange('departures')}
+              style={{
+                minHeight: '40px',
+                padding: '0 12px',
+                border: `1px solid ${colors.text}`,
+                background: 'transparent',
+                color: colors.text,
+                fontWeight: 700,
+                fontSize: '0.8125rem',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {t('Visa avgångar', 'Show departures')}
+            </button>
           </div>
         ) : null}
 
@@ -631,8 +675,8 @@ export default function DepartureBoard({
           Trafiklab.se
         </a>
         {t(
-          ', Trafikverket, SL och Västtrafik. Hallonpricken betyder realtid. Tider med ~ och "ingen realtid" kommer från tidtabellen.',
-          ', Trafikverket, SL and Västtrafik. The raspberry dot means real-time. Times with ~ and "no real-time" come from the timetable.'
+          ', Trafikverket, SL och Västtrafik. Pricken betyder realtid. Tider med ~ och "ingen realtid" kommer från tidtabellen.',
+          ', Trafikverket, SL and Västtrafik. The dot means real-time. Times with ~ and "no real-time" come from the timetable.'
         )}
       </p>
     </section>

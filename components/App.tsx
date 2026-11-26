@@ -20,7 +20,9 @@ import SheetBackdrop from './SheetBackdrop';
 import { colors, textInput } from './styles';
 import ModeTabs, { type AppTab, type MenuKey } from './ModeTabs';
 import { loadModeFor, storeModeFor } from '../lib/modeMemory';
-import { declineHabit, habitFor, recordOpen } from '../lib/habits';
+import { habitFor, recordOpen } from '../lib/habits';
+import { useWalk } from '../lib/useWalk';
+import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { track } from '../lib/track';
 import { alternativeFor } from '../lib/alternative.mjs';
 import { matchConnection } from '../lib/transferMatch.mjs';
@@ -245,6 +247,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
     setModeRaw(loadModeFor(selectedStop.id));
   }, [hasStop, selectedStop.id]);
 
+  const walk = useWalk(hasStop ? selectedStop.id : '');
   const [restored, setRestored] = useState(false);
   const [offline, setOffline] = useState(false);
   const [view, setView] = useState<BoardView>('list');
@@ -296,7 +299,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
     if (saved) {
       setRegion(saved.region);
       setSelectedStop(saved.stop);
-      setDirection(saved.direction);
+      // Ankomster är ett sällanval (hämta någon): sidan öppnas alltid med avgångar.
       setControlsOpen(false);
     }
     setRestored(true);
@@ -594,8 +597,6 @@ export default function App({ initialStop, page, intro }: AppProps) {
     }
   }
 
-  // Stora stationer: flera hållplatser i en eller många avgångar. Där visas per linje som standard.
-  const bigStation = selectedStop.id.includes(',') || departures.length >= 60;
   const isFavorite = favorites.some((s) => s.id === selectedStop.id);
 
   /** Menyn: Nu, Min resa och Sök. Sök öppnar sökfältet ovanpå tavlan. */
@@ -622,15 +623,14 @@ export default function App({ initialStop, page, intro }: AppProps) {
   const tripNext = myTrip ? nextForTrip(myTrip, tripList, now, DEPARTED_GRACE_MS) : [];
   const tripAlternative = tripNext[0] ? alternativeFor(tripNext[0], tripList) : null;
 
-  // "Brukar du ta …?": ett förslag när samma linje öppnats tre gånger härifrån vid den här tiden.
-  const [habitTick, setHabitTick] = useState(0);
+  // "Du brukar ta …": samma linje öppnad tre gånger härifrån vid den här tiden.
   const habit = useMemo(() => {
     if (!restored || !hasStop || direction !== 'departures') return null;
     const h = habitFor(selectedStop.id, now);
     if (!h || (myTrip && myTrip.stopId === selectedStop.id && myTrip.key === h.key)) return null;
     return departures.some((d) => groupKey(d) === h.key) ? h : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [restored, hasStop, direction, selectedStop.id, myTrip, departures, habitTick]);
+  }, [restored, hasStop, direction, selectedStop.id, myTrip, departures]);
 
   // Min resa utan något sparat: "Vart ska du?" bland avgångarna från tavlans hållplats.
   const [goal, setGoal] = useState('');
@@ -639,6 +639,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
     return departures.filter((d) => d.status !== 'cancelled' && matchConnection(d, goal).hit).slice(0, 5);
   }, [goal, departures, hasStop]);
 
+  const walkMin = direction === 'departures' && walk.state.kind === 'ready' ? walk.state.minutes : null;
   const journeyCards = (
     <>
       {planned ? (
@@ -672,6 +673,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
       ) : null}
       {myTrip ? (
         <MyTripCard
+          walkMinutes={myTrip.stopId === selectedStop.id ? walkMin : null}
           trip={myTrip}
           next={tripNext}
           alternative={tripAlternative}
@@ -694,7 +696,42 @@ export default function App({ initialStop, page, intro }: AppProps) {
       ) : null}
     </>
   );
-  cardShownRef.current = Boolean(myTrain || myTrip || planned);
+  // Din avgång utan att något är sparat: linjen du brukar ta, annars nästa avgång du hinner.
+  // Svaret på "när går min?" står då alltid överst, utan ett enda tryck.
+  const autoTrip = useMemo(() => {
+    if (!restored || !hasStop || direction !== 'departures' || departures.length === 0) return null;
+    if (myTrain || planned || (myTrip && myTrip.stopId === selectedStop.id)) return null;
+    const upcoming = departures.filter((d) => {
+      const at = parseLocal(d.expectedAt);
+      if (d.status === 'cancelled' || at === null || at < now - DEPARTED_GRACE_MS) return false;
+      if (walkMin === null) return true;
+      return walkVerdict(Math.floor((at - now) / 60000), walkMin, platformMinutes(d.transportMode)).kind !== 'missed';
+    });
+    const pick = (habit && upcoming.find((d) => groupKey(d) === habit.key)) || upcoming[0];
+    if (!pick) return null;
+    return { trip: tripFrom(pick, selectedStop.id, selectedStop.name), reason: habit && groupKey(pick) === habit.key ? ('habit' as const) : ('next' as const) };
+  }, [restored, hasStop, direction, departures, myTrain, planned, myTrip, selectedStop.id, selectedStop.name, habit, walkMin, now]);
+  const autoNext = autoTrip ? nextForTrip(autoTrip.trip, departures, now, DEPARTED_GRACE_MS) : [];
+  const autoCard = autoTrip ? (
+    <MyTripCard
+      trip={autoTrip.trip}
+      next={autoNext}
+      alternative={autoNext[0] ? alternativeFor(autoNext[0], departures) : null}
+      loading={loading}
+      now={now}
+      showingStop
+      onShowStop={() => {}}
+      onRemove={() => {}}
+      auto={autoTrip.reason}
+      walkMinutes={walkMin}
+      onSave={() => {
+        setMyTrip(autoTrip.trip);
+        storeMyTrip(autoTrip.trip);
+        track('funktion', 0, autoTrip.reason === 'habit' ? 'vanor' : 'min_resa');
+      }}
+    />
+  ) : null;
+  cardShownRef.current = Boolean(myTrain || myTrip || planned || autoTrip);
 
   return (
     <div id="alltiditid-app" className="app-shell" style={{ maxWidth: '860px', margin: '0 auto' }}>
@@ -1033,51 +1070,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
 
       <div className="layout-board">
       {tab === 'trafik' ? journeyCards : null}
-      {habit ? (
-        <section
-          aria-label={t('Förslag', 'Suggestion')}
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            gap: '8px 12px',
-            marginBottom: '12px',
-            padding: '12px 14px',
-            borderRadius: 'var(--radius-card)',
-            border: `1px solid ${colors.borderStrong}`,
-            backgroundColor: colors.surface,
-          }}
-        >
-          <span style={{ flex: '1 1 12rem', fontSize: '0.9375rem' }}>
-            {t('Brukar du ta', 'Do you usually take')} <strong>{lineLabel(habit.line, lang)} {t('mot', 'to')} {habit.destination}</strong>{' '}
-            {t('härifrån?', 'from here?')}
-          </span>
-          <span style={{ display: 'flex', gap: '8px' }}>
-            <button
-              type="button"
-              onClick={() => {
-                const next = { stopId: selectedStop.id, stopName: selectedStop.name, key: habit.key, line: habit.line, destination: habit.destination };
-                setMyTrip(next);
-                storeMyTrip(next);
-                track('funktion', 0, 'vanor');
-              }}
-              style={{ minHeight: '44px', padding: '0 14px', borderRadius: 'var(--radius-control)', border: 'none', backgroundColor: colors.accentStrong, color: colors.onAccent, fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer' }}
-            >
-              {t('Spara som min resa', 'Save as my trip')}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                declineHabit(selectedStop.id, habit.key);
-                setHabitTick((n) => n + 1);
-              }}
-              style={{ minHeight: '44px', padding: '0 12px', borderRadius: 'var(--radius-control)', border: `1px solid ${colors.borderStrong}`, backgroundColor: 'transparent', color: colors.text, fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}
-            >
-              {t('Nej tack', 'No thanks')}
-            </button>
-          </span>
-        </section>
-      ) : null}
+      {tab === 'trafik' ? autoCard : null}
       <FavoritesBar
         favorites={favorites}
         currentId={selectedStop.id}
@@ -1149,7 +1142,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
         errorMsg={errorMsg}
         updatedAt={updatedAt}
         offline={offline}
-        view={viewChosen ? view : bigStation ? 'lines' : 'list'}
+        view={viewChosen ? view : 'list'}
+        walk={walk}
         onRowOpen={(item) => {
           if (direction === 'departures') recordOpen(selectedStop.id, item);
         }}
