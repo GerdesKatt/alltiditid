@@ -1,26 +1,19 @@
 import type { Region } from './types';
+import { groupStop, STATION_GROUPS } from './stationGroups.mjs';
+
+// Stationer som är flera hållplatser hos Trafiklab (lib/stationGroups.mjs).
+const [STOCKHOLM_C, GOTEBORG_C, ARLANDA, SLUSSEN] = STATION_GROUPS.map(groupStop);
 
 export const REGIONS: Region[] = [
   {
     key: 'all',
     label: 'Hela Sverige',
     stations: [
-      { id: '740000001', name: 'Stockholm Centralstation', shortName: 'Stockholm C' },
-      { id: '740020749', name: 'T-Centralen', shortName: 'T-Centralen' },
-      {
-        // Järnvägsstationen + Drottningtorget och Nils Ericsonsplatsen (spårvagn) + Nils Ericsonterminalen (buss)
-        id: '740000002,740030117,740015585,740020483',
-        name: 'Göteborg Centralstation',
-        shortName: 'Göteborg C',
-      },
+      STOCKHOLM_C,
+      GOTEBORG_C,
       { id: '740000003', name: 'Malmö Centralstation', shortName: 'Malmö C' },
       { id: '740000120', name: 'Lund Centralstation', shortName: 'Lund C' },
-      {
-        // Arlanda C (SJ, Mälartåg, SL) + Arlanda Södra och Norra (Arlanda Express)
-        id: '740000556,740000492,740000708',
-        name: 'Stockholm Arlanda Airport',
-        shortName: 'Arlanda',
-      },
+      ARLANDA,
     ],
     modes: [
       { key: 'all', label: 'Alla' },
@@ -35,9 +28,8 @@ export const REGIONS: Region[] = [
     key: 'stockholm',
     label: 'Stockholm',
     stations: [
-      { id: '740020749', name: 'T-Centralen', shortName: 'T-Centralen' },
-      { id: '740000001', name: 'Stockholm Centralstation', shortName: 'Stockholm C' },
-      { id: '740020101', name: 'Slussen', shortName: 'Slussen' },
+      STOCKHOLM_C,
+      SLUSSEN,
       { id: '740098559', name: 'Odenplan', shortName: 'Odenplan' },
       { id: '740021705', name: 'Gullmarsplan', shortName: 'Gullmarsplan' },
     ],
@@ -54,12 +46,7 @@ export const REGIONS: Region[] = [
     key: 'goteborg',
     label: 'Göteborg',
     stations: [
-      {
-        // Järnvägsstationen + Drottningtorget och Nils Ericsonsplatsen (spårvagn) + Nils Ericsonterminalen (buss)
-        id: '740000002,740030117,740015585,740020483',
-        name: 'Göteborg Centralstation',
-        shortName: 'Göteborg C',
-      },
+      GOTEBORG_C,
       { id: '740020752', name: 'Brunnsparken', shortName: 'Brunnsparken' },
       { id: '740015578', name: 'Korsvägen', shortName: 'Korsvägen' },
       { id: '740015573', name: 'Järntorget', shortName: 'Järntorget' },
