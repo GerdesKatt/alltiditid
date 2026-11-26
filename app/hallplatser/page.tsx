@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import React from 'react';
 import Header from '../../components/Header';
+import Tr from '../../components/Tr';
 import { colors } from '../../components/styles';
 import { STOP_PAGES } from '../../lib/stops';
 
@@ -26,17 +27,36 @@ export default function AllStopsPage() {
     <div className="app-shell" style={{ maxWidth: '860px', margin: '0 auto' }}>
       <Header linkBase="/" />
       <main id="innehall">
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '8px 0 6px' }}>Alla hållplatser</h1>
+        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '8px 0 6px' }}>
+          <Tr sv="Alla hållplatser" en="All stops" />
+        </h1>
         <p style={{ color: colors.textDim, margin: '0 0 18px', fontSize: '0.9375rem' }}>
-          {STOP_PAGES.length} av de mest trafikerade hållplatserna i Sverige. Hittar du inte din? Sök på{' '}
-          <a href="/" style={{ color: colors.text, fontWeight: 600 }}>
-            startsidan
-          </a>
-          , där finns alla.
+          <Tr
+            sv={
+              <>
+                {STOP_PAGES.length} av de mest trafikerade hållplatserna i Sverige. Hittar du inte din? Sök på{' '}
+                <a href="/" style={{ color: colors.text, fontWeight: 600 }}>
+                  startsidan
+                </a>
+                , där finns alla.
+              </>
+            }
+            en={
+              <>
+                {STOP_PAGES.length} of the busiest stops in Sweden. Can&apos;t find yours? Search on the{' '}
+                <a href="/" style={{ color: colors.text, fontWeight: 600 }}>
+                  home page
+                </a>
+                , where all of them are.
+              </>
+            }
+          />
         </p>
         {places.map((place) => (
           <section key={place} style={{ marginBottom: '18px' }}>
-            <h2 style={{ fontSize: '1.125rem', fontWeight: 800, margin: '0 0 8px' }}>{place}</h2>
+            <h2 style={{ fontSize: '1.125rem', fontWeight: 800, margin: '0 0 8px' }}>
+              {place === 'Övriga' ? <Tr sv="Övriga" en="Other" /> : place}
+            </h2>
             <ul style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', listStyle: 'none', margin: 0, padding: 0 }}>
               {groups
                 .get(place)!

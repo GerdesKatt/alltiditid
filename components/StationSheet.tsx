@@ -4,6 +4,7 @@ import type { StopPage } from '../lib/stops';
 import { modesText } from '../lib/stopText';
 import { distanceKm } from '../lib/stopList.mjs';
 import { colors, fonts } from './styles';
+import { decimal, modesSentence, useLang, type Lang } from '../lib/i18n';
 
 type Props = {
   stop: StopOption;
@@ -15,13 +16,13 @@ type Props = {
   onClose: () => void;
 };
 
-function km(d: number): string {
-  return d < 1 ? `${Math.round(d * 10) * 100} m` : `${d.toFixed(1).replace('.', ',')} km`;
+function km(d: number, lang: Lang): string {
+  return d < 1 ? `${Math.round(d * 10) * 100} m` : `${decimal(d, 1, lang)} km`;
 }
 
-function roughDaily(n: number): string {
+function roughDaily(n: number, lang: Lang): string {
   const r = n >= 1000 ? Math.round(n / 100) * 100 : Math.round(n / 10) * 10;
-  return r.toLocaleString('sv-SE');
+  return r.toLocaleString(lang === 'en' ? 'en-GB' : 'sv-SE');
 }
 
 /** Länken som delas: stationens sida om den finns, annars en vanlig tavellänk. */
@@ -36,6 +37,7 @@ export function shareUrlFor(stop: StopOption, page: StopPage | undefined): strin
  * Spårkartan får sin plats överst här när den finns.
  */
 export default function StationSheet({ stop, page, neighbours, onSelectStop, onClose }: Props) {
+  const { lang, t } = useLang();
   const sheetRef = useRef<HTMLElement>(null);
   const [shared, setShared] = useState<'' | 'copied' | 'failed'>('');
 
@@ -52,7 +54,7 @@ export default function StationSheet({ stop, page, neighbours, onSelectStop, onC
 
   async function share() {
     const url = shareUrlFor(stop, page);
-    const title = `${stop.name} – avgångar i realtid`;
+    const title = `${stop.name} – ${t('avgångar i realtid', 'real-time departures')}`;
     try {
       if (navigator.share) {
         await navigator.share({ title, url });
@@ -67,7 +69,7 @@ export default function StationSheet({ stop, page, neighbours, onSelectStop, onC
     }
   }
 
-  const where = page?.place && !page.name.startsWith(page.place) ? ` i ${page.place}` : '';
+  const where = page?.place && !page.name.startsWith(page.place) ? ` ${t('i', 'in')} ${page.place}` : '';
 
   return (
     <section
@@ -88,7 +90,7 @@ export default function StationSheet({ stop, page, neighbours, onSelectStop, onC
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
         <div style={{ minWidth: 0 }}>
-          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>Om stationen</span>
+          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>{t('Om stationen', 'About the station')}</span>
           <h2
             id="stationsblad-rubrik"
             style={{ fontFamily: fonts.display, fontSize: '1.375rem', fontWeight: 800, margin: '2px 0 0', color: colors.text }}
@@ -112,7 +114,7 @@ export default function StationSheet({ stop, page, neighbours, onSelectStop, onC
             cursor: 'pointer',
           }}
         >
-          Stäng
+          {t('Stäng', 'Close')}
         </button>
       </div>
 
@@ -120,16 +122,23 @@ export default function StationSheet({ stop, page, neighbours, onSelectStop, onC
 
       <p style={{ margin: '12px 0 0', fontSize: '0.9375rem', lineHeight: 1.55, color: colors.textDim }}>
         {page
-          ? `${page.name}${where}${page.modes.length ? ` trafikeras av ${modesText(page.modes)}` : ''}${
-              page.daily > 0 ? `, med i snitt omkring ${roughDaily(page.daily)} avgångar per dag` : ''
-            }.`
-          : `Vi har ingen egen sida för ${stop.name} än. Tavlan fungerar som vanligt, och du kan dela den.`}
+          ? lang === 'en'
+            ? `${page.name}${where}${page.modes.length ? ` is served by ${modesSentence(page.modes, 'en')}` : ''}${
+                page.daily > 0 ? `, with around ${roughDaily(page.daily, lang)} departures a day on average` : ''
+              }.`
+            : `${page.name}${where}${page.modes.length ? ` trafikeras av ${modesText(page.modes)}` : ''}${
+                page.daily > 0 ? `, med i snitt omkring ${roughDaily(page.daily, lang)} avgångar per dag` : ''
+              }.`
+          : t(
+              `Vi har ingen egen sida för ${stop.name} än. Tavlan fungerar som vanligt, och du kan dela den.`,
+              `We don't have a page for ${stop.name} yet. The board works as usual, and you can share it.`
+            )}
       </p>
 
       {neighbours.length ? (
         <>
           <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, margin: '16px 0 8px', color: colors.text }}>
-            Hållplatser i närheten
+            {t('Hållplatser i närheten', 'Stops nearby')}
           </h3>
           <ul style={{ display: 'flex', flexDirection: 'column', gap: '6px', listStyle: 'none', margin: 0, padding: 0 }}>
             {neighbours.map((n) => (
@@ -159,7 +168,7 @@ export default function StationSheet({ stop, page, neighbours, onSelectStop, onC
                     {n.name}
                   </span>
                   <span style={{ flexShrink: 0, fontSize: '0.8125rem', fontWeight: 500, color: colors.textDim }}>
-                    {page ? km(distanceKm(page, n)) : ''} ›
+                    {page ? km(distanceKm(page, n), lang) : ''} ›
                   </span>
                 </button>
               </li>
@@ -184,10 +193,14 @@ export default function StationSheet({ stop, page, neighbours, onSelectStop, onC
             cursor: 'pointer',
           }}
         >
-          Dela stationen
+          {t('Dela stationen', 'Share the station')}
         </button>
         <span role="status" style={{ fontSize: '0.8125rem', color: colors.textDim }}>
-          {shared === 'copied' ? 'Länken är kopierad.' : shared === 'failed' ? 'Kunde inte dela. Kopiera adressen i stället.' : ''}
+          {shared === 'copied'
+            ? t('Länken är kopierad.', 'Link copied.')
+            : shared === 'failed'
+            ? t('Kunde inte dela. Kopiera adressen i stället.', "Couldn't share. Copy the address instead.")
+            : ''}
         </span>
       </div>
     </section>

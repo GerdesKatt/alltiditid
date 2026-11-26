@@ -2,6 +2,8 @@
  * Bytet: en sparad anslutning på en station längs "Mitt tåg", och bedömningen om man hinner.
  * Delas av tågets hela resa (TrainSheet) och kortet under Min resa (MyTrainCard).
  */
+import { translator, type Lang } from './lang';
+
 export type SavedByte = { train: string; station: string; line: string; destination: string; scheduledTime: string };
 
 export type Connection = {
@@ -55,13 +57,14 @@ export function arrivalAt(journey: JourneyLike, stop: { arrival?: Part }): strin
 
 export type Verdict = { text: string; tone: 'ok' | 'tight' | 'miss' };
 
-export function verdict(c: Pick<Connection, 'status' | 'margin'>, transfer: number): Verdict {
-  if (c.status === 'cancelled') return { text: 'Inställd', tone: 'miss' };
+export function verdict(c: Pick<Connection, 'status' | 'margin'>, transfer: number, lang: Lang = 'sv'): Verdict {
+  const t = translator(lang);
+  if (c.status === 'cancelled') return { text: t('Inställd', 'Cancelled'), tone: 'miss' };
   if (c.margin === null) return { text: '', tone: 'ok' };
-  if (c.margin < 0) return { text: 'Missar', tone: 'miss' };
-  if (c.margin <= 1) return { text: 'Hinner troligen inte', tone: 'miss' };
+  if (c.margin < 0) return { text: t('Missar', 'Missed'), tone: 'miss' };
+  if (c.margin <= 1) return { text: t('Hinner troligen inte', 'Probably too tight'), tone: 'miss' };
   if (c.margin < transfer) return { text: `Tight · ${c.margin} min`, tone: 'tight' };
-  return { text: `Hinner · ${c.margin} min`, tone: 'ok' };
+  return { text: `${t('Hinner', 'OK')} · ${c.margin} min`, tone: 'ok' };
 }
 
 /** Från så här många minuters försening vid ankomst kan man ha rätt till ersättning. */

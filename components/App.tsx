@@ -41,6 +41,7 @@ const VIEW_KEY = 'alltiditid:vy';
 /** Samma brytpunkt som .layout i globals.css. */
 const WIDE_QUERY = '(min-width: 1100px)';
 import { buildShareMessage } from '../lib/shareMessage';
+import { lineLabel, useLang } from '../lib/i18n';
 import type {
   BoardDirection,
   BoardSource,
@@ -98,6 +99,7 @@ type AppProps = {
 };
 
 export default function App({ initialStop, intro }: AppProps) {
+  const { lang, t } = useLang();
   const [region, setRegion] = useState<RegionKey>('all');
   const [selectedStop, setSelectedStopRaw] = useState<StopOption>(initialStop || REGIONS[0].stations[0]);
   // Ingen hållplats är vald vid första besöket: Stockholm C ska inte se förvald ut.
@@ -335,7 +337,7 @@ export default function App({ initialStop, intro }: AppProps) {
       (early || fetch(url))
         .then(async (res) => {
           const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Fel vid hämtning');
+          if (!res.ok) throw new Error(t(data.error || 'Fel vid hämtning', 'Could not load the board.'));
           // Satt av service workern när nätet inte svarade och en sparad tavla visas.
           const savedAt = Number(res.headers.get('X-Alltiditid-Sparad')) || 0;
           return { ...data, savedAt };
@@ -366,7 +368,7 @@ export default function App({ initialStop, intro }: AppProps) {
           if (typeof navigator !== 'undefined' && navigator.onLine === false) setOffline(true);
           // Vid en misslyckad automatisk uppdatering behålls den senaste tavlan.
           if (!hasData) {
-            setErrorMsg(err.message || 'Kunde inte hämta trafikinformation just nu.');
+            setErrorMsg(err.message || t('Kunde inte hämta trafikinformation just nu.', 'Could not load traffic information right now.'));
           }
           setLoading(false);
         });
@@ -445,6 +447,7 @@ export default function App({ initialStop, intro }: AppProps) {
     return (
       d.destination.toLowerCase().includes(queryLower) ||
       d.line.toLowerCase().includes(queryLower) ||
+      (lang === 'en' && lineLabel(d.line, 'en').toLowerCase().includes(queryLower)) ||
       (d.trainNumber ? d.trainNumber.toLowerCase().includes(queryLower) : false) ||
       d.operator.toLowerCase().includes(queryLower) ||
       (d.deviation ? d.deviation.toLowerCase().includes(queryLower) : false) ||
@@ -467,11 +470,11 @@ export default function App({ initialStop, intro }: AppProps) {
 
 
   async function handleShareTrip(trip: Departure) {
-    const text = buildShareMessage(trip, selectedStop.name, riderStatus, riderNote);
+    const text = buildShareMessage(trip, selectedStop.name, riderStatus, riderNote, lang);
     try {
       if (typeof navigator !== 'undefined' && navigator.share) {
         await navigator.share({
-          title: `Resestatus: ${selectedStop.name}`,
+          title: `${t('Resestatus', 'Trip status')}: ${selectedStop.name}`,
           text,
           url: 'https://alltiditid.se',
         });
@@ -493,15 +496,15 @@ export default function App({ initialStop, intro }: AppProps) {
   return (
     <div id="alltiditid-app" className="app-shell" style={{ maxWidth: '860px', margin: '0 auto' }}>
       <a href="#avgangstavla" className="skip-link">
-        Hoppa till avgångar
+        {t('Hoppa till avgångar', 'Skip to departures')}
       </a>
       <Header onContactClick={() => setActiveInfoTab('contact')} />
       <main id="innehall">
       <ModeTabs tab={tab} onChange={changeTab} hasJourney={Boolean(myTrain || myTrip)} />
       {tab === 'flyg' ? <FlightView initialAirport={flightAirport} /> : null}
       {tab === 'resa' ? (
-        <section aria-label="Min resa" style={{ marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '1.375rem', fontWeight: 800, margin: '0 0 12px' }}>Min resa</h1>
+        <section aria-label={t('Min resa', 'My trip')} style={{ marginBottom: '24px' }}>
+          <h1 style={{ fontSize: '1.375rem', fontWeight: 800, margin: '0 0 12px' }}>{t('Min resa', 'My trip')}</h1>
       {myTrain ? (
         <MyTrainCard
           train={myTrain}
@@ -547,7 +550,10 @@ export default function App({ initialStop, intro }: AppProps) {
               }}
             >
               <p style={{ margin: '0 0 14px', fontSize: '0.9375rem', lineHeight: 1.5, color: colors.textDim }}>
-                Här följer du ett tåg hela vägen: var det är, när det är framme och om du hinner bytet.
+                {t(
+                  'Här följer du ett tåg hela vägen: var det är, när det är framme och om du hinner bytet.',
+                  "Follow a train all the way: where it is, when it arrives and whether you'll make your connection."
+                )}
               </p>
               <form
                 onSubmit={(e) => {
@@ -560,14 +566,14 @@ export default function App({ initialStop, intro }: AppProps) {
                 style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'flex-end' }}
               >
                 <label style={{ flex: '1 1 10rem', fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>
-                  Tågnummer
+                  {t('Tågnummer', 'Train number')}
                   <input
                     type="text"
                     inputMode="numeric"
                     autoComplete="off"
                     value={journeyQuery}
                     onChange={(e) => setJourneyQuery(e.target.value)}
-                    placeholder="t.ex. 532"
+                    placeholder={t('t.ex. 532', 'e.g. 532')}
                     style={{ ...textInput(colors.borderStrong), display: 'block', marginTop: '4px', minHeight: '48px', fontSize: '1rem' }}
                   />
                 </label>
@@ -585,13 +591,14 @@ export default function App({ initialStop, intro }: AppProps) {
                     cursor: 'pointer',
                   }}
                 >
-                  Visa tåget
+                  {t('Visa tåget', 'Show train')}
                 </button>
               </form>
               <p style={{ margin: '14px 0 0', fontSize: '0.875rem', lineHeight: 1.5, color: colors.textDim }}>
-                Tågnumret står på biljetten. Välj <strong style={{ color: colors.text }}>Spara som mitt tåg</strong> när tåget
-                visas. En buss- eller tunnelbanelinje sparar du från tavlan: tryck på avgången och välj{' '}
-                <strong style={{ color: colors.text }}>Spara som min resa</strong>.
+                {t(
+                  'Tågnumret står på biljetten. Välj Spara som mitt tåg när tåget visas. En buss- eller tunnelbanelinje sparar du från tavlan: tryck på avgången och välj Spara som min resa.',
+                  'The train number is on your ticket. Choose Save as my train when the train is shown. Save a bus or metro line from the board: tap the departure and choose Save as my trip.'
+                )}
               </p>
             </div>
           ) : null}
@@ -654,7 +661,7 @@ export default function App({ initialStop, intro }: AppProps) {
           onRiderStatusChange={setRiderStatus}
           riderNote={riderNote}
           onRiderNoteChange={setRiderNote}
-          shareMessage={buildShareMessage(onBoardTrip, selectedStop.name, riderStatus, riderNote)}
+          shareMessage={buildShareMessage(onBoardTrip, selectedStop.name, riderStatus, riderNote, lang)}
           copied={copiedMsg}
           onShare={() => handleShareTrip(onBoardTrip)}
           onClose={() => {
@@ -748,10 +755,13 @@ export default function App({ initialStop, intro }: AppProps) {
             marginBottom: '18px',
           }}
         >
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 6px' }}>Välj en hållplats</h1>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 6px' }}>{t('Välj en hållplats', 'Choose a stop')}</h1>
           <p style={{ margin: 0, fontSize: '0.9375rem', lineHeight: 1.5, color: colors.textDim }}>
-            Sök på en station, en hållplats eller ett tågnummer, välj ett snabbval eller tryck på{' '}
-            <strong style={{ color: colors.text }}>Hållplatser nära mig</strong>.
+            {t(
+              'Sök på en station, en hållplats eller ett tågnummer, välj ett snabbval eller tryck på',
+              'Search for a station, a stop or a train number, pick a shortcut or tap'
+            )}{' '}
+            <strong style={{ color: colors.text }}>{t('Hållplatser nära mig', 'Stops near me')}</strong>.
           </p>
         </section>
       ) : null}

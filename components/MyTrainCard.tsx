@@ -3,6 +3,7 @@ import type { MyTrain } from '../lib/myTrain';
 import { arrivalAt, COMPENSATION_DELAY_MIN, loadByte, verdict } from '../lib/byte';
 import type { Connection, SavedByte } from '../lib/byte';
 import { colors, fonts } from './styles';
+import { lineLabel, trackLabel, trainPosition, useLang } from '../lib/i18n';
 
 type Part = { scheduled: string; estimated?: string; actual?: string; delay: number };
 type Stop = { name: string; arrival?: Part; departure?: Part; passed?: boolean };
@@ -33,6 +34,7 @@ export default function MyTrainCard({
   onOpen: () => void;
   onRemove: () => void;
 }) {
+  const { lang, t } = useLang();
   const [journey, setJourney] = useState<Journey | null>(null);
   const [byte, setByte] = useState<SavedByte | null>(null);
   const [connections, setConnections] = useState<Connection[] | null>(null);
@@ -48,12 +50,12 @@ export default function MyTrainCard({
       if (active) setByte(loadByte(train.number));
     }
     load();
-    const t = setInterval(() => {
+    const timer = setInterval(() => {
       if (!document.hidden) load();
     }, 60_000);
     return () => {
       active = false;
-      clearInterval(t);
+      clearInterval(timer);
     };
   }, [train.number]);
 
@@ -92,7 +94,7 @@ export default function MyTrainCard({
     byte && connections
       ? connections.find((c) => c.line === byte.line && c.scheduledTime === byte.scheduledTime) || null
       : null;
-  const v = savedConn ? verdict(savedConn, transfer) : null;
+  const v = savedConn ? verdict(savedConn, transfer, lang) : null;
   const verdictColor = !v ? colors.textDim : v.tone === 'miss' ? colors.cancelledText : v.tone === 'tight' ? colors.amber : colors.okText;
 
   // Ersättning: tåget har kommit fram (eller passerat) dit man skulle, minst 20 min sent.
@@ -102,7 +104,7 @@ export default function MyTrainCard({
 
   return (
     <section
-      aria-label={`Mitt tåg ${train.number}`}
+      aria-label={`${t('Mitt tåg', 'My train')} ${train.number}`}
       style={{
         marginBottom: '14px',
         padding: '14px',
@@ -112,31 +114,32 @@ export default function MyTrainCard({
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '-10px' }}>
-        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>Mitt tåg</span>
+        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>{t('Mitt tåg', 'My train')}</span>
         <button
           type="button"
           onClick={onRemove}
           style={{ minHeight: '44px', padding: '0 4px 0 12px', marginRight: '-4px', border: 'none', background: 'none', color: colors.textDim, fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
         >
-          Ta bort<span className="sr-only"> mitt tåg</span>
+          {t('Ta bort', 'Remove')}
+          <span className="sr-only"> {t('mitt tåg', 'my train')}</span>
         </button>
       </div>
 
       <h2 style={{ margin: 0, fontFamily: fonts.display, fontSize: '1.125rem', fontWeight: 800 }}>
-        {journey ? `${journey.product} ${journey.number}` : `Tåg ${train.number}`}
-        {journey?.to ? <span style={{ fontWeight: 600, color: colors.textDim }}> mot {journey.to}</span> : null}
+        {journey ? `${journey.product} ${journey.number}` : `${t('Tåg', 'Train')} ${train.number}`}
+        {journey?.to ? <span style={{ fontWeight: 600, color: colors.textDim }}> {t('mot', 'to')} {journey.to}</span> : null}
       </h2>
       {journey?.position ? (
         <p style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '6px 0 0', fontSize: '0.9375rem', fontWeight: 600 }}>
           <span className="rt-dot" aria-hidden="true" />
-          {journey.position}
+          {trainPosition(journey.position, lang)}
         </p>
       ) : journey ? null : (
-        <p style={{ margin: '6px 0 0', color: colors.textDim }}>Hämtar tåget…</p>
+        <p style={{ margin: '6px 0 0', color: colors.textDim }}>{t('Hämtar tåget…', 'Loading the train…')}</p>
       )}
       {target && arr ? (
         <p style={{ margin: '6px 0 0', fontSize: '0.9375rem' }}>
-          {arrived ? 'Kom fram till' : 'Framme i'} {target.name}{' '}
+          {arrived ? t('Kom fram till', 'Arrived at') : t('Framme i', 'Arrives at')} {target.name}{' '}
           {shown && shown !== arr.scheduled ? (
             <>
               <s style={{ color: colors.textDim }}>{arr.scheduled}</s>{' '}
@@ -162,18 +165,18 @@ export default function MyTrainCard({
             border: `1px solid ${v && v.tone !== 'ok' ? verdictColor : colors.borderStrong}`,
           }}
         >
-          <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>Byte i {byte.station}</div>
+          <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>{t('Byte i', 'Change at')} {byte.station}</div>
           <div style={{ fontSize: '0.9375rem', fontWeight: 700, marginTop: '2px' }}>
-            {byte.line} mot {byte.destination} {byte.scheduledTime}
+            {lineLabel(byte.line, lang)} {t('mot', 'to')} {byte.destination} {byte.scheduledTime}
           </div>
           <div style={{ fontFamily: fonts.display, fontSize: '1.125rem', fontWeight: 800, marginTop: '2px', color: verdictColor }}>
             {!connections
-              ? 'Räknar…'
+              ? t('Räknar…', 'Checking…')
               : v
-              ? v.text || 'Ingen realtid för bytet'
-              : 'Bytet finns inte längre på tavlan'}
+              ? v.text || t('Ingen realtid för bytet', 'No live data for the connection')
+              : t('Bytet finns inte längre på tavlan', 'The connection is no longer on the board')}
             {savedConn?.track ? (
-              <span style={{ fontFamily: fonts.text, fontSize: '0.875rem', fontWeight: 500, color: colors.textDim }}> · {savedConn.track}</span>
+              <span style={{ fontFamily: fonts.text, fontSize: '0.875rem', fontWeight: 500, color: colors.textDim }}> · {trackLabel(savedConn.track, lang)}</span>
             ) : null}
           </div>
         </div>
@@ -192,26 +195,31 @@ export default function MyTrainCard({
           }}
         >
           <strong style={{ display: 'block', color: colors.delayedText }}>
-            {arrived ? `${lateBy} min sent till ${target?.name}` : `Väntas bli ${lateBy} min sent till ${target?.name}`}
+            {arrived
+              ? t(`${lateBy} min sent till ${target?.name}`, `${lateBy} min late to ${target?.name}`)
+              : t(`Väntas bli ${lateBy} min sent till ${target?.name}`, `Expected ${lateBy} min late to ${target?.name}`)}
           </strong>
-          Vid minst {COMPENSATION_DELAY_MIN} minuters försening kan du ha rätt till ersättning.{' '}
+          {t(
+            `Vid minst ${COMPENSATION_DELAY_MIN} minuters försening kan du ha rätt till ersättning.`,
+            `With a delay of at least ${COMPENSATION_DELAY_MIN} minutes you may be entitled to compensation.`
+          )}{' '}
           <a
             href="https://www.hallakonsument.se/varor-och-tjanster/resor/"
             target="_blank"
             rel="noopener noreferrer"
             style={{ fontWeight: 700, color: colors.delayedText }}
           >
-            Så ansöker du
+            {t('Så ansöker du', 'How to claim (in Swedish)')}
           </a>
         </div>
       ) : null}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
         <button type="button" onClick={onOpen} style={smallButton}>
-          Hela resan
+          {t('Hela resan', 'Whole journey')}
         </button>
         <button type="button" onClick={onOpen} style={smallButton}>
-          {byte ? 'Ändra byte' : 'Kolla ett byte'}
+          {byte ? t('Ändra byte', 'Change connection') : t('Kolla ett byte', 'Check a connection')}
         </button>
       </div>
     </section>

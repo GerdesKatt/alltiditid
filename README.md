@@ -9,6 +9,11 @@ Avgångar och ankomster i realtid för kollektivtrafik i hela Sverige: tåg, pen
 - **Filter** på trafikslag och fritext (linje, tågnummer, destination, operatör, via-stopp).
 - **"Jag är ombord"**: välj din resa och skicka ett färdigt statusmeddelande till den som ska hämta dig (delning eller kopiering).
 - **Störningsruta** med länk till Hallå konsuments information om reseersättning när något är försenat eller inställt.
+- **Svenska och engelska.** Språket följer webbläsaren (svenska om svenska kommer före engelska i språklistan, annars engelska) och kan bytas med knappen uppe till höger. Valet sparas i webbläsaren.
+
+## Språk
+
+Texterna skrivs på plats som `t('svensk text', 'English text')` med `useLang()` från `lib/i18n.ts`. Rena hjälpfunktioner utan React (linjenamn, trafikslag, tal) finns i `lib/lang.ts`, så att även servern kan använda dem. I sidor som renderas på servern används `<Tr sv="…" en="…" />`. Sidorna byggs på svenska; i webbläsaren byts texten direkt efter laddning. Text från trafikbolagen (störningar, avvikelser, flygplatsnamn) visas som de skickar den.
 
 ## Teknik
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { StopOption } from '../lib/types';
 import { colors } from './styles';
+import { useLang } from '../lib/i18n';
 
 type Props = {
   favorites: StopOption[];
@@ -10,9 +11,10 @@ type Props = {
 
 /** Sparade hållplatser som en rad knappar ovanför tavlan: ett tryck byter tavla. */
 export default function FavoritesBar({ favorites, currentId, onSelect }: Props) {
+  const { t } = useLang();
   if (favorites.length === 0) return null;
   return (
-    <nav aria-label="Sparade hållplatser" style={{ marginBottom: '14px' }}>
+    <nav aria-label={t('Sparade hållplatser', 'Saved stops')} style={{ marginBottom: '14px' }}>
       <ul
         className="favorites-scroll"
         style={{

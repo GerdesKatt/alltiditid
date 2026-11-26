@@ -1,11 +1,12 @@
 import React from 'react';
+import { useLang } from '../lib/i18n';
 
 export type AppTab = 'trafik' | 'resa' | 'flyg';
 
-const TABS: { key: AppTab; label: string }[] = [
-  { key: 'trafik', label: 'Tavla' },
-  { key: 'resa', label: 'Min resa' },
-  { key: 'flyg', label: 'Flyg' },
+const TABS: { key: AppTab; label: string; labelEn: string }[] = [
+  { key: 'trafik', label: 'Tavla', labelEn: 'Board' },
+  { key: 'resa', label: 'Min resa', labelEn: 'My trip' },
+  { key: 'flyg', label: 'Flyg', labelEn: 'Flights' },
 ];
 
 /**
@@ -22,23 +23,24 @@ export default function ModeTabs({
   /** Något är sparat under Min resa: visas som en prick på fliken. */
   hasJourney: boolean;
 }) {
+  const { t } = useLang();
   return (
-    <nav className="app-tabs" aria-label="Lägen">
-      {TABS.map((t) => {
-        const active = t.key === tab;
+    <nav className="app-tabs" aria-label={t('Lägen', 'Views')}>
+      {TABS.map((tb) => {
+        const active = tb.key === tab;
         return (
           <button
-            key={t.key}
+            key={tb.key}
             type="button"
             aria-current={active ? 'page' : undefined}
             className={`app-tab${active ? ' app-tab--active' : ''}`}
-            onClick={() => onChange(t.key)}
+            onClick={() => onChange(tb.key)}
           >
-            {t.label}
-            {t.key === 'resa' && hasJourney ? (
+            {t(tb.label, tb.labelEn)}
+            {tb.key === 'resa' && hasJourney ? (
               <>
                 <span className="app-tab-dot" aria-hidden="true" />
-                <span className="sr-only"> (sparad resa)</span>
+                <span className="sr-only"> ({t('sparad resa', 'saved trip')})</span>
               </>
             ) : null}
           </button>

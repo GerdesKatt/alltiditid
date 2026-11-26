@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import type { Disruption } from '../lib/types';
 import { colors } from './styles';
+import { lineLabel, useLang, type Lang } from '../lib/i18n';
 
 type Props = {
   disruptions: Disruption[];
 };
 
 /** "Gröna linjen 17", "Gröna linjen 19", "Buss 4" → "Gröna linjen 17, 19 · Buss 4". */
-export function formatLines(lines: string[]): string {
+export function formatLines(lines: string[], lang: Lang = 'sv'): string {
   const groups = new Map<string, string[]>();
   const order: string[] = [];
   for (const line of lines) {
@@ -20,7 +21,7 @@ export function formatLines(lines: string[]): string {
     }
     if (designation) groups.get(name)!.push(designation);
   }
-  return order.map((name) => `${name} ${groups.get(name)!.join(', ')}`.trim()).join(' · ');
+  return order.map((name) => `${lineLabel(name, lang)} ${groups.get(name)!.join(', ')}`.trim()).join(' · ');
 }
 
 /**
@@ -53,6 +54,7 @@ function loadDismissed(): string[] {
 }
 
 export default function DisruptionBox({ disruptions }: Props) {
+  const { lang, t } = useLang();
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState<string[]>([]);
   useEffect(() => setDismissed(loadDismissed()), []);
@@ -79,18 +81,23 @@ export default function DisruptionBox({ disruptions }: Props) {
   if (active.length === 0) {
     return dismissed.length && disruptions.length ? (
       <button type="button" onClick={restore} style={linkButton}>
-        Visa {disruptions.length} {disruptions.length === 1 ? 'dold störning' : 'dolda störningar'}
+        {t(
+          `Visa ${disruptions.length} ${disruptions.length === 1 ? 'dold störning' : 'dolda störningar'}`,
+          `Show ${disruptions.length} hidden ${disruptions.length === 1 ? 'disruption' : 'disruptions'}`
+        )}
       </button>
     ) : null;
   }
 
   // Alla berörda linjer, utan dubbletter, i den ordning störningarna kommer.
-  const allLines = formatLines(Array.from(new Set(active.flatMap((d) => d.lines))));
-  const count = `${active.length} ${active.length === 1 ? 'störning' : 'störningar'}`;
+  const allLines = formatLines(Array.from(new Set(active.flatMap((d) => d.lines))), lang);
+  const count = `${active.length} ${
+    active.length === 1 ? t('störning', 'disruption') : t('störningar', 'disruptions')
+  }`;
 
   return (
     <section
-      aria-label="Störningar"
+      aria-label={t('Störningar', 'Disruptions')}
       style={{
         marginBottom: '10px',
         borderRadius: '11px',
@@ -124,18 +131,18 @@ export default function DisruptionBox({ disruptions }: Props) {
           {count}
           {allLines ? ` · ${allLines}` : ''}
         </span>
-        <span style={{ flexShrink: 0, textDecoration: 'underline' }}>{open ? 'Dölj' : 'Visa'}</span>
+        <span style={{ flexShrink: 0, textDecoration: 'underline' }}>{open ? t('Dölj', 'Hide') : t('Visa', 'Show')}</span>
       </button>
       {open ? (
         <ul style={{ listStyle: 'none', margin: 0, padding: '0 12px 4px' }}>
           {active.map((d) => (
             <li key={d.text} style={{ padding: '8px 0 0', borderTop: `1px solid ${colors.delayedBorder}` }}>
               <strong style={{ display: 'block', fontSize: '0.875rem', color: colors.delayedText }}>
-                {formatLines(d.lines)}
+                {formatLines(d.lines, lang)}
               </strong>
               <p style={{ margin: '2px 0 0', fontSize: '0.875rem', lineHeight: 1.5, color: colors.textSoft }}>{d.text}</p>
               <button type="button" onClick={() => dismiss(d.text)} style={{ ...linkButton, padding: 0 }}>
-                Visa inte den här igen
+                {t('Visa inte den här igen', "Don't show this again")}
               </button>
             </li>
           ))}
