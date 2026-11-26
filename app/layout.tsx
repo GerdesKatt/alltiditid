@@ -10,10 +10,10 @@ export const metadata: Metadata = {
   description: 'Koll på avgångar, ankomster och förseningar i realtid.',
   icons: {
     icon: [
-      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icon-v2.svg', type: 'image/svg+xml' },
     ],
-    shortcut: '/icon.svg',
-    apple: '/apple-touch-icon.png',
+    shortcut: '/icon-v2.svg',
+    apple: '/apple-touch-icon-v2.png',
   },
   manifest: '/manifest.webmanifest',
   metadataBase: new URL('https://alltiditid.se'),
