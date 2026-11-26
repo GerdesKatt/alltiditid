@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import type { Departure, RiderMood } from '../lib/types';
-import { colors } from './styles';
+import { colors, fonts } from './styles';
 
 type Props = {
   trip: Departure;
@@ -62,55 +62,32 @@ export default function OnBoardPanel({
         padding: '18px',
         borderRadius: '18px 18px 0 0',
         outline: 'none',
-        background:
-          `linear-gradient(135deg, ${colors.onboardTop} 0%, ${colors.onboardBottom} 100%)`,
-        border: `1px solid ${colors.accent}`,
-        boxShadow: `0 12px 28px ${colors.shadow}`,
+        // Heltäckande bakgrund: tavlan får inte synas igenom bladet.
+        backgroundColor: colors.surface,
+        border: `1px solid ${colors.border}`,
+        boxShadow: `0 -8px 28px ${colors.shadow}`,
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: '12px',
-          marginBottom: '12px',
-          flexWrap: 'wrap',
-        }}
-      >
-        <div>
-          <span
-            style={{
-              fontSize: '11px',
-              fontWeight: 800,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              color: colors.accentSoft,
-            }}
-          >
-            Jag är ombord
-          </span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '14px' }}>
+        <div style={{ minWidth: 0 }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: colors.textDim }}>Jag är ombord</span>
           <h2
             id="resenar-lage-rubrik"
-            style={{
-              fontSize: '19px',
-              fontWeight: 800,
-              margin: '4px 0 0 0',
-              color: colors.text,
-            }}
+            style={{ fontFamily: fonts.display, fontSize: '20px', fontWeight: 800, margin: '2px 0 0', color: colors.text, lineHeight: 1.2, fontVariantNumeric: 'normal' }}
           >
-            {isArrival ? `Ankomst ${stopName}` : trip.destination}{' '}
-            (Ord. {trip.scheduledTime}
-            {trip.status === 'delayed' && newTime
-              ? ` • Ny tid ${newTime}${trip.delayMinutes ? ` (+${trip.delayMinutes} min)` : ''}`
-              : ''}
-            )
+            {isArrival ? `Ankomst ${stopName}` : `Mot ${trip.destination}`} {trip.scheduledTime}
+            {trip.status === 'delayed' && newTime ? (
+              <span style={{ color: colors.amber }}>
+                {' '}
+                → {newTime}
+                {trip.delayMinutes ? ` (+${trip.delayMinutes})` : ''}
+              </span>
+            ) : null}
           </h2>
-          <div style={{ fontSize: '13px', color: colors.textMuted, marginTop: '2px' }}>
-            {isArrival ? `Från ${trip.destination}` : `Från ${stopName}`}{' '}
-            | {trip.line} | {trip.operator}
-            {trip.track ? ` | ${trip.track}` : ''}
-            {trip.deviation ? ` | ${trip.deviation}` : ''}
+          <div style={{ fontSize: '13px', color: colors.textDim, marginTop: '4px' }}>
+            {[isArrival ? `Från ${trip.destination}` : `Från ${stopName}`, trip.line, trip.operator, trip.track, trip.deviation]
+              .filter(Boolean)
+              .join(' · ')}
           </div>
         </div>
 
@@ -118,17 +95,19 @@ export default function OnBoardPanel({
           type="button"
           onClick={onClose}
           style={{
-            padding: '6px 12px',
-            borderRadius: '8px',
-            border: `1px solid ${colors.borderMuted}`,
+            flexShrink: 0,
+            minHeight: '44px',
+            padding: '0 12px',
+            borderRadius: 'var(--radius-control)',
+            border: `1px solid ${colors.borderStrong}`,
             backgroundColor: colors.surface,
-            color: colors.textMuted,
-            fontSize: '12px',
+            color: colors.text,
+            fontSize: '13px',
             fontWeight: 700,
             cursor: 'pointer',
           }}
         >
-          Avsluta läge
+          Stäng
         </button>
       </div>
 
@@ -161,9 +140,10 @@ export default function OnBoardPanel({
               aria-pressed={active}
               onClick={() => onRiderStatusChange(opt.key)}
               style={{
-                padding: '8px 14px',
-                borderRadius: '10px',
-                border: active ? `1px solid ${colors.accent}` : `1px solid ${colors.borderStrong}`,
+                minHeight: '44px',
+                padding: '0 14px',
+                borderRadius: 'var(--radius-control)',
+                border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
                 backgroundColor: active ? colors.accentStrong : colors.surface,
                 color: active ? colors.onAccent : colors.text,
                 fontSize: '13px',
@@ -185,28 +165,29 @@ export default function OnBoardPanel({
         type="text"
         value={riderNote}
         onChange={(e) => onRiderNoteChange(e.target.value)}
-        placeholder="Valfri notis till den som hämtar (t.ex. Sitter i främre vagnen)..."
+        placeholder="Notis, t.ex. Sitter i främre vagnen"
         style={{
           width: '100%',
           boxSizing: 'border-box',
-          padding: '10px 14px',
-          borderRadius: '10px',
+          minHeight: '48px',
+          padding: '0 14px',
+          borderRadius: 'var(--radius-control)',
           border: `1px solid ${colors.borderStrong}`,
           backgroundColor: colors.surface,
           color: colors.text,
-          fontSize: '13px',
+          fontSize: '16px',
           marginBottom: '12px',
         }}
       />
 
       <div
         style={{
-          padding: '11px 14px',
-          borderRadius: '10px',
-          backgroundColor: colors.messageBg,
-          border: `1px solid ${colors.border}`,
-          fontSize: '13px',
-          color: colors.textSoft,
+          padding: '12px 14px',
+          borderRadius: 'var(--radius-control)',
+          backgroundColor: colors.surfaceRaised,
+          border: 'none',
+          fontSize: '15px',
+          color: colors.text,
           marginBottom: '12px',
           lineHeight: 1.5,
         }}
@@ -215,11 +196,12 @@ export default function OnBoardPanel({
           style={{
             color: colors.textDim,
             display: 'block',
-            fontSize: '11px',
+            fontSize: '13px',
+            fontWeight: 600,
             marginBottom: '4px',
           }}
         >
-          Färdigt statusmeddelande:
+          Meddelandet som skickas
         </strong>
         {shareMessage}
       </div>
@@ -229,23 +211,23 @@ export default function OnBoardPanel({
           type="button"
           onClick={onShare}
           style={{
-            padding: '10px 16px',
-            borderRadius: '10px',
+            minHeight: '52px',
+            padding: '0 18px',
+            borderRadius: 'var(--radius-card)',
             border: 'none',
-            // Fast grön med mörk text: samma i mörkt och ljust tema (7,9:1).
             backgroundColor: colors.accentStrong,
             color: colors.onAccent,
-            fontWeight: 800,
-            fontSize: '13px',
+            fontWeight: 700,
+            fontSize: '15px',
             cursor: 'pointer',
           }}
         >
-          Skicka / kopiera status till den som hämtar
+          Skicka till den som hämtar
         </button>
 
         {copied ? (
-          <span style={{ fontSize: '13px', fontWeight: 700, color: colors.greenSoft }}>
-            Meddelandet är kopierat!
+          <span role="status" style={{ fontSize: '13px', fontWeight: 600, color: colors.textDim }}>
+            Meddelandet är kopierat.
           </span>
         ) : null}
       </div>
