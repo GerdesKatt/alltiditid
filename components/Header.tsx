@@ -46,6 +46,9 @@ export default function Header({ onContactClick, linkBase = '' }: Props) {
           alignItems: 'center',
           gap: '12px',
           textDecoration: 'none',
+          // Vid stor text radbryts underrubriken i stället för att sticka ut.
+          minWidth: 0,
+          maxWidth: '100%',
         }}
       >
         {/* Symbolen: en linje som fylls och en prick som pulserar (brand guiden). */}
@@ -56,7 +59,7 @@ export default function Header({ onContactClick, linkBase = '' }: Props) {
           <circle cx="74" cy="71" r="16" fill="var(--on-brand)" />
         </svg>
 
-        <span style={{ display: 'flex', flexDirection: 'column' }}>
+        <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, overflowWrap: 'anywhere' }}>
           <span
             style={{
               fontFamily: fonts.display,

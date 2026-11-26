@@ -21,7 +21,7 @@ import TrainSheet from './TrainSheet';
 import MyTrainCard from './MyTrainCard';
 import { loadMyTrain, myTrainFor, storeMyTrain, type MyTrain } from '../lib/myTrain';
 import SheetBackdrop from './SheetBackdrop';
-import { colors } from './styles';
+import { colors, textInput } from './styles';
 import ModeTabs, { type AppTab } from './ModeTabs';
 import { loadStopIndex, stopPageFor, type StopIndex } from '../lib/stopIndex';
 import SearchPanel from './SearchPanel';
@@ -137,10 +137,13 @@ export default function App({ initialStop, intro }: AppProps) {
   }, []);
   // Kollektivtrafik eller flyg, och flygplatsen som sökningen pekade på.
   const [tab, setTab] = useState<AppTab>('trafik');
+  const [journeyQuery, setJourneyQuery] = useState('');
   const [flightAirport, setFlightAirport] = useState<string | undefined>(undefined);
   useEffect(() => {
     try {
-      if (!initialStop && window.localStorage.getItem('alltiditid:flik') === 'flyg') setTab('flyg');
+      if (!initialStop && ['flyg', 'resa'].includes(window.localStorage.getItem('alltiditid:flik') || '')) {
+        setTab(window.localStorage.getItem('alltiditid:flik') as AppTab);
+      }
     } catch {
       // Ingen lagring.
     }
@@ -497,9 +500,111 @@ export default function App({ initialStop, intro }: AppProps) {
       </a>
       <Header onContactClick={() => setActiveInfoTab('contact')} />
       <main id="innehall">
-      <ModeTabs tab={tab} onChange={changeTab} />
+      <ModeTabs tab={tab} onChange={changeTab} hasJourney={Boolean(myTrain || myTrip)} />
       {tab === 'flyg' ? <FlightView initialAirport={flightAirport} /> : null}
-      <div hidden={tab === 'flyg'}>
+      {tab === 'resa' ? (
+        <section aria-label={t('Min resa', 'My trip')} style={{ marginBottom: '24px' }}>
+          <h1 style={{ fontSize: '1.375rem', fontWeight: 800, margin: '0 0 12px' }}>{t('Min resa', 'My trip')}</h1>
+      {myTrain ? (
+        <MyTrainCard
+          train={myTrain}
+          onOpen={() => {
+            setStationOpen(false);
+            setTrainNumber(myTrain.number);
+          }}
+          onRemove={() => {
+            setMyTrain(null);
+            storeMyTrain(null);
+          }}
+        />
+      ) : null}
+      {myTrip ? (
+        <MyTripCard
+          trip={myTrip}
+          next={nextForTrip(myTrip, tripOnBoard ? departures : tripDepartures, now, DEPARTED_GRACE_MS)}
+          loading={tripOnBoard ? loading : tripLoading}
+          now={now}
+          showingStop={myTrip.stopId === selectedStop.id}
+          onShowStop={() => {
+            setSelectedStop({ id: myTrip.stopId, name: myTrip.stopName });
+            const stopRegion = regionForStop(myTrip.stopId);
+            if (stopRegion !== 'all') setRegion(stopRegion);
+            setDirection('departures');
+            setMode('all');
+            setControlsOpen(false);
+            setTab('trafik');
+          }}
+          onRemove={() => {
+            setMyTrip(null);
+            storeMyTrip(null);
+          }}
+        />
+      ) : null}
+          {!myTrain && !myTrip ? (
+            <div
+              style={{
+                padding: '20px',
+                borderRadius: 'var(--radius-card)',
+                border: `1px solid ${colors.border}`,
+                backgroundColor: colors.surface,
+              }}
+            >
+              <p style={{ margin: '0 0 14px', fontSize: '0.9375rem', lineHeight: 1.5, color: colors.textDim }}>
+                {t(
+                  'Här följer du ett tåg hela vägen: var det är, när det är framme och om du hinner bytet.',
+                  "Follow a train all the way: where it is, when it arrives and whether you'll make your connection."
+                )}
+              </p>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const n = journeyQuery.replace(/\D/g, '');
+                  if (n.length < 2) return;
+                  setStationOpen(false);
+                  setTrainNumber(n);
+                }}
+                style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'flex-end' }}
+              >
+                <label style={{ flex: '1 1 10rem', fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>
+                  {t('Tågnummer', 'Train number')}
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={journeyQuery}
+                    onChange={(e) => setJourneyQuery(e.target.value)}
+                    placeholder={t('t.ex. 532', 'e.g. 532')}
+                    style={{ ...textInput(colors.borderStrong), display: 'block', marginTop: '4px', minHeight: '48px', fontSize: '1rem' }}
+                  />
+                </label>
+                <button
+                  type="submit"
+                  style={{
+                    minHeight: '48px',
+                    padding: '0 18px',
+                    borderRadius: 'var(--radius-control)',
+                    border: 'none',
+                    backgroundColor: colors.accentStrong,
+                    color: colors.onAccent,
+                    fontSize: '0.9375rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('Visa tåget', 'Show train')}
+                </button>
+              </form>
+              <p style={{ margin: '14px 0 0', fontSize: '0.875rem', lineHeight: 1.5, color: colors.textDim }}>
+                {t(
+                  'Tågnumret står på biljetten. Välj Spara som mitt tåg när tåget visas. En buss- eller tunnelbanelinje sparar du från tavlan: tryck på avgången och välj Spara som min resa.',
+                  'The train number is on your ticket. Choose Save as my train when the train is shown. Save a bus or metro line from the board: tap the departure and choose Save as my trip.'
+                )}
+              </p>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+      <div>
 
       {trainNumber && !onBoardTrip ? <SheetBackdrop onClose={() => setTrainNumber(null)} /> : null}
       {stationOpen && !onBoardTrip && !trainNumber ? <SheetBackdrop onClose={() => setStationOpen(false)} /> : null}
@@ -567,6 +672,7 @@ export default function App({ initialStop, intro }: AppProps) {
         />
       ) : null}
 
+      <div style={tab === 'trafik' ? undefined : { display: 'none' }}>
       <div className="layout">
       <div className="layout-side">
       {controlsOpen || wide ? (
@@ -626,40 +732,6 @@ export default function App({ initialStop, intro }: AppProps) {
       </div>
 
       <div className="layout-board">
-      {myTrain ? (
-        <MyTrainCard
-          train={myTrain}
-          onOpen={() => {
-            setStationOpen(false);
-            setTrainNumber(myTrain.number);
-          }}
-          onRemove={() => {
-            setMyTrain(null);
-            storeMyTrain(null);
-          }}
-        />
-      ) : null}
-      {myTrip ? (
-        <MyTripCard
-          trip={myTrip}
-          next={nextForTrip(myTrip, tripOnBoard ? departures : tripDepartures, now, DEPARTED_GRACE_MS)}
-          loading={tripOnBoard ? loading : tripLoading}
-          now={now}
-          showingStop={myTrip.stopId === selectedStop.id}
-          onShowStop={() => {
-            setSelectedStop({ id: myTrip.stopId, name: myTrip.stopName });
-            const stopRegion = regionForStop(myTrip.stopId);
-            if (stopRegion !== 'all') setRegion(stopRegion);
-            setDirection('departures');
-            setMode('all');
-            setControlsOpen(false);
-          }}
-          onRemove={() => {
-            setMyTrip(null);
-            storeMyTrip(null);
-          }}
-        />
-      ) : null}
       <FavoritesBar
         favorites={favorites}
         currentId={selectedStop.id}
@@ -742,7 +814,6 @@ export default function App({ initialStop, intro }: AppProps) {
           const next = current ? null : tripFrom(item, selectedStop.id, selectedStop.name);
           setMyTrip(next);
           storeMyTrip(next);
-          if (next) window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
       </div>
@@ -763,6 +834,7 @@ export default function App({ initialStop, intro }: AppProps) {
 
       {intro}
       <AboutSection />
+      </div>
       </div>
       </main>
 

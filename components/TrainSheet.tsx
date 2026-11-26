@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { colors, fonts } from './styles';
+import { arrivalAt, loadByte, storeByte, verdict } from '../lib/byte';
+import type { Connection, SavedByte } from '../lib/byte';
 import { trackLabel, trainPosition, translator, useLang, type Lang } from '../lib/i18n';
 
 type Part = { scheduled: string; estimated?: string; actual?: string; delay: number };
@@ -40,62 +42,6 @@ function stopAction(active: boolean): React.CSSProperties {
     cursor: 'pointer',
   };
 }
-const BYTE_KEY = 'alltiditid:byte';
-
-type Connection = {
-  id: string;
-  line: string;
-  destination: string;
-  scheduledTime: string;
-  expectedAt?: string;
-  newTime?: string;
-  status: string;
-  track?: string;
-  margin: number | null;
-};
-type SavedByte = { train: string; station: string; line: string; destination: string; scheduledTime: string };
-
-function loadByte(train: string): SavedByte | null {
-  try {
-    const b = JSON.parse(window.localStorage.getItem(BYTE_KEY) || 'null');
-    return b && b.train === train ? b : null;
-  } catch {
-    return null;
-  }
-}
-function storeByte(b: SavedByte | null) {
-  try {
-    if (b) window.localStorage.setItem(BYTE_KEY, JSON.stringify(b));
-    else window.localStorage.removeItem(BYTE_KEY);
-  } catch {
-    // Valet gäller tills sidan laddas om.
-  }
-}
-
-/** Väntad ankomst som 'YYYY-MM-DDTHH:MM'. Tider före första avgången hör till nästa dag. */
-function arrivalAt(journey: Journey, stop: Stop): string {
-  const hhmm = stop.arrival?.actual || stop.arrival?.estimated || stop.arrival?.scheduled;
-  if (!hhmm || !journey.date) return '';
-  const first = journey.stops[0]?.departure?.scheduled || '00:00';
-  let date = journey.date;
-  if (hhmm < first) {
-    const d = new Date(`${date}T00:00:00Z`);
-    d.setUTCDate(d.getUTCDate() + 1);
-    date = d.toISOString().slice(0, 10);
-  }
-  return `${date}T${hhmm}`;
-}
-
-function verdict(c: Connection, transfer: number, lang: Lang): { text: string; tone: 'ok' | 'tight' | 'miss' } {
-  const t = translator(lang);
-  if (c.status === 'cancelled') return { text: t('Inställd', 'Cancelled'), tone: 'miss' };
-  if (c.margin === null) return { text: '', tone: 'ok' };
-  if (c.margin < 0) return { text: t('Missar', 'Missed'), tone: 'miss' };
-  if (c.margin <= 1) return { text: t('Hinner troligen inte', 'Probably too tight'), tone: 'miss' };
-  if (c.margin < transfer) return { text: `Tight · ${c.margin} min`, tone: 'tight' };
-  return { text: `${t('Hinner', 'OK')} · ${c.margin} min`, tone: 'ok' };
-}
-
 function timeCell(p: Part | undefined, label: string) {
   if (!p) return null;
   const shown = p.actual || p.estimated;

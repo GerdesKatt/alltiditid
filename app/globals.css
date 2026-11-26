@@ -354,3 +354,70 @@ input[type='search']::-webkit-search-decoration {
     opacity: 1;
   }
 }
+
+/* Appens tre lägen. Bred skärm: flikar överst. Mobil: meny längst ned. */
+.app-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr));
+  gap: 3px;
+  padding: 3px;
+  margin: 0 0 14px;
+  border-radius: var(--radius-card);
+  background-color: var(--c-surface-raised);
+}
+.app-tab {
+  min-height: 44px;
+  border-radius: var(--radius-control);
+  border: none;
+  background: transparent;
+  color: var(--c-text);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.app-tab--active {
+  background-color: var(--c-accent-strong);
+  color: var(--c-on-accent);
+}
+.app-tab-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background-color: var(--brand);
+  vertical-align: 1px;
+}
+@media (max-width: 767px) {
+  .app-tabs {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 35;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    border-radius: 0;
+    border-top: 1px solid var(--c-border);
+    background-color: var(--c-surface);
+  }
+  .app-tab {
+    min-height: 48px;
+    min-width: 0;
+    padding: 2px;
+    font-size: 0.875rem;
+    overflow-wrap: anywhere;
+  }
+  /* Plats för menyn, så att sidfoten och sista raden går att nå. */
+  .app-shell {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom));
+  }
+  .switch-stop--bottom {
+    bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+  .consent-banner {
+    bottom: calc(68px + env(safe-area-inset-bottom)) !important;
+  }
+}
