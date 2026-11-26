@@ -16,6 +16,24 @@ export const metadata: Metadata = {
     apple: '/apple-touch-icon.png',
   },
   manifest: '/manifest.webmanifest',
+  metadataBase: new URL('https://alltiditid.se'),
+  // Delningsbilden. functions/_middleware.js byter titel och text till hållplatsens
+  // namn när en länk som /?h=…&n=Gullmarsplan delas.
+  openGraph: {
+    type: 'website',
+    locale: 'sv_SE',
+    siteName: 'alltiditid',
+    url: 'https://alltiditid.se/',
+    title: 'alltiditid – nästa avgång, i realtid',
+    description: 'Avgångar, ankomster och förseningar i realtid för hela Sverige. Utan reklam, utan konto.',
+    images: [{ url: '/og.png', width: 1200, height: 630, alt: 'alltiditid: nästa avgång, i realtid' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'alltiditid – nästa avgång, i realtid',
+    description: 'Avgångar, ankomster och förseningar i realtid för hela Sverige.',
+    images: ['/og.png'],
+  },
   appleWebApp: {
     capable: true,
     title: 'alltiditid',
