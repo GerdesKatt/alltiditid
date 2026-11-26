@@ -2,6 +2,7 @@ import { historyRows, saveHistory } from '../../lib/history.mjs';
 import { airportByIata, datesToFetch, flightBoard, waitTimes } from '../../lib/flights.mjs';
 import { missingTrains, trainJourney } from '../../lib/trains.mjs';
 import { tripJourney } from '../../lib/trips.mjs';
+import { pickSearchHits } from '../../lib/searchHits.mjs';
 
 function parseTimeToMinutes(timeStr) {
   if (!timeStr || typeof timeStr !== 'string') return null;
@@ -867,10 +868,10 @@ async function realtimeSearch(key, q) {
   if (!res.ok) throw new Error(`Trafiklab Realtime sökfel (status ${res.status})`);
   const data = await res.json();
   const groups = Array.isArray(data.stop_groups) ? data.stop_groups : [];
-  return groups
+  const sorted = groups
     .filter((g) => g && g.id && (!Array.isArray(g.transport_modes) || g.transport_modes.length > 0))
-    .sort((a, b) => (Number(b.average_daily_stop_times) || 0) - (Number(a.average_daily_stop_times) || 0))
-    .slice(0, 8)
+    .sort((a, b) => (Number(b.average_daily_stop_times) || 0) - (Number(a.average_daily_stop_times) || 0));
+  return pickSearchHits(sorted, 8)
     .map((g) => {
       const out = { id: String(g.id), name: cleanPlaceName(String(g.name)) };
       const place = placeOfStopGroup(g);
@@ -888,6 +889,7 @@ const SEARCH_MODE_LABELS = {
   METRO: 'T-bana',
   TRAM: 'Spårvagn',
   BUS: 'Buss',
+  BOAT: 'Båt',
   FERRY: 'Båt',
   SHIP: 'Båt',
   TAXI: 'Anropsstyrd',
