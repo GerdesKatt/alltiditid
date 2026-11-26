@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { colors, fonts } from './styles';
 import { useLang } from '../lib/i18n';
 import { at, dayLabel, type PlannedTrip } from '../lib/plannedTrip';
-import { LegRow } from './JourneyPlan';
+import { LegRow, rideLabel } from './JourneyPlan';
 
 type Props = { planned: PlannedTrip; now: number; onRemove: () => void };
 
@@ -82,7 +82,7 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
           {t('Framme', 'Arrive')} {trip.arr} ·{' '}
           {trip.changes === 0 ? t('inga byten', 'direct') : t(`${trip.changes} byten`, `${trip.changes} changes`)}
         </span>
-        <span style={{ color: colors.textDim }}>{rides.map((r) => (r.kind === 'ride' ? r.line : '')).join(' → ')}</span>
+        <span style={{ color: colors.textDim }}>{rides.map(rideLabel).join(' → ')}</span>
       </div>
 
       {open ? (

@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { onRequest } from '../functions/api/trafik.js';
-import { isoMinutes, mapTrips, pickDestination } from '../lib/plan.mjs';
+import { agencyName, isoMinutes, mapTrips, pickDestination } from '../lib/plan.mjs';
 
 const leg = (type, from, dep, to, arr, product, extra = {}) => ({
   type,
@@ -140,4 +140,20 @@ test('action=plan: en gatuadress söks bland adresser först och planeras till k
   const trip = urls.find((u) => u.includes('/trip?'));
   assert.ok(trip.includes('destCoordLat=59.3805') && trip.includes('originCoordLat='), 'från position till adress');
   assert.ok(urls.findIndex((u) => u.includes('type=A')) < urls.findIndex((u) => u.includes('/trip?')));
+});
+
+test('namn: SL i stället för Länstrafik, pendeltåg, regionaltåg och expressbuss utan dubbelord', () => {
+  const ride = (product) => ({ type: 'JNY', Origin: { name: 'A', time: '08:00:00' }, Destination: { name: 'B', time: '08:10:00' }, Product: [product], duration: 'PT10M' });
+  const [trip] = mapTrips({
+    Trip: [{ duration: 'PT1H', LegList: { Leg: [
+      ride({ catCode: '7', catOutL: 'Länstrafik - Buss', displayNumber: '144', operator: 'SL' }),
+      ride({ catCode: '4', catOutL: 'Länstrafik - Tåg', displayNumber: '43', operator: 'SL' }),
+      ride({ catCode: '2', catOutL: 'Regional Tåg', displayNumber: '167', operator: 'SJ' }),
+      ride({ catCode: '3', catOutL: 'Expressbuss', displayNumber: 'Buss 814', operator: 'Värmlandstrafik' }),
+    ] } }],
+  });
+  assert.deepEqual(trip.legs.map((l) => `${l.agency} ${l.line}`), [
+    'SL Buss 144', 'SL Pendeltåg 43', 'SJ Regionaltåg 167', 'Värmlandstrafik Expressbuss 814',
+  ]);
+  assert.equal(agencyName('Storstockholms Lokaltrafik'), 'SL');
 });
