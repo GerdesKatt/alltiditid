@@ -66,6 +66,10 @@ export default function TrainSheet({
   onOpenStation,
   saved: trainSaved = false,
   onToggleSaved,
+  pickByte = false,
+  onByteSaved,
+  offStation,
+  onSetOff,
 }: {
   number: string;
   onClose: () => void;
@@ -74,10 +78,18 @@ export default function TrainSheet({
   /** Mitt tåg: sparat tåg överst på startsidan. */
   saved?: boolean;
   onToggleSaved?: () => void;
+  /** Öppnad för att välja byte: visar en uppmaning och stänger när bytet är valt. */
+  pickByte?: boolean;
+  onByteSaved?: () => void;
+  /** Stationen man kliver av på (Mitt tåg), och hur den ändras. */
+  offStation?: string;
+  onSetOff?: (name: string | null) => void;
 }) {
   const { lang, t } = useLang();
   // Stationen vars val (Byte här, Visa tavlan) är utfällda.
   const [openStop, setOpenStop] = useState<string | null>(null);
+  // Så många anslutningar visas innan "Visa fler".
+  const [connLimit, setConnLimit] = useState(6);
   const sheetRef = useRef<HTMLElement>(null);
   const [journey, setJourney] = useState<Journey | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +100,7 @@ export default function TrainSheet({
   const [connError, setConnError] = useState<string | null>(null);
   const [saved, setSaved] = useState<SavedByte | null>(null);
 
+  useEffect(() => setConnLimit(6), [byteStation]);
   useEffect(() => {
     const b = loadByte(number);
     setSaved(b);
@@ -222,8 +235,8 @@ export default function TrainSheet({
                   {t('Inga avgångar timmen efter ankomsten.', 'No departures in the hour after arrival.')}
                 </p>
               ) : null}
-              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '260px', overflowY: 'auto' }}>
-                {connections.map((c) => {
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {connections.slice(0, connLimit).map((c) => {
                   const v = verdict(c, transfer, lang);
                   const chosen = saved && saved.line === c.line && saved.scheduledTime === c.scheduledTime;
                   const color = v.tone === 'miss' ? colors.textDim : v.tone === 'tight' ? colors.amber : colors.text;
@@ -236,16 +249,18 @@ export default function TrainSheet({
                           const b = { train: number, station: byteStation, line: c.line, destination: c.destination, scheduledTime: c.scheduledTime };
                           setSaved(b);
                           storeByte(b);
-                          // Valt: listan fälls ihop, bytet står överst.
+                          // Valt: listan fälls ihop, bytet står överst (eller på kortet under Min resa).
                           setByteStation(null);
+                          sheetRef.current?.scrollTo({ top: 0 });
+                          onByteSaved?.();
                         }}
                         style={{
                           width: '100%',
-                          minHeight: '48px',
+                          minHeight: '52px',
                           display: 'flex',
                           alignItems: 'center',
                           gap: '10px',
-                          padding: '0 12px',
+                          padding: '6px 12px',
                           borderRadius: 'var(--radius-control)',
                           border: `1px solid ${chosen ? colors.accentStrong : colors.border}`,
                           backgroundColor: chosen ? colors.surfaceRaised : colors.surface,
@@ -258,8 +273,12 @@ export default function TrainSheet({
                         <span style={{ fontFamily: fonts.display, fontWeight: 800, fontSize: '0.9375rem', width: '44px', flexShrink: 0 }}>
                           {c.newTime || c.scheduledTime}
                         </span>
-                        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.875rem' }}>
-                          <strong>{c.line}</strong> {t('mot', 'to')} {c.destination}
+                        <span style={{ flex: 1, minWidth: 0, fontSize: '0.875rem', lineHeight: 1.3 }}>
+                          <strong style={{ display: 'block' }}>{c.line}</strong>
+                          <span style={{ color: colors.textDim }}>
+                            {t('mot', 'to')} {c.destination}
+                            {c.track ? ` · ${trackLabel(c.track, lang)}` : ''}
+                          </span>
                         </span>
                         <span style={{ flexShrink: 0, fontSize: '0.8125rem', fontWeight: 700, color }}>{v.text}</span>
                       </button>
@@ -267,6 +286,15 @@ export default function TrainSheet({
                   );
                 })}
               </ul>
+              {connections.length > connLimit ? (
+                <button
+                  type="button"
+                  onClick={() => setConnLimit((n) => n + 10)}
+                  style={{ ...stopAction(false), marginTop: '6px', width: '100%' }}
+                >
+                  {t(`Visa fler (${connections.length - connLimit} till)`, `Show more (${connections.length - connLimit} more)`)}
+                </button>
+              ) : null}
             </div>
           
   );
@@ -407,6 +435,21 @@ export default function TrainSheet({
             </div>
           ) : null}
 
+          {pickByte ? (
+            <p
+              style={{
+                margin: '0 0 8px',
+                padding: '10px 12px',
+                borderRadius: 'var(--radius-control)',
+                backgroundColor: colors.accentTint,
+                fontSize: '0.9375rem',
+                fontWeight: 600,
+              }}
+            >
+              {t('Tryck på stationen där du byter, och välj Byte här.', 'Tap the station where you change, then choose Change here.')}
+            </p>
+          ) : null}
+
           <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
             {journey.stops.map((st, i) => (
               <li
@@ -462,6 +505,7 @@ export default function TrainSheet({
                   <span style={{ display: 'block', fontSize: '0.8125rem', color: st.cancelled ? colors.cancelledText : colors.textDim }}>
                     {[
                       st.cancelled ? t('Inställd här', 'Cancelled here') : '',
+                      offStation === st.name ? t('Du kliver av här', 'You get off here') : '',
                       st.track ? `${t('Spår', 'Track')} ${st.track}` : '',
                       ...(st.deviation || []),
                     ]
@@ -486,6 +530,19 @@ export default function TrainSheet({
                         style={stopAction(byteStation === st.name)}
                       >
                         {byteStation === st.name ? `${t('Byte här', 'Change here')} ✓` : t('Byte här', 'Change here')}
+                      </button>
+                    ) : null}
+                    {onSetOff && i > 0 && !st.cancelled ? (
+                      <button
+                        type="button"
+                        aria-pressed={offStation === st.name}
+                        onClick={() => {
+                          onSetOff(offStation === st.name ? null : st.name);
+                          setOpenStop(null);
+                        }}
+                        style={stopAction(offStation === st.name)}
+                      >
+                        {offStation === st.name ? `${t('Jag kliver av här', 'I get off here')} ✓` : t('Jag kliver av här', 'I get off here')}
                       </button>
                     ) : null}
                     {onOpenStation ? (

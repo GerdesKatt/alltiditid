@@ -147,6 +147,11 @@ export default function App({ initialStop, page, intro }: AppProps) {
   // Kollektivtrafik eller flyg, och flygplatsen som sökningen pekade på.
   const [tab, setTab] = useState<AppTab>('trafik');
   const [journeyQuery, setJourneyQuery] = useState('');
+  // Tågets resa öppnad från kortet för att välja byte.
+  const [pickByte, setPickByte] = useState(false);
+  useEffect(() => {
+    if (!trainNumber) setPickByte(false);
+  }, [trainNumber]);
   const [flightAirport, setFlightAirport] = useState<string | undefined>(undefined);
   useEffect(() => {
     try {
@@ -523,6 +528,12 @@ export default function App({ initialStop, page, intro }: AppProps) {
           train={myTrain}
           onOpen={() => {
             setStationOpen(false);
+            setPickByte(false);
+            setTrainNumber(myTrain.number);
+          }}
+          onPickByte={() => {
+            setStationOpen(false);
+            setPickByte(true);
             setTrainNumber(myTrain.number);
           }}
           onRemove={() => {
@@ -573,8 +584,11 @@ export default function App({ initialStop, page, intro }: AppProps) {
                   e.preventDefault();
                   const n = journeyQuery.replace(/\D/g, '');
                   if (n.length < 2) return;
-                  setStationOpen(false);
-                  setTrainNumber(n);
+                  // Avsikten är tydlig här: följ tåget direkt, utan ett extra steg.
+                  const next = myTrainFor(n);
+                  setMyTrain(next);
+                  storeMyTrain(next);
+                  setJourneyQuery('');
                 }}
                 style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'flex-end' }}
               >
@@ -604,13 +618,13 @@ export default function App({ initialStop, page, intro }: AppProps) {
                     cursor: 'pointer',
                   }}
                 >
-                  {t('Visa tåget', 'Show train')}
+                  {t('Följ tåget', 'Follow train')}
                 </button>
               </form>
               <p style={{ margin: '14px 0 0', fontSize: '0.875rem', lineHeight: 1.5, color: colors.textDim }}>
                 {t(
-                  'Tågnumret står på biljetten. Välj Spara som mitt tåg när tåget visas. En buss- eller tunnelbanelinje sparar du från tavlan: tryck på avgången och välj Spara som min resa.',
-                  'The train number is on your ticket. Choose Save as my train when the train is shown. Save a bus or metro line from the board: tap the departure and choose Save as my trip.'
+                  'Tågnumret står på biljetten. En buss- eller tunnelbanelinje sparar du från tavlan: tryck på avgången och välj Spara som min resa.',
+                  'The train number is on your ticket. Save a bus or metro line from the board: tap the departure and choose Save as my trip.'
                 )}
               </p>
             </div>
@@ -619,12 +633,31 @@ export default function App({ initialStop, page, intro }: AppProps) {
       ) : null}
       <div>
 
-      {trainNumber && !onBoardTrip ? <SheetBackdrop onClose={() => setTrainNumber(null)} /> : null}
+      {trainNumber && !onBoardTrip ? <SheetBackdrop onClose={() => { setTrainNumber(null); setPickByte(false); }} /> : null}
       {stationOpen && !onBoardTrip && !trainNumber ? <SheetBackdrop onClose={() => setStationOpen(false)} /> : null}
       {trainNumber && !onBoardTrip ? (
         <TrainSheet
           number={trainNumber}
-          onClose={() => setTrainNumber(null)}
+          onClose={() => {
+            setTrainNumber(null);
+            setPickByte(false);
+          }}
+          pickByte={pickByte}
+          onByteSaved={
+            pickByte
+              ? () => {
+                  setTrainNumber(null);
+                  setPickByte(false);
+                }
+              : undefined
+          }
+          offStation={myTrain?.number === trainNumber ? myTrain.off : undefined}
+          onSetOff={(name) => {
+            // Att välja avstigning sparar också tåget som Mitt tåg.
+            const next = { ...myTrainFor(trainNumber), ...(name ? { off: name } : {}) };
+            setMyTrain(next);
+            storeMyTrain(next);
+          }}
           saved={myTrain?.number === trainNumber}
           onToggleSaved={() => {
             const next = myTrain?.number === trainNumber ? null : myTrainFor(trainNumber);
