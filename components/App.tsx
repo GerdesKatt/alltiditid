@@ -729,7 +729,16 @@ export default function App({ initialStop, page, intro }: AppProps) {
                 type="text"
                 autoComplete="off"
                 value={goal}
+                enterKeyHint="search"
                 onChange={(e) => setGoal(e.target.value)}
+                onKeyDown={(e) => {
+                  // Sök på tangentbordet startar resesökningen.
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    (e.currentTarget as HTMLInputElement).blur();
+                    document.getElementById('sok-resa')?.click();
+                  }
+                }}
                 placeholder={t('Ort, hållplats eller adress', 'Town, stop or address')}
                 style={{ ...textInput(colors.borderStrong), display: 'block', marginTop: '6px', minHeight: '48px', fontSize: '1rem' }}
               />

@@ -150,10 +150,12 @@ test('namn: SL i stället för Länstrafik, pendeltåg, regionaltåg och express
       ride({ catCode: '4', catOutL: 'Länstrafik - Tåg', displayNumber: '43', operator: 'SL' }),
       ride({ catCode: '2', catOutL: 'Regional Tåg', displayNumber: '167', operator: 'SJ' }),
       ride({ catCode: '3', catOutL: 'Expressbuss', displayNumber: 'Buss 814', operator: 'Värmlandstrafik' }),
+      ride({ catCode: '7', catOutL: 'Länstrafik - Buss', displayNumber: '1', operatorInfo: { name: 'Västtrafik' } }),
+      ride({ catCode: '3', catOutL: 'Expressbuss Buss', displayNumber: '814' }),
     ] } }],
   });
   assert.deepEqual(trip.legs.map((l) => `${l.agency} ${l.line}`), [
-    'SL Buss 144', 'SL Pendeltåg 43', 'SJ Regionaltåg 167', 'Värmlandstrafik Expressbuss 814',
+    'SL Buss 144', 'SL Pendeltåg 43', 'SJ Regionaltåg 167', 'Värmlandstrafik Expressbuss 814', 'Västtrafik Buss 1', ' Expressbuss 814',
   ]);
   assert.equal(agencyName('Storstockholms Lokaltrafik'), 'SL');
 });
