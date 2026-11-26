@@ -106,3 +106,17 @@ test('API: utan nyckel svarar flyg tydligt, utan Trafiklab-nyckel', async () => 
   });
   assert.equal(res.status, 503);
 });
+
+test('ny tid i statustexten och terminal utan T', () => {
+  const f = normalizeFlight(
+    flight('TK1794', 10, {
+      DepartureTime: { ScheduledUtc: '2026-11-26T10:20:00Z', EstimatedUtc: null },
+      LocationAndStatus: { Terminal: 'T5', FlightLegStatusSwedish: 'Beräknad 11:40' },
+    }),
+    'departures'
+  );
+  assert.equal(f.terminal, '5');
+  assert.equal(f.status, 'delayed');
+  assert.equal(f.newTime, '11:40');
+  assert.equal(f.delayMinutes, 20);
+});

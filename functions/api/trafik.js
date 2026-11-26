@@ -1791,7 +1791,7 @@ async function handleWaitTimes(url, env, context) {
   const airport = airportByIata(url.searchParams.get('airport'));
   if (!airport || !airport.waitTimes) return jsonResponse({ queues: [] }, 200, { 'Cache-Control': 'public, max-age=3600' });
   const key = env && env.SWEDAVIA_WAITTIME_KEY;
-  if (!key) return jsonResponse({ queues: [] }, 200, { 'Cache-Control': 'public, max-age=300' });
+  if (!key) return jsonResponse({ queues: [], note: 'nyckel saknas' }, 200, { 'Cache-Control': 'public, max-age=300' });
 
   const freshKey = cacheKeyFor('koer', airport.iata);
   const fresh = await cacheGet(freshKey);
@@ -1800,10 +1800,18 @@ async function handleWaitTimes(url, env, context) {
     return jsonResponse({ queues: [] }, 200, { 'Cache-Control': 'public, max-age=300' });
   }
   let queues = [];
+  let raw;
   try {
-    queues = waitTimes(await swedaviaGet(`/waittimepublic/v1/airports/${airport.iata}`, key));
-  } catch {
-    return jsonResponse({ queues: [] }, 200, { 'Cache-Control': 'public, max-age=60' });
+    raw = await swedaviaGet(`/waittimepublic/v1/airports/${airport.iata}`, key);
+    queues = waitTimes(raw);
+  } catch (err) {
+    // Felet syns i svaret (utan nyckel), så att det går att felsöka.
+    return jsonResponse({ queues: [], note: String(err && err.message || 'fel') }, 200, { 'Cache-Control': 'public, max-age=60' });
+  }
+  if (queues.length === 0) {
+    // Okänt format: visa nycklarna i svaret, inte värdena.
+    const shape = Array.isArray(raw) ? `lista med ${raw.length}` : Object.keys(raw || {}).slice(0, 8).join(',');
+    return jsonResponse({ queues: [], note: `tomt (${shape})` }, 200, { 'Cache-Control': 'public, max-age=60' });
   }
   const response = jsonResponse(
     { airport: airport.iata, queues, updatedAt: new Date().toISOString() },
