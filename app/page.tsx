@@ -21,6 +21,8 @@ import { REGIONS } from '../lib/regions';
 import { loadSavedState, regionForStop, saveState } from '../lib/savedStop';
 import { loadFavorites, MAX_FAVORITES, storeFavorites, toggleFavorite } from '../lib/favorites';
 import FavoritesBar from '../components/FavoritesBar';
+import MyTripCard from '../components/MyTripCard';
+import { loadMyTrip, nextForTrip, storeMyTrip, tripFrom, type MyTrip } from '../lib/myTrip';
 import { boardUrl, takePrefetch } from '../lib/prefetch';
 import type { BoardView } from '../components/DepartureBoard';
 
@@ -153,11 +155,16 @@ export default function HomePage() {
     return () => query.removeEventListener?.('change', update);
   }, []);
   const [favorites, setFavorites] = useState<StopOption[]>([]);
+  const [myTrip, setMyTrip] = useState<MyTrip | null>(null);
+  // Resans egna avgångar när tavlan visar en annan hållplats.
+  const [tripDepartures, setTripDepartures] = useState<Departure[]>([]);
+  const [tripLoading, setTripLoading] = useState(false);
   // Inställningarna (region, snabbval, sök, filter) är öppna vid första besöket och
   // fälls ihop när det finns en sparad hållplats, så att tavlan kommer först.
   const [controlsOpen, setControlsOpen] = useState(true);
   useEffect(() => {
     setFavorites(loadFavorites());
+    setMyTrip(loadMyTrip());
     try {
       if (window.localStorage.getItem(VIEW_KEY) === 'lines') setView('lines');
     } catch {
@@ -305,6 +312,36 @@ export default function HomePage() {
     };
   }, [restored, selectedStop, direction]);
 
+  // Min resa på en annan hållplats än tavlan: hämta den hållplatsen också, lika ofta.
+  const tripOnBoard = Boolean(myTrip && myTrip.stopId === selectedStop.id && direction === 'departures');
+  useEffect(() => {
+    if (!restored || !myTrip || tripOnBoard) return;
+    let active = true;
+    setTripLoading(true);
+    setTripDepartures([]);
+    const url = boardUrl(myTrip.stopId, myTrip.stopName, 'departures');
+    function load() {
+      fetch(url)
+        .then((res) => (res.ok ? res.json() : Promise.reject(new Error('fel'))))
+        .then((data) => {
+          if (!active) return;
+          setTripDepartures(Array.isArray(data.departures) ? data.departures : []);
+          setTripLoading(false);
+        })
+        .catch(() => {
+          if (active) setTripLoading(false);
+        });
+    }
+    load();
+    const interval = setInterval(() => {
+      if (!document.hidden) load();
+    }, REFRESH_INTERVAL_MS);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [restored, myTrip, tripOnBoard]);
+
   // Klockan tickar så att avgångar som redan gått försvinner även mellan hämtningarna.
   useEffect(() => {
     const tick = setInterval(() => setNow(Date.now()), CLOCK_TICK_MS);
@@ -446,6 +483,27 @@ export default function HomePage() {
       </div>
 
       <div className="layout-board">
+      {myTrip ? (
+        <MyTripCard
+          trip={myTrip}
+          next={nextForTrip(myTrip, tripOnBoard ? departures : tripDepartures, now, DEPARTED_GRACE_MS)}
+          loading={tripOnBoard ? loading : tripLoading}
+          now={now}
+          showingStop={myTrip.stopId === selectedStop.id}
+          onShowStop={() => {
+            setSelectedStop({ id: myTrip.stopId, name: myTrip.stopName });
+            const stopRegion = regionForStop(myTrip.stopId);
+            if (stopRegion !== 'all') setRegion(stopRegion);
+            setDirection('departures');
+            setMode('all');
+            setControlsOpen(false);
+          }}
+          onRemove={() => {
+            setMyTrip(null);
+            storeMyTrip(null);
+          }}
+        />
+      ) : null}
       <FavoritesBar
         favorites={favorites}
         currentId={selectedStop.id}
@@ -488,6 +546,15 @@ export default function HomePage() {
         source={source}
         selectedTripId={onBoardTrip ? onBoardTrip.id : null}
         onSelectOnBoard={handleSelectOnBoard}
+        myTrip={direction === 'departures' ? myTrip : null}
+        stopId={selectedStop.id}
+        onToggleMyTrip={(item) => {
+          const current = myTrip && myTrip.stopId === selectedStop.id && tripFrom(item, '', '').key === myTrip.key;
+          const next = current ? null : tripFrom(item, selectedStop.id, selectedStop.name);
+          setMyTrip(next);
+          storeMyTrip(next);
+          if (next) window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
       />
 
       {!controlsOpen && !wide ? (

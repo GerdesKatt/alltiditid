@@ -9,6 +9,9 @@ type Props = {
   now: number;
   isSelectedTrip: boolean;
   onSelectOnBoard: (item: Departure) => void;
+  isMyTrip?: boolean;
+  /** Saknas vid ankomster: Min resa gäller avgångar. */
+  onToggleMyTrip?: (item: Departure) => void;
 };
 
 /** Från så här många minuters försening visas en länk om reseersättning. */
@@ -19,7 +22,15 @@ const COMPENSATION_DELAY_MIN = 20;
  * Avvikelser (försenad, inställd, bara tidtabell) syns; "i tid" behöver inget märke.
  * Ett tryck på raden visar mer: operatör, "Jag är ombord" och ersättning.
  */
-export default function DepartureRow({ item, direction, now, isSelectedTrip, onSelectOnBoard }: Props) {
+export default function DepartureRow({
+  item,
+  direction,
+  now,
+  isSelectedTrip,
+  onSelectOnBoard,
+  isMyTrip = false,
+  onToggleMyTrip,
+}: Props) {
   const [open, setOpen] = useState(false);
   const isDelayed = item.status === 'delayed';
   const isCancelled = item.status === 'cancelled';
@@ -278,6 +289,27 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
           >
             {isSelectedTrip ? 'Vald resa' : 'Jag är ombord'}
           </button>
+          {onToggleMyTrip ? (
+            <button
+              type="button"
+              aria-pressed={isMyTrip}
+              aria-label={`Spara ${item.line} mot ${item.destination} som min resa`}
+              onClick={() => onToggleMyTrip(item)}
+              style={{
+                minHeight: '44px',
+                padding: '0 14px',
+                borderRadius: 'var(--radius-control)',
+                border: `1px solid ${isMyTrip ? colors.accentStrong : colors.borderStrong}`,
+                backgroundColor: isMyTrip ? colors.accentStrong : colors.surface,
+                color: isMyTrip ? colors.onAccent : colors.text,
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              {isMyTrip ? '✓ Min resa' : 'Spara som min resa'}
+            </button>
+          ) : null}
           {compensation ? (
             <a
               href="https://www.hallakonsument.se/varor-och-tjanster/resor/"
