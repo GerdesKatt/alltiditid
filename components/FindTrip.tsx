@@ -207,6 +207,7 @@ export default function FindTrip({ stop, mode, onShowTrain, onShowTrip }: Props)
                       minWidth: '40px',
                       padding: '2px 6px',
                       borderRadius: 'var(--radius-badge)',
+                      border: `1.5px solid ${colors.badgeBorder}`,
                       backgroundColor: colors.badgeBg,
                       color: colors.badgeText,
                       fontFamily: fonts.display,

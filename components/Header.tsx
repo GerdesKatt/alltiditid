@@ -30,11 +30,10 @@ export default function Header({ onContactClick, linkBase = '' }: Props) {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: '12px 16px',
-        marginBottom: '16px',
-        borderRadius: 'var(--radius-card)',
+        padding: '14px 0 12px',
+        marginBottom: '20px',
         backgroundColor: colors.headerBg,
-        border: `1px solid ${colors.border}`,
+        borderBottom: `1px solid ${colors.text}`,
         flexWrap: 'wrap',
         gap: '12px',
       }}
@@ -49,40 +48,33 @@ export default function Header({ onContactClick, linkBase = '' }: Props) {
           maxWidth: '100%',
         }}
       >
-        {/* Symbolen: en linje som fylls och en prick som pulserar (brand guiden). */}
-        <svg width="36" height="36" viewBox="0 0 120 120" aria-hidden="true" style={{ flexShrink: 0 }}>
-          <rect width="120" height="120" rx="26" fill="var(--brand)" />
-          <rect x="18" y="64" width="84" height="14" rx="7" fill="var(--on-brand)" opacity=".45" />
-          <rect x="18" y="64" width="56" height="14" rx="7" fill="var(--on-brand)" />
-          <circle cx="74" cy="71" r="16" fill="var(--on-brand)" />
-        </svg>
-
+        {/* Ordmärket: gemener, inget märke. Domänen är fortfarande alltiditid.se. */}
         <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <span
             style={{
               fontFamily: fonts.display,
               fontSize: '1.375rem',
               fontWeight: 800,
-              letterSpacing: '-0.035em',
-              lineHeight: 1.1,
+              letterSpacing: '-0.04em',
+              lineHeight: 1,
               color: colors.text,
             }}
           >
-            alltid<span style={{ color: colors.brand }}>i</span>tid
+            alltid i tid
           </span>
           <span
             className="site-tagline"
             style={{
               overflowWrap: 'anywhere',
-              fontSize: '0.8125rem',
+              fontSize: '0.6875rem',
               fontWeight: 600,
-              letterSpacing: '0.04em',
+              letterSpacing: '0.2em',
               textTransform: 'uppercase',
               color: colors.textDim,
-              marginTop: '2px',
+              marginTop: '6px',
             }}
           >
-            {t('Avgångar och ankomster i realtid', 'Departures and arrivals in real time')}
+            {t('För oss som inte kommer sent', 'For those of us who are never late')}
           </span>
         </span>
       </a>
@@ -98,7 +90,7 @@ export default function Header({ onContactClick, linkBase = '' }: Props) {
           <a
             href={`${linkBase}#sidfot`}
             onClick={onContactClick}
-            style={{ ...navLink, color: colors.accent }}
+            style={{ ...navLink, color: colors.text }}
           >
             {t('Kontakt', 'Contact')}
           </a>

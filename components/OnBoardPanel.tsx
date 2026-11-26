@@ -62,7 +62,7 @@ export default function OnBoardPanel({
       tabIndex={-1}
       style={{
         padding: '18px',
-        borderRadius: '18px 18px 0 0',
+        borderRadius: 0,
         outline: 'none',
         // Heltäckande bakgrund: tavlan får inte synas igenom bladet.
         backgroundColor: colors.surface,
@@ -126,7 +126,7 @@ export default function OnBoardPanel({
           style={{
             margin: '0 0 12px 0',
             padding: '10px 12px',
-            borderRadius: '10px',
+            borderRadius: 0,
             border: `1px solid ${colors.delayedBorder}`,
             backgroundColor: colors.noticeBg,
             color: colors.noticeText,

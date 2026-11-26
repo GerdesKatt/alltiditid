@@ -173,7 +173,7 @@ export default function NearbyStops({ onSelect, trailing }: Props) {
                     alignItems: 'center',
                     gap: '12px',
                     padding: '8px 14px',
-                    borderRadius: '10px',
+                    borderRadius: 0,
                     border: `1px solid ${colors.borderStrong}`,
                     backgroundColor: colors.surface,
                     color: colors.text,

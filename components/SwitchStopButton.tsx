@@ -30,7 +30,7 @@ export default function SwitchStopButton({ onClick, activeFilter }: Props) {
         gap: '8px',
         padding: '0 18px 0 14px',
         minHeight: '48px',
-        borderRadius: '999px',
+        borderRadius: 0,
         border: `1px solid ${colors.borderStrong}`,
         backgroundColor: colors.surface,
         color: colors.text,
@@ -50,7 +50,7 @@ export default function SwitchStopButton({ onClick, activeFilter }: Props) {
           aria-hidden="true"
           style={{
             padding: '2px 8px',
-            borderRadius: '999px',
+            borderRadius: 0,
             backgroundColor: colors.surfaceRaised,
             color: colors.textDim,
             fontSize: '0.8125rem',

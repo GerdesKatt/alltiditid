@@ -57,7 +57,8 @@ export function groupKey(item: Departure): string {
 
 /**
  * Linjens egen färg, där färgen är en del av namnet (SL:s tunnelbana och pendeltåg).
- * Bara en tunn kant på brickan: färgen hjälper igenkänningen men bär ingen information ensam.
+ * Det enda undantaget från svart och benvitt: en kant på brickan som hjälper igenkänningen
+ * men inte bär information ensam.
  */
 export function lineColor(item: Pick<Departure, 'line' | 'transportMode'>): string | null {
   const line = item.line.toLowerCase();
@@ -65,5 +66,12 @@ export function lineColor(item: Pick<Departure, 'line' | 'transportMode'>): stri
   if (line.startsWith('röda linjen')) return '#d71d24';
   if (line.startsWith('blå linjen')) return '#0089ca';
   if (line.startsWith('pendeltåg')) return '#ec619f';
+  // Tunnelbanan utan linjenamn, bara nummer: 10–11 blå, 13–14 röd, 17–19 grön.
+  if (item.transportMode === 'subway') {
+    const n = Number(line.match(/\d+/)?.[0]);
+    if (n === 10 || n === 11) return '#0089ca';
+    if (n === 13 || n === 14) return '#d71d24';
+    if (n >= 17 && n <= 19) return '#179d4d';
+  }
   return null;
 }

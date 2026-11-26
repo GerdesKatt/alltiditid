@@ -29,7 +29,7 @@ export default function DirectionToggle({ direction, onChange }: Props) {
             style={{
               minHeight: '44px',
               padding: '0 16px',
-              borderRadius: '10px',
+              borderRadius: 0,
               border: active ? `1px solid ${opt.activeBorder}` : `1px solid ${colors.borderMuted}`,
               backgroundColor: active ? opt.activeBg : colors.surface,
               color: active ? colors.onAccent : colors.text,

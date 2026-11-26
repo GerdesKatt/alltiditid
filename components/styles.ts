@@ -89,6 +89,8 @@ export const colors = {
   /** Linjebricka: bläck med ljus text */
   badgeBg: 'var(--c-badge-bg)',
   badgeText: 'var(--c-badge-text)',
+  /** Linjebrickans kontur */
+  badgeBorder: 'var(--c-badge-border)',
   /** Varumärket: hallon. Bara för logga och realtid. */
   brand: 'var(--brand)',
 } as const;
@@ -105,7 +107,7 @@ export function textInput(borderColor: string): CSSProperties {
     width: '100%',
     boxSizing: 'border-box',
     padding: '11px 14px',
-    borderRadius: '11px',
+    borderRadius: 0,
     border: `1px solid ${borderColor}`,
     backgroundColor: colors.surface,
     color: colors.text,
@@ -117,7 +119,7 @@ export function textInput(borderColor: string): CSSProperties {
 export const emptyState: CSSProperties = {
   padding: '28px',
   textAlign: 'center',
-  borderRadius: '14px',
+  borderRadius: 0,
   backgroundColor: colors.surface,
   border: `1px solid ${colors.border}`,
   color: colors.textDim,
