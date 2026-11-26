@@ -1,18 +1,18 @@
 import React from 'react';
 import { useLang } from '../lib/i18n';
 
-/** Appens lägen. Flyg nås via sök och snabbval, inte via menyn. */
+/** Appens lägen: Nu (Hem och tavlor), Min resa och Flyg. */
 export type AppTab = 'trafik' | 'resa' | 'flyg';
-export type MenuKey = 'trafik' | 'resa' | 'sok';
+export type MenuKey = 'trafik' | 'resa' | 'flyg';
 
 const TABS: { key: MenuKey; label: string; labelEn: string }[] = [
   { key: 'trafik', label: 'Nu', labelEn: 'Now' },
   { key: 'resa', label: 'Min resa', labelEn: 'My trip' },
-  { key: 'sok', label: 'Sök', labelEn: 'Search' },
+  { key: 'flyg', label: 'Flyg', labelEn: 'Flights' },
 ];
 
 /**
- * Tre val: Nu (tavlan med din avgång överst), Min resa och Sök.
+ * Tre val: Nu (Hem med sökfältet och tavlorna), Min resa och Flyg (flygtavla och väntetider).
  * Meny längst ned i mobilen där tummen når, flikar överst på bred skärm (globals.css).
  */
 export default function ModeTabs({
