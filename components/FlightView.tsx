@@ -5,6 +5,7 @@ import type { BoardDirection, Flight, SecurityQueue } from '../lib/types';
 import { AIRPORTS, airportByIata } from '../lib/flights.mjs';
 import { parseLocal } from '../lib/lineFormat';
 import DirectionToggle from './DirectionToggle';
+import { flightStatus, translator, useLang, type Lang } from '../lib/i18n';
 import { colors, emptyState, fonts } from './styles';
 
 const AIRPORT_KEY = 'alltiditid:flygplats';
@@ -32,12 +33,13 @@ function clock(iso: string | null): string {
 }
 
 /** "om 25 min" upp till en timme, annars inget (klockslaget räcker). */
-function countdown(f: Flight, now: number): string {
-  const t = parseLocal(f.expectedAt);
-  if (t === null || f.status === 'cancelled' || f.done) return '';
-  const m = Math.floor((t - now) / 60000);
+function countdown(f: Flight, now: number, lang: Lang): string {
+  const at = parseLocal(f.expectedAt);
+  if (at === null || f.status === 'cancelled' || f.done) return '';
+  const m = Math.floor((at - now) / 60000);
   if (m < 0 || m > 60) return '';
-  return m === 0 ? 'nu' : `om ${m} min`;
+  const t = translator(lang);
+  return m === 0 ? t('nu', 'now') : t(`om ${m} min`, `in ${m} min`);
 }
 
 type Props = {
@@ -50,6 +52,7 @@ type Props = {
  * säkerhetskontrollen på Arlanda, Landvetter och Bromma.
  */
 export default function FlightView({ initialAirport }: Props) {
+  const { lang, t } = useLang();
   const [airport, setAirport] = useState('ARN');
   const [direction, setDirection] = useState<BoardDirection>('departures');
   const [flights, setFlights] = useState<Flight[]>([]);
@@ -78,8 +81,8 @@ export default function FlightView({ initialAirport }: Props) {
   }, [ready, airport]);
 
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), CLOCK_TICK_MS);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setNow(Date.now()), CLOCK_TICK_MS);
+    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -94,7 +97,7 @@ export default function FlightView({ initialAirport }: Props) {
         .then(({ ok, data }) => {
           if (!active) return;
           if (!ok && !Array.isArray(data.flights)) {
-            setError(data.error || 'Kunde inte hämta flygen.');
+            setError(t(data.error || 'Kunde inte hämta flygen.', 'Could not load flights.'));
           } else {
             setFlights(Array.isArray(data.flights) ? data.flights : []);
             setUpdatedAt(data.updatedAt || null);
@@ -105,17 +108,17 @@ export default function FlightView({ initialAirport }: Props) {
         })
         .catch(() => {
           if (!active) return;
-          setError('Kunde inte hämta flygen. Kontrollera uppkopplingen.');
+          setError(t('Kunde inte hämta flygen. Kontrollera uppkopplingen.', 'Could not load flights. Check your connection.'));
           setLoading(false);
         });
     }
     load();
-    const t = setInterval(() => {
+    const timer = setInterval(() => {
       if (!document.hidden) load();
     }, REFRESH_MS);
     return () => {
       active = false;
-      clearInterval(t);
+      clearInterval(timer);
     };
   }, [ready, airport, direction]);
 
@@ -133,12 +136,12 @@ export default function FlightView({ initialAirport }: Props) {
         .catch(() => active && setQueues([]));
     }
     load();
-    const t = setInterval(() => {
+    const timer = setInterval(() => {
       if (!document.hidden) load();
     }, REFRESH_MS);
     return () => {
       active = false;
-      clearInterval(t);
+      clearInterval(timer);
     };
   }, [ready, airport, direction, hasQueues]);
 
@@ -159,7 +162,7 @@ export default function FlightView({ initialAirport }: Props) {
     <section id="flygtavla" aria-labelledby="flyg-rubrik" style={{ marginBottom: '26px' }}>
       <div
         role="group"
-        aria-label="Flygplats"
+        aria-label={t('Flygplats', 'Airport')}
         className="chip-scroll"
         style={{ display: 'flex', gap: '6px', marginBottom: '14px', overflowX: 'auto', paddingBottom: '2px' }}
       >
@@ -191,7 +194,7 @@ export default function FlightView({ initialAirport }: Props) {
       </div>
 
       <span style={{ fontSize: '0.8125rem', color: colors.textDim, display: 'block' }}>
-        {arrivals ? 'Visar ankomster till' : 'Visar avgångar från'}
+        {arrivals ? t('Visar ankomster till', 'Showing arrivals at') : t('Visar avgångar från', 'Showing departures from')}
       </span>
       <h1 id="flyg-rubrik" style={{ fontSize: '1.375rem', fontWeight: 800, margin: '0 0 10px', color: colors.text }}>
         {airportObj.name}
@@ -203,8 +206,8 @@ export default function FlightView({ initialAirport }: Props) {
           type="search"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Flightnummer eller stad"
-          aria-label="Filtrera på flightnummer, stad eller flygbolag"
+          placeholder={t('Flightnummer eller stad', 'Flight number or city')}
+          aria-label={t('Filtrera på flightnummer, stad eller flygbolag', 'Filter by flight number, city or airline')}
           style={{
             flex: '1 1 160px',
             minHeight: '44px',
@@ -220,13 +223,16 @@ export default function FlightView({ initialAirport }: Props) {
 
       <p style={{ margin: '0 0 12px', fontSize: '0.8125rem', color: stale ? colors.amber : colors.textDim }}>
         {updatedAt
-          ? `${stale ? 'Senast hämtad' : 'Uppdaterad'} ${clock(updatedAt)} · flygtiderna uppdateras var 10:e minut`
+          ? `${stale ? t('Senast hämtad', 'Last fetched') : t('Uppdaterad', 'Updated')} ${clock(updatedAt)} · ${t(
+              'flygtiderna uppdateras var 10:e minut',
+              'flight times update every 10 minutes'
+            )}`
           : ''}
       </p>
 
       {queues.length ? (
         <div
-          aria-label="Kötider i säkerhetskontrollen"
+          aria-label={t('Kötider i säkerhetskontrollen', 'Security queue times')}
           style={{
             marginBottom: '12px',
             padding: '12px 14px',
@@ -236,7 +242,7 @@ export default function FlightView({ initialAirport }: Props) {
           }}
         >
           <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim, marginBottom: '8px' }}>
-            Säkerhetskontroll, väntetid nu
+            {t('Säkerhetskontroll, väntetid nu', 'Security check, current wait')}
           </div>
           <ul style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))', gap: '6px 14px', listStyle: 'none', margin: 0, padding: 0 }}>
             {queues.map((q) => (
@@ -259,9 +265,11 @@ export default function FlightView({ initialAirport }: Props) {
           {error}
         </div>
       ) : loading && flights.length === 0 ? (
-        <div style={emptyState}>Hämtar flyg…</div>
+        <div style={emptyState}>{t('Hämtar flyg…', 'Loading flights…')}</div>
       ) : shown.length === 0 ? (
-        <div style={emptyState}>{filter ? 'Inga flyg matchar filtret.' : 'Inga fler flyg i dag.'}</div>
+        <div style={emptyState}>
+          {filter ? t('Inga flyg matchar filtret.', 'No flights match the filter.') : t('Inga fler flyg i dag.', 'No more flights today.')}
+        </div>
       ) : (
         <ul style={{ display: 'flex', flexDirection: 'column', gap: '6px', listStyle: 'none', margin: 0, padding: 0 }}>
           {shown.map((f) => (
@@ -279,7 +287,10 @@ export default function FlightView({ initialAirport }: Props) {
       )}
 
       <p style={{ fontSize: '0.8125rem', color: colors.textDim, marginTop: '14px' }}>
-        Flyginformation från Swedavia. Kontrollera alltid tider och gate med ditt flygbolag.
+        {t(
+          'Flyginformation från Swedavia. Kontrollera alltid tider och gate med ditt flygbolag.',
+          'Flight information from Swedavia. Always check times and gate with your airline.'
+        )}
       </p>
     </section>
   );
@@ -300,21 +311,23 @@ function FlightRow({
   onToggle: () => void;
   queues: SecurityQueue[];
 }) {
+  const { lang, t } = useLang();
   const cancelled = f.status === 'cancelled';
   const delayed = f.status === 'delayed';
-  const left = countdown(f, now);
+  const left = countdown(f, now, lang);
+  const statusText = flightStatus(f.statusText, lang);
   const where = [f.terminal ? `Terminal ${f.terminal}` : '', !arrivals && f.gate ? `Gate ${f.gate}` : '']
     .filter(Boolean)
     .join(' · ');
   const statusLine = cancelled
-    ? 'Inställt'
+    ? t('Inställt', 'Cancelled')
     : delayed
-    ? `Ny tid ${f.newTime} · +${f.delayMinutes}`
+    ? `${t('Ny tid', 'New time')} ${f.newTime} · +${f.delayMinutes}`
     : f.done
     ? arrivals
-      ? 'Landat'
-      : 'Har lyft'
-    : f.gateText || f.statusText || left;
+      ? t('Landat', 'Landed')
+      : t('Har lyft', 'Departed')
+    : flightStatus(f.gateText, lang) || statusText || left;
 
   return (
     <li>
@@ -369,7 +382,7 @@ function FlightRow({
               whiteSpace: 'nowrap',
             }}
           >
-            {arrivals ? 'Från ' : ''}
+            {arrivals ? `${t('Från', 'From')} ` : ''}
             {f.place || f.flightId}
           </span>
           <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim, marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -419,16 +432,28 @@ function FlightRow({
           }}
         >
           {f.via?.length ? <div>Via {f.via.join(', ')}</div> : null}
-          {f.codeshare?.length ? <div>Även {f.codeshare.join(', ')}</div> : null}
-          {!arrivals && f.checkIn ? <div>Incheckning disk {f.checkIn}</div> : null}
-          {f.statusText && f.statusText !== statusLine ? <div>{f.statusText}</div> : null}
+          {f.codeshare?.length ? (
+            <div>
+              {t('Även', 'Also')} {f.codeshare.join(', ')}
+            </div>
+          ) : null}
+          {!arrivals && f.checkIn ? (
+            <div>
+              {t('Incheckning disk', 'Check-in desk')} {f.checkIn}
+            </div>
+          ) : null}
+          {statusText && statusText !== statusLine ? <div>{statusText}</div> : null}
           {f.remarks?.map((r) => (
             <div key={r}>{r}</div>
           ))}
-          {left && statusLine !== left ? <div>Avgår {left}</div> : null}
+          {left && statusLine !== left ? (
+            <div>
+              {t('Avgår', 'Departs')} {left}
+            </div>
+          ) : null}
           {!arrivals && queues.length ? (
             <div style={{ marginTop: '6px' }}>
-              Säkerhetskontroll:{' '}
+              {t('Säkerhetskontroll', 'Security check')}:{' '}
               {queues.map((q) => `${q.name}${q.fastTrack ? ' FastTrack' : ''} ${q.minutes} min`).join(' · ')}
             </div>
           ) : null}

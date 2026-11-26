@@ -1,5 +1,6 @@
 import React from 'react';
 import { colors } from './styles';
+import { useLang } from '../lib/i18n';
 
 type Props = {
   onAccept: () => void;
@@ -23,10 +24,11 @@ const choiceButton = {
  * så att det är lika lätt att säga nej som ja.
  */
 export default function ConsentBanner({ onAccept, onDecline, onReadMore }: Props) {
+  const { t } = useLang();
   return (
     <div
       role="region"
-      aria-label="Fråga om statistik"
+      aria-label={t('Fråga om statistik', 'Statistics consent')}
       style={{
         position: 'fixed',
         left: '12px',
@@ -47,7 +49,10 @@ export default function ConsentBanner({ onAccept, onDecline, onReadMore }: Props
       }}
     >
       <p style={{ flex: '1 1 16rem', margin: 0, fontSize: '0.8125rem', lineHeight: 1.4, color: colors.textSoft }}>
-        Får vi mäta besöken med Google Analytics? Det sätter kakor och skickar uppgifter till Google.{' '}
+        {t(
+          'Får vi mäta besöken med Google Analytics? Det sätter kakor och skickar uppgifter till Google.',
+          'May we measure visits with Google Analytics? It sets cookies and sends data to Google.'
+        )}{' '}
         <button
           type="button"
           onClick={onReadMore}
@@ -61,7 +66,7 @@ export default function ConsentBanner({ onAccept, onDecline, onReadMore }: Props
             cursor: 'pointer',
           }}
         >
-          Läs mer
+          {t('Läs mer', 'Read more')}
         </button>
       </p>
       <div style={{ flex: '1 1 12rem', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -70,14 +75,14 @@ export default function ConsentBanner({ onAccept, onDecline, onReadMore }: Props
           onClick={onDecline}
           style={{ ...choiceButton, border: `1px solid ${colors.borderStrong}`, backgroundColor: colors.surfaceRaised }}
         >
-          Neka
+          {t('Neka', 'Decline')}
         </button>
         <button
           type="button"
           onClick={onAccept}
           style={{ ...choiceButton, color: colors.onAccent, border: `1px solid ${colors.accentStrong}`, backgroundColor: colors.accentStrong }}
         >
-          Godkänn
+          {t('Godkänn', 'Accept')}
         </button>
       </div>
     </div>

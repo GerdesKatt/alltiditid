@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { MyTrain } from '../lib/myTrain';
 import { colors, fonts } from './styles';
+import { trainPosition, useLang } from '../lib/i18n';
 
 type Stop = { name: string; arrival?: { scheduled: string; estimated?: string; actual?: string; delay: number }; passed?: boolean };
 type Journey = { number: string; product: string; to?: string; position?: string; stops: Stop[] };
@@ -16,6 +17,7 @@ export default function MyTrainCard({
   onOpen: () => void;
   onRemove: () => void;
 }) {
+  const { lang, t } = useLang();
   const [journey, setJourney] = useState<Journey | null>(null);
   const [byte, setByte] = useState<Byte | null>(null);
 
@@ -34,12 +36,12 @@ export default function MyTrainCard({
       }
     }
     load();
-    const t = setInterval(() => {
+    const timer = setInterval(() => {
       if (!document.hidden) load();
     }, 60_000);
     return () => {
       active = false;
-      clearInterval(t);
+      clearInterval(timer);
     };
   }, [train.number]);
 
@@ -50,7 +52,7 @@ export default function MyTrainCard({
 
   return (
     <section
-      aria-label={`Mitt tåg ${train.number}`}
+      aria-label={`${t('Mitt tåg', 'My train')} ${train.number}`}
       style={{
         marginBottom: '14px',
         padding: '14px',
@@ -60,13 +62,14 @@ export default function MyTrainCard({
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '-10px' }}>
-        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>Mitt tåg</span>
+        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>{t('Mitt tåg', 'My train')}</span>
         <button
           type="button"
           onClick={onRemove}
           style={{ minHeight: '44px', padding: '0 4px 0 12px', marginRight: '-4px', border: 'none', background: 'none', color: colors.textDim, fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
         >
-          Ta bort<span className="sr-only"> mitt tåg</span>
+          {t('Ta bort', 'Remove')}
+          <span className="sr-only"> {t('mitt tåg', 'my train')}</span>
         </button>
       </div>
       <button
@@ -75,20 +78,25 @@ export default function MyTrainCard({
         style={{ display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', color: colors.text, textAlign: 'left', cursor: 'pointer', font: 'inherit' }}
       >
         <span style={{ display: 'block', fontFamily: fonts.display, fontSize: '1.125rem', fontWeight: 800 }}>
-          {journey ? `${journey.product} ${journey.number}` : `Tåg ${train.number}`}
-          {journey?.to ? <span style={{ fontWeight: 600, color: colors.textDim }}> mot {journey.to}</span> : null}
+          {journey ? `${journey.product} ${journey.number}` : `${t('Tåg', 'Train')} ${train.number}`}
+          {journey?.to ? (
+            <span style={{ fontWeight: 600, color: colors.textDim }}>
+              {' '}
+              {t('mot', 'to')} {journey.to}
+            </span>
+          ) : null}
         </span>
         {journey?.position ? (
           <span style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', fontSize: '0.9375rem', fontWeight: 600 }}>
             <span className="rt-dot" aria-hidden="true" />
-            {journey.position}
+            {trainPosition(journey.position, lang)}
           </span>
         ) : (
-          <span style={{ display: 'block', marginTop: '6px', color: colors.textDim }}>{journey ? '' : 'Hämtar tåget…'}</span>
+          <span style={{ display: 'block', marginTop: '6px', color: colors.textDim }}>{journey ? '' : t('Hämtar tåget…', 'Loading the train…')}</span>
         )}
         {target && arr ? (
           <span style={{ display: 'block', marginTop: '6px', fontSize: '0.9375rem' }}>
-            Framme i {target.name}{' '}
+            {t('Framme i', 'Arrives at')} {target.name}{' '}
             <strong style={{ fontFamily: fonts.display }}>{arr.scheduled}</strong>
             {shown && shown !== arr.scheduled ? (
               <strong style={{ color: colors.amber }}> → {shown}</strong>
@@ -97,7 +105,10 @@ export default function MyTrainCard({
         ) : null}
         {byte ? (
           <span style={{ display: 'block', marginTop: '4px', fontSize: '0.875rem', color: colors.textDim }}>
-            Byte till {byte.line} mot {byte.destination} {byte.scheduledTime} · tryck för att se om du hinner
+            {t(
+              `Byte till ${byte.line} mot ${byte.destination} ${byte.scheduledTime} · tryck för att se om du hinner`,
+              `Change to ${byte.line} to ${byte.destination} ${byte.scheduledTime} · tap to see if you'll make it`
+            )}
           </span>
         ) : null}
       </button>

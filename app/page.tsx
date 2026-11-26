@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import React from 'react';
 import App from '../components/App';
 import StopLinks from '../components/StopLinks';
+import Tr from '../components/Tr';
 import { colors } from '../components/styles';
 import { STOP_PAGES } from '../lib/stops';
 
@@ -14,10 +15,10 @@ function PopularStops() {
   const links = STOP_PAGES.slice(0, 24).map((s) => ({ slug: s.slug, name: s.name }));
   return (
     <section style={{ margin: '18px 0' }}>
-      <StopLinks title="Populära hållplatser" links={links} />
+      <StopLinks title="Populära hållplatser" titleEn="Popular stops" links={links} />
       <p style={{ margin: '12px 0 0', fontSize: '0.875rem' }}>
         <a href="/hallplatser" style={{ color: colors.text, fontWeight: 600 }}>
-          Alla hållplatser
+          <Tr sv="Alla hållplatser" en="All stops" />
         </a>
       </p>
     </section>

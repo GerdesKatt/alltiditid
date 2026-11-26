@@ -4,6 +4,7 @@ import NearbyStops from './NearbyStops';
 import type { Region, RegionKey, StopOption, TransportMode } from '../lib/types';
 import { colors, textInput } from './styles';
 import { AIRPORTS } from '../lib/flights.mjs';
+import { modeLabel, REGION_EN, useLang } from '../lib/i18n';
 
 type Props = {
   region: RegionKey;
@@ -50,15 +51,16 @@ export default function SearchPanel({
   onOpenAirport,
   onOpenTrain,
 }: Props) {
-  // "532", "tåg 532" eller "SJ 532": ett tågnummer.
-  const trainPattern = /^(?:tåg|sj|tag)?\s*(\d{2,5})$/i;
+  const { lang, t } = useLang();
+  // "532", "tåg 532", "train 532" eller "SJ 532": ett tågnummer.
+  const trainPattern = /^(?:tåg|sj|tag|train)?\s*(\d{2,5})$/i;
   const trainHit = onOpenTrain ? trainPattern.exec(stationQuery.trim())?.[1] : undefined;
   // Ett tågnummer i filtret: tåget kanske inte går från den här stationen, så erbjud hela resan.
   const filterTrain = onOpenTrain ? trainPattern.exec(filterText.trim())?.[1] : undefined;
   const airportHit =
     onOpenAirport && stationQuery.trim().length >= 3
       ? AIRPORTS.find((a) =>
-          [a.short, a.name, a.iata, 'flyg', 'flygplats'].some((w) =>
+          [a.short, a.name, a.iata, 'flyg', 'flygplats', 'flight', 'airport'].some((w) =>
             w.toLowerCase().startsWith(stationQuery.trim().toLowerCase())
           )
         )
@@ -121,7 +123,7 @@ export default function SearchPanel({
             cursor: 'pointer',
           }}
         >
-          Klar
+          {t('Klar', 'Done')}
         </button>
       ) : null}
       <h2
@@ -133,13 +135,13 @@ export default function SearchPanel({
           color: colors.text,
         }}
       >
-        Koll på resan i realtid
+        {t('Koll på resan i realtid', 'Your journey in real time')}
       </h2>
 
       {/* Sökfältet först: det är det en stressad resenär letar efter. */}
         <div style={{ position: 'relative', margin: '10px 0 12px' }}>
           <label htmlFor="sok-hallplats" className="sr-only">
-            Sök hållplats eller station
+            {t('Sök hållplats eller station', 'Search stop or station')}
           </label>
           <input
             id="sok-hallplats"
@@ -153,7 +155,7 @@ export default function SearchPanel({
             value={stationQuery}
             onKeyDown={onSearchKeyDown}
             onChange={(e) => onStationQueryChange(e.target.value)}
-            placeholder="Sök hållplats eller tågnummer"
+            placeholder={t('Sök hållplats eller tågnummer', 'Search stop or train number')}
             style={{ ...textInput(colors.text), minHeight: '52px', fontSize: '1rem', borderWidth: '2px' }}
           />
 
@@ -179,7 +181,7 @@ export default function SearchPanel({
                 cursor: 'pointer',
               }}
             >
-              Tåg {trainHit}: visa hela resan
+              {t(`Tåg ${trainHit}: visa hela resan`, `Train ${trainHit}: show the whole journey`)}
             </button>
           ) : null}
 
@@ -206,14 +208,14 @@ export default function SearchPanel({
               }}
             >
               <span aria-hidden="true">✈</span>
-              Flyg från {airportHit.name}
+              {t(`Flyg från ${airportHit.name}`, `Flights from ${airportHit.name}`)}
             </button>
           ) : null}
 
           {!stationQuery && recentStops.some((s) => s.id !== selectedStop.id) ? (
             <div style={{ marginTop: '10px' }}>
               <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim, marginBottom: '6px' }}>
-                Senast
+                {t('Senast', 'Recent')}
               </span>
               <ul style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', listStyle: 'none', margin: 0, padding: 0 }}>
                 {recentStops
@@ -247,7 +249,7 @@ export default function SearchPanel({
             <div
               id="hallplats-forslag"
               role="listbox"
-              aria-label="Förslag på hållplatser"
+              aria-label={t('Förslag på hållplatser', 'Suggested stops')}
               aria-busy={searchingStops}
               style={{
                 position: 'absolute',
@@ -265,7 +267,7 @@ export default function SearchPanel({
             >
               {searchingStops ? (
                 <div role="status" style={{ padding: '11px 14px', color: colors.textDim, fontSize: '0.8125rem' }}>
-                  Söker platser...
+                  {t('Söker platser...', 'Searching...')}
                 </div>
               ) : (
                 suggestions.map((stop, i) => (
@@ -295,7 +297,7 @@ export default function SearchPanel({
                     <span style={{ display: 'block', fontSize: '0.9375rem', fontWeight: 700 }}>{stop.name}</span>
                     {stop.place || stop.modes?.length ? (
                       <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim, marginTop: '1px' }}>
-                        {[stop.place, stop.modes?.join(', ')].filter(Boolean).join(' · ')}
+                        {[stop.place, stop.modes?.map((m) => modeLabel(m, lang)).join(', ')].filter(Boolean).join(' · ')}
                       </span>
                     ) : null}
                   </div>
@@ -368,7 +370,7 @@ export default function SearchPanel({
               }}
             >
               {active ? '✓ ' : ''}
-              {reg.label}
+              {t(reg.label, REGION_EN[reg.key])}
             </button>
           );
         })}
@@ -410,7 +412,7 @@ export default function SearchPanel({
                 }}
               >
                 {active ? '✓ ' : ''}
-                {m.label}
+                {modeLabel(m.label, lang)}
               </button>
             );
           })}
@@ -420,7 +422,7 @@ export default function SearchPanel({
           htmlFor="filtrera-avgangar"
           style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim, margin: '14px 0 6px' }}
         >
-          Filtrera tavlan för {selectedStop.shortName || selectedStop.name}
+          {t('Filtrera tavlan för', 'Filter the board for')} {selectedStop.shortName || selectedStop.name}
         </label>
         <input
           id="filtrera-avgangar"
@@ -428,7 +430,7 @@ export default function SearchPanel({
           autoComplete="off"
           value={filterText}
           onChange={(e) => onFilterTextChange(e.target.value)}
-          placeholder="Linje, tågnummer eller destination"
+          placeholder={t('Linje, tågnummer eller destination', 'Line, train number or destination')}
           style={textInput(colors.borderStrong)}
         />
         {filterTrain ? (
@@ -450,7 +452,10 @@ export default function SearchPanel({
               cursor: 'pointer',
             }}
           >
-            Tåg {filterTrain}: visa hela resan, var tåget än är
+            {t(
+              `Tåg ${filterTrain}: visa hela resan, var tåget än är`,
+              `Train ${filterTrain}: show the whole journey, wherever it is`
+            )}
           </button>
         ) : null}
         </>

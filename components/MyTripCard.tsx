@@ -3,6 +3,7 @@ import type { Departure } from '../lib/types';
 import type { MyTrip } from '../lib/myTrip';
 import { clockFor, countdownFor, lineBadge, lineName } from '../lib/lineFormat';
 import { colors, fonts } from './styles';
+import { lineLabel, useLang } from '../lib/i18n';
 
 type Props = {
   trip: MyTrip;
@@ -20,21 +21,28 @@ type Props = {
  * så att svaret på "när går nästa?" syns utan ett enda tryck.
  */
 export default function MyTripCard({ trip, next, loading, now, showingStop, onShowStop, onRemove }: Props) {
+  const { lang, t } = useLang();
   const badge = lineBadge(trip.line);
-  const name = lineName(trip.line, badge);
+  const name = lineLabel(lineName(trip.line, badge), lang);
+  const nu = (label: string) => (label === 'Nu' ? t('Nu', 'Now') : label);
   const deviation = next.find((d) => d.deviation)?.deviation;
 
   const spokenTimes = next
     .map((d) =>
       d.status === 'cancelled'
-        ? `${d.scheduledTime} inställd`
-        : `${countdownFor(d, now)}${d.status === 'delayed' ? `, försenad, ny tid ${clockFor(d)}` : ''}`
+        ? `${d.scheduledTime} ${t('inställd', 'cancelled')}`
+        : `${nu(countdownFor(d, now))}${
+            d.status === 'delayed' ? `, ${t('försenad, ny tid', 'delayed, new time')} ${clockFor(d)}` : ''
+          }`
     )
     .join('; ');
 
   return (
     <section
-      aria-label={`Min resa: ${trip.line} mot ${trip.destination} från ${trip.stopName}`}
+      aria-label={`${t('Min resa', 'My trip')}: ${lineLabel(trip.line, lang)} ${t('mot', 'to')} ${trip.destination} ${t(
+        'från',
+        'from'
+      )} ${trip.stopName}`}
       style={{
         marginBottom: '14px',
         padding: '14px',
@@ -44,7 +52,7 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '-10px' }}>
-        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>Min resa</span>
+        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>{t('Min resa', 'My trip')}</span>
         <button
           type="button"
           onClick={onRemove}
@@ -61,7 +69,8 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
             cursor: 'pointer',
           }}
         >
-          Ta bort<span className="sr-only"> min resa</span>
+          {t('Ta bort', 'Remove')}
+          <span className="sr-only"> {t('min resa', 'my trip')}</span>
         </button>
       </div>
 
@@ -82,7 +91,7 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
             textAlign: 'center',
           }}
         >
-          {badge}
+          {lineLabel(badge, lang)}
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span
@@ -102,7 +111,7 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
       </div>
 
       <p className="sr-only" aria-live="polite">
-        {next.length ? `Nästa: ${spokenTimes}` : ''}
+        {next.length ? `${t('Nästa', 'Next')}: ${spokenTimes}` : ''}
       </p>
 
       <div
@@ -111,7 +120,7 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
       >
         {next.length === 0 ? (
           <span style={{ gridColumn: '1 / -1', fontSize: '0.875rem', color: colors.textDim, padding: '10px 0' }}>
-            {loading ? 'Hämtar avgångar…' : 'Inga avgångar den närmaste tiden.'}
+            {loading ? t('Hämtar avgångar…', 'Loading departures…') : t('Inga avgångar den närmaste tiden.', 'No departures in the near future.')}
           </span>
         ) : (
           next.map((d, i) => {
@@ -119,7 +128,7 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
             const delayed = d.status === 'delayed';
             const realtime = !cancelled && d.hasRealtime === true;
             const schedule = !cancelled && !delayed && d.hasRealtime === false;
-            const big = countdownFor(d, now);
+            const big = nu(countdownFor(d, now));
             const shown = schedule && /min$/.test(big) ? `~${big}` : big;
             const clock = clockFor(d);
             return (
@@ -163,12 +172,12 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
                   }}
                 >
                   {cancelled
-                    ? 'Inställd'
+                    ? t('Inställd', 'Cancelled')
                     : delayed
                     ? `${clock}${d.delayMinutes ? ` +${d.delayMinutes}` : ''}`
                     : clock === big
                     ? schedule
-                      ? 'ingen realtid'
+                      ? t('ingen realtid', 'no real-time')
                       : ''
                     : clock}
                 </span>
@@ -211,7 +220,7 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
               cursor: 'pointer',
             }}
           >
-            Visa {trip.stopName}
+            {t('Visa', 'Show')} {trip.stopName}
           </button>
         </div>
       ) : null}

@@ -2,6 +2,7 @@ import React from 'react';
 import type { InfoTab } from '../lib/types';
 import { colors } from './styles';
 import { ANALYTICS_ENABLED } from '../lib/analytics';
+import { useLang } from '../lib/i18n';
 
 type Props = {
   activeTab: InfoTab;
@@ -9,16 +10,109 @@ type Props = {
   onTabChange: (tab: InfoTab) => void;
 };
 
-const TABS: { key: InfoTab; label: string }[] = [
-  { key: 'about', label: 'Om alltiditid.se' },
-  { key: 'privacy', label: 'Integritet' },
-  { key: 'terms', label: 'Ansvarsfriskrivning' },
-  { key: 'contact', label: 'Kontakt' },
+const TABS: { key: InfoTab; label: string; labelEn: string }[] = [
+  { key: 'about', label: 'Om alltiditid.se', labelEn: 'About alltiditid.se' },
+  { key: 'privacy', label: 'Integritet', labelEn: 'Privacy' },
+  { key: 'terms', label: 'Ansvarsfriskrivning', labelEn: 'Disclaimer' },
+  { key: 'contact', label: 'Kontakt', labelEn: 'Contact' },
 ];
 
 const tabText = { lineHeight: 1.6, margin: '0 0 14px 0' } as const;
 const privacyPara = { margin: '0 0 10px 0' } as const;
 const privacyItem = { marginBottom: '8px' } as const;
+
+const choiceButton = {
+  padding: 0,
+  border: 'none',
+  background: 'none',
+  color: colors.accent,
+  textDecoration: 'underline',
+  font: 'inherit',
+  cursor: 'pointer',
+} as const;
+
+function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAnalyticsChoice: () => void }) {
+  switch (tab) {
+    case 'about':
+      return (
+        <p style={tabText}>
+          alltiditid.se is an independent information service showing current departure times, arrivals and delay
+          data based on open traffic data.
+        </p>
+      );
+    case 'privacy':
+      return (
+        <div style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
+          <p style={privacyPara}>
+            alltiditid.se has no accounts and shows no ads. Cookies are only used for statistics, and only if you have
+            agreed to it. This is how the little that is needed is handled:
+          </p>
+          <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
+            <li style={privacyItem}>
+              <strong>Saved stops.</strong> The stop and direction you last looked at, the stops you save yourself with
+              ☆ Save, whether you chose List or By line, and your language are stored in your browser (local storage),
+              so the site opens there next time. They stay on your device and are not used for anything else. You remove
+              them by clearing site data for alltiditid.se in your browser. The stop is also in the page address, so you
+              can share or bookmark the board.
+            </li>
+            <li style={privacyItem}>
+              <strong>Stops near me.</strong> Your location is only used when you tap the button yourself and have
+              allowed location access. It is rounded to about 100 metres on your phone before being sent to our server
+              and on to Trafiklab (ResRobot) to find the nearest stops. The location is not stored and not linked to
+              you. A response for the same rounded location is cached for at most 5 minutes.
+            </li>
+            <li style={privacyItem}>
+              <strong>Departure boards.</strong> When you view a board, our server fetches departures from Trafiklab,
+              Trafikverket, SL and Västtrafik. Only the stop&apos;s id and name are sent, nothing about you.
+            </li>
+            <li style={privacyItem}>
+              <strong>I&apos;m on board.</strong> The status message is created on your phone and shared using the
+              phone&apos;s own share feature. We do not receive or store the message.
+            </li>
+            <li style={privacyItem}>
+              <strong>Visitor statistics.</strong> We use Cloudflare Web Analytics to see how many people visit the
+              site and how fast it loads. It sets no cookies, stores nothing in your browser and does not follow you
+              between sites. We only see aggregated numbers, never individual visitors.
+            </li>
+            {ANALYTICS_ENABLED ? (
+              <li style={privacyItem}>
+                <strong>Google Analytics (only if you accept).</strong> With your consent we also use Google Analytics
+                to see which features are used. Cookies are then set and information about the visit, such as page
+                views, approximate location based on IP address and device type, is sent to Google, which may process
+                it in the USA. Ads and personalised advertising are turned off. If you decline, nothing is loaded from
+                Google.{' '}
+                <button type="button" onClick={onChangeAnalyticsChoice} style={choiceButton}>
+                  Change your statistics choice
+                </button>
+              </li>
+            ) : null}
+            <li style={privacyItem}>
+              <strong>Hosting.</strong> The site and server are run by Cloudflare, which receives your IP address to
+              deliver the page and protect it against attacks. We do not store IP addresses.
+            </li>
+          </ul>
+          <p style={privacyPara}>Questions about how your data is handled? Email kontakt@alltiditid.se.</p>
+        </div>
+      );
+    case 'terms':
+      return (
+        <p style={tabText}>
+          Real-time data can change at short notice during disruptions. Always check the operator&apos;s official
+          information on site before you travel.
+        </p>
+      );
+    case 'contact':
+      return (
+        <p style={tabText}>
+          Questions, feedback or ideas for improvements? Email us at{' '}
+          <a href="mailto:kontakt@alltiditid.se" style={{ color: colors.accent, textDecoration: 'underline' }}>
+            kontakt@alltiditid.se
+          </a>
+          .
+        </p>
+      );
+  }
+}
 
 function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAnalyticsChoice: () => void }) {
   switch (tab) {
@@ -39,7 +133,7 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
           <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
             <li style={privacyItem}>
               <strong>Sparade hållplatser.</strong> Den hållplats och riktning du senast tittade på,
-              de hållplatser du själv sparar med ☆ Spara och om du valt Lista eller Per linje lagras i din webbläsare (local
+              de hållplatser du själv sparar med ☆ Spara, om du valt Lista eller Per linje och ditt språkval lagras i din webbläsare (local
               storage), så att sidan öppnas där nästa gång. De stannar på din enhet och används inte
               till något annat. Du tar bort dem genom att
               rensa webbplatsdata för alltiditid.se i webbläsaren. Hållplatsen står också i sidans
@@ -126,6 +220,8 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
 }
 
 export default function InfoFooter({ activeTab, onTabChange, onChangeAnalyticsChoice }: Props) {
+  const { lang, t } = useLang();
+  const Content = lang === 'en' ? TabContentEn : TabContent;
   return (
     <footer
       id="sidfot"
@@ -155,12 +251,12 @@ export default function InfoFooter({ activeTab, onTabChange, onChangeAnalyticsCh
               fontWeight: 600,
             }}
           >
-            {tab.label}
+            {t(tab.label, tab.labelEn)}
           </button>
         ))}
       </div>
 
-      <TabContent tab={activeTab} onChangeAnalyticsChoice={onChangeAnalyticsChoice} />
+      <Content tab={activeTab} onChangeAnalyticsChoice={onChangeAnalyticsChoice} />
 
       <div
         style={{
@@ -173,7 +269,7 @@ export default function InfoFooter({ activeTab, onTabChange, onChangeAnalyticsCh
           color: colors.textFaint,
         }}
       >
-        <span>2026 alltiditid.se – Alla rättigheter förbehållna.</span>
+        <span>{t('2026 alltiditid.se – Alla rättigheter förbehållna.', '2026 alltiditid.se – All rights reserved.')}</span>
         <a href="mailto:kontakt@alltiditid.se" style={{ color: colors.textDim, textDecoration: 'none' }}>
           kontakt@alltiditid.se
         </a>

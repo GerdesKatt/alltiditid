@@ -1,5 +1,6 @@
 import React from 'react';
 import { colors } from './styles';
+import { useLang } from '../lib/i18n';
 
 type Props = {
   onClick: () => void;
@@ -12,12 +13,17 @@ type Props = {
  * tummen når, men i kortens färg så att den inte tar över tavlan.
  */
 export default function SwitchStopButton({ onClick, activeFilter }: Props) {
+  const { t } = useLang();
   return (
     <button
       type="button"
       onClick={onClick}
       aria-expanded={false}
-      aria-label={activeFilter ? 'Byt hållplats eller ändra filter (filter på)' : 'Byt hållplats eller filtrera'}
+      aria-label={
+        activeFilter
+          ? t('Byt hållplats eller ändra filter (filter på)', 'Change stop or filter (filter on)')
+          : t('Byt hållplats eller filtrera', 'Change stop or filter')
+      }
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -38,7 +44,7 @@ export default function SwitchStopButton({ onClick, activeFilter }: Props) {
         <circle cx="11" cy="11" r="7" />
         <path d="M20 20l-3.5-3.5" />
       </svg>
-      Byt hållplats
+      {t('Byt hållplats', 'Change stop')}
       {activeFilter ? (
         <span
           aria-hidden="true"
