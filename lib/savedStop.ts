@@ -87,7 +87,11 @@ export function loadSavedState(pageStop?: StopOption): SavedState | null {
   return fromStorage();
 }
 
-export function saveState(state: SavedState, pageStop?: StopOption): void {
+/**
+ * Sparar valet och sätter adressen. Har hållplatsen en egen sida (`slug`) blir adressen
+ * den, t.ex. /slussen-t-bana, så att delade länkar går till stationens sida.
+ */
+export function saveState(state: SavedState, pageStop?: StopOption, slug?: string): void {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -95,14 +99,17 @@ export function saveState(state: SavedState, pageStop?: StopOption): void {
     // Privat läge eller fullt lagringsutrymme: appen fungerar ändå.
   }
 
-  // På hållplatssidan för just den hållplatsen behåller adressen sin form (/gullmarsplan).
-  // Byter man hållplats där blir adressen en vanlig länk från startsidan.
-  if (pageStop && state.stop.id === pageStop.id && state.direction === 'departures') {
-    if (window.location.search) window.history.replaceState(null, '', window.location.pathname);
+  // Avgångar från en hållplats med egen sida: adressen blir sidan (/slussen-t-bana).
+  if (state.direction === 'departures' && (slug || (pageStop && state.stop.id === pageStop.id))) {
+    const path = slug ? `/${slug}` : window.location.pathname;
+    if (`${window.location.pathname}${window.location.search}` !== path) {
+      window.history.replaceState(null, '', `${path}${window.location.hash}`);
+    }
     return;
   }
-  const base = pageStop ? '/' : window.location.pathname;
-  const params = new URLSearchParams(pageStop ? '' : window.location.search);
+  // Annars en vanlig länk från startsidan: /?h=…&n=…
+  const base = '/';
+  const params = new URLSearchParams(window.location.pathname === '/' ? window.location.search : '');
   params.set('h', state.stop.id);
   params.set('n', state.stop.name);
   if (state.direction === 'arrivals') params.set('visa', 'ankomster');
