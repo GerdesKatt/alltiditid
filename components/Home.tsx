@@ -7,6 +7,7 @@ import { countdownFor, groupKey, lineBadge, lineColor, parseLocal } from '../lib
 import { boardUrl } from '../lib/prefetch';
 import { positionAllowed, rememberPositionAllowed } from '../lib/visits';
 import InstallApp from './InstallApp';
+import SmartSearch from './SmartSearch';
 
 type Nearby = StopOption & { distance: number; modes?: string[] };
 
@@ -15,8 +16,8 @@ type Props = {
   stops: StopOption[];
   now: number;
   onOpenStop: (stop: StopOption) => void;
-  onSearch: () => void;
-  onOpenFlights: () => void;
+  onOpenTrain: (number: string) => void;
+  onOpenAirport: (iata: string) => void;
   /** Vart ska du? från Hem: öppnar Min resa och söker resan. */
   onGoal: (text: string) => void;
 };
@@ -35,12 +36,11 @@ const label: React.CSSProperties = {
  * och sök. Positionen sorterar dina hållplatser (närmast först) och visar andra nära dig;
  * den frågas om först när man trycker, och sparas aldrig.
  */
-export default function Home({ stops, now, onOpenStop, onSearch, onOpenFlights, onGoal }: Props) {
+export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirport, onGoal }: Props) {
   const { t } = useLang();
   const [nearby, setNearby] = useState<Nearby[] | null>(null);
   const [locating, setLocating] = useState(false);
   const [posError, setPosError] = useState('');
-  const [goal, setGoal] = useState('');
   // Linjer och riktningar som redan syns under Dina hållplatser: visas inte igen under Nära dig.
   const [covered, setCovered] = useState<Record<string, string[]>>({});
 
@@ -113,63 +113,9 @@ export default function Home({ stops, now, onOpenStop, onSearch, onOpenFlights, 
     </section>
   );
 
-  const goalSection = (
-    <section aria-label={t('Vart ska du?', 'Where are you going?')} style={{ marginBottom: '22px' }}>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (goal.trim().length >= 2) onGoal(goal.trim());
-        }}
-        style={{ display: 'flex', gap: '0' }}
-      >
-        <label htmlFor="hem-vart" className="sr-only">
-          {t('Vart ska du?', 'Where are you going?')}
-        </label>
-        <input
-          id="hem-vart"
-          type="text"
-          autoComplete="off"
-          enterKeyHint="go"
-          value={goal}
-          onChange={(e) => setGoal(e.target.value)}
-          placeholder={t('Vart ska du?', 'Where to?')}
-          style={{
-            flex: 1,
-            minWidth: 0,
-            minHeight: '56px',
-            padding: '0 14px',
-            border: `1px solid ${colors.text}`,
-            borderRight: 'none',
-            borderRadius: 0,
-            background: 'transparent',
-            color: colors.text,
-            fontSize: '1rem',
-            fontFamily: 'inherit',
-          }}
-        />
-        <button
-          type="submit"
-          style={{
-            minHeight: '56px',
-            padding: '0 18px',
-            border: `1px solid ${colors.text}`,
-            borderRadius: 0,
-            backgroundColor: colors.accentStrong,
-            color: colors.onAccent,
-            fontSize: '0.9375rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-          }}
-        >
-          {t('Sök resa', 'Find trip')}
-        </button>
-      </form>
-    </section>
-  );
-
   return (
     <div>
-      {goalSection}
+      <SmartSearch onOpenStop={onOpenStop} onGoal={onGoal} onOpenTrain={onOpenTrain} onOpenAirport={onOpenAirport} />
       {fresh ? nearSection : null}
 
       {!fresh ? (
@@ -192,37 +138,6 @@ export default function Home({ stops, now, onOpenStop, onSearch, onOpenFlights, 
 
       {!fresh ? nearSection : null}
 
-      <section aria-label={t('Sök', 'Search')} style={{ marginBottom: '22px' }}>
-        <button
-          type="button"
-          onClick={onSearch}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            width: '100%',
-            minHeight: '52px',
-            padding: '0 14px',
-            border: `1px solid ${colors.borderStrong}`,
-            background: 'transparent',
-            color: colors.textDim,
-            fontSize: '1rem',
-            textAlign: 'left',
-            cursor: 'text',
-          }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-            <circle cx="11" cy="11" r="7" />
-            <path d="M20 20l-4-4" />
-          </svg>
-          {t('Hållplats, station eller tågnummer', 'Stop, station or train number')}
-        </button>
-        <div style={{ display: 'flex', gap: '18px', marginTop: '10px' }}>
-          <button type="button" onClick={onOpenFlights} style={textLink}>
-            {t('Flyg', 'Flights')} →
-          </button>
-        </div>
-      </section>
 
       <InstallApp />
     </div>

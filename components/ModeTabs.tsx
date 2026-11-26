@@ -1,18 +1,38 @@
 import React from 'react';
 import { useLang } from '../lib/i18n';
 
-/** Appens lägen. Flyg nås via sök och snabbval, inte via menyn. */
+/** Appens lägen: Nu (Hem och tavlor), Min resa och Flyg. */
 export type AppTab = 'trafik' | 'resa' | 'flyg';
-export type MenuKey = 'trafik' | 'resa' | 'sok';
+export type MenuKey = 'trafik' | 'resa' | 'flyg';
+
+/** Tunna linjesymboler: buss (på marken), rutt (Min resa), flygplan (i luften). */
+const ICONS: Record<MenuKey, React.ReactNode> = {
+  trafik: (
+    <>
+      <rect x="5" y="3.5" width="14" height="14" rx="2.5" />
+      <path d="M5 11h14M8.5 20.5v-3M15.5 20.5v-3" />
+      <circle cx="8.5" cy="14.3" r="0.6" fill="currentColor" />
+      <circle cx="15.5" cy="14.3" r="0.6" fill="currentColor" />
+    </>
+  ),
+  resa: (
+    <>
+      <circle cx="5.5" cy="18.5" r="2.5" />
+      <circle cx="18.5" cy="5.5" r="2.5" />
+      <path d="M7.8 17.4C12 15.5 7 11 11.5 9.2s4.6-1.3 4.9-1.6" strokeDasharray="2.2 2.2" />
+    </>
+  ),
+  flyg: <path d="M21 15.5v-1.7l-7.6-4.6V4.3a1.4 1.4 0 0 0-2.8 0v4.9L3 13.8v1.7l7.6-2.3v4.6l-2.1 1.6v1.3l3.5-1 3.5 1v-1.3l-2.1-1.6v-4.6z" />,
+};
 
 const TABS: { key: MenuKey; label: string; labelEn: string }[] = [
   { key: 'trafik', label: 'Nu', labelEn: 'Now' },
   { key: 'resa', label: 'Min resa', labelEn: 'My trip' },
-  { key: 'sok', label: 'Sök', labelEn: 'Search' },
+  { key: 'flyg', label: 'Flyg', labelEn: 'Flights' },
 ];
 
 /**
- * Tre val: Nu (tavlan med din avgång överst), Min resa och Sök.
+ * Tre val: Nu (Hem med sökfältet och tavlorna), Min resa och Flyg (flygtavla och väntetider).
  * Meny längst ned i mobilen där tummen når, flikar överst på bred skärm (globals.css).
  */
 export default function ModeTabs({
@@ -38,10 +58,15 @@ export default function ModeTabs({
             className={`app-tab${current ? ' app-tab--active' : ''}`}
             onClick={() => onChange(tb.key)}
           >
-            {t(tb.label, tb.labelEn)}
+            <span className="app-tab-sym" aria-hidden="true">
+              <svg className="app-tab-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={current ? 2 : 1.5} strokeLinecap="round" strokeLinejoin="round">
+                {ICONS[tb.key]}
+              </svg>
+              {tb.key === 'resa' && hasJourney ? <span className="app-tab-dot" /> : null}
+            </span>
+            <span className="app-tab-label">{t(tb.label, tb.labelEn)}</span>
             {tb.key === 'resa' && hasJourney ? (
               <>
-                <span className="app-tab-dot" aria-hidden="true" />
                 <span className="sr-only"> ({t('sparad resa', 'saved trip')})</span>
               </>
             ) : null}

@@ -423,15 +423,21 @@ input[type='search']::-webkit-search-decoration {
 .app-tab {
   position: relative;
 }
-/* Pricken (något är sparat) ligger bredvid texten utan att flytta den. */
+/* Symbol och ord: bredvid varandra på bred skärm, symbolen ovanför i mobilen. */
+.app-tab-sym {
+  position: relative;
+  display: inline-flex;
+}
+/* Pricken (något är sparat) sitter i symbolens hörn utan att flytta något. */
 .app-tab-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-left: 6px;
+  position: absolute;
+  top: -2px;
+  right: -4px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background-color: currentColor;
-  vertical-align: 0.15em;
+  background-color: var(--c-text);
+  box-shadow: 0 0 0 2px var(--c-bg);
 }
 @media (max-width: 767px) {
   .app-tabs {
@@ -451,17 +457,21 @@ input[type='search']::-webkit-search-decoration {
   .app-tab {
     min-height: 52px;
     min-width: 0;
-    padding: 4px 2px;
-    flex-direction: row;
-    gap: 3px;
-    font-size: 0.75rem;
+    padding: 6px 2px 4px;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.6875rem;
     letter-spacing: 0.06em;
     overflow-wrap: normal;
     word-break: keep-all;
   }
   .app-tab-icon {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
+  }
+  /* I mobilen markeras läget av symbolen och den vita texten, inte av en linje. */
+  .app-tab--active {
+    box-shadow: none;
   }
   /* Plats för menyn, så att sidfoten och sista raden går att nå. */
   .app-shell {

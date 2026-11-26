@@ -652,22 +652,15 @@ export default function App({ initialStop, page, intro }: AppProps) {
   }
 
   /** Menyn: Nu, Min resa och Sök. Sök öppnar sökfältet ovanpå tavlan. */
+  /** Menyn: Nu (Hem), Min resa och Flyg. */
   function onMenu(key: MenuKey) {
-    if (key === 'resa') {
-      changeTab('resa');
-      return;
-    }
-    changeTab('trafik');
     if (key === 'trafik') {
       goHome();
       return;
     }
-    track('funktion', 0, 'sok');
-    setControlsOpen(true);
-    requestAnimationFrame(() => {
-      window.scrollTo({ top: 0 });
-      document.getElementById('sok-hallplats')?.focus();
-    });
+    if (key === 'flyg') track('funktion', 0, 'flyg');
+    changeTab(key);
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
   }
 
   // Min resa: nästa avgångar för den sparade linjen, och vad man tar om den är inställd.
@@ -805,7 +798,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
       <Header onContactClick={() => setActiveInfoTab('contact')} onHome={goHome} />
       <main id="innehall">
       <ModeTabs
-        active={tab === 'resa' ? 'resa' : tab === 'flyg' ? 'sok' : !wide && controlsOpen ? 'sok' : 'trafik'}
+        active={tab === 'resa' ? 'resa' : tab === 'flyg' ? 'flyg' : 'trafik'}
         onChange={onMenu}
         hasJourney={Boolean(myTrain || myTrip || planned)}
       />
@@ -1167,9 +1160,13 @@ export default function App({ initialStop, page, intro }: AppProps) {
           stops={homeList}
           now={now}
           onOpenStop={openStopFromHome}
-          onSearch={() => onMenu('sok')}
-          onOpenFlights={() => {
-            track('funktion', 0, 'flyg');
+          onOpenTrain={(n) => {
+            setStationOpen(false);
+            setTripRef(null);
+            setTrainNumber(n);
+          }}
+          onOpenAirport={(iata) => {
+            setFlightAirport(iata);
             changeTab('flyg');
           }}
           onGoal={(text) => {
