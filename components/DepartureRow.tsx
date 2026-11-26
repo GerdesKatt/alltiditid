@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { BoardDirection, Departure } from '../lib/types';
+import { COMPENSATION_DELAY_MIN } from '../lib/byte';
 import { colors, fonts } from './styles';
 import { COUNTDOWN_MAX_MIN, lineBadge, lineColor, lineName, parseLocal } from '../lib/lineFormat';
 
@@ -18,8 +19,6 @@ type Props = {
   stale?: boolean;
 };
 
-/** Från så här många minuters försening visas en länk om reseersättning. */
-const COMPENSATION_DELAY_MIN = 20;
 
 /**
  * En avgång. Störst är hur länge det är kvar ("3 min"), sedan destination och linje.

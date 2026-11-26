@@ -26,6 +26,7 @@ export default function ConsentBanner({ onAccept, onDecline, onReadMore }: Props
   return (
     <div
       role="region"
+      className="consent-banner"
       aria-label="Fråga om statistik"
       style={{
         position: 'fixed',

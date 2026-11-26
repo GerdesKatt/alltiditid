@@ -1,53 +1,49 @@
 import React from 'react';
-import { colors } from './styles';
 
-export type AppTab = 'trafik' | 'flyg';
+export type AppTab = 'trafik' | 'resa' | 'flyg';
 
 const TABS: { key: AppTab; label: string }[] = [
-  { key: 'trafik', label: 'Kollektivtrafik' },
+  { key: 'trafik', label: 'Tavla' },
+  { key: 'resa', label: 'Min resa' },
   { key: 'flyg', label: 'Flyg' },
 ];
 
-/** De två flikarna överst: kollektivtrafik och flyg. */
-export default function ModeTabs({ tab, onChange }: { tab: AppTab; onChange: (tab: AppTab) => void }) {
+/**
+ * Appens tre lägen: tavlan (en plats), min resa (ett tåg, ett byte) och flyg.
+ * Meny längst ned i mobilen där tummen når, flikar överst på bred skärm (globals.css).
+ */
+export default function ModeTabs({
+  tab,
+  onChange,
+  hasJourney,
+}: {
+  tab: AppTab;
+  onChange: (tab: AppTab) => void;
+  /** Något är sparat under Min resa: visas som en prick på fliken. */
+  hasJourney: boolean;
+}) {
   return (
-    <div
-      role="group"
-      aria-label="Visa"
-      style={{
-        display: 'grid',
-        // Vid stor text hamnar flikarna under varandra i stället för utanför skärmen.
-        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 9rem), 1fr))',
-        gap: '3px',
-        padding: '3px',
-        margin: '0 0 14px',
-        borderRadius: 'var(--radius-card)',
-        backgroundColor: colors.surfaceRaised,
-      }}
-    >
+    <nav className="app-tabs" aria-label="Lägen">
       {TABS.map((t) => {
         const active = t.key === tab;
         return (
           <button
             key={t.key}
             type="button"
-            aria-pressed={active}
+            aria-current={active ? 'page' : undefined}
+            className={`app-tab${active ? ' app-tab--active' : ''}`}
             onClick={() => onChange(t.key)}
-            style={{
-              minHeight: '44px',
-              borderRadius: 'var(--radius-control)',
-              border: 'none',
-              backgroundColor: active ? colors.accentStrong : 'transparent',
-              color: active ? colors.onAccent : colors.text,
-              fontSize: '0.9375rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
           >
             {t.label}
+            {t.key === 'resa' && hasJourney ? (
+              <>
+                <span className="app-tab-dot" aria-hidden="true" />
+                <span className="sr-only"> (sparad resa)</span>
+              </>
+            ) : null}
           </button>
         );
       })}
-    </div>
+    </nav>
   );
 }

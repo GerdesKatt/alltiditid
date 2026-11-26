@@ -1,12 +1,29 @@
 import React, { useEffect, useState } from 'react';
 import type { MyTrain } from '../lib/myTrain';
+import { arrivalAt, COMPENSATION_DELAY_MIN, loadByte, verdict } from '../lib/byte';
+import type { Connection, SavedByte } from '../lib/byte';
 import { colors, fonts } from './styles';
 
-type Stop = { name: string; arrival?: { scheduled: string; estimated?: string; actual?: string; delay: number }; passed?: boolean };
-type Journey = { number: string; product: string; to?: string; position?: string; stops: Stop[] };
-type Byte = { train: string; station: string; line: string; destination: string; scheduledTime: string };
+type Part = { scheduled: string; estimated?: string; actual?: string; delay: number };
+type Stop = { name: string; arrival?: Part; departure?: Part; passed?: boolean };
+type Journey = { number: string; date?: string; product: string; to?: string; position?: string; stops: Stop[] };
 
-/** Mitt tåg överst på startsidan: läge, ankomst till slutstationen och sparat byte. */
+const smallButton: React.CSSProperties = {
+  minHeight: '44px',
+  padding: '0 14px',
+  borderRadius: 'var(--radius-control)',
+  border: `1px solid ${colors.borderStrong}`,
+  backgroundColor: colors.surface,
+  color: colors.text,
+  fontSize: '0.875rem',
+  fontWeight: 700,
+  cursor: 'pointer',
+};
+
+/**
+ * Mitt tåg under Min resa: läge, ankomst, om man hinner det sparade bytet,
+ * och rätten till ersättning när tåget kommit fram sent.
+ */
 export default function MyTrainCard({
   train,
   onOpen,
@@ -17,7 +34,9 @@ export default function MyTrainCard({
   onRemove: () => void;
 }) {
   const [journey, setJourney] = useState<Journey | null>(null);
-  const [byte, setByte] = useState<Byte | null>(null);
+  const [byte, setByte] = useState<SavedByte | null>(null);
+  const [connections, setConnections] = useState<Connection[] | null>(null);
+  const [transfer, setTransfer] = useState(4);
 
   useEffect(() => {
     let active = true;
@@ -26,12 +45,7 @@ export default function MyTrainCard({
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => active && data && setJourney(data))
         .catch(() => {});
-      try {
-        const b = JSON.parse(window.localStorage.getItem('alltiditid:byte') || 'null');
-        if (active) setByte(b && b.train === train.number ? b : null);
-      } catch {
-        // Ingen lagring.
-      }
+      if (active) setByte(loadByte(train.number));
     }
     load();
     const t = setInterval(() => {
@@ -44,9 +58,47 @@ export default function MyTrainCard({
   }, [train.number]);
 
   const last = journey?.stops[journey.stops.length - 1];
-  const target = byte ? journey?.stops.find((s) => s.name === byte.station) || last : last;
+  const byteStop = byte ? journey?.stops.find((s) => s.name === byte.station) : undefined;
+  const target = byteStop || last;
   const arr = target?.arrival;
   const shown = arr?.actual || arr?.estimated;
+  const byteArrival = journey && byteStop ? arrivalAt(journey, byteStop) : '';
+
+  // Hinner jag bytet? Räknas om när tågets väntade ankomst ändras.
+  useEffect(() => {
+    if (!byte || !byteArrival) {
+      setConnections(null);
+      return;
+    }
+    let active = true;
+    fetch(
+      `/api/trafik?action=connections&station=${encodeURIComponent(byte.station)}&arrival=${encodeURIComponent(
+        byteArrival
+      )}&train=${encodeURIComponent(train.number)}`
+    )
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!active || !data) return;
+        setTransfer(Number(data.transfer) || 4);
+        setConnections(Array.isArray(data.departures) ? data.departures : []);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [byte, byteArrival, train.number]);
+
+  const savedConn =
+    byte && connections
+      ? connections.find((c) => c.line === byte.line && c.scheduledTime === byte.scheduledTime) || null
+      : null;
+  const v = savedConn ? verdict(savedConn, transfer) : null;
+  const verdictColor = !v ? colors.textDim : v.tone === 'miss' ? colors.cancelledText : v.tone === 'tight' ? colors.amber : colors.okText;
+
+  // Ersättning: tåget har kommit fram (eller passerat) dit man skulle, minst 20 min sent.
+  const arrived = Boolean(arr?.actual) || Boolean(target?.passed);
+  const lateBy = arr?.delay || 0;
+  const compensation = lateBy >= COMPENSATION_DELAY_MIN;
 
   return (
     <section
@@ -69,38 +121,99 @@ export default function MyTrainCard({
           Ta bort<span className="sr-only"> mitt tåg</span>
         </button>
       </div>
-      <button
-        type="button"
-        onClick={onOpen}
-        style={{ display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', color: colors.text, textAlign: 'left', cursor: 'pointer', font: 'inherit' }}
-      >
-        <span style={{ display: 'block', fontFamily: fonts.display, fontSize: '1.125rem', fontWeight: 800 }}>
-          {journey ? `${journey.product} ${journey.number}` : `Tåg ${train.number}`}
-          {journey?.to ? <span style={{ fontWeight: 600, color: colors.textDim }}> mot {journey.to}</span> : null}
-        </span>
-        {journey?.position ? (
-          <span style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', fontSize: '0.9375rem', fontWeight: 600 }}>
-            <span className="rt-dot" aria-hidden="true" />
-            {journey.position}
-          </span>
-        ) : (
-          <span style={{ display: 'block', marginTop: '6px', color: colors.textDim }}>{journey ? '' : 'Hämtar tåget…'}</span>
-        )}
-        {target && arr ? (
-          <span style={{ display: 'block', marginTop: '6px', fontSize: '0.9375rem' }}>
-            Framme i {target.name}{' '}
+
+      <h2 style={{ margin: 0, fontFamily: fonts.display, fontSize: '1.125rem', fontWeight: 800 }}>
+        {journey ? `${journey.product} ${journey.number}` : `Tåg ${train.number}`}
+        {journey?.to ? <span style={{ fontWeight: 600, color: colors.textDim }}> mot {journey.to}</span> : null}
+      </h2>
+      {journey?.position ? (
+        <p style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '6px 0 0', fontSize: '0.9375rem', fontWeight: 600 }}>
+          <span className="rt-dot" aria-hidden="true" />
+          {journey.position}
+        </p>
+      ) : journey ? null : (
+        <p style={{ margin: '6px 0 0', color: colors.textDim }}>Hämtar tåget…</p>
+      )}
+      {target && arr ? (
+        <p style={{ margin: '6px 0 0', fontSize: '0.9375rem' }}>
+          {arrived ? 'Kom fram till' : 'Framme i'} {target.name}{' '}
+          {shown && shown !== arr.scheduled ? (
+            <>
+              <s style={{ color: colors.textDim }}>{arr.scheduled}</s>{' '}
+              <strong style={{ fontFamily: fonts.display, color: colors.amber }}>
+                {shown}
+                {lateBy > 0 ? ` +${lateBy} min` : ''}
+              </strong>
+            </>
+          ) : (
             <strong style={{ fontFamily: fonts.display }}>{arr.scheduled}</strong>
-            {shown && shown !== arr.scheduled ? (
-              <strong style={{ color: colors.amber }}> → {shown}</strong>
+          )}
+        </p>
+      ) : null}
+
+      {/* Hinner jag bytet: svaret direkt på kortet. */}
+      {byte ? (
+        <div
+          aria-live="polite"
+          style={{
+            margin: '10px 0 0',
+            padding: '10px 12px',
+            borderRadius: 'var(--radius-control)',
+            border: `1px solid ${v && v.tone !== 'ok' ? verdictColor : colors.borderStrong}`,
+          }}
+        >
+          <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>Byte i {byte.station}</div>
+          <div style={{ fontSize: '0.9375rem', fontWeight: 700, marginTop: '2px' }}>
+            {byte.line} mot {byte.destination} {byte.scheduledTime}
+          </div>
+          <div style={{ fontFamily: fonts.display, fontSize: '1.125rem', fontWeight: 800, marginTop: '2px', color: verdictColor }}>
+            {!connections
+              ? 'Räknar…'
+              : v
+              ? v.text || 'Ingen realtid för bytet'
+              : 'Bytet finns inte längre på tavlan'}
+            {savedConn?.track ? (
+              <span style={{ fontFamily: fonts.text, fontSize: '0.875rem', fontWeight: 500, color: colors.textDim }}> · {savedConn.track}</span>
             ) : null}
-          </span>
-        ) : null}
-        {byte ? (
-          <span style={{ display: 'block', marginTop: '4px', fontSize: '0.875rem', color: colors.textDim }}>
-            Byte till {byte.line} mot {byte.destination} {byte.scheduledTime} · tryck för att se om du hinner
-          </span>
-        ) : null}
-      </button>
+          </div>
+        </div>
+      ) : null}
+
+      {compensation ? (
+        <div
+          style={{
+            margin: '10px 0 0',
+            padding: '10px 12px',
+            borderRadius: 'var(--radius-control)',
+            backgroundColor: colors.delayedBg,
+            border: `1px solid ${colors.delayedBorder}`,
+            fontSize: '0.875rem',
+            lineHeight: 1.45,
+          }}
+        >
+          <strong style={{ display: 'block', color: colors.delayedText }}>
+            {arrived ? `${lateBy} min sent till ${target?.name}` : `Väntas bli ${lateBy} min sent till ${target?.name}`}
+          </strong>
+          Vid minst {COMPENSATION_DELAY_MIN} minuters försening kan du ha rätt till ersättning.{' '}
+          <a
+            href="https://www.hallakonsument.se/varor-och-tjanster/resor/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontWeight: 700, color: colors.delayedText }}
+          >
+            Så ansöker du
+          </a>
+        </div>
+      ) : null}
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
+        <button type="button" onClick={onOpen} style={smallButton}>
+          Hela resan
+        </button>
+        <button type="button" onClick={onOpen} style={smallButton}>
+          {byte ? 'Ändra byte' : 'Kolla ett byte'}
+        </button>
+      </div>
     </section>
   );
 }
