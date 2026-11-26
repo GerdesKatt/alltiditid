@@ -825,26 +825,54 @@ export default function App({ initialStop, page, intro }: AppProps) {
               <label htmlFor="vart-ska-du" style={{ display: 'block', fontSize: '0.9375rem', fontWeight: 700 }}>
                 {t('Vart ska du?', 'Where are you going?')}
               </label>
-              <input
-                id="vart-ska-du"
-                type="text"
-                autoComplete="off"
-                value={goal}
-                enterKeyHint="search"
-                onChange={(e) => setGoal(e.target.value)}
-                onKeyDown={(e) => {
-                  // Sök på tangentbordet startar resesökningen.
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    (e.currentTarget as HTMLInputElement).blur();
-                    document.getElementById('sok-resa')?.click();
-                  }
-                }}
-                placeholder={t('Ort, hållplats eller adress', 'Town, stop or address')}
-                style={{ ...textInput(colors.borderStrong), display: 'block', marginTop: '6px', minHeight: '48px', fontSize: '1rem' }}
-              />
+              <div style={{ position: 'relative', marginTop: '6px' }}>
+                <input
+                  id="vart-ska-du"
+                  type="text"
+                  autoComplete="off"
+                  value={goal}
+                  enterKeyHint="search"
+                  onChange={(e) => setGoal(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Sök på tangentbordet startar resesökningen.
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      (e.currentTarget as HTMLInputElement).blur();
+                      document.getElementById('sok-resa')?.click();
+                    }
+                  }}
+                  placeholder={t('Ort, hållplats eller adress', 'Town, stop or address')}
+                  style={{ ...textInput(colors.borderStrong), display: 'block', minHeight: '48px', fontSize: '1rem', paddingRight: '48px' }}
+                />
+                {goal ? (
+                  // Rensa: tömmer fältet och tar bort resultaten.
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGoal('');
+                      document.getElementById('vart-ska-du')?.focus();
+                    }}
+                    aria-label={t('Rensa', 'Clear')}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      width: '48px',
+                      height: '48px',
+                      border: 'none',
+                      background: 'none',
+                      color: colors.textDim,
+                      fontSize: '1.375rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ×
+                  </button>
+                ) : null}
+              </div>
               <JourneyPlan
                 goal={goal}
+                onClear={() => setGoal('')}
                 fromId={hasStop ? selectedStop.id : ''}
                 fromName={hasStop ? selectedStop.name : ''}
                 savedKey={planned ? `${planned.trip.depDate} ${planned.trip.dep}` : ''}
