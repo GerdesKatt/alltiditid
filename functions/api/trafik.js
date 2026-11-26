@@ -1932,7 +1932,7 @@ async function handleWaitTimes(url, env, context) {
   let queues = [];
   let raw;
   try {
-    raw = await swedaviaGet(`/waittimepublic/v1/airports/${airport.iata}`, key);
+    raw = await swedaviaGet(`/waittimepublic/v2/airports/${airport.iata}`, key);
     queues = waitTimes(raw);
   } catch (err) {
     // Felet syns i svaret (utan nyckel), så att det går att felsöka.
