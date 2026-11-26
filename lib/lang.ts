@@ -56,6 +56,7 @@ const MODE_EN: Record<string, string> = {
   'Pendel/Tåg': 'Commuter/Train',
   'Båt/Färja': 'Boat/Ferry',
   Båt: 'Boat',
+  Vägfärja: 'Road ferry',
   Färja: 'Ferry',
   Fjärrtåg: 'Long-distance train',
   'Pågatåg/Öresund': 'Pågatåg/Öresund',
@@ -117,6 +118,8 @@ export function trainPosition(text: string, lang: Lang): string {
     .replace(/^Framme i /, 'Arrived at ')
     .replace(/^Har lämnat /, 'Has left ')
     .replace(/^Står i /, 'At ')
+    .replace(/^Vid /, 'At ')
+    .replace(/^Mellan (.+) och (.+?) · (.+?) kvar/, 'Between $1 and $2 · $3 to go')
     .replace(/^Har inte avgått från (.+) än$/, 'Has not left $1 yet')
     .replace(/, nästa /, ', next ')
     .replace(/ · enligt tidtabell$/, ' · scheduled')

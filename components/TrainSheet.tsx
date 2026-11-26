@@ -30,9 +30,26 @@ type Journey = {
   position?: string;
   stops: Stop[];
   updatedAt?: string;
+  /** Fordonets GPS-läge (turer): efter vilken hållplats, och hur långt kvar till nästa. */
+  gps?: { lat: number; lon: number; at: number; after: number; fraction: number; metersToNext: number };
 };
 
 const REFRESH_MS = 60_000;
+
+/** "300 m" eller "1,2 km" (engelska: "1.2 km"). */
+function meters(m: number, lang: 'sv' | 'en'): string {
+  if (m < 1000) return `${Math.max(50, Math.round(m / 50) * 50)} m`;
+  const km = (Math.round(m / 100) / 10).toFixed(1);
+  return `${lang === 'sv' ? km.replace('.', ',') : km} km`;
+}
+
+/** GPS-punktens klockslag i svensk tid, eller '' om tiden saknas. */
+function gpsClock(seconds: number): string {
+  if (!seconds) return '';
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Stockholm', hour: '2-digit', minute: '2-digit' }).format(
+    new Date(seconds * 1000)
+  );
+}
 
 function stopAction(active: boolean): React.CSSProperties {
   return {
@@ -538,8 +555,8 @@ export default function TrainSheet({
 
           <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
             {journey.stops.map((st, i) => (
+              <React.Fragment key={st.signature}>
               <li
-                key={st.signature}
                 style={{
                   display: 'grid',
                   gridTemplateColumns: '14px minmax(0, 1fr) auto',
@@ -646,14 +663,51 @@ export default function TrainSheet({
                   </div>
                 ) : null}
               </li>
+              {journey.gps && journey.gps.after === i && journey.stops[i + 1] ? (
+                // Här är fordonet just nu, enligt dess GPS.
+                <li
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    margin: '0 -6px',
+                    padding: '8px 6px',
+                    borderRadius: 'var(--radius-control)',
+                    backgroundColor: colors.surfaceRaised,
+                    fontSize: '0.875rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  <span className="rt-dot" aria-hidden="true" style={{ flexShrink: 0, marginLeft: '2px' }} />
+                  <span>
+                    {t('Här nu', 'Here now')}
+                    <span style={{ fontWeight: 500, color: colors.textDim }}>
+                      {' · '}
+                      {journey.gps.metersToNext < 60
+                        ? t(`vid ${journey.stops[i + 1].name}`, `at ${journey.stops[i + 1].name}`)
+                        : t(
+                            `${meters(journey.gps.metersToNext, 'sv')} till ${journey.stops[i + 1].name}`,
+                            `${meters(journey.gps.metersToNext, 'en')} to ${journey.stops[i + 1].name}`
+                          )}
+                      {gpsClock(journey.gps.at) ? ` · GPS ${gpsClock(journey.gps.at)}` : ''}
+                    </span>
+                  </span>
+                </li>
+              ) : null}
+              </React.Fragment>
             ))}
           </ol>
           <p style={{ fontSize: '0.8125rem', color: colors.textDim, margin: '12px 0 0' }}>
             {trip
-              ? t(
-                  'Från Trafiklab. Läget är beräknat från tiderna vid hållplatserna, inte från GPS.',
-                  'From Trafiklab. The position is calculated from the times at each stop, not from GPS.'
-                )
+              ? journey.gps
+                ? t(
+                    'Från Trafiklab. Läget kommer från fordonets GPS och uppdateras ungefär en gång i minuten.',
+                    "From Trafiklab. The position comes from the vehicle's GPS and updates about once a minute."
+                  )
+                : t(
+                    'Från Trafiklab. Läget är beräknat från tiderna vid hållplatserna, inte från GPS.',
+                    'From Trafiklab. The position is calculated from the times at each stop, not from GPS.'
+                  )
               : t(
                   'Tåginformation från Trafikverket. Överst ankomst, under avgång.',
                   'Train information from Trafikverket. Arrival on top, departure below.'
