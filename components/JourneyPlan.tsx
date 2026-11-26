@@ -316,7 +316,18 @@ export function LegRow({ leg }: { leg: Leg }) {
           <Icon name="walk" />
         </span>
         <span>
-          {t('Gå', 'Walk')} {leg.minutes} min{leg.meters ? ` (${leg.meters} m)` : ''} {t('till', 'to')} {leg.to.name}
+          {leg.transfer ? (
+            // Byte: kort gång, och bytestiden (marginal) som en egen uppgift.
+            <>
+              {t('Byte till', 'Change to')} {leg.to.name}
+              {leg.meters ? ` · ${leg.meters} m, ${t('ca', 'about')} ${leg.walkMinutes || 1} min ${t('gång', 'walk')}` : ''}
+              {leg.minutes ? ` · ${leg.minutes} min ${t('för bytet', 'for the change')}` : ''}
+            </>
+          ) : (
+            <>
+              {t('Gå', 'Walk')} {leg.minutes} min{leg.meters ? ` (${leg.meters} m)` : ''} {t('till', 'to')} {leg.to.name}
+            </>
+          )}
         </span>
       </li>
     );

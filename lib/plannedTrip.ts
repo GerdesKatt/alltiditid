@@ -4,7 +4,7 @@
  */
 export type PlanPoint = { name: string; time: string; rtTime: string; track: string; date?: string };
 export type PlanLeg =
-  | { kind: 'walk'; from: PlanPoint; to: PlanPoint; minutes: number; meters: number }
+  | { kind: 'walk'; from: PlanPoint; to: PlanPoint; minutes: number; meters: number; transfer?: boolean; walkMinutes?: number }
   | {
       kind: 'ride';
       mode: string;

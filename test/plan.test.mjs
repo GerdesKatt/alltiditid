@@ -159,3 +159,16 @@ test('namn: SL i stället för Länstrafik, pendeltåg, regionaltåg och express
   ]);
   assert.equal(agencyName('Storstockholms Lokaltrafik'), 'SL');
 });
+
+test('byte (TRSF): gångtid från sträckan, bytestiden för sig', () => {
+  const [trip] = mapTrips({ Trip: [{ duration: 'PT1H', LegList: { Leg: [
+    leg('JNY', 'Fruängen', '08:43', 'T-Centralen', '09:02', { catCode: 5, catOutL: 'Tunnelbana', displayNumber: '14' }, { duration: 'PT19M' }),
+    leg('TRSF', 'T-Centralen', '09:02', 'Stockholm Centralstation', '09:22', null, { duration: 'PT20M', dist: 100 }),
+    leg('JNY', 'Stockholm Centralstation', '09:22', 'Sundsvall Centralstation', '12:56', { catCode: 1, catOutL: 'Snabbtåg', displayNumber: '566' }, { duration: 'PT3H34M' }),
+  ] } }] });
+  const change = trip.legs[1];
+  assert.equal(change.transfer, true);
+  assert.equal(change.minutes, 20);
+  assert.equal(change.walkMinutes, 1);
+  assert.equal(trip.legs[0].kind, 'ride');
+});
