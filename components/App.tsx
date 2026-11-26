@@ -1172,6 +1172,13 @@ export default function App({ initialStop, page, intro }: AppProps) {
             track('funktion', 0, 'flyg');
             changeTab('flyg');
           }}
+          onGoal={(text) => {
+            // Vart ska du? från Hem: till Min resa med målet ifyllt, och sök direkt.
+            setGoal(text);
+            changeTab('resa');
+            window.scrollTo({ top: 0 });
+            setTimeout(() => document.getElementById('sok-resa')?.click(), 120);
+          }}
         />
       ) : (
         <>

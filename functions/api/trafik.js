@@ -1784,9 +1784,12 @@ async function handleNearby(request, keys, context) {
     return jsonResponse({ stops: [], error: 'Sök nära mig är inte konfigurerat.' }, 501);
   }
 
+  // wide: Hem vill se vilka linjer som finns runt en, inte bara de närmaste busshållplatserna.
+  // Då hämtas fler hållplatser inom 2 km, och den närmaste per trafikslag väljs ut.
+  const wide = Boolean(body && body.wide);
   const rLat = lat.toFixed(3);
   const rLon = lon.toFixed(3);
-  const cacheKey = new Request(`https://cache.alltiditid.se/nearby-v1/${rLat},${rLon}`);
+  const cacheKey = new Request(`https://cache.alltiditid.se/nearby-v1${wide ? '-wide' : ''}/${rLat},${rLon}`);
   const cached = await cacheGet(cacheKey);
   if (cached) {
     try {
@@ -1799,7 +1802,7 @@ async function handleNearby(request, keys, context) {
 
   const res = await fetch(
     `${RESROBOT_BASE}/location.nearbystops?originCoordLat=${rLat}&originCoordLong=${rLon}` +
-      `&r=1500&maxNo=10&format=json&accessId=${encodeURIComponent(keys.resrobot)}`
+      `&r=${wide ? 2000 : 1500}&maxNo=${wide ? 80 : 10}&format=json&accessId=${encodeURIComponent(keys.resrobot)}`
   );
   if (!res.ok) return jsonResponse({ stops: [], error: `Trafiklab svarade med status ${res.status}` }, 502);
   const data = await res.json();
@@ -1811,7 +1814,7 @@ async function handleNearby(request, keys, context) {
     : [];
 
   const seen = new Set();
-  const stops = raw
+  const all = raw
     .filter((st) => st && st.extId)
     .map((st) => ({
       id: String(st.extId),
@@ -1819,10 +1822,11 @@ async function handleNearby(request, keys, context) {
       distance: Number.isFinite(Number(st.dist))
         ? Math.round(Number(st.dist))
         : Math.round(distanceMeters(lat, lon, Number(st.lat), Number(st.lon))),
+      modes: stopModes(st),
     }))
     .filter((st) => st.name && !seen.has(st.id) && seen.add(st.id))
-    .sort((a, b) => a.distance - b.distance)
-    .slice(0, 6);
+    .sort((a, b) => a.distance - b.distance);
+  const stops = wide ? pickByMode(all) : all.slice(0, 6).map(({ modes, ...rest }) => rest);
 
   // Cloudflare-cachen (nyckel = avrundad position) får spara svaret i 5 min, men
   // webbläsare och mellanled ska inte göra det.
@@ -1832,6 +1836,42 @@ async function handleNearby(request, keys, context) {
     context
   );
   return jsonResponse({ stops }, 200, { 'Cache-Control': 'no-store' });
+}
+
+/** ResRobots produktmask (products, eller cls i productAtStop) → trafikslag vid hållplatsen. */
+function stopModes(st) {
+  let mask = Number(st && st.products) || 0;
+  for (const p of Array.isArray(st && st.productAtStop) ? st.productAtStop : []) mask |= Number(p && p.cls) || 0;
+  const out = [];
+  if (mask & (2 | 4)) out.push('train');
+  if (mask & 16) out.push('commuter');
+  if (mask & 32) out.push('subway');
+  if (mask & 64) out.push('tram');
+  if (mask & (8 | 128)) out.push('bus');
+  if (mask & 256) out.push('ferry');
+  // Ingen produktmask i svaret: gissa på namnet ("Fruängen T-bana", "Älvsjö station").
+  if (out.length === 0) {
+    const n = String((st && st.name) || '').toLowerCase();
+    if (/t-bana|tunnelbana/.test(n)) out.push('subway');
+    else if (/station|centralstation|\bc\b/.test(n)) out.push('train');
+    else if (/brygga|färjeläge|kaj/.test(n)) out.push('ferry');
+    else out.push('bus');
+  }
+  return out;
+}
+
+/**
+ * Hem: de tre närmaste hållplatserna, plus den närmaste för varje annat trafikslag
+ * (T-bana, pendeltåg, tåg, spårvagn, båt) inom 2 km. Högst sex, närmast först.
+ */
+export function pickByMode(all) {
+  const picked = all.slice(0, 3);
+  for (const mode of ['subway', 'commuter', 'train', 'tram', 'ferry']) {
+    if (picked.some((p) => (p.modes || []).includes(mode))) continue;
+    const hit = all.find((st) => (st.modes || []).includes(mode));
+    if (hit && !picked.includes(hit)) picked.push(hit);
+  }
+  return picked.slice(0, 6).sort((a, b) => a.distance - b.distance);
 }
 
 /** Max antal hållplatser som kan slås ihop till en tavla (t.ex. Göteborg C). */
