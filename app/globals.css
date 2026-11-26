@@ -294,20 +294,6 @@ input[type='search']::-webkit-search-decoration {
   }
 }
 
-/* Störningsrutan: två rader ihopfälld, hela texten när den är öppen. */
-.disruption-summary::-webkit-details-marker {
-  display: none;
-}
-.disruption-teaser {
-  display: -webkit-box !important;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-details[open] .disruption-teaser {
-  display: none !important;
-}
-
 /* Sidhuvudet på mobilen: bara loggan. Om tjänsten och Kontakt finns i sidfoten. */
 @media (max-width: 600px) {
   .site-nav {
@@ -345,13 +331,6 @@ details[open] .disruption-teaser {
   to {
     transform: scale(3.2);
     opacity: 0;
-  }
-}
-
-/* Telefoner: bara ikonen på "Om stationen", så att namnet får plats. */
-@media (max-width: 480px) {
-  .station-btn-label {
-    display: none;
   }
 }
 

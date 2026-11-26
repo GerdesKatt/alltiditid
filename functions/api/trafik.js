@@ -831,6 +831,8 @@ async function realtimeSearch(key, q) {
       if (place) out.place = place;
       const modes = searchModes(g.transport_modes);
       if (modes.length) out.modes = modes;
+      // Kajer och bryggor saknar ofta trafikslag i källan: säg att det är en båthållplats.
+      else if (/\b(kaj|kajen|brygga|bryggan|färjeläge|färjeläget)$/i.test(out.name)) out.modes = ['Båt'];
       return out;
     });
 }

@@ -152,7 +152,7 @@ export default function DepartureBoard({
         }}
       >
         <div style={{ flexBasis: '100%', display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '10px' }}>
-          <div style={{ flex: '1 1 10rem', minWidth: 0 }}>
+          <div style={{ flex: '1 1 7rem', minWidth: 0 }}>
             <span style={{ fontSize: '0.8125rem', color: colors.textDim, display: 'block' }}>
               {direction === 'arrivals' ? 'Visar ankomster till' : 'Visar avgångar från'}
             </span>
@@ -189,7 +189,6 @@ export default function DepartureBoard({
           <button
             type="button"
             onClick={onOpenStation}
-            aria-label={`Om stationen ${stopName}`}
             style={{
               flexShrink: 0,
               minHeight: '44px',
@@ -205,8 +204,7 @@ export default function DepartureBoard({
               whiteSpace: 'nowrap',
             }}
           >
-            <span aria-hidden="true" style={{ fontSize: '1.125rem', lineHeight: 1 }}>ⓘ</span>
-            <span className="station-btn-label"> Om stationen</span>
+Stationen
           </button>
         </div>
 
@@ -300,16 +298,15 @@ export default function DepartureBoard({
           {errorMsg}
         </div>
       ) : loading ? (
-        <div role="status" aria-label="Hämtar tidtabell i realtid" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <div role="status" aria-label="Hämtar tidtabell i realtid" style={{ display: 'flex', flexDirection: 'column', borderRadius: 'var(--radius-card)', border: `1px solid ${colors.border}`, borderBottom: 'none', overflow: 'hidden', margin: 0, padding: 0 }}>
           {Array.from({ length: SKELETON_ROWS }, (_, i) => (
             <div
               key={i}
               aria-hidden="true"
               className="skeleton-row"
               style={{
-                minHeight: 'calc(64px + 2px)',
-                borderRadius: 'var(--radius-card)',
-                border: `1px solid ${colors.border}`,
+                minHeight: '64px',
+                borderBottom: `1px solid ${colors.border}`,
                 backgroundColor: colors.surface,
               }}
             />
@@ -341,13 +338,13 @@ export default function DepartureBoard({
       ) : (
         <>
           {view === 'lines' ? (
-            <ul style={{ display: 'flex', flexDirection: 'column', gap: '6px', margin: 0, padding: 0 }}>
+            <ul style={{ display: 'flex', flexDirection: 'column', borderRadius: 'var(--radius-card)', border: `1px solid ${colors.border}`, borderBottom: 'none', overflow: 'hidden', margin: 0, padding: 0 }}>
               {groups.slice(0, limit).map((items) => (
                 <LineGroupRow key={groupKey(items[0])} items={items} direction={direction} now={now} />
               ))}
             </ul>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', borderRadius: 'var(--radius-card)', border: `1px solid ${colors.border}`, borderBottom: 'none', overflow: 'hidden', margin: 0, padding: 0 }}>
               {departures.slice(0, limit).map((item) => (
                 <DepartureRow
                   key={item.id}

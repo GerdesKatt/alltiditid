@@ -8,7 +8,7 @@ type Props = {
 };
 
 const choiceButton = {
-  flex: '1 1 140px',
+  flex: '1 1 6rem',
   minHeight: '44px',
   padding: '0 16px',
   borderRadius: '10px',
@@ -19,7 +19,7 @@ const choiceButton = {
 } as const;
 
 /**
- * Fråga om statistik. "Godkänn" och "Neka" är lika stora och syns samtidigt,
+ * Fråga om statistik, som en låg rad längst ned så att tavlan syns. "Godkänn" och "Neka" är lika stora och syns samtidigt,
  * så att det är lika lätt att säga nej som ja.
  */
 export default function ConsentBanner({ onAccept, onDecline, onReadMore }: Props) {
@@ -35,16 +35,19 @@ export default function ConsentBanner({ onAccept, onDecline, onReadMore }: Props
         zIndex: 50,
         maxWidth: '620px',
         margin: '0 auto',
-        padding: '16px',
-        borderRadius: '16px',
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: '8px 14px',
+        padding: '10px 12px',
+        borderRadius: '14px',
         backgroundColor: colors.surface,
         border: `1px solid ${colors.borderStrong}`,
         boxShadow: `0 16px 40px ${colors.shadow}`,
       }}
     >
-      <p style={{ margin: '0 0 12px 0', fontSize: '0.875rem', lineHeight: 1.5, color: colors.textSoft }}>
-        Får vi använda Google Analytics för att se hur sajten används? Det sätter kakor och skickar
-        uppgifter om ditt besök till Google. Tavlan fungerar lika bra om du nekar.{' '}
+      <p style={{ flex: '1 1 16rem', margin: 0, fontSize: '0.8125rem', lineHeight: 1.4, color: colors.textSoft }}>
+        Får vi mäta besöken med Google Analytics? Det sätter kakor och skickar uppgifter till Google.{' '}
         <button
           type="button"
           onClick={onReadMore}
@@ -54,14 +57,14 @@ export default function ConsentBanner({ onAccept, onDecline, onReadMore }: Props
             background: 'none',
             color: colors.accent,
             textDecoration: 'underline',
-            fontSize: '0.875rem',
+            fontSize: '0.8125rem',
             cursor: 'pointer',
           }}
         >
           Läs mer
         </button>
       </p>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+      <div style={{ flex: '1 1 12rem', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
         <button
           type="button"
           onClick={onDecline}

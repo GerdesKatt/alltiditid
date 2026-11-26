@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { BoardDirection, Departure } from '../lib/types';
 import { colors, fonts } from './styles';
-import { COUNTDOWN_MAX_MIN, lineBadge, lineName, parseLocal } from '../lib/lineFormat';
+import { COUNTDOWN_MAX_MIN, lineBadge, lineColor, lineName, parseLocal } from '../lib/lineFormat';
 
 type Props = {
   item: Departure;
@@ -66,6 +66,7 @@ export default function DepartureRow({
   const shifted = !isCancelled && !isDelayed && clock !== item.scheduledTime;
 
   const badge = lineBadge(item.line);
+  const tint = lineColor(item);
   const name = lineName(item.line, badge);
   const towards = direction === 'arrivals' ? `Från ${item.destination}` : item.destination;
   const details = [item.stopLabel, item.track].filter(Boolean).join(' · ');
@@ -109,10 +110,10 @@ export default function DepartureRow({
   return (
     <div
       style={{
+        // En rad i listan: tunn avdelare i stället för ett eget kort.
         backgroundColor: isSelectedTrip ? colors.selectedRowBg : colors.surface,
-        border: isSelectedTrip ? `1px solid ${colors.accent}` : `1px solid ${colors.border}`,
-        borderRadius: 'var(--radius-card)',
-        overflow: 'hidden',
+        borderBottom: `1px solid ${colors.border}`,
+        boxShadow: isSelectedTrip ? `inset 4px 0 0 ${colors.accent}` : 'none',
       }}
     >
       <button
@@ -146,6 +147,9 @@ export default function DepartureRow({
             borderRadius: 'var(--radius-badge)',
             // Bokade tåg har kontur, inställda är grå, övriga fyllda i bläck.
             border: `1.5px solid ${isCancelled ? colors.borderStrong : colors.badgeBg}`,
+            // Linjens färg som en kant i brickan (T-bana, pendeltåg).
+            boxShadow: tint && !isCancelled ? `inset 5px 0 0 ${tint}` : 'none',
+            paddingLeft: tint && !isCancelled ? '9px' : '6px',
             backgroundColor: isCancelled ? colors.surfaceRaised : booked ? 'transparent' : colors.badgeBg,
             color: isCancelled ? colors.textDim : booked ? colors.text : colors.badgeText,
             fontFamily: fonts.display,
