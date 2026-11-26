@@ -51,7 +51,10 @@ export default function SearchPanel({
   onOpenTrain,
 }: Props) {
   // "532", "tåg 532" eller "SJ 532": ett tågnummer.
-  const trainHit = onOpenTrain ? /^(?:tåg|sj|tag)?\s*(\d{1,5})$/i.exec(stationQuery.trim())?.[1] : undefined;
+  const trainPattern = /^(?:tåg|sj|tag)?\s*(\d{2,5})$/i;
+  const trainHit = onOpenTrain ? trainPattern.exec(stationQuery.trim())?.[1] : undefined;
+  // Ett tågnummer i filtret: tåget kanske inte går från den här stationen, så erbjud hela resan.
+  const filterTrain = onOpenTrain ? trainPattern.exec(filterText.trim())?.[1] : undefined;
   const airportHit =
     onOpenAirport && stationQuery.trim().length >= 3
       ? AIRPORTS.find((a) =>
@@ -269,7 +272,7 @@ export default function SearchPanel({
             value={stationQuery}
             onKeyDown={onSearchKeyDown}
             onChange={(e) => onStationQueryChange(e.target.value)}
-            placeholder="Sök valfri station eller hållplats i Sverige..."
+            placeholder="Sök station, hållplats eller tågnummer"
             style={textInput(colors.borderStrong)}
           />
 
@@ -421,8 +424,11 @@ export default function SearchPanel({
           ) : null}
         </div>
 
-        <label htmlFor="filtrera-avgangar" className="sr-only">
-          Filtrera avgångar på linje, destination eller stopp
+        <label
+          htmlFor="filtrera-avgangar"
+          style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: colors.textDim, margin: '14px 0 6px' }}
+        >
+          Filtrera tavlan för {selectedStop.shortName || selectedStop.name}
         </label>
         <input
           id="filtrera-avgangar"
@@ -430,9 +436,31 @@ export default function SearchPanel({
           autoComplete="off"
           value={filterText}
           onChange={(e) => onFilterTextChange(e.target.value)}
-          placeholder="Filtrera linje (t.ex. 19, 4, 535), destination eller stopp..."
+          placeholder="Linje, tågnummer eller destination"
           style={textInput(colors.borderStrong)}
         />
+        {filterTrain ? (
+          <button
+            type="button"
+            onClick={() => onOpenTrain!(filterTrain)}
+            style={{
+              marginTop: '8px',
+              width: '100%',
+              minHeight: '48px',
+              padding: '0 14px',
+              borderRadius: 'var(--radius-control)',
+              border: `1px solid ${colors.borderStrong}`,
+              backgroundColor: colors.surface,
+              color: colors.text,
+              fontSize: '15px',
+              fontWeight: 700,
+              textAlign: 'left',
+              cursor: 'pointer',
+            }}
+          >
+            Tåg {filterTrain}: visa hela resan, var tåget än är
+          </button>
+        ) : null}
       </div>
     </section>
   );

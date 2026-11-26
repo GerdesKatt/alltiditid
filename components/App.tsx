@@ -649,6 +649,8 @@ export default function App({ initialStop, intro }: AppProps) {
           setStationOpen(false);
           setTrainNumber(n);
         }}
+        filterText={filterText}
+        onClearFilter={() => setFilterText('')}
         onOpenStation={() => {
           setTrainNumber(null);
           setStationOpen(true);
