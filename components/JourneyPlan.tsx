@@ -399,7 +399,7 @@ export function LegRow({ leg }: { leg: Leg }) {
       >
         {num}
       </span>
-      <span style={{ minWidth: 0, fontSize: '0.875rem', lineHeight: 1.45 }}>
+      <span style={{ flex: 1, minWidth: 0, fontSize: '0.875rem', lineHeight: 1.45 }}>
         <strong style={{ display: 'block', fontSize: '0.9375rem', textDecoration: leg.cancelled ? 'line-through' : 'none' }}>
           {rideLabel(leg)}
           {leg.direction ? ` ${t('mot', 'to')} ${leg.direction}` : ''}
@@ -413,6 +413,13 @@ export function LegRow({ leg }: { leg: Leg }) {
           {time(leg.to)} {leg.to.name}
         </span>
       </span>
+      {/* Hur länge man åker på just den här delen. */}
+      {leg.minutes > 0 ? (
+        <span style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim, whiteSpace: 'nowrap' }}>
+          <span className="sr-only">{t('Restid', 'Travel time')} </span>
+          {duration(leg.minutes)}
+        </span>
+      ) : null}
     </li>
   );
 }
