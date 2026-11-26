@@ -1,3 +1,5 @@
+import { historyRows, saveHistory } from '../../lib/history.mjs';
+
 function parseTimeToMinutes(timeStr) {
   if (!timeStr || typeof timeStr !== 'string') return null;
   const parts = timeStr.trim().split(':');
@@ -1626,7 +1628,7 @@ async function handleBoard(url, keys, context) {
     );
   }
 
-  const departures = all
+  const timed = all
     .filter((d) => mode === 'all' || d.transportMode === mode)
     .map((d) => applyTrafikverket(d, tvByStation.get(d._tvStation) || new Map(), d._trainCandidates || []))
     .map(finalizeTiming)
@@ -1635,7 +1637,24 @@ async function handleBoard(url, keys, context) {
       (a, b) =>
         String(a.expectedAt || a._scheduledLocal || '').localeCompare(String(b.expectedAt || b._scheduledLocal || '')) ||
         String(a._scheduledLocal || '').localeCompare(String(b._scheduledLocal || ''))
-    )
+    );
+
+  // Förseningshistorik (lib/history.mjs): turer som går nu sparas i D1, efter svaret.
+  const db = context && context.env ? context.env.HISTORY : null;
+  if (db && direction === 'departures' && mode === 'all') {
+    const nowIso = new Date().toISOString();
+    const rows = historyRows({
+      stopId: stopParam,
+      stopName: url.searchParams.get('stopName') || '',
+      source: boards[0].source,
+      departures: timed,
+      nowLocal: swedishDateTime(nowIso),
+      seenAt: nowIso,
+    });
+    if (rows.length && context.waitUntil) context.waitUntil(saveHistory(db, rows));
+  }
+
+  const departures = timed
     .map(
       ({ _trainCandidates, _scheduledLocal, _agency, _designation, _coords, _tvStation, _offsetMin, ...rest }) =>
         compactDeparture(rest)
