@@ -17,6 +17,7 @@ import {
 import OnBoardPanel from './OnBoardPanel';
 import StationSheet from './StationSheet';
 import FlightView from './FlightView';
+import TrainSheet from './TrainSheet';
 import ModeTabs, { type AppTab } from './ModeTabs';
 import { loadStopIndex, stopPageFor, type StopIndex } from '../lib/stopIndex';
 import SearchPanel from './SearchPanel';
@@ -115,6 +116,8 @@ export default function App({ initialStop, intro }: AppProps) {
   // Hållplatslistan (för stationsbladet och adresser som /slussen-t-bana), hämtas i efterhand.
   const [stopIndex, setStopIndex] = useState<StopIndex | null>(null);
   const [stationOpen, setStationOpen] = useState(false);
+  // Tåget vars hela resa visas (från tavlan eller en sökning på tågnummer).
+  const [trainNumber, setTrainNumber] = useState<string | null>(null);
   // Kollektivtrafik eller flyg, och flygplatsen som sökningen pekade på.
   const [tab, setTab] = useState<AppTab>('trafik');
   const [flightAirport, setFlightAirport] = useState<string | undefined>(undefined);
@@ -411,7 +414,8 @@ export default function App({ initialStop, intro }: AppProps) {
   const queryLower = filterText.trim().toLowerCase();
   const filtered = departures.filter((d) => {
     const expected = parseLocal(d.expectedAt);
-    if (expected !== null && expected < now - DEPARTED_GRACE_MS) {
+    // Tåg som står kvar efter sin tid ligger kvar tills Trafikverket säger att de gått.
+    if (!d.pending && expected !== null && expected < now - DEPARTED_GRACE_MS) {
       return false;
     }
 
@@ -482,7 +486,11 @@ export default function App({ initialStop, intro }: AppProps) {
       {tab === 'flyg' ? <FlightView initialAirport={flightAirport} /> : null}
       <div hidden={tab === 'flyg'}>
 
-      {stationOpen && !onBoardTrip ? (
+      {trainNumber && !onBoardTrip ? (
+        <TrainSheet number={trainNumber} onClose={() => setTrainNumber(null)} />
+      ) : null}
+
+      {stationOpen && !onBoardTrip && !trainNumber ? (
         <StationSheet
           stop={selectedStop}
           page={stationPage}
@@ -535,6 +543,12 @@ export default function App({ initialStop, intro }: AppProps) {
           searchingStops={searchingStops}
           suggestions={suggestions}
           recentStops={recentStops}
+          onOpenTrain={(n) => {
+            setStationQuery('');
+            setSuggestions([]);
+            setStationOpen(false);
+            setTrainNumber(n);
+          }}
           onOpenAirport={(iata) => {
             setFlightAirport(iata);
             setStationQuery('');
@@ -608,7 +622,12 @@ export default function App({ initialStop, intro }: AppProps) {
           storeFavorites(next);
         }}
         stopName={selectedStop.name}
+        onShowTrain={(n) => {
+          setStationOpen(false);
+          setTrainNumber(n);
+        }}
         onOpenStation={() => {
+          setTrainNumber(null);
           setStationOpen(true);
           if (!stopIndex) loadStopIndex().then((index) => index && setStopIndex(index));
         }}

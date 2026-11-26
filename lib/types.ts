@@ -8,6 +8,8 @@ export type Departure = {
   id: string;
   line: string;
   trainNumber?: string;
+  /** Tåget borde ha gått men har inte gått enligt Trafikverket: står kvar. */
+  pending?: boolean;
   operator: string;
   destination: string;
   scheduledTime: string;

@@ -33,6 +33,8 @@ type Props = {
   onToggleFavorite: () => void;
   /** Öppnar bladet "Om stationen". */
   onOpenStation: () => void;
+  /** Öppnar ett tågs hela resa. */
+  onShowTrain: (trainNumber: string) => void;
   view: BoardView;
   onViewChange: (view: BoardView) => void;
 };
@@ -65,6 +67,7 @@ export default function DepartureBoard({
   favoritesFull,
   onToggleFavorite,
   onOpenStation,
+  onShowTrain,
   view,
   onViewChange,
 }: Props) {
@@ -289,6 +292,7 @@ export default function DepartureBoard({
                   onSelectOnBoard={onSelectOnBoard}
                   isMyTrip={isMyTrip(myTrip, item, stopId)}
                   onToggleMyTrip={direction === 'departures' ? onToggleMyTrip : undefined}
+                  onShowTrain={onShowTrain}
                 />
               ))}
             </div>
