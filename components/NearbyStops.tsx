@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { StopOption } from '../lib/types';
 import { colors } from './styles';
+import { StopRow } from './Home';
 import { decimal, translator, useLang, type Lang } from '../lib/i18n';
 
 type NearbyStop = StopOption & { distance: number };
@@ -55,6 +56,12 @@ function geolocationMessage(error: GeolocationPositionError, lang: Lang): string
  * hållplatserna med avstånd och ungefärlig gångtid.
  */
 export default function NearbyStops({ onSelect, trailing }: Props) {
+  // Klockan för nedräkningen i raderna; uppdateras var 30:e sekund.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
   const [supported, setSupported] = useState(false);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const { lang, t } = useLang();
@@ -158,9 +165,13 @@ export default function NearbyStops({ onSelect, trailing }: Props) {
         {status.kind === 'done' ? (
           <ul
             aria-label={t('Närmaste hållplatser', 'Nearest stops')}
-            style={{ listStyle: 'none', margin: '8px 0 0 0', padding: 0, display: 'grid', gap: '6px' }}
+            style={{ listStyle: 'none', margin: '8px 0 0 0', padding: 0, borderTop: `1px solid ${colors.text}` }}
           >
-            {status.stops.map((stop) => (
+            {status.stops.slice(0, 4).map((stop) => (
+              // Linje och riktning per hållplats: två hållplatser 50 m isär skiljs åt av vart de går.
+              <StopRow key={stop.id} stop={{ id: stop.id, name: stop.name }} now={now} distance={stop.distance} onOpen={() => onSelect({ id: stop.id, name: stop.name })} />
+            ))}
+            {status.stops.slice(4).map((stop) => (
               <li key={stop.id}>
                 <button
                   type="button"
@@ -172,12 +183,12 @@ export default function NearbyStops({ onSelect, trailing }: Props) {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     gap: '12px',
-                    padding: '8px 14px',
-                    borderRadius: 0,
-                    border: `1px solid ${colors.borderStrong}`,
-                    backgroundColor: colors.surface,
+                    padding: '8px 0',
+                    border: 'none',
+                    borderBottom: `1px solid ${colors.border}`,
+                    backgroundColor: 'transparent',
                     color: colors.text,
-                    fontSize: '0.875rem',
+                    fontSize: '0.9375rem',
                     fontWeight: 700,
                     textAlign: 'left',
                     cursor: 'pointer',
