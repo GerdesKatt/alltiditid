@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import AboutSection from './AboutSection';
 import DepartureBoard from './DepartureBoard';
 import Header from './Header';
@@ -14,11 +15,6 @@ import {
   revokeAnalytics,
   storeConsent,
 } from '../lib/analytics';
-import OnBoardPanel from './OnBoardPanel';
-import StationSheet from './StationSheet';
-import FlightView from './FlightView';
-import TrainSheet from './TrainSheet';
-import MyTrainCard from './MyTrainCard';
 import { loadMyTrain, myTrainFor, storeMyTrain, type MyTrain } from '../lib/myTrain';
 import SheetBackdrop from './SheetBackdrop';
 import { colors, textInput } from './styles';
@@ -35,6 +31,14 @@ import { loadRecentStops, rememberStop } from '../lib/recentStops';
 import { loadMyTrip, nextForTrip, storeMyTrip, tripFrom, type MyTrip } from '../lib/myTrip';
 import { boardUrl, takePrefetch } from '../lib/prefetch';
 import type { BoardView } from './DepartureBoard';
+
+// Det som inte behövs för första tavlan hämtas först när det öppnas:
+// flyg, tågets hela resa, stationsarket, ombordpanelen och Mitt tåg.
+const FlightView = dynamic(() => import('./FlightView'), { ssr: false });
+const TrainSheet = dynamic(() => import('./TrainSheet'), { ssr: false });
+const StationSheet = dynamic(() => import('./StationSheet'), { ssr: false });
+const OnBoardPanel = dynamic(() => import('./OnBoardPanel'), { ssr: false });
+const MyTrainCard = dynamic(() => import('./MyTrainCard'), { ssr: false });
 
 /** Lista eller per linje, sparat i webbläsaren. */
 const VIEW_KEY = 'alltiditid:vy';

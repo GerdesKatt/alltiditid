@@ -52,6 +52,24 @@ const STALE_AFTER_MS = 2 * 60_000;
 /** Platshållare medan tavlan hämtas, ungefär en skärm. */
 const SKELETON_ROWS = 8;
 
+/**
+ * Tavlans lista. På bred skärm läggs raderna i två kolumner (globals.css, .board-list):
+ * först nedåt i vänster kolumn, sedan höger, så att tidsordningen behålls.
+ */
+function listStyle(count: number): React.CSSProperties {
+  return {
+    display: 'flex',
+    flexDirection: 'column',
+    borderRadius: 'var(--radius-card)',
+    border: `1px solid ${colors.border}`,
+    borderBottom: 'none',
+    overflow: 'hidden',
+    margin: 0,
+    padding: 0,
+    ['--rows' as string]: Math.ceil(count / 2),
+  };
+}
+
 const emptyButton = {
   minHeight: '44px',
   padding: '0 14px',
@@ -310,7 +328,7 @@ export default function DepartureBoard({
           {errorMsg}
         </div>
       ) : loading ? (
-        <div role="status" aria-label={t('Hämtar tidtabell i realtid', 'Loading real-time timetable')} style={{ display: 'flex', flexDirection: 'column', borderRadius: 'var(--radius-card)', border: `1px solid ${colors.border}`, borderBottom: 'none', overflow: 'hidden', margin: 0, padding: 0 }}>
+        <div role="status" aria-label={t('Hämtar tidtabell i realtid', 'Loading real-time timetable')} className="board-list" style={listStyle(SKELETON_ROWS)}>
           {Array.from({ length: SKELETON_ROWS }, (_, i) => (
             <div
               key={i}
@@ -359,13 +377,13 @@ export default function DepartureBoard({
       ) : (
         <>
           {view === 'lines' ? (
-            <ul style={{ display: 'flex', flexDirection: 'column', borderRadius: 'var(--radius-card)', border: `1px solid ${colors.border}`, borderBottom: 'none', overflow: 'hidden', margin: 0, padding: 0 }}>
+            <ul className="board-list" style={listStyle(Math.min(limit, groups.length))}>
               {groups.slice(0, limit).map((items) => (
                 <LineGroupRow key={groupKey(items[0])} items={items} direction={direction} now={now} />
               ))}
             </ul>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', borderRadius: 'var(--radius-card)', border: `1px solid ${colors.border}`, borderBottom: 'none', overflow: 'hidden', margin: 0, padding: 0 }}>
+            <div className="board-list" style={listStyle(Math.min(limit, departures.length))}>
               {departures.slice(0, limit).map((item) => (
                 <DepartureRow
                   key={item.id}
