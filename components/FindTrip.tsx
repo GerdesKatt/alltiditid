@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Departure, StopOption, TransportMode } from '../lib/types';
 import Icon from './Icon';
 import { colors, fonts } from './styles';
@@ -51,6 +51,10 @@ async function fetchBoard(stop: StopOption, from: number): Promise<Departure[]> 
 export default function FindTrip({ stop, mode, onShowTrain, onShowTrip }: Props) {
   const { lang, t } = useLang();
   const [status, setStatus] = useState<Status>({ kind: 'closed' });
+  // Byter man trafikslag eller hållplats fälls listan ihop, så att tavlan kommer upp igen.
+  useEffect(() => {
+    setStatus({ kind: 'closed' });
+  }, [mode, stop.id]);
 
   async function search(source: FindKind, at: StopOption) {
     setStatus({ kind: 'loading', source });

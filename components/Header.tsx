@@ -6,6 +6,8 @@ import { useLang } from '../lib/i18n';
 
 type Props = {
   onContactClick?: () => void;
+  /** Ordmärket leder till Hem. */
+  onHome?: () => void;
   /** "/" på sidor utan tavla, så att länkarna går till startsidan. */
   linkBase?: string;
 };
@@ -20,7 +22,7 @@ const navLink = {
   padding: '0 4px',
 } as const;
 
-export default function Header({ onContactClick, linkBase = '' }: Props) {
+export default function Header({ onContactClick, onHome, linkBase = '' }: Props) {
   const { lang, t, setLang } = useLang();
   return (
     <header
@@ -39,7 +41,12 @@ export default function Header({ onContactClick, linkBase = '' }: Props) {
       }}
     >
       <a
-        href="#alltiditid-app"
+        href={onHome ? "#alltiditid-app" : `${linkBase || "/"}`}
+        onClick={(e) => {
+          if (!onHome) return;
+          e.preventDefault();
+          onHome();
+        }}
         style={{
           display: 'inline-flex',
           alignItems: 'center',

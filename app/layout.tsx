@@ -36,7 +36,8 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: 'alltiditid',
+    // Namnet under ikonen på hemskärmen.
+    title: 'alltid i tid',
     statusBarStyle: 'default',
   },
 };
@@ -51,8 +52,8 @@ export default function RootLayout({
       <head>
         {/* Startar hämtningen av tavlan innan React har laddat (lib/prefetch.ts). */}
         <script dangerouslySetInnerHTML={{ __html: PREFETCH_SCRIPT }} />
-        <meta name="theme-color" content="#121019" media="(prefers-color-scheme: dark)" />
-        <meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#0e0e0e" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#f4f2ec" media="(prefers-color-scheme: light)" />
         {/*
           Google Analytics laddas inte här utan i lib/analytics.ts, och bara om ett
           mätnings-id finns och efter samtycke via ConsentBanner.

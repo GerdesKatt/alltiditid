@@ -22,6 +22,8 @@ import ModeTabs, { type AppTab, type MenuKey } from './ModeTabs';
 import { loadModeFor, storeModeFor } from '../lib/modeMemory';
 import { habitFor, recordOpen } from '../lib/habits';
 import { useWalk } from '../lib/useWalk';
+import Home from './Home';
+import { boardRecentlyShown, homeStops, markBoardShown, recordVisit } from '../lib/visits';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { track } from '../lib/track';
 import { alternativeFor } from '../lib/alternative.mjs';
@@ -249,6 +251,9 @@ export default function App({ initialStop, page, intro }: AppProps) {
 
   const walk = useWalk(hasStop ? selectedStop.id : '');
   const [restored, setRestored] = useState(false);
+  // Hem eller en hållplats tavla. Hem är startplatsen; Nu och ordmärket leder alltid dit.
+  const [screen, setScreen] = useState<'home' | 'board'>(initialStop ? 'board' : 'home');
+  const screenChosen = React.useRef(Boolean(initialStop));
   const [offline, setOffline] = useState(false);
   const [view, setView] = useState<BoardView>('list');
   // Har man själv valt lista eller per linje gäller det. Annars visas stora stationer per linje
@@ -274,7 +279,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
   const [tripLoading, setTripLoading] = useState(false);
   // Inställningarna (region, snabbval, sök, filter) är öppna vid första besöket och
   // fälls ihop när det finns en sparad hållplats, så att tavlan kommer först.
-  const [controlsOpen, setControlsOpen] = useState(!initialStop);
+  // Sökpanelen öppnas när man trycker på sök; Hem har ett eget sökfält.
+  const [controlsOpen, setControlsOpen] = useState(false);
   useEffect(() => {
     setFavorites(loadFavorites());
     setMyTrip(loadMyTrip());
@@ -296,6 +302,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
     const saved = loadSavedState(initialStop);
     // Återkommande besökare: bara om en hållplats redan var sparad (ingen ny lagring för mätningen).
     track('aterkommande', 0, saved ? 'ja' : 'nej');
+    // Tittade man på en tavla för under tio minuter sedan öppnas den igen; annars Hem.
+    if (!initialStop) setScreen(saved && boardRecentlyShown() ? 'board' : 'home');
     if (saved) {
       setRegion(saved.region);
       setSelectedStop(saved.stop);
@@ -304,6 +312,30 @@ export default function App({ initialStop, page, intro }: AppProps) {
     }
     setRestored(true);
   }, []);
+
+  // Väljer man en hållplats (sök, favorit, byte, tåg) visas dess tavla.
+  const lastStopId = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (!restored) return;
+    if (lastStopId.current !== null && lastStopId.current !== selectedStop.id && hasStop) setScreen('board');
+    lastStopId.current = selectedStop.id;
+  }, [restored, selectedStop.id, hasStop]);
+
+  // Dina hållplatser för Hem: läses ur webbläsaren först efter laddningen (servern vet inget om dem).
+  const [homeList, setHomeList] = useState<StopOption[]>([]);
+  useEffect(() => {
+    if (!restored) return;
+    setHomeList(homeStops(favorites, Date.now()));
+  }, [restored, favorites, screen]);
+
+  // Hem lär sig vilka tavlor man tittar på, och när en tavla senast visades.
+  useEffect(() => {
+    if (!restored || screen !== 'board' || tab !== 'trafik' || !hasStop) return;
+    recordVisit({ id: selectedStop.id, name: selectedStop.name });
+    markBoardShown();
+    const timer = setInterval(() => markBoardShown(), 60_000);
+    return () => clearInterval(timer);
+  }, [restored, screen, tab, hasStop, selectedStop.id, selectedStop.name]);
 
   // Mätpunkter utan kakor (lib/track.ts).
   const startedAt = React.useRef(Date.now());
@@ -599,6 +631,24 @@ export default function App({ initialStop, page, intro }: AppProps) {
 
   const isFavorite = favorites.some((s) => s.id === selectedStop.id);
 
+  /** Till Hem: från menyn (Nu), ordmärket och ← Hem på tavlan. */
+  function goHome() {
+    setScreen('home');
+    setControlsOpen(false);
+    setTab('trafik');
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
+  }
+
+  function openStopFromHome(stop: StopOption) {
+    setSelectedStop(stop);
+    const stopRegion = regionForStop(stop.id);
+    if (stopRegion !== 'all') setRegion(stopRegion);
+    setDirection('departures');
+    setControlsOpen(false);
+    setScreen('board');
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
+  }
+
   /** Menyn: Nu, Min resa och Sök. Sök öppnar sökfältet ovanpå tavlan. */
   function onMenu(key: MenuKey) {
     if (key === 'resa') {
@@ -607,7 +657,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
     }
     changeTab('trafik');
     if (key === 'trafik') {
-      if (hasStop) setControlsOpen(false);
+      goHome();
       return;
     }
     track('funktion', 0, 'sok');
@@ -739,10 +789,10 @@ export default function App({ initialStop, page, intro }: AppProps) {
       <a href="#avgangstavla" className="skip-link">
         {t('Hoppa till avgångar', 'Skip to departures')}
       </a>
-      <Header onContactClick={() => setActiveInfoTab('contact')} />
+      <Header onContactClick={() => setActiveInfoTab('contact')} onHome={goHome} />
       <main id="innehall">
       <ModeTabs
-        active={tab === 'resa' ? 'resa' : tab === 'flyg' ? 'sok' : !wide && controlsOpen && hasStop ? 'sok' : 'trafik'}
+        active={tab === 'resa' ? 'resa' : tab === 'flyg' ? 'sok' : !wide && controlsOpen ? 'sok' : 'trafik'}
         onChange={onMenu}
         hasJourney={Boolean(myTrain || myTrip || planned)}
       />
@@ -1017,7 +1067,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
       <div style={tab === 'trafik' ? undefined : { display: 'none' }}>
       <div className="layout">
       <div className="layout-side">
-      {controlsOpen || wide ? (
+      {controlsOpen || (wide && screen === 'board') ? (
         <SearchPanel
           region={region}
           currentRegion={currentRegionObj}
@@ -1071,17 +1121,25 @@ export default function App({ initialStop, page, intro }: AppProps) {
 
       <div className="layout-board">
       {tab === 'trafik' ? journeyCards : null}
+      {tab === 'trafik' && screen === 'home' ? (
+        <Home
+          stops={homeList}
+          now={now}
+          onOpenStop={openStopFromHome}
+          onSearch={() => onMenu('sok')}
+          onOpenFlights={() => {
+            track('funktion', 0, 'flyg');
+            changeTab('flyg');
+          }}
+        />
+      ) : (
+        <>
+      {tab === 'trafik' ? (
+        <button type="button" onClick={goHome} className="back-home">
+          <span aria-hidden="true">←</span> {t('Hem', 'Home')}
+        </button>
+      ) : null}
       {tab === 'trafik' ? autoCard : null}
-      <FavoritesBar
-        favorites={favorites}
-        currentId={selectedStop.id}
-        onSelect={(stop) => {
-          setSelectedStop(stop);
-          const stopRegion = regionForStop(stop.id);
-          if (stopRegion !== 'all') setRegion(stopRegion);
-          setControlsOpen(false);
-        }}
-      />
 
       {!hasStop ? (
         <section
@@ -1172,6 +1230,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
         }}
       />
       </div>
+        </>
+      )}
 
       </div>
       </div>

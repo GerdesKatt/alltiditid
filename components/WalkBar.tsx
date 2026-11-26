@@ -68,22 +68,79 @@ export default function WalkBar({ stopName, state, pace, onTurnOn, onTurnOff, on
     );
   }
 
+  // Redo eller letar: en kort rad i statusraden med takten som en liten väljare.
+  if (state.kind === 'ready' || state.kind === 'locating') {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px', fontSize: '0.875rem', color: colors.text }}>
+        <Icon name="walk" />
+        <span role="status" style={{ fontWeight: 700 }}>
+          {state.kind === 'ready'
+            ? t(`${state.minutes} min gång`, `${state.minutes} min walk`)
+            : t('Letar…', 'Locating…')}
+        </span>
+        <label>
+          <span className="sr-only">{t('Gångtakt', 'Walking pace')}</span>
+          <select
+            value={pace}
+            onChange={(e) => onPace(e.target.value as typeof pace)}
+            style={{
+              minHeight: '36px',
+              padding: '0 6px',
+              border: `1px solid ${colors.borderStrong}`,
+              borderRadius: 0,
+              background: 'transparent',
+              color: colors.text,
+              fontSize: '0.8125rem',
+              fontFamily: 'inherit',
+            }}
+          >
+            {PACES.map((p) => (
+              <option key={p.key} value={p.key}>
+                {t(p.sv, p.en)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          onClick={onTurnOff}
+          aria-label={t('Stäng av gångtid', 'Turn off walking time')}
+          style={{ minWidth: '32px', minHeight: '44px', padding: 0, border: 'none', background: 'none', color: colors.textDim, fontSize: '1rem', cursor: 'pointer' }}
+        >
+          ×
+        </button>
+      </span>
+    );
+  }
+
+  // Långt bort: bara en kort text i statusraden, ingen ruta som trycker ner tavlan.
+  if (state.kind === 'far') {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px', fontSize: '0.8125rem', color: colors.textDim }}>
+        <Icon name="walk" />
+        <span role="status">
+          {t(`${decimal(state.meters / 1000, 1, lang)} km bort`, `${decimal(state.meters / 1000, 1, lang)} km away`)}
+        </span>
+        <button
+          type="button"
+          onClick={onTurnOff}
+          aria-label={t('Stäng av gångtid', 'Turn off walking time')}
+          style={{ minWidth: '32px', minHeight: '44px', padding: 0, border: 'none', background: 'none', color: colors.textDim, fontSize: '1rem', cursor: 'pointer' }}
+        >
+          ×
+        </button>
+      </span>
+    );
+  }
+
+  // Kvar: platsåtkomst nekad eller fel. Här behövs en förklaring, så det blir en rad med text.
   const message =
-    state.kind === 'locating'
-      ? t('Letar efter din position…', 'Finding your location…')
-      : state.kind === 'denied'
+    state.kind === 'denied'
       ? t(
           'Platsåtkomst är avstängd. Tillåt plats för alltiditid.se i webbläsaren för att se gångtid.',
           'Location access is off. Allow location for alltiditid.se in your browser to see walking time.'
         )
-      : state.kind === 'error'
-      ? t('Din position gick inte att hitta just nu.', 'Your location could not be found right now.')
-      : state.kind === 'far'
-      ? t(
-          `Du är ${decimal(state.meters / 1000, 1, lang)} km från ${stopName}. Gångtid visas när du är närmare än 2,5 km.`,
-          `You are ${decimal(state.meters / 1000, 1, lang)} km from ${stopName}. Walking time shows within 2.5 km.`
-        )
-      : t(`Gångtid till ${stopName}: ca ${state.minutes} min`, `Walking time to ${stopName}: about ${state.minutes} min`);
+      : t('Din position gick inte att hitta just nu.', 'Your location could not be found right now.');
 
   return (
     <div
@@ -106,26 +163,6 @@ export default function WalkBar({ stopName, state, pace, onTurnOn, onTurnOff, on
         <Icon name="walk" /> 
         {message}
       </span>
-      {state.kind === 'ready' || state.kind === 'locating' ? (
-        <span role="group" aria-label={t('Gångtakt', 'Walking pace')} style={{ display: 'inline-flex', gap: '4px' }}>
-          {PACES.map((p) => (
-            <button
-              key={p.key}
-              type="button"
-              aria-pressed={pace === p.key}
-              onClick={() => onPace(p.key)}
-              style={{
-                ...smallButton,
-                border: `1px solid ${pace === p.key ? colors.accentStrong : colors.borderStrong}`,
-                backgroundColor: pace === p.key ? colors.accentStrong : colors.surface,
-                color: pace === p.key ? colors.onAccent : colors.text,
-              }}
-            >
-              {t(p.sv, p.en)}
-            </button>
-          ))}
-        </span>
-      ) : null}
       <button
         type="button"
         onClick={onTurnOff}
