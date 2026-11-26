@@ -1,0 +1,58 @@
+import type { Metadata } from 'next';
+import React from 'react';
+import Header from '../../components/Header';
+import { colors } from '../../components/styles';
+import { STOP_PAGES } from '../../lib/stops';
+
+export const metadata: Metadata = {
+  title: 'Alla hållplatser – avgångar i realtid | alltiditid',
+  description: 'Hållplatser och stationer i hela Sverige med avgångar i realtid, ordnade efter ort.',
+  alternates: { canonical: '/hallplatser' },
+};
+
+/** Alla hållplatssidor, ordnade efter ort. */
+export default function AllStopsPage() {
+  const groups = new Map<string, typeof STOP_PAGES>();
+  for (const s of STOP_PAGES) {
+    const place = s.place || 'Övriga';
+    if (!groups.has(place)) groups.set(place, []);
+    groups.get(place)!.push(s);
+  }
+  const places = [...groups.keys()].sort((a, b) =>
+    a === 'Övriga' ? 1 : b === 'Övriga' ? -1 : a.localeCompare(b, 'sv')
+  );
+
+  return (
+    <div className="app-shell" style={{ maxWidth: '860px', margin: '0 auto' }}>
+      <Header linkBase="/" />
+      <main id="innehall">
+        <h1 style={{ fontSize: '28px', fontWeight: 800, margin: '8px 0 6px' }}>Alla hållplatser</h1>
+        <p style={{ color: colors.textDim, margin: '0 0 18px', fontSize: '15px' }}>
+          {STOP_PAGES.length} av de mest trafikerade hållplatserna i Sverige. Hittar du inte din? Sök på{' '}
+          <a href="/" style={{ color: colors.text, fontWeight: 600 }}>
+            startsidan
+          </a>
+          , där finns alla.
+        </p>
+        {places.map((place) => (
+          <section key={place} style={{ marginBottom: '18px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 8px' }}>{place}</h2>
+            <ul style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', listStyle: 'none', margin: 0, padding: 0 }}>
+              {groups
+                .get(place)!
+                .slice()
+                .sort((a, b) => a.name.localeCompare(b.name, 'sv'))
+                .map((s) => (
+                  <li key={s.id}>
+                    <a href={`/${s.slug}`} style={{ color: colors.text, fontSize: '15px' }}>
+                      {s.name}
+                    </a>
+                  </li>
+                ))}
+            </ul>
+          </section>
+        ))}
+      </main>
+    </div>
+  );
+}

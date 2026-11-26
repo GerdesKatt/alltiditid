@@ -12,6 +12,8 @@ type Props = {
   isMyTrip?: boolean;
   /** Saknas vid ankomster: Min resa gäller avgångar. */
   onToggleMyTrip?: (item: Departure) => void;
+  /** Öppnar tågets hela resa (bara tåg med tågnummer). */
+  onShowTrain?: (trainNumber: string) => void;
 };
 
 /** Från så här många minuters försening visas en länk om reseersättning. */
@@ -30,6 +32,7 @@ export default function DepartureRow({
   onSelectOnBoard,
   isMyTrip = false,
   onToggleMyTrip,
+  onShowTrain,
 }: Props) {
   const [open, setOpen] = useState(false);
   const isDelayed = item.status === 'delayed';
@@ -218,6 +221,8 @@ export default function DepartureRow({
           >
             {isCancelled ? (
               'Inställd'
+            ) : item.pending ? (
+              <span style={{ color: colors.amber, fontWeight: 600 }}>Står kvar</span>
             ) : booked ? (
               // Bokat tåg: ordinarie tid står stort ovanför.
               <>
@@ -289,6 +294,25 @@ export default function DepartureRow({
           >
             {isSelectedTrip ? 'Vald resa' : 'Jag är ombord'}
           </button>
+          {onShowTrain && item.trainNumber && (item.transportMode === 'train' || item.transportMode === 'commuter') ? (
+            <button
+              type="button"
+              onClick={() => onShowTrain(item.trainNumber!)}
+              style={{
+                minHeight: '44px',
+                padding: '0 14px',
+                borderRadius: 'var(--radius-control)',
+                border: `1px solid ${colors.borderStrong}`,
+                backgroundColor: colors.surface,
+                color: colors.text,
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Hela resan
+            </button>
+          ) : null}
           {onToggleMyTrip ? (
             <button
               type="button"

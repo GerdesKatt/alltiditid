@@ -3,6 +3,7 @@ import { REGIONS } from '../lib/regions';
 import NearbyStops from './NearbyStops';
 import type { Region, RegionKey, StopOption, TransportMode } from '../lib/types';
 import { colors, textInput } from './styles';
+import { AIRPORTS } from '../lib/flights.mjs';
 
 type Props = {
   region: RegionKey;
@@ -23,6 +24,10 @@ type Props = {
   onFilterTextChange: (text: string) => void;
   /** Senast sökta hållplatser, visas när sökfältet är tomt. */
   recentStops: StopOption[];
+  /** Öppnar flygfliken på en flygplats, när sökningen ser ut att gälla en. */
+  onOpenAirport?: (iata: string) => void;
+  /** Öppnar ett tågs hela resa, när sökningen är ett tågnummer. */
+  onOpenTrain?: (trainNumber: string) => void;
 };
 
 export default function SearchPanel({
@@ -42,7 +47,19 @@ export default function SearchPanel({
   filterText,
   onFilterTextChange,
   recentStops,
+  onOpenAirport,
+  onOpenTrain,
 }: Props) {
+  // "532", "tåg 532" eller "SJ 532": ett tågnummer.
+  const trainHit = onOpenTrain ? /^(?:tåg|sj|tag)?\s*(\d{1,5})$/i.exec(stationQuery.trim())?.[1] : undefined;
+  const airportHit =
+    onOpenAirport && stationQuery.trim().length >= 3
+      ? AIRPORTS.find((a) =>
+          [a.short, a.name, a.iata, 'flyg', 'flygplats'].some((w) =>
+            w.toLowerCase().startsWith(stationQuery.trim().toLowerCase())
+          )
+        )
+      : null;
   // Kombobox för sökförslagen (ARIA-mönstret): piltangenter, Enter och Esc.
   const [activeIndex, setActiveIndex] = useState(-1);
   const [dismissed, setDismissed] = useState(false);
@@ -255,6 +272,59 @@ export default function SearchPanel({
             placeholder="Sök valfri station eller hållplats i Sverige..."
             style={textInput(colors.borderStrong)}
           />
+
+          {trainHit ? (
+            <button
+              type="button"
+              onClick={() => onOpenTrain!(trainHit)}
+              style={{
+                marginTop: '10px',
+                width: '100%',
+                minHeight: '48px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '0 14px',
+                borderRadius: 'var(--radius-control)',
+                border: `1px solid ${colors.borderStrong}`,
+                backgroundColor: colors.surface,
+                color: colors.text,
+                fontSize: '15px',
+                fontWeight: 700,
+                textAlign: 'left',
+                cursor: 'pointer',
+              }}
+            >
+              Tåg {trainHit}: visa hela resan
+            </button>
+          ) : null}
+
+          {airportHit ? (
+            <button
+              type="button"
+              onClick={() => onOpenAirport!(airportHit.iata)}
+              style={{
+                marginTop: '10px',
+                width: '100%',
+                minHeight: '48px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '0 14px',
+                borderRadius: 'var(--radius-control)',
+                border: `1px solid ${colors.borderStrong}`,
+                backgroundColor: colors.surface,
+                color: colors.text,
+                fontSize: '15px',
+                fontWeight: 700,
+                textAlign: 'left',
+                cursor: 'pointer',
+              }}
+            >
+              <span aria-hidden="true">✈</span>
+              Flyg från {airportHit.name}
+            </button>
+          ) : null}
 
           {!stationQuery && recentStops.some((s) => s.id !== selectedStop.id) ? (
             <div style={{ marginTop: '10px' }}>

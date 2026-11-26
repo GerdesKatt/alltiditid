@@ -32,6 +32,7 @@ export function takePrefetch(url: string): Promise<Response> | null {
  * hållplats. Okända namn i adressen (snabbval byter namn) ger bara en miss, inget fel.
  */
 export const PREFETCH_SCRIPT = `(function(){try{
+if(location.pathname!=='/')return;
 var p=new URLSearchParams(location.search),id=(p.get('h')||'').trim(),n=(p.get('n')||'').trim().slice(0,80),d=p.get('visa')==='ankomster'?'arrivals':'departures';
 if(!id){var s=JSON.parse(localStorage.getItem('alltiditid:senaste')||'null');if(s&&s.stop){id=String(s.stop.id||'');n=String(s.stop.name||'');d=s.direction==='arrivals'?'arrivals':'departures';}}
 if(!/^\\d{6,12}(,\\d{6,12}){0,3}$/.test(id)||!n)return;

@@ -68,13 +68,30 @@ function fromStorage(): SavedState | null {
   }
 }
 
-/** Adressen vinner (en delad länk), annars senast använda hållplats. */
-export function loadSavedState(): SavedState | null {
+/**
+ * Adressen vinner (en delad länk). På en hållplatssida (/gullmarsplan) gäller sedan
+ * sidans hållplats, annars senast använda hållplats.
+ */
+export function loadSavedState(pageStop?: StopOption): SavedState | null {
   if (typeof window === 'undefined') return null;
-  return fromUrl() || fromStorage();
+  const fromLink = fromUrl();
+  if (fromLink) return fromLink;
+  if (pageStop) {
+    const saved = fromStorage();
+    return {
+      stop: pageStop,
+      direction: 'departures',
+      region: saved && saved.stop.id === pageStop.id ? saved.region : regionForStop(pageStop.id),
+    };
+  }
+  return fromStorage();
 }
 
-export function saveState(state: SavedState): void {
+/**
+ * Sparar valet och sätter adressen. Har hållplatsen en egen sida (`slug`) blir adressen
+ * den, t.ex. /slussen-t-bana, så att delade länkar går till stationens sida.
+ */
+export function saveState(state: SavedState, pageStop?: StopOption, slug?: string): void {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -82,12 +99,22 @@ export function saveState(state: SavedState): void {
     // Privat läge eller fullt lagringsutrymme: appen fungerar ändå.
   }
 
-  const params = new URLSearchParams(window.location.search);
+  // Avgångar från en hållplats med egen sida: adressen blir sidan (/slussen-t-bana).
+  if (state.direction === 'departures' && (slug || (pageStop && state.stop.id === pageStop.id))) {
+    const path = slug ? `/${slug}` : window.location.pathname;
+    if (`${window.location.pathname}${window.location.search}` !== path) {
+      window.history.replaceState(null, '', `${path}${window.location.hash}`);
+    }
+    return;
+  }
+  // Annars en vanlig länk från startsidan: /?h=…&n=…
+  const base = '/';
+  const params = new URLSearchParams(window.location.pathname === '/' ? window.location.search : '');
   params.set('h', state.stop.id);
   params.set('n', state.stop.name);
   if (state.direction === 'arrivals') params.set('visa', 'ankomster');
   else params.delete('visa');
-  const next = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
+  const next = `${base}?${params.toString()}${window.location.hash}`;
   if (next !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
     window.history.replaceState(null, '', next);
   }

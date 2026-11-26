@@ -6,3 +6,5 @@ out/
 .wrangler/
 *.tsbuildinfo
 .DS_Store
+data/stops.json
+public/stops.json

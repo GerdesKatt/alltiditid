@@ -342,3 +342,18 @@ details[open] .disruption-teaser {
     opacity: 0;
   }
 }
+
+/* Telefoner: bara ikonen på "Om stationen", så att namnet får plats. */
+@media (max-width: 480px) {
+  .station-btn-label {
+    display: none;
+  }
+}
+
+/* Snabbval som rullar i sidled i stället för att ta flera rader (flygplatserna). */
+.chip-scroll {
+  scrollbar-width: none;
+}
+.chip-scroll::-webkit-scrollbar {
+  display: none;
+}

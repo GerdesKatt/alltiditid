@@ -1,3 +1,7 @@
+import { historyRows, saveHistory } from '../../lib/history.mjs';
+import { airportByIata, datesToFetch, flightBoard, waitTimes } from '../../lib/flights.mjs';
+import { missingTrains, trainJourney } from '../../lib/trains.mjs';
+
 function parseTimeToMinutes(timeStr) {
   if (!timeStr || typeof timeStr !== 'string') return null;
   const parts = timeStr.trim().split(':');
@@ -429,6 +433,117 @@ async function fetchTrafikverketStationUpdates(
   }
 
   return updatesMap;
+}
+
+/** Namnet på en station från dess signatur (Cst → Stockholm Central). */
+function stationNamer(stations) {
+  const map = new Map((stations || []).map((st) => [st.signature, st.name]));
+  return (sig) => map.get(sig) || '';
+}
+
+const TV_INCLUDE = [
+  'AdvertisedTrainIdent',
+  'AdvertisedTimeAtLocation',
+  'EstimatedTimeAtLocation',
+  'TimeAtLocation',
+  'Canceled',
+  'TrackAtLocation',
+  'Deviation',
+  'ToLocation',
+  'FromLocation',
+  'ProductInformation',
+  'InformationOwner',
+  'Advertised',
+  'ActivityType',
+  'LocationSignature',
+]
+  .map((f) => `<INCLUDE>${f}</INCLUDE>`)
+  .join('');
+
+async function trafikverketQuery(key, filter, limit = 400) {
+  const xmlBody = `<REQUEST>
+  <LOGIN authenticationkey="${key}" />
+  <QUERY objecttype="TrainAnnouncement" schemaversion="1.9" limit="${limit}" orderby="AdvertisedTimeAtLocation">
+    <FILTER>${filter}</FILTER>
+    ${TV_INCLUDE}
+  </QUERY>
+</REQUEST>`;
+  const res = await fetch(TRAFIKVERKET_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/xml; charset=utf-8' },
+    body: xmlBody,
+  });
+  if (!res.ok) throw new Error(`Trafikverket ${res.status}`);
+  const data = await res.json();
+  return data?.RESPONSE?.RESULT?.[0]?.TrainAnnouncement || [];
+}
+
+/**
+ * Tåg vid en station som Trafiklab saknar: de som står kvar efter sin tid och de som
+ * går mer än en timme fram. Ett anrop till Trafikverket per station.
+ */
+async function trafikverketMissing(key, stopName, direction, known, context) {
+  if (!key || !stopName) return [];
+  try {
+    const stations = await fetchTrafikverketStations(key, context);
+    const sig = findLocationSignature(stations, stopName);
+    if (!sig) return [];
+    const now = Date.now();
+    const filter = `<AND>
+        <EQ name="ActivityType" value="${direction === 'arrivals' ? 'Ankomst' : 'Avgang'}" />
+        <EQ name="LocationSignature" value="${sig}" />
+        <EQ name="Advertised" value="true" />
+        <GTE name="AdvertisedTimeAtLocation" value="${new Date(now - 90 * 60000).toISOString()}" />
+        <LTE name="AdvertisedTimeAtLocation" value="${new Date(now + 180 * 60000).toISOString()}" />
+      </AND>`;
+    const announcements = await trafikverketQuery(key, filter, 300);
+    return missingTrains({
+      announcements,
+      known,
+      direction,
+      nowLocal: swedishDateTime(new Date(now).toISOString()),
+      nameOf: stationNamer(stations),
+      tvStation: stopName,
+    });
+  } catch {
+    return [];
+  }
+}
+
+/** action=train&number=532: tågets hela resa i dag (eller i går, om det går över midnatt). */
+async function handleTrain(url, keys, context) {
+  const number = String(url.searchParams.get('number') || '').trim();
+  if (!/^\d{1,6}$/.test(number)) return jsonResponse({ error: 'Ange ett tågnummer.' }, 400);
+  if (!keys.trafikverket) return jsonResponse({ error: 'Tåginformation saknas just nu.' }, 503);
+  const stations = await fetchTrafikverketStations(keys.trafikverket, context);
+  const nameOf = stationNamer(stations);
+  const nowIso = new Date().toISOString();
+  const today = swedishDateTime(nowIso).slice(0, 10);
+  const dates = [today];
+  const y = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  dates.push(swedishDateTime(y).slice(0, 10));
+  for (const date of dates) {
+    const filter = `<AND>
+        <EQ name="AdvertisedTrainIdent" value="${number}" />
+        <EQ name="ScheduledDepartureDateTime" value="${date}" />
+      </AND>`;
+    let anns = [];
+    try {
+      anns = await trafikverketQuery(keys.trafikverket, filter, 500);
+    } catch {
+      return jsonResponse({ error: 'Kunde inte hämta tåget från Trafikverket just nu.' }, 502);
+    }
+    const journey = trainJourney(anns, nameOf, swedishDateTime(nowIso));
+    if (journey.stops.length === 0) continue;
+    // Gårdagens tåg bara om det fortfarande är på väg.
+    if (date !== today && journey.stops.every((st) => st.passed)) continue;
+    return jsonResponse(
+      { number, date, ...journey, updatedAt: nowIso },
+      200,
+      { 'Cache-Control': 'public, max-age=30' }
+    );
+  }
+  return jsonResponse({ error: `Hittade inget tåg ${number} i dag.` }, 404);
 }
 
 /** Lägger Trafikverkets uppgifter ovanpå en avgång (bara tåg, bara exakt matchning). */
@@ -1626,7 +1741,25 @@ async function handleBoard(url, keys, context) {
     );
   }
 
-  const departures = all
+  // Tåg som Trafiklab saknar (stående tåg, tåg mer än en timme fram), från Trafikverket.
+  if (keys.trafikverket && (mode === 'all' || mode === 'train')) {
+    const known = all.flatMap((d) => (d._trainCandidates || []).map((n) => String(n || '').trim()));
+    const tvStations = Array.from(new Set(all.map((d) => d._tvStation).filter(Boolean)));
+    if (tvStations.length === 0) tvStations.push(url.searchParams.get('stopName') || '');
+    const extra = (
+      await Promise.all(
+        tvStations.slice(0, 4).map((st) => trafikverketMissing(keys.trafikverket, st, direction, known, context))
+      )
+    ).flat();
+    const seen = new Set();
+    for (const d of extra) {
+      if (seen.has(d.id)) continue;
+      seen.add(d.id);
+      all.push(d);
+    }
+  }
+
+  const timed = all
     .filter((d) => mode === 'all' || d.transportMode === mode)
     .map((d) => applyTrafikverket(d, tvByStation.get(d._tvStation) || new Map(), d._trainCandidates || []))
     .map(finalizeTiming)
@@ -1635,7 +1768,24 @@ async function handleBoard(url, keys, context) {
       (a, b) =>
         String(a.expectedAt || a._scheduledLocal || '').localeCompare(String(b.expectedAt || b._scheduledLocal || '')) ||
         String(a._scheduledLocal || '').localeCompare(String(b._scheduledLocal || ''))
-    )
+    );
+
+  // Förseningshistorik (lib/history.mjs): turer som går nu sparas i D1, efter svaret.
+  const db = context && context.env ? context.env.HISTORY : null;
+  if (db && direction === 'departures' && mode === 'all') {
+    const nowIso = new Date().toISOString();
+    const rows = historyRows({
+      stopId: stopParam,
+      stopName: url.searchParams.get('stopName') || '',
+      source: boards[0].source,
+      departures: timed,
+      nowLocal: swedishDateTime(nowIso),
+      seenAt: nowIso,
+    });
+    if (rows.length && context.waitUntil) context.waitUntil(saveHistory(db, rows));
+  }
+
+  const departures = timed
     .map(
       ({ _trainCandidates, _scheduledLocal, _agency, _designation, _coords, _tvStation, _offsetMin, ...rest }) =>
         compactDeparture(rest)
@@ -1658,10 +1808,162 @@ async function handleBoard(url, keys, context) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Flyg från Swedavia (FlightInfo v2) och kötider i säkerhetskontrollen (WaitTime).
+//
+// Gratisprenumerationen på FlightInfo tillåter omkring 10 000 anrop per 30 dagar.
+// Därför: ett anrop ger hela dagen för en flygplats och riktning, svaret cachas i
+// 10 minuter och delas av alla besökare, och högst FLIGHT_CALLS_PER_DAY anrop görs
+// per dygn (räknat i D1). Nås gränsen visas den senast hämtade tavlan.
+// ---------------------------------------------------------------------------
+
+const FLIGHT_CACHE_SECONDS = 600;
+const FLIGHT_STALE_SECONDS = 86400;
+const FLIGHT_CALLS_PER_DAY = 300;
+const WAIT_CACHE_SECONDS = 120;
+const WAIT_CALLS_PER_DAY = 3000;
+const SWEDAVIA = 'https://api.swedavia.se';
+
+/** Räknar ett anrop och svarar om det ryms i dygnets gräns. Utan D1 tillåts det. */
+async function allowCall(env, api, limit) {
+  const db = env && env.HISTORY;
+  if (!db) return true;
+  try {
+    const day = new Date().toISOString().slice(0, 10);
+    await db
+      .prepare('CREATE TABLE IF NOT EXISTS api_calls (day TEXT NOT NULL, api TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (day, api))')
+      .run();
+    const row = await db
+      .prepare('INSERT INTO api_calls (day, api, n) VALUES (?1, ?2, 1) ON CONFLICT (day, api) DO UPDATE SET n = n + 1 RETURNING n')
+      .bind(day, api)
+      .first();
+    return !row || Number(row.n) <= limit;
+  } catch {
+    return true;
+  }
+}
+
+async function swedaviaGet(path, key) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const res = await fetch(`${SWEDAVIA}${path}`, {
+      headers: { 'Ocp-Apim-Subscription-Key': key, Accept: 'application/json', 'Cache-Control': 'no-cache' },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`Swedavia ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function cacheKeyFor(kind, ...parts) {
+  return new Request(`https://alltiditid.se/__cache/${kind}/${parts.join('/')}`, { method: 'GET' });
+}
+
+async function staleOr(staleKey, fallbackBody, status) {
+  const stale = await cacheGet(staleKey);
+  if (stale) {
+    const body = await stale.json();
+    return jsonResponse({ ...body, stale: true }, 200, { 'Cache-Control': 'public, max-age=60' });
+  }
+  return jsonResponse(fallbackBody, status);
+}
+
+async function handleFlights(url, env, context) {
+  const airport = airportByIata(url.searchParams.get('airport'));
+  if (!airport) return jsonResponse({ error: 'Okänd flygplats.' }, 400);
+  const direction = url.searchParams.get('direction') === 'arrivals' ? 'arrivals' : 'departures';
+  const key = env && env.SWEDAVIA_FLIGHTINFO_KEY;
+  if (!key) return jsonResponse({ error: 'Flyg är inte påslaget (nyckel saknas i Cloudflare).' }, 503);
+
+  const freshKey = cacheKeyFor('flyg', airport.iata, direction);
+  const staleKey = cacheKeyFor('flyg-sparad', airport.iata, direction);
+  const fresh = await cacheGet(freshKey);
+  if (fresh) return fresh;
+
+  const dates = datesToFetch(Date.now());
+  for (const _ of dates) {
+    if (!(await allowCall(env, 'swedavia-flightinfo', FLIGHT_CALLS_PER_DAY))) {
+      return staleOr(staleKey, { error: 'Flygtiderna uppdateras igen senare.' }, 503);
+    }
+  }
+
+  let bodies;
+  try {
+    bodies = await Promise.all(
+      dates.map((date) => swedaviaGet(`/flightinfo/v2/${airport.iata}/${direction}/${date}`, key))
+    );
+  } catch {
+    return staleOr(staleKey, { error: 'Kunde inte hämta flygen från Swedavia just nu.' }, 502);
+  }
+
+  const body = {
+    airport: airport.iata,
+    airportName: airport.name,
+    direction,
+    flights: flightBoard(bodies, direction, swedishDateTime(new Date().toISOString())),
+    source: 'swedavia',
+    updatedAt: new Date().toISOString(),
+  };
+  const response = jsonResponse(body, 200, { 'Cache-Control': `public, max-age=${FLIGHT_CACHE_SECONDS}` });
+  await cachePut(freshKey, response.clone(), context);
+  await cachePut(
+    staleKey,
+    jsonResponse(body, 200, { 'Cache-Control': `public, max-age=${FLIGHT_STALE_SECONDS}` }),
+    context
+  );
+  return response;
+}
+
+async function handleWaitTimes(url, env, context) {
+  const airport = airportByIata(url.searchParams.get('airport'));
+  if (!airport || !airport.waitTimes) return jsonResponse({ queues: [] }, 200, { 'Cache-Control': 'public, max-age=3600' });
+  const key = env && env.SWEDAVIA_WAITTIME_KEY;
+  if (!key) return jsonResponse({ queues: [], note: 'nyckel saknas' }, 200, { 'Cache-Control': 'public, max-age=300' });
+
+  const freshKey = cacheKeyFor('koer', airport.iata);
+  const fresh = await cacheGet(freshKey);
+  if (fresh) return fresh;
+  if (!(await allowCall(env, 'swedavia-waittime', WAIT_CALLS_PER_DAY))) {
+    return jsonResponse({ queues: [] }, 200, { 'Cache-Control': 'public, max-age=300' });
+  }
+  let queues = [];
+  let raw;
+  try {
+    raw = await swedaviaGet(`/waittimepublic/v1/airports/${airport.iata}`, key);
+    queues = waitTimes(raw);
+  } catch (err) {
+    // Felet syns i svaret (utan nyckel), så att det går att felsöka.
+    return jsonResponse({ queues: [], note: String(err && err.message || 'fel') }, 200, { 'Cache-Control': 'public, max-age=60' });
+  }
+  if (queues.length === 0) {
+    // Okänt format: visa nycklarna i svaret, inte värdena.
+    const shape = Array.isArray(raw) ? `lista med ${raw.length}` : Object.keys(raw || {}).slice(0, 8).join(',');
+    return jsonResponse({ queues: [], note: `tomt (${shape})` }, 200, { 'Cache-Control': 'public, max-age=60' });
+  }
+  const response = jsonResponse(
+    { airport: airport.iata, queues, updatedAt: new Date().toISOString() },
+    200,
+    { 'Cache-Control': `public, max-age=${WAIT_CACHE_SECONDS}` }
+  );
+  await cachePut(freshKey, response.clone(), context);
+  return response;
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const action = url.searchParams.get('action') || 'departures';
+
+  // Flyg och kötider kräver inga Trafiklab-nycklar.
+  try {
+    if (action === 'flights') return await handleFlights(url, env, context);
+    if (action === 'waittimes') return await handleWaitTimes(url, env, context);
+  } catch {
+    return jsonResponse({ error: 'Ett fel uppstod vid hämtning av flygdata.' }, 500);
+  }
 
   const keys = {
     realtime: env.TRAFIKLAB_REALTIME_API_KEY,
@@ -1684,6 +1986,9 @@ export async function onRequest(context) {
   try {
     if (action === 'search') {
       return await handleSearch(url, keys);
+    }
+    if (action === 'train') {
+      return await handleTrain(url, keys, context);
     }
     if (action === 'nearby') {
       return await handleNearby(request, keys, context);

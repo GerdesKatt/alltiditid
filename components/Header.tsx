@@ -2,7 +2,9 @@ import React from 'react';
 import { colors, fonts } from './styles';
 
 type Props = {
-  onContactClick: () => void;
+  onContactClick?: () => void;
+  /** "/" på sidor utan tavla, så att länkarna går till startsidan. */
+  linkBase?: string;
 };
 
 // Minst 44 px höga tryckytor (var 15 px).
@@ -15,7 +17,7 @@ const navLink = {
   padding: '0 4px',
 } as const;
 
-export default function Header({ onContactClick }: Props) {
+export default function Header({ onContactClick, linkBase = '' }: Props) {
   return (
     <header
       id="sidhuvud"
@@ -80,14 +82,14 @@ export default function Header({ onContactClick }: Props) {
       </a>
 
       <nav className="site-nav" style={{ display: 'flex', gap: '16px', fontSize: '13px', fontWeight: 600 }}>
-        <a href="#avgangstavla" className="site-nav-board" style={navLink}>
+        <a href={`${linkBase}#avgangstavla`} className="site-nav-board" style={navLink}>
           Tidtabell
         </a>
-        <a href="#om-tjansten" style={navLink}>
+        <a href={`${linkBase}#om-tjansten`} style={navLink}>
           Om tjänsten
         </a>
         <a
-          href="#sidfot"
+          href={`${linkBase}#sidfot`}
           onClick={onContactClick}
           style={{ ...navLink, color: colors.accent }}
         >
