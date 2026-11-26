@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import type { BoardDirection, Flight, SecurityQueue } from '../lib/types';
-import { AIRPORTS, airportByIata } from '../lib/flights.mjs';
+import { AIRPORTS, airportByIata, flightMatches } from '../lib/flights.mjs';
 import { parseLocal } from '../lib/lineFormat';
 import DirectionToggle from './DirectionToggle';
 import { flightStatus, translator, useLang, type Lang } from '../lib/i18n';
@@ -146,13 +146,8 @@ export default function FlightView({ initialAirport }: Props) {
   }, [ready, airport, direction, hasQueues]);
 
   const shown = useMemo(() => {
-    const q = filter.trim().toLowerCase().replace(/\s+/g, '');
-    if (!q) return flights;
-    return flights.filter((f) =>
-      [f.flightId, ...(f.codeshare || []), f.place || '', f.airline || '']
-        .map((s) => s.toLowerCase().replace(/\s+/g, ''))
-        .some((s) => s.includes(q))
-    );
+    if (!filter.trim()) return flights;
+    return flights.filter((f) => flightMatches(f, filter));
   }, [flights, filter]);
 
   const airportObj = airportByIata(airport)!;
@@ -206,8 +201,8 @@ export default function FlightView({ initialAirport }: Props) {
           type="search"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder={t('Flightnummer eller stad', 'Flight number or city')}
-          aria-label={t('Filtrera på flightnummer, stad eller flygbolag', 'Filter by flight number, city or airline')}
+          placeholder={t('Flightnummer, stad eller flygplats (t.ex. CPH)', 'Flight number, city or airport (e.g. CPH)')}
+          aria-label={t('Filtrera på flightnummer, stad, flygplats eller flygbolag', 'Filter by flight number, city, airport or airline')}
           style={{
             flex: '1 1 160px',
             minHeight: '44px',
