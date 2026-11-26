@@ -18,6 +18,8 @@ import OnBoardPanel from './OnBoardPanel';
 import StationSheet from './StationSheet';
 import FlightView from './FlightView';
 import TrainSheet from './TrainSheet';
+import SheetBackdrop from './SheetBackdrop';
+import { colors } from './styles';
 import ModeTabs, { type AppTab } from './ModeTabs';
 import { loadStopIndex, stopPageFor, type StopIndex } from '../lib/stopIndex';
 import SearchPanel from './SearchPanel';
@@ -95,7 +97,14 @@ type AppProps = {
 
 export default function App({ initialStop, intro }: AppProps) {
   const [region, setRegion] = useState<RegionKey>('all');
-  const [selectedStop, setSelectedStop] = useState<StopOption>(initialStop || REGIONS[0].stations[0]);
+  const [selectedStop, setSelectedStopRaw] = useState<StopOption>(initialStop || REGIONS[0].stations[0]);
+  // Ingen hållplats är vald vid första besöket: Stockholm C ska inte se förvald ut.
+  // Tavlan hämtas och visas först när man valt en (eller har en sparad).
+  const [hasStop, setHasStop] = useState(Boolean(initialStop));
+  function setSelectedStop(stop: StopOption) {
+    setHasStop(true);
+    setSelectedStopRaw(stop);
+  }
   const [direction, setDirection] = useState<BoardDirection>('departures');
   const [mode, setMode] = useState<TransportMode>('all');
   const [stationQuery, setStationQuery] = useState('');
@@ -253,9 +262,9 @@ export default function App({ initialStop, intro }: AppProps) {
   const stationPage = stopPageFor(stopIndex, selectedStop.id);
 
   useEffect(() => {
-    if (!restored) return;
+    if (!restored || !hasStop) return;
     saveState({ stop: selectedStop, direction, region }, initialStop, stationPage?.slug);
-  }, [restored, selectedStop, direction, region, stationPage?.slug]);
+  }, [restored, hasStop, selectedStop, direction, region, stationPage?.slug]);
 
   /** Byt hållplats från stationsbladet (grannhållplatserna). */
   function selectStopFromSheet(stop: StopOption) {
@@ -273,10 +282,7 @@ export default function App({ initialStop, intro }: AppProps) {
   function handleRegionChange(newRegion: RegionKey) {
     setRegion(newRegion);
     setMode('all');
-    const regObj = REGIONS.find((r) => r.key === newRegion);
-    if (regObj && regObj.stations.length > 0) {
-      setSelectedStop(regObj.stations[0]);
-    }
+    // Regionen byter bara snabbvalen; tavlan står kvar tills man väljer en hållplats.
     setStationQuery('');
     setSuggestions([]);
   }
@@ -305,7 +311,7 @@ export default function App({ initialStop, intro }: AppProps) {
   }, [stationQuery]);
 
   useEffect(() => {
-    if (!restored) return;
+    if (!restored || !hasStop) return;
     let active = true;
     let hasData = false;
     setLoading(true);
@@ -373,7 +379,7 @@ export default function App({ initialStop, intro }: AppProps) {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [restored, selectedStop, direction]);
+  }, [restored, hasStop, selectedStop, direction]);
 
   // Min resa på en annan hållplats än tavlan: hämta den hållplatsen också, lika ofta.
   const tripOnBoard = Boolean(myTrip && myTrip.stopId === selectedStop.id && direction === 'departures');
@@ -486,8 +492,33 @@ export default function App({ initialStop, intro }: AppProps) {
       {tab === 'flyg' ? <FlightView initialAirport={flightAirport} /> : null}
       <div hidden={tab === 'flyg'}>
 
+      {trainNumber && !onBoardTrip ? <SheetBackdrop onClose={() => setTrainNumber(null)} /> : null}
+      {stationOpen && !onBoardTrip && !trainNumber ? <SheetBackdrop onClose={() => setStationOpen(false)} /> : null}
       {trainNumber && !onBoardTrip ? (
-        <TrainSheet number={trainNumber} onClose={() => setTrainNumber(null)} />
+        <TrainSheet
+          number={trainNumber}
+          onClose={() => setTrainNumber(null)}
+          onOpenStation={(name) => {
+            // "Linköping C" (Trafikverket) heter "Linköping Centralstation" hos Trafiklab.
+            const q = name.replace(/\s+C$/i, ' Centralstation');
+            fetch(`/api/trafik?action=search&q=${encodeURIComponent(q)}`)
+              .then((res) => res.json())
+              .then((data) => {
+                const stops: StopOption[] = Array.isArray(data.stops) ? data.stops : [];
+                const hit = stops.find((st) => !st.modes || st.modes.includes('Tåg')) || stops[0];
+                if (!hit) return;
+                setTrainNumber(null);
+                setTab('trafik');
+                setSelectedStop({ id: hit.id, name: hit.name });
+                setRecentStops((list) => rememberStop(list, hit));
+                const stopRegion = regionForStop(hit.id);
+                if (stopRegion !== 'all') setRegion(stopRegion);
+                setMode('all');
+                showBoard();
+              })
+              .catch(() => {});
+          }}
+        />
       ) : null}
 
       {stationOpen && !onBoardTrip && !trainNumber ? (
@@ -528,7 +559,7 @@ export default function App({ initialStop, intro }: AppProps) {
           region={region}
           currentRegion={currentRegionObj}
           onRegionChange={handleRegionChange}
-          selectedStop={selectedStop}
+          selectedStop={hasStop ? selectedStop : { id: '', name: '' }}
           onQuickStopSelect={(stop) => {
             setSelectedStop(stop);
             setStationQuery('');
@@ -613,6 +644,25 @@ export default function App({ initialStop, intro }: AppProps) {
         }}
       />
 
+      {!hasStop ? (
+        <section
+          id="avgangstavla"
+          style={{
+            padding: '20px',
+            borderRadius: 'var(--radius-card)',
+            border: `1px solid ${colors.border}`,
+            backgroundColor: colors.surface,
+            marginBottom: '18px',
+          }}
+        >
+          <h1 style={{ fontSize: '20px', fontWeight: 800, margin: '0 0 6px' }}>Välj en hållplats</h1>
+          <p style={{ margin: 0, fontSize: '15px', lineHeight: 1.5, color: colors.textDim }}>
+            Sök på en station, en hållplats eller ett tågnummer, välj ett snabbval eller tryck på{' '}
+            <strong style={{ color: colors.text }}>Hållplatser nära mig</strong>.
+          </p>
+        </section>
+      ) : null}
+      <div hidden={!hasStop}>
       <DepartureBoard
         isFavorite={isFavorite}
         favoritesFull={!isFavorite && favorites.length >= MAX_FAVORITES}
@@ -626,6 +676,8 @@ export default function App({ initialStop, intro }: AppProps) {
           setStationOpen(false);
           setTrainNumber(n);
         }}
+        filterText={filterText}
+        onClearFilter={() => setFilterText('')}
         onOpenStation={() => {
           setTrainNumber(null);
           setStationOpen(true);
@@ -662,6 +714,7 @@ export default function App({ initialStop, intro }: AppProps) {
           if (next) window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
+      </div>
 
       {!controlsOpen && !wide ? (
         <div className="switch-stop switch-stop--bottom">

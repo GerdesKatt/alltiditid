@@ -25,6 +25,20 @@ type Journey = {
 };
 
 const REFRESH_MS = 60_000;
+
+function stopAction(active: boolean): React.CSSProperties {
+  return {
+    minHeight: '44px',
+    padding: '0 14px',
+    borderRadius: 'var(--radius-control)',
+    border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
+    backgroundColor: active ? colors.accentStrong : colors.surface,
+    color: active ? colors.onAccent : colors.text,
+    fontSize: '14px',
+    fontWeight: 700,
+    cursor: 'pointer',
+  };
+}
 const BYTE_KEY = 'alltiditid:byte';
 
 type Connection = {
@@ -98,7 +112,18 @@ function timeCell(p: Part | undefined, label: string) {
 }
 
 /** Ett tågs hela resa: var tåget är nu och alla stationer med tider och spår. */
-export default function TrainSheet({ number, onClose }: { number: string; onClose: () => void }) {
+export default function TrainSheet({
+  number,
+  onClose,
+  onOpenStation,
+}: {
+  number: string;
+  onClose: () => void;
+  /** Visar tavlan för en station på tågets väg. */
+  onOpenStation?: (name: string) => void;
+}) {
+  // Stationen vars val (Byte här, Visa tavlan) är utfällda.
+  const [openStop, setOpenStop] = useState<string | null>(null);
   const sheetRef = useRef<HTMLElement>(null);
   const [journey, setJourney] = useState<Journey | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -112,22 +137,25 @@ export default function TrainSheet({ number, onClose }: { number: string; onClos
   useEffect(() => {
     const b = loadByte(number);
     setSaved(b);
-    setByteStation(b ? b.station : null);
+    setByteStation(null);
   }, [number]);
 
-  const byteStop = journey?.stops.find((st) => st.name === byteStation);
+  // Anslutningarna hämtas för stationen man tittar på, annars för det sparade bytet.
+  const connStation = byteStation || saved?.station || null;
+  const byteStop = journey?.stops.find((st) => st.name === connStation);
   const byteArrival = journey && byteStop ? arrivalAt(journey, byteStop) : '';
 
   // Anslutningarna hämtas om när tågets väntade ankomst ändras.
   useEffect(() => {
-    if (!byteStation || !byteArrival) {
+    if (!connStation || !byteArrival) {
       setConnections(null);
       return;
     }
     let active = true;
     setConnError(null);
+    setConnections(null);
     fetch(
-      `/api/trafik?action=connections&station=${encodeURIComponent(byteStation)}&arrival=${encodeURIComponent(
+      `/api/trafik?action=connections&station=${encodeURIComponent(connStation)}&arrival=${encodeURIComponent(
         byteArrival
       )}&train=${encodeURIComponent(number)}`
     )
@@ -146,7 +174,7 @@ export default function TrainSheet({ number, onClose }: { number: string; onClos
     return () => {
       active = false;
     };
-  }, [byteStation, byteArrival, number]);
+  }, [connStation, byteArrival, number]);
 
   const savedConn =
     saved && connections
@@ -187,6 +215,90 @@ export default function TrainSheet({ number, onClose }: { number: string; onClos
       clearInterval(t);
     };
   }, [number]);
+
+
+  // Anslutningarna visas direkt under stationen man tryckte på.
+  const connectionList = !connections ? null : (
+
+            <div style={{ margin: '4px 0 8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px', marginBottom: '6px' }}>
+                <span style={{ minWidth: 0 }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>Byte i {byteStation}</h3>
+                  <span style={{ fontSize: '12px', color: colors.textDim }}>
+                    ankomst {byteArrival.slice(11)} · bytestid {transfer} min
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setByteStation(null)}
+                  style={{
+                    flexShrink: 0,
+                    minHeight: '40px',
+                    padding: '0 12px',
+                    borderRadius: 'var(--radius-control)',
+                    border: `1px solid ${colors.borderStrong}`,
+                    backgroundColor: colors.surface,
+                    color: colors.text,
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Stäng
+                </button>
+              </div>
+              {connError ? <p style={{ color: colors.errorText, fontSize: '14px' }}>{connError}</p> : null}
+              {connections.length === 0 && !connError ? (
+                <p style={{ color: colors.textDim, fontSize: '14px' }}>Inga avgångar timmen efter ankomsten.</p>
+              ) : null}
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '260px', overflowY: 'auto' }}>
+                {connections.map((c) => {
+                  const v = verdict(c, transfer);
+                  const chosen = saved && saved.line === c.line && saved.scheduledTime === c.scheduledTime;
+                  const color = v.tone === 'miss' ? colors.textDim : v.tone === 'tight' ? colors.amber : colors.text;
+                  return (
+                    <li key={c.id}>
+                      <button
+                        type="button"
+                        aria-pressed={Boolean(chosen)}
+                        onClick={() => {
+                          const b = { train: number, station: byteStation, line: c.line, destination: c.destination, scheduledTime: c.scheduledTime };
+                          setSaved(b);
+                          storeByte(b);
+                          // Valt: listan fälls ihop, bytet står överst.
+                          setByteStation(null);
+                        }}
+                        style={{
+                          width: '100%',
+                          minHeight: '48px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          padding: '0 12px',
+                          borderRadius: 'var(--radius-control)',
+                          border: `1px solid ${chosen ? colors.accentStrong : colors.border}`,
+                          backgroundColor: chosen ? colors.surfaceRaised : colors.surface,
+                          color: colors.text,
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          opacity: v.tone === 'miss' ? 0.6 : 1,
+                        }}
+                      >
+                        <span style={{ fontFamily: fonts.display, fontWeight: 800, fontSize: '15px', width: '44px', flexShrink: 0 }}>
+                          {c.newTime || c.scheduledTime}
+                        </span>
+                        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '14px' }}>
+                          <strong>{c.line}</strong> mot {c.destination}
+                        </span>
+                        <span style={{ flexShrink: 0, fontSize: '13px', fontWeight: 700, color }}>{v.text}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          
+  );
 
   const title = journey ? `${journey.product} ${journey.number}` : `Tåg ${number}`;
 
@@ -307,64 +419,6 @@ export default function TrainSheet({ number, onClose }: { number: string; onClos
             </div>
           ) : null}
 
-          {byteStation && connections ? (
-            <div style={{ margin: '0 0 12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px', marginBottom: '6px' }}>
-                <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>Byte i {byteStation}</h3>
-                <span style={{ fontSize: '12px', color: colors.textDim }}>
-                  ankomst {byteArrival.slice(11)} · bytestid {transfer} min
-                </span>
-              </div>
-              {connError ? <p style={{ color: colors.errorText, fontSize: '14px' }}>{connError}</p> : null}
-              {connections.length === 0 && !connError ? (
-                <p style={{ color: colors.textDim, fontSize: '14px' }}>Inga avgångar timmen efter ankomsten.</p>
-              ) : null}
-              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '260px', overflowY: 'auto' }}>
-                {connections.map((c) => {
-                  const v = verdict(c, transfer);
-                  const chosen = saved && saved.line === c.line && saved.scheduledTime === c.scheduledTime;
-                  const color = v.tone === 'miss' ? colors.textDim : v.tone === 'tight' ? colors.amber : colors.text;
-                  return (
-                    <li key={c.id}>
-                      <button
-                        type="button"
-                        aria-pressed={Boolean(chosen)}
-                        onClick={() => {
-                          const b = { train: number, station: byteStation, line: c.line, destination: c.destination, scheduledTime: c.scheduledTime };
-                          setSaved(b);
-                          storeByte(b);
-                        }}
-                        style={{
-                          width: '100%',
-                          minHeight: '48px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                          padding: '0 12px',
-                          borderRadius: 'var(--radius-control)',
-                          border: `1px solid ${chosen ? colors.accentStrong : colors.border}`,
-                          backgroundColor: chosen ? colors.surfaceRaised : colors.surface,
-                          color: colors.text,
-                          textAlign: 'left',
-                          cursor: 'pointer',
-                          opacity: v.tone === 'miss' ? 0.6 : 1,
-                        }}
-                      >
-                        <span style={{ fontFamily: fonts.display, fontWeight: 800, fontSize: '15px', width: '44px', flexShrink: 0 }}>
-                          {c.newTime || c.scheduledTime}
-                        </span>
-                        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '14px' }}>
-                          <strong>{c.line}</strong> mot {c.destination}
-                        </span>
-                        <span style={{ flexShrink: 0, fontSize: '13px', fontWeight: 700, color }}>{v.text}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ) : null}
-
           <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
             {journey.stops.map((st, i) => (
               <li
@@ -392,16 +446,31 @@ export default function TrainSheet({ number, onClose }: { number: string; onClos
                   }}
                 />
                 <span style={{ minWidth: 0 }}>
-                  <span
+                  <button
+                    type="button"
+                    aria-expanded={openStop === st.name}
+                    onClick={() => setOpenStop(openStop === st.name ? null : st.name)}
                     style={{
-                      display: 'block',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      minHeight: '32px',
+                      padding: 0,
+                      border: 'none',
+                      background: 'none',
+                      color: colors.text,
                       fontWeight: 700,
                       fontSize: '15px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
                       textDecoration: st.cancelled ? 'line-through' : 'none',
                     }}
                   >
                     {st.name}
-                  </span>
+                    <span aria-hidden="true" style={{ color: colors.textDim, fontWeight: 500 }}>
+                      {openStop === st.name ? '▴' : '▾'}
+                    </span>
+                  </button>
                   <span style={{ display: 'block', fontSize: '13px', color: st.cancelled ? colors.cancelledText : colors.textDim }}>
                     {[st.cancelled ? 'Inställd här' : '', st.track ? `Spår ${st.track}` : '', ...(st.deviation || [])]
                       .filter(Boolean)
@@ -411,32 +480,34 @@ export default function TrainSheet({ number, onClose }: { number: string; onClos
                 <span style={{ textAlign: 'right', fontSize: '14px', fontVariantNumeric: 'tabular-nums' }}>
                   {timeCell(st.arrival, 'Ankomst')}
                   {timeCell(st.departure, 'Avgång')}
-                  {!st.passed && st.arrival && !st.cancelled ? (
-                    <button
-                      type="button"
-                      aria-pressed={byteStation === st.name}
-                      onClick={() => {
-                        setByteStation(byteStation === st.name ? null : st.name);
-                        // Anslutningarna visas överst i bladet.
-                        sheetRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-                      }}
-                      style={{
-                        marginTop: '4px',
-                        minHeight: '32px',
-                        padding: '0 10px',
-                        borderRadius: 'var(--radius-control)',
-                        border: `1px solid ${byteStation === st.name ? colors.accentStrong : colors.borderStrong}`,
-                        backgroundColor: byteStation === st.name ? colors.accentStrong : colors.surface,
-                        color: byteStation === st.name ? colors.onAccent : colors.text,
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Byte här
-                    </button>
-                  ) : null}
                 </span>
+                {openStop === st.name ? (
+                  <span style={{ gridColumn: '2 / -1', display: 'flex', flexWrap: 'wrap', gap: '8px', paddingBottom: '4px' }}>
+                    {!st.passed && st.arrival && !st.cancelled ? (
+                      <button
+                        type="button"
+                        aria-pressed={byteStation === st.name}
+                        onClick={() => {
+                          setByteStation(byteStation === st.name ? null : st.name);
+                          setOpenStop(null);
+                        }}
+                        style={stopAction(byteStation === st.name)}
+                      >
+                        {byteStation === st.name ? 'Byte här ✓' : 'Byte här'}
+                      </button>
+                    ) : null}
+                    {onOpenStation ? (
+                      <button type="button" onClick={() => onOpenStation(st.name)} style={stopAction(false)}>
+                        Visa tavlan för {st.name}
+                      </button>
+                    ) : null}
+                  </span>
+                ) : null}
+                {byteStation === st.name ? (
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    {connections ? connectionList : <p style={{ margin: '4px 0 8px', fontSize: '14px', color: colors.textDim }}>Hämtar anslutningar…</p>}
+                  </div>
+                ) : null}
               </li>
             ))}
           </ol>

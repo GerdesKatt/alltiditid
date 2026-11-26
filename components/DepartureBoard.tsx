@@ -35,6 +35,9 @@ type Props = {
   onOpenStation: () => void;
   /** Öppnar ett tågs hela resa. */
   onShowTrain: (trainNumber: string) => void;
+  /** Filtret i sökpanelen, så att en tom tavla kan säga varför. */
+  filterText: string;
+  onClearFilter: () => void;
   view: BoardView;
   onViewChange: (view: BoardView) => void;
 };
@@ -45,6 +48,18 @@ export type BoardView = 'list' | 'lines';
 const PAGE_SIZE = 20;
 
 const STALE_AFTER_MS = 2 * 60_000;
+
+const emptyButton = {
+  minHeight: '44px',
+  padding: '0 14px',
+  borderRadius: 'var(--radius-control)',
+  border: `1px solid ${colors.borderStrong}`,
+  backgroundColor: colors.surface,
+  color: colors.text,
+  fontSize: '14px',
+  fontWeight: 700,
+  cursor: 'pointer',
+} as const;
 
 export default function DepartureBoard({
   stopName,
@@ -68,6 +83,8 @@ export default function DepartureBoard({
   onToggleFavorite,
   onOpenStation,
   onShowTrain,
+  filterText,
+  onClearFilter,
   view,
   onViewChange,
 }: Props) {
@@ -269,8 +286,26 @@ export default function DepartureBoard({
         <div style={emptyState}>Hämtar tidtabell i realtid...</div>
       ) : departures.length === 0 ? (
         <div style={emptyState}>
-          Inga träffar hittades för valt trafikslag på denna station. Prova att välja{' '}
-          <strong>Alla</strong> eller byt station.
+          {filterText.trim() ? (
+            <>
+              Inga avgångar här matchar <strong>{filterText.trim()}</strong>.
+              <span style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', marginTop: '10px' }}>
+                {/^\d{2,5}$/.test(filterText.trim()) ? (
+                  <button type="button" onClick={() => onShowTrain(filterText.trim())} style={emptyButton}>
+                    Visa tåg {filterText.trim()}, var det än är
+                  </button>
+                ) : null}
+                <button type="button" onClick={onClearFilter} style={emptyButton}>
+                  Rensa filtret
+                </button>
+              </span>
+            </>
+          ) : (
+            <>
+              Inga träffar hittades för valt trafikslag på denna station. Prova att välja <strong>Alla</strong> eller
+              byt station.
+            </>
+          )}
         </div>
       ) : (
         <>
