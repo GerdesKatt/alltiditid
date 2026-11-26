@@ -24,12 +24,9 @@ export function formatLines(lines: string[]): string {
 }
 
 /**
- * A4/C3: störningar en gång per linje, överst på tavlan, i stället för samma gula text
- * på var tredje rad. Ihopfällda till två rader; ett tryck visar hela texten.
+ * Störningar som en enda rad överst på tavlan: "⚠ 3 störningar · Pendeltåg 41".
+ * Raden tar inte plats från avgångarna; ett tryck visar texterna.
  */
-/** Så många rutor syns direkt; resten bakom "Visa N störningar till". */
-const VISIBLE = 1;
-
 const linkButton = {
   alignSelf: 'flex-start',
   minHeight: '44px',
@@ -56,19 +53,10 @@ function loadDismissed(): string[] {
 }
 
 export default function DisruptionBox({ disruptions }: Props) {
-  const [showAll, setShowAll] = useState(false);
+  const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState<string[]>([]);
   useEffect(() => setDismissed(loadDismissed()), []);
   const active = disruptions.filter((d) => !dismissed.includes(d.text));
-  if (active.length === 0) {
-    return dismissed.length && disruptions.length ? (
-      <button type="button" onClick={() => restore()} style={linkButton}>
-        Visa {disruptions.length} dolda {disruptions.length === 1 ? 'störning' : 'störningar'}
-      </button>
-    ) : null;
-  }
-  const shown = showAll ? active : active.slice(0, VISIBLE);
-  const hidden = active.length - shown.length;
 
   function dismiss(text: string) {
     const next = [...dismissed, text];
@@ -87,82 +75,71 @@ export default function DisruptionBox({ disruptions }: Props) {
       // Ingen lagring.
     }
   }
+
+  if (active.length === 0) {
+    return dismissed.length && disruptions.length ? (
+      <button type="button" onClick={restore} style={linkButton}>
+        Visa {disruptions.length} {disruptions.length === 1 ? 'dold störning' : 'dolda störningar'}
+      </button>
+    ) : null;
+  }
+
+  // Alla berörda linjer, utan dubbletter, i den ordning störningarna kommer.
+  const allLines = formatLines(Array.from(new Set(active.flatMap((d) => d.lines))));
+  const count = `${active.length} ${active.length === 1 ? 'störning' : 'störningar'}`;
+
   return (
-    <section aria-label="Störningar" style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px' }}>
-      {shown.map((d) => (
-        <details
-          key={d.text}
-          style={{
-            borderRadius: '11px',
-            border: `1px solid ${colors.delayedBorder}`,
-            backgroundColor: colors.delayedBg,
-            color: colors.text,
-          }}
-        >
-          <summary
-            className="disruption-summary"
-            style={{
-              cursor: 'pointer',
-              padding: '10px 12px',
-              minHeight: '44px',
-              boxSizing: 'border-box',
-              fontSize: '0.8125rem',
-              lineHeight: 1.4,
-              listStyle: 'none',
-            }}
-          >
-            <strong style={{ color: colors.delayedText }}>
-              <span aria-hidden="true">⚠ </span>
-              {formatLines(d.lines)}
-            </strong>
-            <span className="disruption-teaser" style={{ display: 'block', color: colors.textSoft }}>
-              {d.text}
-            </span>
-          </summary>
-          <p style={{ margin: 0, padding: '0 12px 4px', fontSize: '0.8125rem', lineHeight: 1.5, color: colors.textSoft }}>
-            {d.text}
-          </p>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '4px', padding: '0 4px 4px' }}>
-            <button
-              type="button"
-              onClick={(e) => {
-                const box = (e.currentTarget.closest('details') as HTMLDetailsElement | null);
-                if (box) box.open = false;
-              }}
-              style={linkButton}
-            >
-              Fäll ihop
-            </button>
-            <button type="button" onClick={() => dismiss(d.text)} style={linkButton}>
-              Dölj störningen
-            </button>
-          </div>
-        </details>
-      ))}
-      {showAll && active.length > VISIBLE ? (
-        <button type="button" onClick={() => setShowAll(false)} style={linkButton}>
-          Visa färre störningar
-        </button>
-      ) : null}
-      {hidden > 0 ? (
-        <button
-          type="button"
-          onClick={() => setShowAll(true)}
-          style={{
-            alignSelf: 'flex-start',
-            minHeight: '44px',
-            padding: '0 4px',
-            border: 'none',
-            background: 'none',
-            color: colors.delayedText,
-            fontSize: '0.8125rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            textDecoration: 'underline',
-          }}
-        >
-          Visa {hidden} {hidden === 1 ? 'störning' : 'störningar'} till
-        </button>
+    <section
+      aria-label="Störningar"
+      style={{
+        marginBottom: '10px',
+        borderRadius: '11px',
+        border: `1px solid ${colors.delayedBorder}`,
+        backgroundColor: colors.delayedBg,
+        color: colors.text,
+      }}
+    >
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          width: '100%',
+          minHeight: '44px',
+          padding: '8px 12px',
+          border: 'none',
+          background: 'none',
+          color: colors.delayedText,
+          fontSize: '0.875rem',
+          fontWeight: 700,
+          textAlign: 'left',
+          cursor: 'pointer',
+        }}
+      >
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span aria-hidden="true">⚠ </span>
+          {count}
+          {allLines ? ` · ${allLines}` : ''}
+        </span>
+        <span style={{ flexShrink: 0, textDecoration: 'underline' }}>{open ? 'Dölj' : 'Visa'}</span>
+      </button>
+      {open ? (
+        <ul style={{ listStyle: 'none', margin: 0, padding: '0 12px 4px' }}>
+          {active.map((d) => (
+            <li key={d.text} style={{ padding: '8px 0 0', borderTop: `1px solid ${colors.delayedBorder}` }}>
+              <strong style={{ display: 'block', fontSize: '0.875rem', color: colors.delayedText }}>
+                {formatLines(d.lines)}
+              </strong>
+              <p style={{ margin: '2px 0 0', fontSize: '0.875rem', lineHeight: 1.5, color: colors.textSoft }}>{d.text}</p>
+              <button type="button" onClick={() => dismiss(d.text)} style={{ ...linkButton, padding: 0 }}>
+                Visa inte den här igen
+              </button>
+            </li>
+          ))}
+        </ul>
       ) : null}
     </section>
   );

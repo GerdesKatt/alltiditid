@@ -54,3 +54,16 @@ export function groupKey(item: Departure): string {
   const line = trainNumber ? lineName(item.line, badge) || 'Tåg' : item.line;
   return `${line}|${item.destination}`;
 }
+
+/**
+ * Linjens egen färg, där färgen är en del av namnet (SL:s tunnelbana och pendeltåg).
+ * Bara en tunn kant på brickan: färgen hjälper igenkänningen men bär ingen information ensam.
+ */
+export function lineColor(item: Pick<Departure, 'line' | 'transportMode'>): string | null {
+  const line = item.line.toLowerCase();
+  if (line.startsWith('gröna linjen')) return '#179d4d';
+  if (line.startsWith('röda linjen')) return '#d71d24';
+  if (line.startsWith('blå linjen')) return '#0089ca';
+  if (line.startsWith('pendeltåg')) return '#ec619f';
+  return null;
+}

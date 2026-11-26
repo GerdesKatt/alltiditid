@@ -1,7 +1,7 @@
 import React from 'react';
 import type { BoardDirection, Departure } from '../lib/types';
 import { colors, fonts } from './styles';
-import { countdownFor, lineBadge, lineName } from '../lib/lineFormat';
+import { countdownFor, lineBadge, lineColor, lineName } from '../lib/lineFormat';
 
 type Props = {
   items: Departure[];
@@ -23,6 +23,7 @@ function relativeLabel(t: Departure, now: number): string {
 export default function LineGroupRow({ items, direction, now }: Props) {
   const first = items[0];
   const badge = lineBadge(first.line);
+  const tint = lineColor(first);
   const trainNumber = first.transportMode === 'train' && /^\d{3,5}$/.test(badge);
   const name = lineName(first.line, badge);
   const shownBadge = trainNumber ? 'Tåg' : badge;
@@ -55,8 +56,7 @@ export default function LineGroupRow({ items, direction, now }: Props) {
         minHeight: '64px',
         boxSizing: 'border-box',
         backgroundColor: colors.surface,
-        border: `1px solid ${colors.border}`,
-        borderRadius: '13px',
+        borderBottom: `1px solid ${colors.border}`,
       }}
     >
       <span
@@ -67,6 +67,8 @@ export default function LineGroupRow({ items, direction, now }: Props) {
           padding: '4px 6px',
           borderRadius: 'var(--radius-badge)',
           backgroundColor: colors.badgeBg,
+          boxShadow: tint ? `inset 5px 0 0 ${tint}` : 'none',
+          paddingLeft: tint ? '9px' : '6px',
           color: colors.badgeText,
           fontFamily: fonts.display,
           fontWeight: 800,
