@@ -68,13 +68,26 @@ function fromStorage(): SavedState | null {
   }
 }
 
-/** Adressen vinner (en delad länk), annars senast använda hållplats. */
-export function loadSavedState(): SavedState | null {
+/**
+ * Adressen vinner (en delad länk). På en hållplatssida (/gullmarsplan) gäller sedan
+ * sidans hållplats, annars senast använda hållplats.
+ */
+export function loadSavedState(pageStop?: StopOption): SavedState | null {
   if (typeof window === 'undefined') return null;
-  return fromUrl() || fromStorage();
+  const fromLink = fromUrl();
+  if (fromLink) return fromLink;
+  if (pageStop) {
+    const saved = fromStorage();
+    return {
+      stop: pageStop,
+      direction: 'departures',
+      region: saved && saved.stop.id === pageStop.id ? saved.region : regionForStop(pageStop.id),
+    };
+  }
+  return fromStorage();
 }
 
-export function saveState(state: SavedState): void {
+export function saveState(state: SavedState, pageStop?: StopOption): void {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -82,12 +95,19 @@ export function saveState(state: SavedState): void {
     // Privat läge eller fullt lagringsutrymme: appen fungerar ändå.
   }
 
-  const params = new URLSearchParams(window.location.search);
+  // På hållplatssidan för just den hållplatsen behåller adressen sin form (/gullmarsplan).
+  // Byter man hållplats där blir adressen en vanlig länk från startsidan.
+  if (pageStop && state.stop.id === pageStop.id && state.direction === 'departures') {
+    if (window.location.search) window.history.replaceState(null, '', window.location.pathname);
+    return;
+  }
+  const base = pageStop ? '/' : window.location.pathname;
+  const params = new URLSearchParams(pageStop ? '' : window.location.search);
   params.set('h', state.stop.id);
   params.set('n', state.stop.name);
   if (state.direction === 'arrivals') params.set('visa', 'ankomster');
   else params.delete('visa');
-  const next = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
+  const next = `${base}?${params.toString()}${window.location.hash}`;
   if (next !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
     window.history.replaceState(null, '', next);
   }
