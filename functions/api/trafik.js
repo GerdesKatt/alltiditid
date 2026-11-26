@@ -3,7 +3,7 @@ import { airportByIata, datesToFetch, flightBoard, waitTimes } from '../../lib/f
 import { missingTrains, trainJourney } from '../../lib/trains.mjs';
 import { applyGps, tripJourney, uniqueAlerts } from '../../lib/trips.mjs';
 import { locateOnRoute, vehiclePositions } from '../../lib/gtfsrt.mjs';
-import { FERRY_PREFIX, ferryDepartures, ferryHarbors, searchFerryHarbors } from '../../lib/ferries.mjs';
+import { FERRY_PREFIX, ferryBoard, ferryHarbors, searchFerryHarbors } from '../../lib/ferries.mjs';
 import { stopsAfter } from '../../lib/transferMatch.mjs';
 import { pickSearchHits } from '../../lib/searchHits.mjs';
 
@@ -1610,8 +1610,13 @@ async function handleFerryBoard(url, keys) {
   } catch {
     return jsonResponse({ error: 'Kunde inte hämta färjetiderna från Trafikverket just nu.' }, 502);
   }
+  const ferry = ferryBoard(anns, swedishDateTime);
   return jsonResponse(
-    { departures: ferryDepartures(anns, swedishDateTime), source: 'trafikverket-farja' },
+    {
+      departures: ferry.departures,
+      ...(ferry.disruptions.length ? { disruptions: ferry.disruptions } : {}),
+      source: 'trafikverket-farja',
+    },
     200,
     { 'Cache-Control': 'public, max-age=60' }
   );
