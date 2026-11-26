@@ -556,8 +556,9 @@ async function handleTrain(url, keys, context) {
  * Okända operatörer får inget GPS-läge (läget räknas då ur tiderna som förut).
  */
 const GTFS_OPERATORS = [
-  [/^sl$|storstockholms/i, 'sl'],
-  [/^ul$|upplands lokaltrafik/i, 'ul'],
+  // Namnet i datan är "AB SL Kundtjänst", inte bara "SL".
+  [/(^|[^a-zåäö])sl([^a-zåäö]|$)|storstockholms/i, 'sl'],
+  [/(^|[^a-zåäö])ul([^a-zåäö]|$)|upplands lokaltrafik/i, 'ul'],
   [/västtrafik/i, 'vt'],
   [/skånetrafiken/i, 'skane'],
   [/östgötatrafiken/i, 'otraf'],
