@@ -88,10 +88,10 @@ export default function StationSheet({ stop, page, neighbours, onSelectStop, onC
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
         <div style={{ minWidth: 0 }}>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: colors.textDim }}>Om stationen</span>
+          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>Om stationen</span>
           <h2
             id="stationsblad-rubrik"
-            style={{ fontFamily: fonts.display, fontSize: '22px', fontWeight: 800, margin: '2px 0 0', color: colors.text }}
+            style={{ fontFamily: fonts.display, fontSize: '1.375rem', fontWeight: 800, margin: '2px 0 0', color: colors.text }}
           >
             {stop.name}
           </h2>
@@ -107,7 +107,7 @@ export default function StationSheet({ stop, page, neighbours, onSelectStop, onC
             border: `1px solid ${colors.borderStrong}`,
             backgroundColor: colors.surface,
             color: colors.text,
-            fontSize: '13px',
+            fontSize: '0.8125rem',
             fontWeight: 700,
             cursor: 'pointer',
           }}
@@ -118,7 +118,7 @@ export default function StationSheet({ stop, page, neighbours, onSelectStop, onC
 
       {/* Plats för spårkartan (OpenStreetMap), när den finns för stationen. */}
 
-      <p style={{ margin: '12px 0 0', fontSize: '15px', lineHeight: 1.55, color: colors.textDim }}>
+      <p style={{ margin: '12px 0 0', fontSize: '0.9375rem', lineHeight: 1.55, color: colors.textDim }}>
         {page
           ? `${page.name}${where}${page.modes.length ? ` trafikeras av ${modesText(page.modes)}` : ''}${
               page.daily > 0 ? `, med i snitt omkring ${roughDaily(page.daily)} avgångar per dag` : ''
@@ -128,7 +128,7 @@ export default function StationSheet({ stop, page, neighbours, onSelectStop, onC
 
       {neighbours.length ? (
         <>
-          <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '16px 0 8px', color: colors.text }}>
+          <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, margin: '16px 0 8px', color: colors.text }}>
             Hållplatser i närheten
           </h3>
           <ul style={{ display: 'flex', flexDirection: 'column', gap: '6px', listStyle: 'none', margin: 0, padding: 0 }}>
@@ -149,7 +149,7 @@ export default function StationSheet({ stop, page, neighbours, onSelectStop, onC
                     border: 'none',
                     backgroundColor: colors.surfaceRaised,
                     color: colors.text,
-                    fontSize: '15px',
+                    fontSize: '0.9375rem',
                     fontWeight: 600,
                     textAlign: 'left',
                     cursor: 'pointer',
@@ -158,7 +158,7 @@ export default function StationSheet({ stop, page, neighbours, onSelectStop, onC
                   <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {n.name}
                   </span>
-                  <span style={{ flexShrink: 0, fontSize: '13px', fontWeight: 500, color: colors.textDim }}>
+                  <span style={{ flexShrink: 0, fontSize: '0.8125rem', fontWeight: 500, color: colors.textDim }}>
                     {page ? km(distanceKm(page, n)) : ''} ›
                   </span>
                 </button>
@@ -179,14 +179,14 @@ export default function StationSheet({ stop, page, neighbours, onSelectStop, onC
             border: 'none',
             backgroundColor: colors.accentStrong,
             color: colors.onAccent,
-            fontSize: '15px',
+            fontSize: '0.9375rem',
             fontWeight: 700,
             cursor: 'pointer',
           }}
         >
           Dela stationen
         </button>
-        <span role="status" style={{ fontSize: '13px', color: colors.textDim }}>
+        <span role="status" style={{ fontSize: '0.8125rem', color: colors.textDim }}>
           {shared === 'copied' ? 'Länken är kopierad.' : shared === 'failed' ? 'Kunde inte dela. Kopiera adressen i stället.' : ''}
         </span>
       </div>

@@ -44,7 +44,7 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '-10px' }}>
-        <span style={{ fontSize: '13px', fontWeight: 600, color: colors.textDim }}>Min resa</span>
+        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>Min resa</span>
         <button
           type="button"
           onClick={onRemove}
@@ -56,7 +56,7 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
             border: 'none',
             background: 'none',
             color: colors.textDim,
-            fontSize: '13px',
+            fontSize: '0.8125rem',
             fontWeight: 600,
             cursor: 'pointer',
           }}
@@ -78,7 +78,7 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
             color: colors.badgeText,
             fontFamily: fonts.display,
             fontWeight: 800,
-            fontSize: '14px',
+            fontSize: '0.875rem',
             textAlign: 'center',
           }}
         >
@@ -88,7 +88,7 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
           <span
             style={{
               display: 'block',
-              fontSize: '16px',
+              fontSize: '1rem',
               fontWeight: 700,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -97,7 +97,7 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
           >
             {trip.stopName} → {trip.destination}
           </span>
-          {name ? <span style={{ display: 'block', fontSize: '13px', color: colors.textDim }}>{name}</span> : null}
+          {name ? <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim }}>{name}</span> : null}
         </span>
       </div>
 
@@ -110,7 +110,7 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
         style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px', marginTop: '12px' }}
       >
         {next.length === 0 ? (
-          <span style={{ gridColumn: '1 / -1', fontSize: '14px', color: colors.textDim, padding: '10px 0' }}>
+          <span style={{ gridColumn: '1 / -1', fontSize: '0.875rem', color: colors.textDim, padding: '10px 0' }}>
             {loading ? 'Hämtar avgångar…' : 'Inga avgångar den närmaste tiden.'}
           </span>
         ) : (
@@ -141,7 +141,7 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
                     alignItems: 'center',
                     gap: '6px',
                     fontFamily: fonts.display,
-                    fontSize: i === 0 ? '24px' : '20px',
+                    fontSize: i === 0 ? '1.5rem' : '1.25rem',
                     fontWeight: 800,
                     letterSpacing: '-0.02em',
                     whiteSpace: 'nowrap',
@@ -154,7 +154,7 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
                 </span>
                 <span
                   style={{
-                    fontSize: '13px',
+                    fontSize: '0.8125rem',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -186,7 +186,7 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
             borderRadius: '8px',
             backgroundColor: colors.delayedBg,
             color: colors.delayedText,
-            fontSize: '13px',
+            fontSize: '0.8125rem',
           }}
         >
           <span aria-hidden="true">⚠ </span>
@@ -206,7 +206,7 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
               border: `1px solid ${colors.borderStrong}`,
               backgroundColor: colors.surface,
               color: colors.text,
-              fontSize: '13px',
+              fontSize: '0.8125rem',
               fontWeight: 700,
               cursor: 'pointer',
             }}

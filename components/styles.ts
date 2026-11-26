@@ -109,7 +109,7 @@ export function textInput(borderColor: string): CSSProperties {
     border: `1px solid ${borderColor}`,
     backgroundColor: colors.surface,
     color: colors.text,
-    fontSize: '13px',
+    fontSize: '0.8125rem',
   };
 }
 

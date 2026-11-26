@@ -26,8 +26,8 @@ export default function AllStopsPage() {
     <div className="app-shell" style={{ maxWidth: '860px', margin: '0 auto' }}>
       <Header linkBase="/" />
       <main id="innehall">
-        <h1 style={{ fontSize: '28px', fontWeight: 800, margin: '8px 0 6px' }}>Alla hållplatser</h1>
-        <p style={{ color: colors.textDim, margin: '0 0 18px', fontSize: '15px' }}>
+        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '8px 0 6px' }}>Alla hållplatser</h1>
+        <p style={{ color: colors.textDim, margin: '0 0 18px', fontSize: '0.9375rem' }}>
           {STOP_PAGES.length} av de mest trafikerade hållplatserna i Sverige. Hittar du inte din? Sök på{' '}
           <a href="/" style={{ color: colors.text, fontWeight: 600 }}>
             startsidan
@@ -36,7 +36,7 @@ export default function AllStopsPage() {
         </p>
         {places.map((place) => (
           <section key={place} style={{ marginBottom: '18px' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 8px' }}>{place}</h2>
+            <h2 style={{ fontSize: '1.125rem', fontWeight: 800, margin: '0 0 8px' }}>{place}</h2>
             <ul style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', listStyle: 'none', margin: 0, padding: 0 }}>
               {groups
                 .get(place)!
@@ -44,7 +44,7 @@ export default function AllStopsPage() {
                 .sort((a, b) => a.name.localeCompare(b.name, 'sv'))
                 .map((s) => (
                   <li key={s.id}>
-                    <a href={`/${s.slug}`} style={{ color: colors.text, fontSize: '15px' }}>
+                    <a href={`/${s.slug}`} style={{ color: colors.text, fontSize: '0.9375rem' }}>
                       {s.name}
                     </a>
                   </li>

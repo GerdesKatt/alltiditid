@@ -362,3 +362,16 @@ details[open] .disruption-teaser {
 .chip-scroll::-webkit-scrollbar {
   display: none;
 }
+
+/* Platshållare medan tavlan hämtas: lugn puls, av vid "minska rörelse". */
+.skeleton-row {
+  animation: skeleton-pulse 1.2s ease-in-out infinite alternate;
+}
+@keyframes skeleton-pulse {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}

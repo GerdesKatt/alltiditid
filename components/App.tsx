@@ -680,8 +680,8 @@ export default function App({ initialStop, intro }: AppProps) {
             marginBottom: '18px',
           }}
         >
-          <h1 style={{ fontSize: '20px', fontWeight: 800, margin: '0 0 6px' }}>Välj en hållplats</h1>
-          <p style={{ margin: 0, fontSize: '15px', lineHeight: 1.5, color: colors.textDim }}>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 6px' }}>Välj en hållplats</h1>
+          <p style={{ margin: 0, fontSize: '0.9375rem', lineHeight: 1.5, color: colors.textDim }}>
             Sök på en station, en hållplats eller ett tågnummer, välj ett snabbval eller tryck på{' '}
             <strong style={{ color: colors.text }}>Hållplatser nära mig</strong>.
           </p>

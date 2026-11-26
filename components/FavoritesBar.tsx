@@ -39,7 +39,7 @@ export default function FavoritesBar({ favorites, currentId, onSelect }: Props) 
                   border: `1px solid ${current ? colors.accentStrong : colors.borderStrong}`,
                   backgroundColor: current ? colors.accentStrong : colors.surface,
                   color: current ? colors.onAccent : colors.text,
-                  fontSize: '14px',
+                  fontSize: '0.875rem',
                   fontWeight: current ? 800 : 600,
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',

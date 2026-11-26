@@ -48,6 +48,8 @@ export type BoardView = 'list' | 'lines';
 const PAGE_SIZE = 20;
 
 const STALE_AFTER_MS = 2 * 60_000;
+/** Platshållare medan tavlan hämtas, ungefär en skärm. */
+const SKELETON_ROWS = 8;
 
 const emptyButton = {
   minHeight: '44px',
@@ -56,7 +58,7 @@ const emptyButton = {
   border: `1px solid ${colors.borderStrong}`,
   backgroundColor: colors.surface,
   color: colors.text,
-  fontSize: '14px',
+  fontSize: '0.875rem',
   fontWeight: 700,
   cursor: 'pointer',
 } as const;
@@ -149,12 +151,12 @@ export default function DepartureBoard({
           gap: '8px',
         }}
       >
-        <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'flex-end', gap: '10px' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ fontSize: '12px', color: colors.textDim, display: 'block' }}>
+        <div style={{ flexBasis: '100%', display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '10px' }}>
+          <div style={{ flex: '1 1 10rem', minWidth: 0 }}>
+            <span style={{ fontSize: '0.8125rem', color: colors.textDim, display: 'block' }}>
               {direction === 'arrivals' ? 'Visar ankomster till' : 'Visar avgångar från'}
             </span>
-            <h1 style={{ fontSize: '22px', fontWeight: 800, margin: 0, color: colors.text }}>
+            <h1 style={{ fontSize: '1.375rem', fontWeight: 800, margin: 0, color: colors.text, overflowWrap: 'anywhere' }}>
               {stopName}
             </h1>
           </div>
@@ -172,7 +174,7 @@ export default function DepartureBoard({
               border: `1px solid ${colors.borderStrong}`,
               backgroundColor: colors.surface,
               color: colors.text,
-              fontSize: '14px',
+              fontSize: '0.875rem',
               fontWeight: 700,
               cursor: favoritesFull ? 'not-allowed' : 'pointer',
               opacity: favoritesFull ? 0.6 : 1,
@@ -197,13 +199,13 @@ export default function DepartureBoard({
               border: `1px solid ${colors.borderStrong}`,
               backgroundColor: colors.surface,
               color: colors.text,
-              fontSize: '14px',
+              fontSize: '0.875rem',
               fontWeight: 700,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
             }}
           >
-            <span aria-hidden="true" style={{ fontSize: '18px', lineHeight: 1 }}>ⓘ</span>
+            <span aria-hidden="true" style={{ fontSize: '1.125rem', lineHeight: 1 }}>ⓘ</span>
             <span className="station-btn-label"> Om stationen</span>
           </button>
         </div>
@@ -223,7 +225,7 @@ export default function DepartureBoard({
               backgroundColor: view === 'lines' ? colors.accentTint : 'transparent',
               color: colors.text,
               fontWeight: view === 'lines' ? 800 : 600,
-              fontSize: '13px',
+              fontSize: '0.8125rem',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
             }}
@@ -233,21 +235,8 @@ export default function DepartureBoard({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          {updatedAt ? (
-            <span
-              role={stale || offline ? 'alert' : undefined}
-              style={{
-                fontSize: '12px',
-                fontWeight: stale || offline ? 700 : 400,
-                color: stale || offline ? colors.amber : colors.textDim,
-              }}
-            >
-              {offline
-                ? `Ingen uppkoppling. Visar tavlan från ${updatedLabel}.`
-                : stale
-                ? `Ej uppdaterad sedan ${updatedLabel}. Försöker igen…`
-                : `Uppdaterad ${updatedLabel}`}
-            </span>
+          {updatedAt && !stale && !offline ? (
+            <span style={{ fontSize: '0.8125rem', color: colors.textDim }}>{`Uppdaterad ${updatedLabel}`}</span>
           ) : null}
           {updatedAt && !stale && !offline ? (
             // Ingen färgad bricka: bara avvikelser får färg. Pricken betyder realtid.
@@ -256,7 +245,7 @@ export default function DepartureBoard({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                fontSize: '12px',
+                fontSize: '0.8125rem',
                 fontWeight: 600,
                 color: limited ? colors.amber : colors.textDim,
               }}
@@ -268,6 +257,34 @@ export default function DepartureBoard({
         </div>
       </div>
 
+      {updatedAt && (stale || offline) ? (
+        // Gamla tider ska inte gå att missa: en stressad resenär läser inte grå småtext.
+        <div
+          role="alert"
+          style={{
+            display: 'flex',
+            gap: '10px',
+            alignItems: 'flex-start',
+            marginBottom: '12px',
+            padding: '12px 14px',
+            borderRadius: 'var(--radius-card)',
+            border: `2px solid ${colors.amber}`,
+            backgroundColor: colors.noticeBg,
+            color: colors.noticeText,
+            fontSize: '0.9375rem',
+            lineHeight: 1.4,
+          }}
+        >
+          <span aria-hidden="true">⚠</span>
+          <span>
+            <strong style={{ display: 'block' }}>
+              {offline ? 'Ingen anslutning' : 'Tavlan uppdateras inte just nu'}
+            </strong>
+            Tiderna är från {updatedLabel} och kan ha ändrats. Försöker igen…
+          </span>
+        </div>
+      ) : null}
+
       {!errorMsg ? <DisruptionBox disruptions={disruptions} /> : null}
 
       {errorMsg ? (
@@ -277,13 +294,27 @@ export default function DepartureBoard({
             color: colors.errorText,
             padding: '16px',
             borderRadius: '12px',
-            fontSize: '14px',
+            fontSize: '0.875rem',
           }}
         >
           {errorMsg}
         </div>
       ) : loading ? (
-        <div style={emptyState}>Hämtar tidtabell i realtid...</div>
+        <div role="status" aria-label="Hämtar tidtabell i realtid" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {Array.from({ length: SKELETON_ROWS }, (_, i) => (
+            <div
+              key={i}
+              aria-hidden="true"
+              className="skeleton-row"
+              style={{
+                minHeight: 'calc(64px + 2px)',
+                borderRadius: 'var(--radius-card)',
+                border: `1px solid ${colors.border}`,
+                backgroundColor: colors.surface,
+              }}
+            />
+          ))}
+        </div>
       ) : departures.length === 0 ? (
         <div style={emptyState}>
           {filterText.trim() ? (
@@ -328,6 +359,7 @@ export default function DepartureBoard({
                   isMyTrip={isMyTrip(myTrip, item, stopId)}
                   onToggleMyTrip={direction === 'departures' ? onToggleMyTrip : undefined}
                   onShowTrain={onShowTrain}
+                  stale={stale || offline}
                 />
               ))}
             </div>
@@ -345,7 +377,7 @@ export default function DepartureBoard({
                 border: `1px solid ${colors.borderStrong}`,
                 backgroundColor: colors.surface,
                 color: colors.text,
-                fontSize: '14px',
+                fontSize: '0.875rem',
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
@@ -356,7 +388,7 @@ export default function DepartureBoard({
         </>
       )}
 
-      <p style={{ fontSize: '11px', color: colors.textFaint, margin: '12px 0 0 0' }}>
+      <p style={{ fontSize: '0.8125rem', color: colors.textFaint, margin: '12px 0 0 0' }}>
         Trafikdata från{' '}
         <a
           href="https://www.trafiklab.se"

@@ -106,7 +106,7 @@ export default function NearbyStops({ onSelect }: Props) {
           backgroundColor: colors.surface,
           color: colors.text,
           fontWeight: 700,
-          fontSize: '14px',
+          fontSize: '0.875rem',
           cursor: busy ? 'default' : 'pointer',
         }}
       >
@@ -122,7 +122,7 @@ export default function NearbyStops({ onSelect }: Props) {
 
       <div aria-live="polite">
         {status.kind === 'error' ? (
-          <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: colors.amber, lineHeight: 1.45 }}>
+          <p style={{ margin: '8px 0 0 0', fontSize: '0.8125rem', color: colors.amber, lineHeight: 1.45 }}>
             {status.message}
           </p>
         ) : null}
@@ -149,14 +149,14 @@ export default function NearbyStops({ onSelect }: Props) {
                     border: `1px solid ${colors.borderStrong}`,
                     backgroundColor: colors.surface,
                     color: colors.text,
-                    fontSize: '14px',
+                    fontSize: '0.875rem',
                     fontWeight: 700,
                     textAlign: 'left',
                     cursor: 'pointer',
                   }}
                 >
                   <span>{stop.name}</span>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: colors.textDim, whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim, whiteSpace: 'nowrap' }}>
                     {formatDistance(stop.distance)} · ca {walkingMinutes(stop.distance)} min gång
                   </span>
                 </button>

@@ -15,7 +15,7 @@ const OPTIONS: { key: BoardDirection; label: string; activeBorder: string; activ
 /** Avgångar/Ankomster, direkt vid tavlan så att man inte behöver öppna inställningarna. */
 export default function DirectionToggle({ direction, onChange }: Props) {
   return (
-    <div role="group" aria-label="Visa" style={{ display: 'flex', gap: '7px' }}>
+    <div role="group" aria-label="Visa" style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
       {OPTIONS.map((opt) => {
         const active = direction === opt.key;
         return (
@@ -32,7 +32,7 @@ export default function DirectionToggle({ direction, onChange }: Props) {
               backgroundColor: active ? opt.activeBg : colors.surface,
               color: active ? colors.onAccent : colors.text,
               fontWeight: 800,
-              fontSize: '14px',
+              fontSize: '0.875rem',
               cursor: 'pointer',
             }}
           >

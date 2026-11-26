@@ -70,10 +70,10 @@ export default function OnBoardPanel({
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '14px' }}>
         <div style={{ minWidth: 0 }}>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: colors.textDim }}>Jag är ombord</span>
+          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>Jag är ombord</span>
           <h2
             id="resenar-lage-rubrik"
-            style={{ fontFamily: fonts.display, fontSize: '20px', fontWeight: 800, margin: '2px 0 0', color: colors.text, lineHeight: 1.2, fontVariantNumeric: 'normal' }}
+            style={{ fontFamily: fonts.display, fontSize: '1.25rem', fontWeight: 800, margin: '2px 0 0', color: colors.text, lineHeight: 1.2, fontVariantNumeric: 'normal' }}
           >
             {isArrival ? `Ankomst ${stopName}` : `Mot ${trip.destination}`} {trip.scheduledTime}
             {trip.status === 'delayed' && newTime ? (
@@ -84,7 +84,7 @@ export default function OnBoardPanel({
               </span>
             ) : null}
           </h2>
-          <div style={{ fontSize: '13px', color: colors.textDim, marginTop: '4px' }}>
+          <div style={{ fontSize: '0.8125rem', color: colors.textDim, marginTop: '4px' }}>
             {[isArrival ? `Från ${trip.destination}` : `Från ${stopName}`, trip.line, trip.operator, trip.track, trip.deviation]
               .filter(Boolean)
               .join(' · ')}
@@ -102,7 +102,7 @@ export default function OnBoardPanel({
             border: `1px solid ${colors.borderStrong}`,
             backgroundColor: colors.surface,
             color: colors.text,
-            fontSize: '13px',
+            fontSize: '0.8125rem',
             fontWeight: 700,
             cursor: 'pointer',
           }}
@@ -121,7 +121,7 @@ export default function OnBoardPanel({
             border: `1px solid ${colors.delayedBorder}`,
             backgroundColor: colors.noticeBg,
             color: colors.noticeText,
-            fontSize: '13px',
+            fontSize: '0.8125rem',
             lineHeight: 1.45,
           }}
         >
@@ -146,7 +146,7 @@ export default function OnBoardPanel({
                 border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
                 backgroundColor: active ? colors.accentStrong : colors.surface,
                 color: active ? colors.onAccent : colors.text,
-                fontSize: '13px',
+                fontSize: '0.8125rem',
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
@@ -175,7 +175,7 @@ export default function OnBoardPanel({
           border: `1px solid ${colors.borderStrong}`,
           backgroundColor: colors.surface,
           color: colors.text,
-          fontSize: '16px',
+          fontSize: '1rem',
           marginBottom: '12px',
         }}
       />
@@ -186,7 +186,7 @@ export default function OnBoardPanel({
           borderRadius: 'var(--radius-control)',
           backgroundColor: colors.surfaceRaised,
           border: 'none',
-          fontSize: '15px',
+          fontSize: '0.9375rem',
           color: colors.text,
           marginBottom: '12px',
           lineHeight: 1.5,
@@ -196,7 +196,7 @@ export default function OnBoardPanel({
           style={{
             color: colors.textDim,
             display: 'block',
-            fontSize: '13px',
+            fontSize: '0.8125rem',
             fontWeight: 600,
             marginBottom: '4px',
           }}
@@ -218,7 +218,7 @@ export default function OnBoardPanel({
             backgroundColor: colors.accentStrong,
             color: colors.onAccent,
             fontWeight: 700,
-            fontSize: '15px',
+            fontSize: '0.9375rem',
             cursor: 'pointer',
           }}
         >
@@ -226,7 +226,7 @@ export default function OnBoardPanel({
         </button>
 
         {copied ? (
-          <span role="status" style={{ fontSize: '13px', fontWeight: 600, color: colors.textDim }}>
+          <span role="status" style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>
             Meddelandet är kopierat.
           </span>
         ) : null}

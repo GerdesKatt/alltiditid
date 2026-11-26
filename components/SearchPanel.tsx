@@ -117,7 +117,7 @@ export default function SearchPanel({
             backgroundColor: colors.surface,
             color: colors.text,
             fontWeight: 700,
-            fontSize: '14px',
+            fontSize: '0.875rem',
             cursor: 'pointer',
           }}
         >
@@ -126,7 +126,7 @@ export default function SearchPanel({
       ) : null}
       <h2
         style={{
-          fontSize: '26px',
+          fontSize: '1.625rem',
           fontWeight: 800,
           letterSpacing: '-0.02em',
           margin: '0 0 4px 0',
@@ -135,128 +135,9 @@ export default function SearchPanel({
       >
         Koll på resan i realtid
       </h2>
-      <p style={{ color: colors.textDim, margin: '0 0 14px 0', fontSize: '14px', lineHeight: 1.45 }}>
-        Välj stad eller sök hållplats för T-bana, spårvagn, pendel, tåg och buss i realtid.
-      </p>
 
-      {/* Närmaste hållplatser via plats (frågar först när knappen trycks) */}
-      <NearbyStops onSelect={onSuggestionSelect} />
-
-      {/* Regioner */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: '8px',
-          marginBottom: '12px',
-        }}
-      >
-        {REGIONS.map((reg) => {
-          const active = region === reg.key;
-          return (
-            <button
-              key={reg.key}
-              type="button"
-              aria-pressed={active}
-              onClick={() => onRegionChange(reg.key)}
-              style={{
-                minHeight: '36px',
-                padding: '0 12px',
-                borderRadius: 'var(--radius-control)',
-                border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
-                backgroundColor: active ? colors.accentStrong : colors.surface,
-                color: active ? colors.onAccent : colors.text,
-                fontWeight: 700,
-                fontSize: '13px',
-                cursor: 'pointer',
-              }}
-            >
-              {active ? '✓ ' : ''}
-              {reg.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Snabbval av station */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px', marginBottom: '12px' }}>
-        {currentRegion.stations.map((stop) => {
-          const active = selectedStop.id === stop.id;
-          return (
-            <button
-              key={stop.id}
-              type="button"
-              aria-pressed={active}
-              onClick={() => onQuickStopSelect(stop)}
-              style={{
-                minHeight: '36px',
-                padding: '0 12px',
-                borderRadius: 'var(--radius-control)',
-                border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
-                backgroundColor: active ? colors.accentStrong : colors.chipBg,
-                color: active ? colors.onAccent : colors.text,
-                fontWeight: 600,
-                fontSize: '13px',
-                cursor: 'pointer',
-              }}
-            >
-              {active ? '✓ ' : ''}
-              {stop.shortName || stop.name}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Trafikslag */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '10px',
-          marginBottom: '12px',
-        }}
-      >
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-          {currentRegion.modes.map((m) => {
-            const active = mode === m.key;
-            return (
-              <button
-                key={m.key}
-                type="button"
-                aria-pressed={active}
-                onClick={() => onModeChange(m.key)}
-                style={{
-                  minHeight: '36px',
-                  padding: '0 12px',
-                  borderRadius: 'var(--radius-control)',
-                  border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
-                  backgroundColor: active ? colors.accentStrong : colors.surface,
-                  color: active ? colors.onAccent : colors.text,
-                  fontWeight: 700,
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                }}
-              >
-                {active ? '✓ ' : ''}
-                {m.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Sök station + filtrera */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-          gap: '10px',
-        }}
-      >
-        <div style={{ position: 'relative' }}>
+      {/* Sökfältet först: det är det en stressad resenär letar efter. */}
+        <div style={{ position: 'relative', margin: '10px 0 12px' }}>
           <label htmlFor="sok-hallplats" className="sr-only">
             Sök hållplats eller station
           </label>
@@ -272,8 +153,8 @@ export default function SearchPanel({
             value={stationQuery}
             onKeyDown={onSearchKeyDown}
             onChange={(e) => onStationQueryChange(e.target.value)}
-            placeholder="Sök station, hållplats eller tågnummer"
-            style={textInput(colors.borderStrong)}
+            placeholder="Sök hållplats eller tågnummer"
+            style={{ ...textInput(colors.text), minHeight: '52px', fontSize: '1rem', borderWidth: '2px' }}
           />
 
           {trainHit ? (
@@ -292,7 +173,7 @@ export default function SearchPanel({
                 border: `1px solid ${colors.borderStrong}`,
                 backgroundColor: colors.surface,
                 color: colors.text,
-                fontSize: '15px',
+                fontSize: '0.9375rem',
                 fontWeight: 700,
                 textAlign: 'left',
                 cursor: 'pointer',
@@ -318,7 +199,7 @@ export default function SearchPanel({
                 border: `1px solid ${colors.borderStrong}`,
                 backgroundColor: colors.surface,
                 color: colors.text,
-                fontSize: '15px',
+                fontSize: '0.9375rem',
                 fontWeight: 700,
                 textAlign: 'left',
                 cursor: 'pointer',
@@ -331,7 +212,7 @@ export default function SearchPanel({
 
           {!stationQuery && recentStops.some((s) => s.id !== selectedStop.id) ? (
             <div style={{ marginTop: '10px' }}>
-              <span style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: colors.textDim, marginBottom: '6px' }}>
+              <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim, marginBottom: '6px' }}>
                 Senast
               </span>
               <ul style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', listStyle: 'none', margin: 0, padding: 0 }}>
@@ -349,7 +230,7 @@ export default function SearchPanel({
                           border: 'none',
                           backgroundColor: colors.surfaceRaised,
                           color: colors.text,
-                          fontSize: '14px',
+                          fontSize: '0.875rem',
                           fontWeight: 600,
                           cursor: 'pointer',
                         }}
@@ -383,7 +264,7 @@ export default function SearchPanel({
               }}
             >
               {searchingStops ? (
-                <div role="status" style={{ padding: '11px 14px', color: colors.textDim, fontSize: '13px' }}>
+                <div role="status" style={{ padding: '11px 14px', color: colors.textDim, fontSize: '0.8125rem' }}>
                   Söker platser...
                 </div>
               ) : (
@@ -411,9 +292,9 @@ export default function SearchPanel({
                       cursor: 'pointer',
                     }}
                   >
-                    <span style={{ display: 'block', fontSize: '15px', fontWeight: 700 }}>{stop.name}</span>
+                    <span style={{ display: 'block', fontSize: '0.9375rem', fontWeight: 700 }}>{stop.name}</span>
                     {stop.place || stop.modes?.length ? (
-                      <span style={{ display: 'block', fontSize: '13px', color: colors.textDim, marginTop: '1px' }}>
+                      <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim, marginTop: '1px' }}>
                         {[stop.place, stop.modes?.join(', ')].filter(Boolean).join(' · ')}
                       </span>
                     ) : null}
@@ -424,12 +305,120 @@ export default function SearchPanel({
           ) : null}
         </div>
 
-        {/* Filtret gäller tavlan, så det visas först när en hållplats är vald. */}
-        {selectedStop.id ? (
-          <>
+      {/* Närmaste hållplatser via plats (frågar först när knappen trycks) */}
+      <NearbyStops onSelect={onSuggestionSelect} />
+
+      {/* Snabbval av station */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px', marginBottom: '12px' }}>
+        {currentRegion.stations.map((stop) => {
+          const active = selectedStop.id === stop.id;
+          return (
+            <button
+              key={stop.id}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onQuickStopSelect(stop)}
+              style={{
+                minHeight: '36px',
+                padding: '0 12px',
+                borderRadius: 'var(--radius-control)',
+                border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
+                backgroundColor: active ? colors.accentStrong : colors.chipBg,
+                color: active ? colors.onAccent : colors.text,
+                fontWeight: 600,
+                fontSize: '0.8125rem',
+                cursor: 'pointer',
+              }}
+            >
+              {active ? '✓ ' : ''}
+              {stop.shortName || stop.name}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Regioner */}
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: '8px',
+          marginBottom: '12px',
+        }}
+      >
+        {REGIONS.map((reg) => {
+          const active = region === reg.key;
+          return (
+            <button
+              key={reg.key}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onRegionChange(reg.key)}
+              style={{
+                minHeight: '36px',
+                padding: '0 12px',
+                borderRadius: 'var(--radius-control)',
+                border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
+                backgroundColor: active ? colors.accentStrong : colors.surface,
+                color: active ? colors.onAccent : colors.text,
+                fontWeight: 700,
+                fontSize: '0.8125rem',
+                cursor: 'pointer',
+              }}
+            >
+              {active ? '✓ ' : ''}
+              {reg.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Trafikslag och filter gäller tavlan, så de visas först när en hållplats är vald. */}
+      {selectedStop.id ? (
+        <>
+      {/* Trafikslag */}
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '10px',
+          marginBottom: '12px',
+        }}
+      >
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          {currentRegion.modes.map((m) => {
+            const active = mode === m.key;
+            return (
+              <button
+                key={m.key}
+                type="button"
+                aria-pressed={active}
+                onClick={() => onModeChange(m.key)}
+                style={{
+                  minHeight: '36px',
+                  padding: '0 12px',
+                  borderRadius: 'var(--radius-control)',
+                  border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
+                  backgroundColor: active ? colors.accentStrong : colors.surface,
+                  color: active ? colors.onAccent : colors.text,
+                  fontWeight: 700,
+                  fontSize: '0.8125rem',
+                  cursor: 'pointer',
+                }}
+              >
+                {active ? '✓ ' : ''}
+                {m.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
         <label
           htmlFor="filtrera-avgangar"
-          style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: colors.textDim, margin: '14px 0 6px' }}
+          style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim, margin: '14px 0 6px' }}
         >
           Filtrera tavlan för {selectedStop.shortName || selectedStop.name}
         </label>
@@ -455,7 +444,7 @@ export default function SearchPanel({
               border: `1px solid ${colors.borderStrong}`,
               backgroundColor: colors.surface,
               color: colors.text,
-              fontSize: '15px',
+              fontSize: '0.9375rem',
               fontWeight: 700,
               textAlign: 'left',
               cursor: 'pointer',
@@ -464,9 +453,8 @@ export default function SearchPanel({
             Tåg {filterTrain}: visa hela resan, var tåget än är
           </button>
         ) : null}
-          </>
-        ) : null}
-      </div>
+        </>
+      ) : null}
     </section>
   );
 }

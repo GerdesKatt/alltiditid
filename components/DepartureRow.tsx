@@ -14,6 +14,8 @@ type Props = {
   onToggleMyTrip?: (item: Departure) => void;
   /** Öppnar tågets hela resa (bara tåg med tågnummer). */
   onShowTrain?: (trainNumber: string) => void;
+  /** Tavlan är gammal (ingen anslutning): pricken släcks och tiderna tonas ned. */
+  stale?: boolean;
 };
 
 /** Från så här många minuters försening visas en länk om reseersättning. */
@@ -33,13 +35,14 @@ export default function DepartureRow({
   isMyTrip = false,
   onToggleMyTrip,
   onShowTrain,
+  stale = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const isDelayed = item.status === 'delayed';
   const isCancelled = item.status === 'cancelled';
   const onlySchedule = !isCancelled && !isDelayed && item.hasRealtime === false;
   // Hallonpricken betyder realtid (brand guiden). Ingen prick: tidtabell eller okänt.
-  const realtime = !isCancelled && item.hasRealtime === true;
+  const realtime = !stale && !isCancelled && item.hasRealtime === true;
   const newTime = isDelayed ? item.newTime || item.estimatedTime : '';
   // Väntad klocktid: ny tid om försenad, annars prognosen (kan vara en minut eller två från tidtabellen).
   const clock = newTime || (!isCancelled && item.estimatedTime) || item.scheduledTime;
@@ -75,13 +78,15 @@ export default function DepartureRow({
     : onlySchedule && /min$/.test(bigTime)
     ? `~${bigTime}`
     : bigTime;
+  // Sent bokat tåg med känd ny tid som skiljer sig från den ordinarie.
+  const lateBooked = booked && isDelayed && !!newTime && newTime !== item.scheduledTime;
   const timeColor = isCancelled
     ? colors.textDim
     : isDelayed && booked
     ? colors.text // den ordinarie tiden står kvar; "Ny tid" är orange under
     : isDelayed
     ? colors.amber
-    : onlySchedule
+    : onlySchedule || stale
     ? colors.textDim
     : colors.text;
 
@@ -117,8 +122,10 @@ export default function DepartureRow({
         style={{
           width: '100%',
           display: 'flex',
+          // Vid stor text hamnar tiden på en egen rad i stället för att klippas.
+          flexWrap: 'wrap',
           alignItems: 'center',
-          gap: '12px',
+          gap: '4px 12px',
           padding: '12px 14px',
           minHeight: '64px',
           border: 'none',
@@ -143,7 +150,7 @@ export default function DepartureRow({
             color: isCancelled ? colors.textDim : booked ? colors.text : colors.badgeText,
             fontFamily: fonts.display,
             fontWeight: 800,
-            fontSize: '14px',
+            fontSize: '0.875rem',
             textAlign: 'center',
             fontVariantNumeric: 'tabular-nums',
           }}
@@ -152,11 +159,12 @@ export default function DepartureRow({
         </span>
 
         {/* Destination och detaljer */}
-        <span style={{ flex: 1, minWidth: 0 }}>
+        {/* Normal textstorlek: minst 5rem. Förstorad text (rot över 16 px): målet tar hela raden och tiden hamnar under. */}
+        <span style={{ flex: '1 1 clamp(5rem, (1rem - 16px) * 1000, 7rem)', minWidth: 0 }}>
           <span
             style={{
               display: 'block',
-              fontSize: '16px',
+              fontSize: '1rem',
               fontWeight: 700,
               color: isCancelled ? colors.textDim : colors.text,
               textDecoration: isCancelled ? 'line-through' : 'none',
@@ -170,7 +178,7 @@ export default function DepartureRow({
           <span
             style={{
               display: 'block',
-              fontSize: '13px',
+              fontSize: '0.8125rem',
               color: colors.textDim,
               marginTop: '2px',
               overflow: 'hidden',
@@ -189,11 +197,11 @@ export default function DepartureRow({
         </span>
 
         {/* Tid: minuter kvar störst */}
-        <span style={{ flexShrink: 0, textAlign: 'right' }}>
+        <span style={{ flexShrink: 0, marginLeft: 'auto', textAlign: 'right' }}>
           <span
             style={{
               fontFamily: fonts.display,
-              fontSize: '22px',
+              fontSize: '1.375rem',
               fontWeight: 800,
               letterSpacing: '-0.02em',
               fontVariantNumeric: 'tabular-nums',
@@ -207,12 +215,20 @@ export default function DepartureRow({
             }}
           >
             {realtime ? <span key={item.expectedAt} className="rt-dot" aria-hidden="true" /> : null}
-            {shownBig}
+            {lateBooked ? (
+              // Sent bokat tåg: ordinarie tid står kvar överstruken, den nya tiden är lika stor.
+              <>
+                <s style={{ color: colors.textDim, fontWeight: 600 }}>{item.scheduledTime}</s>
+                <span style={{ color: colors.amber }}>{newTime}</span>
+              </>
+            ) : (
+              shownBig
+            )}
           </span>
           <span
             style={{
               display: 'block',
-              fontSize: '13px',
+              fontSize: '0.8125rem',
               fontWeight: 500,
               fontVariantNumeric: 'tabular-nums',
               color: isCancelled ? colors.cancelledText : isDelayed ? colors.amber : colors.textDim,
@@ -226,9 +242,14 @@ export default function DepartureRow({
             ) : booked ? (
               // Bokat tåg: ordinarie tid står stort ovanför.
               <>
-                {isDelayed ? `Ny tid ${newTime}${item.delayMinutes ? ` +${item.delayMinutes}` : ''}` : ''}
+                {lateBooked ? (
+                  <span style={{ fontWeight: 700 }}>{item.delayMinutes ? `+${item.delayMinutes} min` : 'Ny tid'}</span>
+                ) : isDelayed ? (
+                  'Försenad'
+                ) : (
+                  ''
+                )}
                 {early ? <span style={{ color: colors.okText }}>{`${clock} · ${early} min tidig`}</span> : ''}
-                {/* Försenat: "Ny tid 14:17 +7" räcker, nedräkningen får inte plats bredvid. */}
                 {early && countdown ? ' · ' : ''}
                 {isDelayed ? '' : countdown}
                 {onlySchedule ? `${countdown ? ' · ' : ''}ingen realtid` : ''}
@@ -265,7 +286,7 @@ export default function DepartureRow({
             alignItems: 'center',
             gap: '10px',
             padding: '0 14px 12px 70px',
-            fontSize: '13px',
+            fontSize: '0.8125rem',
             color: colors.textDim,
           }}
         >
@@ -287,7 +308,7 @@ export default function DepartureRow({
               border: isSelectedTrip ? `1px solid ${colors.accentStrong}` : `1px solid ${colors.borderStrong}`,
               backgroundColor: isSelectedTrip ? colors.accentStrong : colors.surfaceRaised,
               color: isSelectedTrip ? colors.onAccent : colors.text,
-              fontSize: '13px',
+              fontSize: '0.8125rem',
               fontWeight: 700,
               cursor: 'pointer',
             }}
@@ -305,7 +326,7 @@ export default function DepartureRow({
                 border: `1px solid ${colors.borderStrong}`,
                 backgroundColor: colors.surface,
                 color: colors.text,
-                fontSize: '13px',
+                fontSize: '0.8125rem',
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
@@ -326,7 +347,7 @@ export default function DepartureRow({
                 border: `1px solid ${isMyTrip ? colors.accentStrong : colors.borderStrong}`,
                 backgroundColor: isMyTrip ? colors.accentStrong : colors.surface,
                 color: isMyTrip ? colors.onAccent : colors.text,
-                fontSize: '13px',
+                fontSize: '0.8125rem',
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
@@ -339,7 +360,7 @@ export default function DepartureRow({
               href="https://www.hallakonsument.se/varor-och-tjanster/resor/"
               target="_blank"
               rel="noopener noreferrer"
-              style={{ fontSize: '13px', fontWeight: 600, color: colors.amber }}
+              style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.amber }}
             >
               Rätt till ersättning?
             </a>

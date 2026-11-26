@@ -13,7 +13,7 @@ const choiceButton = {
   padding: '0 16px',
   borderRadius: '10px',
   fontWeight: 800,
-  fontSize: '14px',
+  fontSize: '0.875rem',
   cursor: 'pointer',
   color: colors.text,
 } as const;
@@ -42,7 +42,7 @@ export default function ConsentBanner({ onAccept, onDecline, onReadMore }: Props
         boxShadow: `0 16px 40px ${colors.shadow}`,
       }}
     >
-      <p style={{ margin: '0 0 12px 0', fontSize: '14px', lineHeight: 1.5, color: colors.textSoft }}>
+      <p style={{ margin: '0 0 12px 0', fontSize: '0.875rem', lineHeight: 1.5, color: colors.textSoft }}>
         Får vi använda Google Analytics för att se hur sajten används? Det sätter kakor och skickar
         uppgifter om ditt besök till Google. Tavlan fungerar lika bra om du nekar.{' '}
         <button
@@ -54,7 +54,7 @@ export default function ConsentBanner({ onAccept, onDecline, onReadMore }: Props
             background: 'none',
             color: colors.accent,
             textDecoration: 'underline',
-            fontSize: '14px',
+            fontSize: '0.875rem',
             cursor: 'pointer',
           }}
         >

@@ -56,7 +56,7 @@ export default function Header({ onContactClick, linkBase = '' }: Props) {
           <span
             style={{
               fontFamily: fonts.display,
-              fontSize: '22px',
+              fontSize: '1.375rem',
               fontWeight: 800,
               letterSpacing: '-0.035em',
               lineHeight: 1.1,
@@ -68,7 +68,7 @@ export default function Header({ onContactClick, linkBase = '' }: Props) {
           <span
             className="site-tagline"
             style={{
-              fontSize: '11px',
+              fontSize: '0.8125rem',
               fontWeight: 600,
               letterSpacing: '0.04em',
               textTransform: 'uppercase',
@@ -81,7 +81,7 @@ export default function Header({ onContactClick, linkBase = '' }: Props) {
         </span>
       </a>
 
-      <nav className="site-nav" style={{ display: 'flex', gap: '16px', fontSize: '13px', fontWeight: 600 }}>
+      <nav className="site-nav" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px', fontSize: '0.8125rem', fontWeight: 600 }}>
         <a href={`${linkBase}#avgangstavla`} className="site-nav-board" style={navLink}>
           Tidtabell
         </a>

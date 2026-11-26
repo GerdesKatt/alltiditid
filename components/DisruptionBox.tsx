@@ -37,7 +37,7 @@ const linkButton = {
   border: 'none',
   background: 'none',
   color: colors.delayedText,
-  fontSize: '13px',
+  fontSize: '0.8125rem',
   fontWeight: 700,
   cursor: 'pointer',
   textDecoration: 'underline',
@@ -106,7 +106,7 @@ export default function DisruptionBox({ disruptions }: Props) {
               padding: '10px 12px',
               minHeight: '44px',
               boxSizing: 'border-box',
-              fontSize: '13px',
+              fontSize: '0.8125rem',
               lineHeight: 1.4,
               listStyle: 'none',
             }}
@@ -119,7 +119,7 @@ export default function DisruptionBox({ disruptions }: Props) {
               {d.text}
             </span>
           </summary>
-          <p style={{ margin: 0, padding: '0 12px 4px', fontSize: '13px', lineHeight: 1.5, color: colors.textSoft }}>
+          <p style={{ margin: 0, padding: '0 12px 4px', fontSize: '0.8125rem', lineHeight: 1.5, color: colors.textSoft }}>
             {d.text}
           </p>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '4px', padding: '0 4px 4px' }}>
@@ -155,7 +155,7 @@ export default function DisruptionBox({ disruptions }: Props) {
             border: 'none',
             background: 'none',
             color: colors.delayedText,
-            fontSize: '13px',
+            fontSize: '0.8125rem',
             fontWeight: 700,
             cursor: 'pointer',
             textDecoration: 'underline',

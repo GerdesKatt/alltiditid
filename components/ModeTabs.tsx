@@ -16,7 +16,8 @@ export default function ModeTabs({ tab, onChange }: { tab: AppTab; onChange: (ta
       aria-label="Visa"
       style={{
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
+        // Vid stor text hamnar flikarna under varandra i stället för utanför skärmen.
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 9rem), 1fr))',
         gap: '3px',
         padding: '3px',
         margin: '0 0 14px',
@@ -38,7 +39,7 @@ export default function ModeTabs({ tab, onChange }: { tab: AppTab; onChange: (ta
               border: 'none',
               backgroundColor: active ? colors.accentStrong : 'transparent',
               color: active ? colors.onAccent : colors.text,
-              fontSize: '15px',
+              fontSize: '0.9375rem',
               fontWeight: 700,
               cursor: 'pointer',
             }}
