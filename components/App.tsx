@@ -148,6 +148,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
   const [tab, setTab] = useState<AppTab>('trafik');
   const [journeyQuery, setJourneyQuery] = useState('');
   // Tågets resa öppnad från kortet för att välja byte.
+  // En turs hela resa (buss, T-bana, spårvagn, båt).
+  const [tripRef, setTripRef] = useState<{ id: string; date: string } | null>(null);
   const [pickByte, setPickByte] = useState(false);
   useEffect(() => {
     if (!trainNumber) setPickByte(false);
@@ -634,7 +636,24 @@ export default function App({ initialStop, page, intro }: AppProps) {
       <div>
 
       {trainNumber && !onBoardTrip ? <SheetBackdrop onClose={() => { setTrainNumber(null); setPickByte(false); }} /> : null}
-      {stationOpen && !onBoardTrip && !trainNumber ? <SheetBackdrop onClose={() => setStationOpen(false)} /> : null}
+      {stationOpen && !onBoardTrip && !trainNumber && !tripRef ? <SheetBackdrop onClose={() => setStationOpen(false)} /> : null}
+      {tripRef && !trainNumber && !onBoardTrip ? <SheetBackdrop onClose={() => setTripRef(null)} /> : null}
+      {tripRef && !trainNumber && !onBoardTrip ? (
+        <TrainSheet
+          number=""
+          trip={tripRef}
+          onClose={() => setTripRef(null)}
+          onOpenStation={(name, areaId) => {
+            if (!areaId) return;
+            setTripRef(null);
+            setTab('trafik');
+            setSelectedStop({ id: areaId, name });
+            setRecentStops((list) => rememberStop(list, { id: areaId, name }));
+            setMode('all');
+            showBoard();
+          }}
+        />
+      ) : null}
       {trainNumber && !onBoardTrip ? (
         <TrainSheet
           number={trainNumber}
@@ -688,7 +707,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
         />
       ) : null}
 
-      {stationOpen && !onBoardTrip && !trainNumber ? (
+      {stationOpen && !onBoardTrip && !trainNumber && !tripRef ? (
         <StationSheet
           stop={selectedStop}
           page={stationPage}
@@ -828,12 +847,19 @@ export default function App({ initialStop, page, intro }: AppProps) {
         stopName={selectedStop.name}
         onShowTrain={(n) => {
           setStationOpen(false);
+          setTripRef(null);
           setTrainNumber(n);
+        }}
+        onShowTrip={(tr) => {
+          setStationOpen(false);
+          setTrainNumber(null);
+          setTripRef(tr);
         }}
         filterText={filterText}
         onClearFilter={() => setFilterText('')}
         onOpenStation={() => {
           setTrainNumber(null);
+          setTripRef(null);
           setStationOpen(true);
           if (!stopIndex) loadStopIndex().then((index) => index && setStopIndex(index));
         }}

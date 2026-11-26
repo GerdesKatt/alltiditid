@@ -8,6 +8,9 @@ export type Departure = {
   id: string;
   line: string;
   trainNumber?: string;
+  /** Turens id och startdatum hos Trafiklab, för hela resan (buss, T-bana, spårvagn, båt). */
+  tripId?: string;
+  tripDate?: string;
   /** Tåget borde ha gått men har inte gått enligt Trafikverket: står kvar. */
   pending?: boolean;
   operator: string;

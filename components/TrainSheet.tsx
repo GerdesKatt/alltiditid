@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { colors, fonts } from './styles';
 import { arrivalAt, loadByte, storeByte, verdict } from '../lib/byte';
 import type { Connection, SavedByte } from '../lib/byte';
-import { trackLabel, trainPosition, translator, useLang, type Lang } from '../lib/i18n';
+import { lineLabel, trackLabel, trainPosition, translator, useLang, type Lang } from '../lib/i18n';
 
 type Part = { scheduled: string; estimated?: string; actual?: string; delay: number };
 type Stop = {
@@ -11,6 +11,10 @@ type Stop = {
   arrival?: Part;
   departure?: Part;
   track?: string;
+  /** Färdig text, t.ex. "Läge B" (turer). */
+  trackText?: string;
+  /** Hållplatsens id hos Trafiklab (turer). */
+  areaId?: string;
   cancelled?: boolean;
   deviation?: string[];
   passed?: boolean;
@@ -62,6 +66,7 @@ function timeCell(p: Part | undefined, label: string) {
 /** Ett tågs hela resa: var tåget är nu och alla stationer med tider och spår. */
 export default function TrainSheet({
   number,
+  trip,
   onClose,
   onOpenStation,
   saved: trainSaved = false,
@@ -71,10 +76,13 @@ export default function TrainSheet({
   offStation,
   onSetOff,
 }: {
+  /** Tågnummer (Trafikverket). Tomt när arket visar en tur. */
   number: string;
+  /** En tur hos Trafiklab: buss, T-bana, spårvagn eller båt. */
+  trip?: { id: string; date: string };
   onClose: () => void;
-  /** Visar tavlan för en station på tågets väg. */
-  onOpenStation?: (name: string) => void;
+  /** Visar tavlan för en station på vägen. `areaId` finns för turer. */
+  onOpenStation?: (name: string, areaId?: string) => void;
   /** Mitt tåg: sparat tåg överst på startsidan. */
   saved?: boolean;
   onToggleSaved?: () => void;
@@ -164,7 +172,11 @@ export default function TrainSheet({
     setJourney(null);
     setError(null);
     function load() {
-      fetch(`/api/trafik?action=train&number=${encodeURIComponent(number)}`)
+      fetch(
+        trip
+          ? `/api/trafik?action=trip&id=${encodeURIComponent(trip.id)}&date=${encodeURIComponent(trip.date)}`
+          : `/api/trafik?action=train&number=${encodeURIComponent(number)}`
+      )
         .then(async (res) => ({ ok: res.ok, data: await res.json() }))
         .then(({ ok, data }) => {
           if (!active) return;
@@ -191,7 +203,7 @@ export default function TrainSheet({
       active = false;
       clearInterval(timer);
     };
-  }, [number]);
+  }, [number, trip?.id, trip?.date]);
 
 
   // Anslutningarna visas direkt under stationen man tryckte på.
@@ -299,7 +311,11 @@ export default function TrainSheet({
           
   );
 
-  const title = journey ? `${journey.product} ${journey.number}` : `${t('Tåg', 'Train')} ${number}`;
+  const title = journey
+    ? `${trip ? lineLabel(journey.product, lang) : journey.product} ${journey.number}`.trim()
+    : trip
+    ? t('Hämtar resan…', 'Loading the journey…')
+    : `${t('Tåg', 'Train')} ${number}`;
 
   return (
     <section
@@ -506,7 +522,7 @@ export default function TrainSheet({
                     {[
                       st.cancelled ? t('Inställd här', 'Cancelled here') : '',
                       offStation === st.name ? t('Du kliver av här', 'You get off here') : '',
-                      st.track ? `${t('Spår', 'Track')} ${st.track}` : '',
+                      st.trackText ? trackLabel(st.trackText, lang) : st.track ? `${t('Spår', 'Track')} ${st.track}` : '',
                       ...(st.deviation || []),
                     ]
                       .filter(Boolean)
@@ -519,7 +535,7 @@ export default function TrainSheet({
                 </span>
                 {openStop === st.name ? (
                   <span style={{ gridColumn: '2 / -1', display: 'flex', flexWrap: 'wrap', gap: '8px', paddingBottom: '4px' }}>
-                    {!st.passed && st.arrival && !st.cancelled ? (
+                    {!trip && !st.passed && st.arrival && !st.cancelled ? (
                       <button
                         type="button"
                         aria-pressed={byteStation === st.name}
@@ -546,7 +562,7 @@ export default function TrainSheet({
                       </button>
                     ) : null}
                     {onOpenStation ? (
-                      <button type="button" onClick={() => onOpenStation(st.name)} style={stopAction(false)}>
+                      <button type="button" onClick={() => onOpenStation(st.name, st.areaId)} style={stopAction(false)}>
                         {t('Visa tavlan för', 'Show the board for')} {st.name}
                       </button>
                     ) : null}
@@ -563,10 +579,15 @@ export default function TrainSheet({
             ))}
           </ol>
           <p style={{ fontSize: '0.8125rem', color: colors.textDim, margin: '12px 0 0' }}>
-            {t(
-              'Tåginformation från Trafikverket. Överst ankomst, under avgång.',
-              'Train information from Trafikverket. Arrival on top, departure below.'
-            )}
+            {trip
+              ? t(
+                  'Från Trafiklab. Läget är beräknat från tiderna vid hållplatserna, inte från GPS.',
+                  'From Trafiklab. The position is calculated from the times at each stop, not from GPS.'
+                )
+              : t(
+                  'Tåginformation från Trafikverket. Överst ankomst, under avgång.',
+                  'Train information from Trafikverket. Arrival on top, departure below.'
+                )}
           </p>
         </>
       )}

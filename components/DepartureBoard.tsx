@@ -36,6 +36,7 @@ type Props = {
   onOpenStation: () => void;
   /** Öppnar ett tågs hela resa. */
   onShowTrain: (trainNumber: string) => void;
+  onShowTrip: (trip: { id: string; date: string }) => void;
   /** Filtret i sökpanelen, så att en tom tavla kan säga varför. */
   filterText: string;
   onClearFilter: () => void;
@@ -104,6 +105,7 @@ export default function DepartureBoard({
   onToggleFavorite,
   onOpenStation,
   onShowTrain,
+  onShowTrip,
   filterText,
   onClearFilter,
   view,
@@ -395,6 +397,7 @@ export default function DepartureBoard({
                   isMyTrip={isMyTrip(myTrip, item, stopId)}
                   onToggleMyTrip={direction === 'departures' ? onToggleMyTrip : undefined}
                   onShowTrain={onShowTrain}
+                  onShowTrip={onShowTrip}
                   stale={stale || offline}
                 />
               ))}

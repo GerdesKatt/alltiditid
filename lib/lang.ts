@@ -118,6 +118,8 @@ export function trainPosition(text: string, lang: Lang): string {
     .replace(/^Har lämnat /, 'Has left ')
     .replace(/^Står i /, 'At ')
     .replace(/^Har inte avgått från (.+) än$/, 'Has not left $1 yet')
+    .replace(/, nästa /, ', next ')
+    .replace(/ · enligt tidtabell$/, ' · scheduled')
     .replace(/ · (\d+) min sen$/, ' · $1 min late')
     .replace(/ · (\d+) min tidig$/, ' · $1 min early')
     .replace(/ · i tid$/, ' · on time');
