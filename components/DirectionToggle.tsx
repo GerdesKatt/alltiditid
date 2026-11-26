@@ -8,8 +8,8 @@ type Props = {
 };
 
 const OPTIONS: { key: BoardDirection; label: string; activeBorder: string; activeBg: string }[] = [
-  { key: 'departures', label: 'Avgångar', activeBorder: colors.accent, activeBg: colors.accentStrong },
-  { key: 'arrivals', label: 'Ankomster', activeBorder: colors.green, activeBg: colors.arrivalsBg },
+  { key: 'departures', label: 'Avgångar', activeBorder: colors.accentStrong, activeBg: colors.accentStrong },
+  { key: 'arrivals', label: 'Ankomster', activeBorder: colors.arrivalsBg, activeBg: colors.arrivalsBg },
 ];
 
 /** Avgångar/Ankomster, direkt vid tavlan så att man inte behöver öppna inställningarna. */

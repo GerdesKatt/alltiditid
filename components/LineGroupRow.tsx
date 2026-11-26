@@ -1,6 +1,6 @@
 import React from 'react';
 import type { BoardDirection, Departure } from '../lib/types';
-import { colors } from './styles';
+import { colors, fonts } from './styles';
 import { countdownFor, lineBadge, lineName } from '../lib/lineFormat';
 
 type Props = {
@@ -65,10 +65,10 @@ export default function LineGroupRow({ items, direction, now }: Props) {
           flexShrink: 0,
           minWidth: '44px',
           padding: '4px 6px',
-          borderRadius: '8px',
-          border: `1px solid ${colors.accent}`,
-          backgroundColor: colors.accentTint,
-          color: colors.text,
+          borderRadius: 'var(--radius-badge)',
+          backgroundColor: colors.badgeBg,
+          color: colors.badgeText,
+          fontFamily: fonts.display,
           fontWeight: 800,
           fontSize: '14px',
           textAlign: 'center',

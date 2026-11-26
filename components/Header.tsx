@@ -1,5 +1,5 @@
 import React from 'react';
-import { colors } from './styles';
+import { colors, fonts } from './styles';
 
 type Props = {
   onContactClick: () => void;
@@ -26,7 +26,7 @@ export default function Header({ onContactClick }: Props) {
         alignItems: 'center',
         padding: '12px 16px',
         marginBottom: '16px',
-        borderRadius: '16px',
+        borderRadius: 'var(--radius-card)',
         backgroundColor: colors.headerBg,
         border: `1px solid ${colors.border}`,
         flexWrap: 'wrap',
@@ -42,45 +42,26 @@ export default function Header({ onContactClick }: Props) {
           textDecoration: 'none',
         }}
       >
-        <span
-          style={{
-            width: '38px',
-            height: '38px',
-            borderRadius: '11px',
-            background: 'linear-gradient(135deg, #0284c7 0%, #0f172a 100%)',
-            border: '1px solid rgba(56, 189, 248, 0.45)',
-            boxShadow: '0 6px 18px rgba(2, 132, 199, 0.28)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="8.5" stroke="#38bdf8" strokeWidth="2.2" />
-            <path
-              d="M12 7.5V12L15.2 14.2"
-              stroke="#f8fafc"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <circle cx="18.5" cy="6" r="2.5" fill="#10b981" />
-          </svg>
-        </span>
+        {/* Symbolen: en linje som fylls och en prick som pulserar (brand guiden). */}
+        <svg width="36" height="36" viewBox="0 0 120 120" aria-hidden="true" style={{ flexShrink: 0 }}>
+          <rect width="120" height="120" rx="26" fill="var(--brand)" />
+          <rect x="18" y="64" width="84" height="14" rx="7" fill="var(--on-brand)" opacity=".45" />
+          <rect x="18" y="64" width="56" height="14" rx="7" fill="var(--on-brand)" />
+          <circle cx="74" cy="71" r="16" fill="var(--on-brand)" />
+        </svg>
 
         <span style={{ display: 'flex', flexDirection: 'column' }}>
           <span
             style={{
-              fontSize: '20px',
-              fontWeight: 900,
-              letterSpacing: '-0.03em',
+              fontFamily: fonts.display,
+              fontSize: '22px',
+              fontWeight: 800,
+              letterSpacing: '-0.035em',
               lineHeight: 1.1,
               color: colors.text,
             }}
           >
-            alltid<span style={{ color: colors.accent }}>itid</span>
-            <span style={{ color: colors.textFaint, fontWeight: 700, fontSize: '15px' }}>.se</span>
+            alltid<span style={{ color: colors.brand }}>i</span>tid
           </span>
           <span
             className="site-tagline"

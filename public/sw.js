@@ -9,7 +9,7 @@
  *   rörs inte och sparas aldrig.
  */
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const SHELL = `alltiditid-skal-${VERSION}`;
 const BOARDS = `alltiditid-tavlor-${VERSION}`;
 const MAX_BOARDS = 12;

@@ -16,12 +16,12 @@ export default function SwitchStopButton({ onClick, activeFilter }: Props) {
       aria-expanded={false}
       style={{
         width: '100%',
-        minHeight: '48px',
         padding: '0 20px',
-        borderRadius: '999px',
-        border: `2px solid ${colors.accent}`,
+        minHeight: '52px',
+        borderRadius: 'var(--radius-card)',
+        border: 'none',
         backgroundColor: colors.switchBg,
-        color: colors.text,
+        color: colors.switchText,
         fontWeight: 800,
         fontSize: '15px',
         cursor: 'pointer',

@@ -1,115 +1,154 @@
 /*
- * Färgtema. Komponenterna läser färgerna via components/styles.ts, som pekar på
- * de här variablerna. Mörkt är standard; telefonens ljusa läge ger ljust tema
- * (läsbart i solljus). Kontrasterna är kontrollerade mot WCAG 2.2 AA.
+ * Färgtema "Puls" (brand guiden, avsnitt Färger). Komponenterna läser färgerna via
+ * components/styles.ts, som pekar på --c-*-variablerna. Ljust är standard; telefonens
+ * mörka läge ger mörkt tema. Alla textfärger klarar WCAG 2.2 AA (4,5:1).
+ * Hallon (--brand) används bara för varumärket och realtid, aldrig för status.
  */
 :root {
-  color-scheme: dark;
-  --c-bg: #020617;
-  --c-surface: #0f172a;
-  --c-surface-raised: #1e293b;
-  --c-border: #1e293b;
-  --c-border-strong: #64748b;
-  --c-border-muted: #64748b;
-  --c-text: #f8fafc;
-  --c-text-soft: #e2e8f0;
-  --c-text-muted: #cbd5e1;
-  --c-text-dim: #94a3b8;
-  --c-text-faint: #8593a8;
-  --c-accent: #38bdf8;
-  --c-accent-soft: #7dd3fc;
-  --c-accent-strong: #0369a1;
-  --c-accent-tint: rgba(56, 189, 248, 0.14);
-  --c-green: #10b981;
-  --c-green-soft: #6ee7b7;
-  --c-green-tint: rgba(16, 185, 129, 0.18);
-  --c-amber: #fbbf24;
-  --c-on-accent: #f8fafc;
-  --c-arrivals-bg: #047857;
-  --c-header-bg: rgba(15, 23, 42, 0.85);
-  --c-panel-top: #1e293b;
-  --c-panel-bottom: #0f172a;
-  --c-chip-bg: rgba(15, 23, 42, 0.7);
-  --c-selected-row-bg: rgba(2, 132, 199, 0.14);
-  --c-onboard-top: rgba(2, 132, 199, 0.22);
-  --c-onboard-bottom: rgba(15, 23, 42, 0.96);
-  --c-message-bg: rgba(15, 23, 42, 0.85);
-  --c-switch-bg: #0c2a40;
-  --c-shadow: rgba(2, 6, 23, 0.6);
-  --c-ok-bg: rgba(6, 78, 59, 0.72);
-  --c-ok-border: #059669;
-  --c-ok-text: #6ee7b7;
-  --c-delayed-bg: rgba(120, 53, 15, 0.85);
-  --c-delayed-border: #d97706;
-  --c-delayed-text: #fcd34d;
-  --c-cancelled-bg: rgba(127, 29, 29, 0.8);
-  --c-cancelled-border: #dc2626;
-  --c-cancelled-text: #fca5a5;
-  --c-scheduled-bg: rgba(30, 41, 59, 0.9);
-  --c-scheduled-border: #475569;
-  --c-scheduled-text: #cbd5e1;
-  --c-error-bg: #7f1d1d;
-  --c-error-text: #fecaca;
-  --c-notice-bg: rgba(120, 53, 15, 0.35);
-  --c-notice-text: #fde68a;
+  color-scheme: light;
+
+  /* Varumärkets tokens */
+  --bg: #f6f6f3;
+  --surface: #ffffff;
+  --surface-2: #e9e8e3;
+  --border: #e6e5e0;
+  --ink: #1f1d2b;
+  --muted: #5e5b70;
+  --brand: #c8175d;
+  --brand-tint: #f6d3e0;
+  --on-brand: #ffffff;
+  --ok: #1f7a4d;
+  --late: #b45309;
+  --late-bg: #fdf0e1;
+  --late-ink: #7a3a06;
+  --cancel: #9f1d1d;
+
+  --font-display: 'Schibsted Grotesk Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-text: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --radius-card: 12px;
+  --radius-control: 10px;
+  --radius-badge: 7px;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Komponenternas färger, byggda på tokens ovan */
+  --c-bg: var(--bg);
+  --c-surface: var(--surface);
+  --c-surface-raised: var(--surface-2);
+  --c-border: var(--border);
+  --c-border-strong: #8b8996; /* 3,4:1 mot kort, krav för knappar och fält */
+  --c-border-muted: #8b8996;
+  --c-text: var(--ink);
+  --c-text-soft: var(--ink);
+  --c-text-muted: #3d3a4d;
+  --c-text-dim: var(--muted);
+  --c-text-faint: var(--muted);
+  --c-accent: var(--brand);
+  --c-accent-soft: #a3124b;
+  --c-accent-strong: var(--ink); /* valt läge: bläck med ljus text */
+  --c-accent-tint: #fbeaf0;
+  --c-green: var(--ok);
+  --c-green-soft: var(--ok);
+  --c-green-tint: #e3f1e9;
+  --c-amber: var(--late);
+  --c-on-accent: var(--bg);
+  --c-arrivals-bg: var(--ink);
+  --c-header-bg: rgba(246, 246, 243, 0.92);
+  --c-panel-top: var(--surface);
+  --c-panel-bottom: var(--surface);
+  --c-chip-bg: var(--surface);
+  --c-selected-row-bg: #fbeaf0;
+  --c-onboard-top: #fbeaf0;
+  --c-onboard-bottom: var(--surface);
+  --c-message-bg: var(--surface);
+  --c-switch-bg: var(--ink);
+  --c-switch-text: var(--bg);
+  --c-shadow: rgba(31, 29, 43, 0.18);
+  --c-ok-bg: #e3f1e9;
+  --c-ok-border: var(--ok);
+  --c-ok-text: #17603c;
+  --c-delayed-bg: var(--late-bg);
+  --c-delayed-border: var(--late);
+  --c-delayed-text: var(--late-ink);
+  --c-cancelled-bg: #fbe7e7;
+  --c-cancelled-border: var(--cancel);
+  --c-cancelled-text: var(--cancel);
+  --c-scheduled-bg: var(--surface-2);
+  --c-scheduled-border: #8b8996;
+  --c-scheduled-text: #3d3a4d;
+  --c-error-bg: #fbe7e7;
+  --c-error-text: #7f1d1d;
+  --c-notice-bg: var(--late-bg);
+  --c-notice-text: var(--late-ink);
+  --c-badge-bg: var(--ink);
+  --c-badge-text: var(--bg);
+  --c-focus: var(--ink);
 }
 
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: dark) {
   :root {
-    color-scheme: light;
-    --c-bg: #eef2f7;
-    --c-surface: #ffffff;
-    --c-surface-raised: #e8edf4;
-    --c-border: #d5dde8;
-    --c-border-strong: #64748b;
-    --c-border-muted: #64748b;
-    --c-text: #0f172a;
-    --c-text-soft: #1e293b;
-    --c-text-muted: #334155;
-    --c-text-dim: #475569;
-    --c-text-faint: #55657c;
-    --c-accent: #0369a1;
-    --c-accent-soft: #075985;
-    --c-accent-strong: #0369a1;
-    --c-accent-tint: #e0f2fe;
-    --c-green: #047857;
-    --c-green-soft: #065f46;
-    --c-green-tint: #d1fae5;
-    --c-amber: #a14a06;
-    --c-on-accent: #ffffff;
-    --c-arrivals-bg: #047857;
-    --c-header-bg: rgba(255, 255, 255, 0.92);
-    --c-panel-top: #ffffff;
-    --c-panel-bottom: #f6f8fb;
-    --c-chip-bg: #ffffff;
-    --c-selected-row-bg: #e0f2fe;
-    --c-onboard-top: #dbeefe;
-    --c-onboard-bottom: #ffffff;
-    --c-message-bg: #f6f8fb;
-    --c-switch-bg: #e0f2fe;
-    --c-shadow: rgba(15, 23, 42, 0.18);
-    --c-ok-bg: #d1fae5;
-    --c-ok-border: #047857;
-    --c-ok-text: #065f46;
-    --c-delayed-bg: #fef3c7;
-    --c-delayed-border: #b45309;
-    --c-delayed-text: #7c2d12;
-    --c-cancelled-bg: #fee2e2;
-    --c-cancelled-border: #b91c1c;
-    --c-cancelled-text: #7f1d1d;
-    --c-scheduled-bg: #e8edf4;
-    --c-scheduled-border: #64748b;
-    --c-scheduled-text: #334155;
-    --c-error-bg: #fee2e2;
-    --c-error-text: #7f1d1d;
-    --c-notice-bg: #fef3c7;
-    --c-notice-text: #7c2d12;
+    color-scheme: dark;
+    --bg: #121019;
+    --surface: #1c1a26;
+    --surface-2: #24212f;
+    --border: #2e2a3b;
+    --ink: #f2f1f6;
+    --muted: #a9a6b8;
+    --brand: #ff5c93;
+    --brand-tint: #4a1b2e;
+    --on-brand: #121019;
+    --ok: #5fd49a;
+    --late: #f5b04c;
+    --late-bg: #33260f;
+    --late-ink: #f5b04c;
+    --cancel: #ff8a8a;
+
+    --c-border-strong: #6e6a80;
+    --c-border-muted: #6e6a80;
+    --c-text-muted: #c9c7d3;
+    --c-accent-soft: #ff8ab3;
+    --c-accent-tint: rgba(255, 92, 147, 0.14);
+    --c-green-tint: rgba(95, 212, 154, 0.14);
+    --c-header-bg: rgba(18, 16, 25, 0.9);
+    --c-selected-row-bg: rgba(255, 92, 147, 0.12);
+    --c-onboard-top: rgba(255, 92, 147, 0.16);
+    --c-shadow: rgba(0, 0, 0, 0.55);
+    --c-ok-bg: rgba(95, 212, 154, 0.14);
+    --c-ok-text: var(--ok);
+    --c-cancelled-bg: rgba(255, 138, 138, 0.12);
+    --c-scheduled-border: #6e6a80;
+    --c-scheduled-text: #c9c7d3;
+    --c-error-bg: rgba(255, 138, 138, 0.14);
+    --c-error-text: #ffb4b4;
+  }
+}
+
+/* "Minska rörelse" i telefonen stänger av animationer. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
 body {
   background-color: var(--c-bg);
   color: var(--c-text);
+  font-family: var(--font-text);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Rubriker och ordmärket i Schibsted Grotesk. */
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
 }
 
 /*
@@ -163,7 +202,7 @@ input::placeholder {
 button:focus-visible,
 a:focus-visible,
 input:focus-visible {
-  outline: 3px solid var(--c-amber);
+  outline: 2px solid var(--c-focus);
   outline-offset: 2px;
 }
 
