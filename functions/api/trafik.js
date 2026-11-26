@@ -1,5 +1,6 @@
 import { historyRows, saveHistory } from '../../lib/history.mjs';
 import { airportByIata, datesToFetch, flightBoard, waitTimes } from '../../lib/flights.mjs';
+import { missingTrains, trainJourney } from '../../lib/trains.mjs';
 
 function parseTimeToMinutes(timeStr) {
   if (!timeStr || typeof timeStr !== 'string') return null;
@@ -432,6 +433,117 @@ async function fetchTrafikverketStationUpdates(
   }
 
   return updatesMap;
+}
+
+/** Namnet på en station från dess signatur (Cst → Stockholm Central). */
+function stationNamer(stations) {
+  const map = new Map((stations || []).map((st) => [st.signature, st.name]));
+  return (sig) => map.get(sig) || '';
+}
+
+const TV_INCLUDE = [
+  'AdvertisedTrainIdent',
+  'AdvertisedTimeAtLocation',
+  'EstimatedTimeAtLocation',
+  'TimeAtLocation',
+  'Canceled',
+  'TrackAtLocation',
+  'Deviation',
+  'ToLocation',
+  'FromLocation',
+  'ProductInformation',
+  'InformationOwner',
+  'Advertised',
+  'ActivityType',
+  'LocationSignature',
+]
+  .map((f) => `<INCLUDE>${f}</INCLUDE>`)
+  .join('');
+
+async function trafikverketQuery(key, filter, limit = 400) {
+  const xmlBody = `<REQUEST>
+  <LOGIN authenticationkey="${key}" />
+  <QUERY objecttype="TrainAnnouncement" schemaversion="1.9" limit="${limit}" orderby="AdvertisedTimeAtLocation">
+    <FILTER>${filter}</FILTER>
+    ${TV_INCLUDE}
+  </QUERY>
+</REQUEST>`;
+  const res = await fetch(TRAFIKVERKET_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/xml; charset=utf-8' },
+    body: xmlBody,
+  });
+  if (!res.ok) throw new Error(`Trafikverket ${res.status}`);
+  const data = await res.json();
+  return data?.RESPONSE?.RESULT?.[0]?.TrainAnnouncement || [];
+}
+
+/**
+ * Tåg vid en station som Trafiklab saknar: de som står kvar efter sin tid och de som
+ * går mer än en timme fram. Ett anrop till Trafikverket per station.
+ */
+async function trafikverketMissing(key, stopName, direction, known, context) {
+  if (!key || !stopName) return [];
+  try {
+    const stations = await fetchTrafikverketStations(key, context);
+    const sig = findLocationSignature(stations, stopName);
+    if (!sig) return [];
+    const now = Date.now();
+    const filter = `<AND>
+        <EQ name="ActivityType" value="${direction === 'arrivals' ? 'Ankomst' : 'Avgang'}" />
+        <EQ name="LocationSignature" value="${sig}" />
+        <EQ name="Advertised" value="true" />
+        <GTE name="AdvertisedTimeAtLocation" value="${new Date(now - 90 * 60000).toISOString()}" />
+        <LTE name="AdvertisedTimeAtLocation" value="${new Date(now + 180 * 60000).toISOString()}" />
+      </AND>`;
+    const announcements = await trafikverketQuery(key, filter, 300);
+    return missingTrains({
+      announcements,
+      known,
+      direction,
+      nowLocal: swedishDateTime(new Date(now).toISOString()),
+      nameOf: stationNamer(stations),
+      tvStation: stopName,
+    });
+  } catch {
+    return [];
+  }
+}
+
+/** action=train&number=532: tågets hela resa i dag (eller i går, om det går över midnatt). */
+async function handleTrain(url, keys, context) {
+  const number = String(url.searchParams.get('number') || '').trim();
+  if (!/^\d{1,6}$/.test(number)) return jsonResponse({ error: 'Ange ett tågnummer.' }, 400);
+  if (!keys.trafikverket) return jsonResponse({ error: 'Tåginformation saknas just nu.' }, 503);
+  const stations = await fetchTrafikverketStations(keys.trafikverket, context);
+  const nameOf = stationNamer(stations);
+  const nowIso = new Date().toISOString();
+  const today = swedishDateTime(nowIso).slice(0, 10);
+  const dates = [today];
+  const y = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  dates.push(swedishDateTime(y).slice(0, 10));
+  for (const date of dates) {
+    const filter = `<AND>
+        <EQ name="AdvertisedTrainIdent" value="${number}" />
+        <EQ name="ScheduledDepartureDateTime" value="${date}" />
+      </AND>`;
+    let anns = [];
+    try {
+      anns = await trafikverketQuery(keys.trafikverket, filter, 500);
+    } catch {
+      return jsonResponse({ error: 'Kunde inte hämta tåget från Trafikverket just nu.' }, 502);
+    }
+    const journey = trainJourney(anns, nameOf, swedishDateTime(nowIso));
+    if (journey.stops.length === 0) continue;
+    // Gårdagens tåg bara om det fortfarande är på väg.
+    if (date !== today && journey.stops.every((st) => st.passed)) continue;
+    return jsonResponse(
+      { number, date, ...journey, updatedAt: nowIso },
+      200,
+      { 'Cache-Control': 'public, max-age=30' }
+    );
+  }
+  return jsonResponse({ error: `Hittade inget tåg ${number} i dag.` }, 404);
 }
 
 /** Lägger Trafikverkets uppgifter ovanpå en avgång (bara tåg, bara exakt matchning). */
@@ -1629,6 +1741,24 @@ async function handleBoard(url, keys, context) {
     );
   }
 
+  // Tåg som Trafiklab saknar (stående tåg, tåg mer än en timme fram), från Trafikverket.
+  if (keys.trafikverket && (mode === 'all' || mode === 'train')) {
+    const known = all.flatMap((d) => (d._trainCandidates || []).map((n) => String(n || '').trim()));
+    const tvStations = Array.from(new Set(all.map((d) => d._tvStation).filter(Boolean)));
+    if (tvStations.length === 0) tvStations.push(url.searchParams.get('stopName') || '');
+    const extra = (
+      await Promise.all(
+        tvStations.slice(0, 4).map((st) => trafikverketMissing(keys.trafikverket, st, direction, known, context))
+      )
+    ).flat();
+    const seen = new Set();
+    for (const d of extra) {
+      if (seen.has(d.id)) continue;
+      seen.add(d.id);
+      all.push(d);
+    }
+  }
+
   const timed = all
     .filter((d) => mode === 'all' || d.transportMode === mode)
     .map((d) => applyTrafikverket(d, tvByStation.get(d._tvStation) || new Map(), d._trainCandidates || []))
@@ -1848,6 +1978,9 @@ export async function onRequest(context) {
   try {
     if (action === 'search') {
       return await handleSearch(url, keys);
+    }
+    if (action === 'train') {
+      return await handleTrain(url, keys, context);
     }
     if (action === 'nearby') {
       return await handleNearby(request, keys, context);
