@@ -677,8 +677,9 @@ const REALTIME_MODE_LABELS = {
   other: 'Linje',
 };
 
-function classifyRealtimeMode(route) {
+function classifyRealtimeMode(route, agency) {
   const mode = String(route?.transport_mode || '').toUpperCase();
+  const agencyName = String(agency?.name || '').trim().toLowerCase();
   const code = Number(route?.transport_mode_code);
   const name = String(route?.name || '').toLowerCase();
 
@@ -699,7 +700,10 @@ function classifyRealtimeMode(route) {
         name.includes('pågatåg') ||
         name.includes('öresundståg') ||
         name.includes('upptåget') ||
-        name.includes('krösatåg')
+        name.includes('krösatåg') ||
+        // SL:s pendeltåg heter ibland bara "SL" (t.ex. vid Stockholm City).
+        name === 'sl' ||
+        agencyName === 'sl'
       ) {
         return 'commuter';
       }
@@ -710,7 +714,9 @@ function classifyRealtimeMode(route) {
 }
 
 function buildLineName(route, itemMode) {
-  const name = String(route?.name || '').trim();
+  // "SL 43" säger inget; "Pendeltåg 43" gör det.
+  const rawName = String(route?.name || '').trim();
+  const name = /^sl$/i.test(rawName) && REALTIME_MODE_LABELS[itemMode] ? REALTIME_MODE_LABELS[itemMode] : rawName;
   const designation = String(route?.designation || '').trim();
   if (name && designation) {
     return name.includes(designation) ? name : `${name} ${designation}`;
@@ -730,7 +736,7 @@ function alertsToText(alerts) {
 /** Gör om ett anrop från Realtime API till appens avgångsformat. */
 function mapRealtimeCall(call, direction) {
   const route = call.route || {};
-  const itemMode = classifyRealtimeMode(route);
+  const itemMode = classifyRealtimeMode(route, call.agency);
   const scheduledIso = String(call.scheduled || '');
   const realtimeIso = String(call.realtime || scheduledIso);
   const scheduledTime = extractClockTime(scheduledIso);

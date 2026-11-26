@@ -72,3 +72,22 @@ test('Stockholm C: bytet tar med Stockholm City, T-Centralen och Cityterminalen'
   }
   assert.deepEqual(body.departures.map((d) => d.line.split(' ').pop()).sort(), ['14', '41']);
 });
+
+test('SL:s pendeltåg som bara heter "SL" blir Pendeltåg', async () => {
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('/v1/departures/740001617')) {
+      return new Response(JSON.stringify({ stops: [{ id: '740001617', name: 'Stockholm City station' }], departures: [
+        call('P', '43', 'TRAIN', 5, { route: { name: 'SL', designation: '43', transport_mode: 'TRAIN', direction: 'Västerhaninge' }, agency: { name: 'SL' } }),
+      ] }));
+    }
+    return new Response('{}', { status: 404 });
+  };
+  const res = await onRequest({
+    request: new Request('https://alltiditid.se/api/trafik?action=departures&stopId=740001617&stopName=Stockholm%20City&mode=all&direction=departures'),
+    env: { TRAFIKLAB_REALTIME_API_KEY: 'rt' },
+    waitUntil() {},
+  });
+  const d = (await res.json()).departures[0];
+  assert.equal(d.line, 'Pendeltåg 43');
+  assert.equal(d.transportMode, 'commuter');
+});
