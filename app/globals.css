@@ -171,11 +171,16 @@ h3,
   }
 
   .switch-stop--bottom {
-    display: block;
+    display: flex;
+    justify-content: flex-end;
     position: sticky;
-    bottom: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
     z-index: 30;
     margin: 8px 0 24px 0;
+    pointer-events: none;
+  }
+  .switch-stop--bottom > * {
+    pointer-events: auto;
   }
 }
 

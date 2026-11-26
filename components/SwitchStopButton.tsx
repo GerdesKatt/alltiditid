@@ -7,28 +7,53 @@ type Props = {
   activeFilter: boolean;
 };
 
-/** Öppnar region, snabbval, sök och filter. På mobilen ligger den längst ner, där tummen når. */
+/**
+ * Öppnar region, snabbval, sök och filter. På mobilen flyter den nere till höger, där
+ * tummen når, men i kortens färg så att den inte tar över tavlan.
+ */
 export default function SwitchStopButton({ onClick, activeFilter }: Props) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-expanded={false}
+      aria-label={activeFilter ? 'Byt hållplats eller ändra filter (filter på)' : 'Byt hållplats eller filtrera'}
       style={{
-        width: '100%',
-        padding: '0 20px',
-        minHeight: '52px',
-        borderRadius: 'var(--radius-card)',
-        border: 'none',
-        backgroundColor: colors.switchBg,
-        color: colors.switchText,
-        fontWeight: 800,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '0 18px 0 14px',
+        minHeight: '48px',
+        borderRadius: '999px',
+        border: `1px solid ${colors.borderStrong}`,
+        backgroundColor: colors.surface,
+        color: colors.text,
+        fontWeight: 700,
         fontSize: '15px',
         cursor: 'pointer',
-        boxShadow: `0 8px 24px ${colors.shadow}`,
+        boxShadow: `0 6px 18px ${colors.shadow}`,
       }}
     >
-      Byt hållplats eller filtrera{activeFilter ? ' · filter på' : ''}
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7" />
+        <path d="M20 20l-3.5-3.5" />
+      </svg>
+      Byt hållplats
+      {activeFilter ? (
+        <span
+          aria-hidden="true"
+          style={{
+            padding: '2px 8px',
+            borderRadius: '999px',
+            backgroundColor: colors.surfaceRaised,
+            color: colors.textDim,
+            fontSize: '12px',
+            fontWeight: 700,
+          }}
+        >
+          filter
+        </span>
+      ) : null}
     </button>
   );
 }
