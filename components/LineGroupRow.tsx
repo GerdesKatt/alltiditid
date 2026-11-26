@@ -2,6 +2,7 @@ import React from 'react';
 import type { BoardDirection, Departure } from '../lib/types';
 import { colors, fonts } from './styles';
 import { countdownFor, lineBadge, lineName } from '../lib/lineFormat';
+import { lineLabel, trackLabel, translator, useLang, type Lang } from '../lib/i18n';
 
 type Props = {
   items: Departure[];
@@ -14,32 +15,36 @@ const TIMES_PER_GROUP = 3;
 
 /** En linje mot ett mål, med de närmaste avgångarna i rad: "3 min · 11 min · 19 min". */
 /** "om 12 min" / "nu" för tåg, där avgångstiden står stort; tomt om det är en timme eller mer. */
-function relativeLabel(t: Departure, now: number): string {
-  const label = countdownFor(t, now);
-  if (label === 'Nu') return 'nu';
-  return /min$/.test(label) ? `om ${label}` : '';
+function relativeLabel(d: Departure, now: number, lang: Lang): string {
+  const t = translator(lang);
+  const label = countdownFor(d, now);
+  if (label === 'Nu') return t('nu', 'now');
+  return /min$/.test(label) ? t(`om ${label}`, `in ${label}`) : '';
 }
 
 export default function LineGroupRow({ items, direction, now }: Props) {
+  const { lang, t } = useLang();
   const first = items[0];
   const badge = lineBadge(first.line);
   const trainNumber = first.transportMode === 'train' && /^\d{3,5}$/.test(badge);
-  const name = lineName(first.line, badge);
-  const shownBadge = trainNumber ? 'Tåg' : badge;
-  const towards = direction === 'arrivals' ? `Från ${first.destination}` : first.destination;
+  const name = lineLabel(lineName(first.line, badge), lang);
+  const shownBadge = trainNumber ? t('Tåg', 'Train') : lineLabel(badge, lang);
+  const towards = direction === 'arrivals' ? `${t('Från', 'From')} ${first.destination}` : first.destination;
+  const now_ = (label: string) => (label === 'Nu' ? t('nu', 'now') : label);
   const tracks = Array.from(new Set(items.map((i) => i.track).filter(Boolean)));
-  const subline = [name, first.stopLabel, tracks.length === 1 ? tracks[0] : ''].filter(Boolean).join(' · ');
+  const subline = [name, first.stopLabel, tracks.length === 1 ? trackLabel(tracks[0], lang) : ''].filter(Boolean).join(' · ');
   const times = items.slice(0, TIMES_PER_GROUP);
 
   // Skärmläsaren får både nedräkning och ordinarie tid, som på raden i listan.
-  const spoken = `${trainNumber ? name || 'Tåg' : first.line} ${direction === 'arrivals' ? 'från' : 'mot'} ${
-    first.destination
-  }: ${times
-    .map((t) => {
-      const label = countdownFor(t, now);
-      if (t.status === 'cancelled') return `${t.scheduledTime} inställd`;
-      if (t.status === 'delayed') return `${label === 'Nu' ? 'nu' : label}, försenad, ordinarie ${t.scheduledTime}`;
-      return `${label === 'Nu' ? 'nu' : label}, ${t.scheduledTime}`;
+  const spoken = `${trainNumber ? name || t('Tåg', 'Train') : lineLabel(first.line, lang)} ${
+    direction === 'arrivals' ? t('från', 'from') : t('mot', 'to')
+  } ${first.destination}: ${times
+    .map((d) => {
+      const label = countdownFor(d, now);
+      if (d.status === 'cancelled') return `${d.scheduledTime} ${t('inställd', 'cancelled')}`;
+      if (d.status === 'delayed')
+        return `${now_(label)}, ${t('försenad, ordinarie', 'delayed, scheduled')} ${d.scheduledTime}`;
+      return `${now_(label)}, ${d.scheduledTime}`;
     })
     .join(', ')}`;
 
@@ -108,13 +113,13 @@ export default function LineGroupRow({ items, direction, now }: Props) {
           </span>
         ) : null}
         <span style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
-          {times.map((t, i) => {
-            const cancelled = t.status === 'cancelled';
-            const delayed = t.status === 'delayed';
-            const schedule = !cancelled && !delayed && t.hasRealtime === false;
+          {times.map((d, i) => {
+            const cancelled = d.status === 'cancelled';
+            const delayed = d.status === 'delayed';
+            const schedule = !cancelled && !delayed && d.hasRealtime === false;
             return (
               <span
-                key={t.id}
+                key={d.id}
                 style={{
                   fontSize: i === 0 ? '0.9375rem' : '0.8125rem',
                   fontWeight: i === 0 ? 800 : 700,
@@ -136,21 +141,21 @@ export default function LineGroupRow({ items, direction, now }: Props) {
                 {/* Tåg med tågnummer: avgångstiden stort (som på biljetten), annars nedräkningen. */}
                 <span style={{ textDecoration: cancelled ? 'line-through' : 'none' }}>
                   {trainNumber
-                    ? t.scheduledTime
-                    : `${schedule && /min$/.test(countdownFor(t, now)) ? '~' : ''}${countdownFor(t, now)}`}
+                    ? d.scheduledTime
+                    : `${schedule && /min$/.test(countdownFor(d, now)) ? '~' : ''}${now_(countdownFor(d, now))}`}
                 </span>
                 <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>
                   {trainNumber
                     ? cancelled
-                      ? 'inställd'
+                      ? t('inställd', 'cancelled')
                       : delayed
-                      ? `ny ${t.newTime || t.estimatedTime}`
-                      : relativeLabel(t, now)
+                      ? `${t('ny', 'new')} ${d.newTime || d.estimatedTime}`
+                      : relativeLabel(d, now, lang)
                     : cancelled
-                    ? 'inställd'
+                    ? t('inställd', 'cancelled')
                     : delayed
-                    ? `${t.scheduledTime}→${t.newTime || t.estimatedTime}`
-                    : t.scheduledTime}
+                    ? `${d.scheduledTime}→${d.newTime || d.estimatedTime}`
+                    : d.scheduledTime}
                 </span>
               </span>
             );

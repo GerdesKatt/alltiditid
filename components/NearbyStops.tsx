@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { StopOption } from '../lib/types';
 import { colors } from './styles';
+import { decimal, translator, useLang, type Lang } from '../lib/i18n';
 
 type NearbyStop = StopOption & { distance: number };
 
@@ -15,9 +16,9 @@ type Props = {
   onSelect: (stop: StopOption) => void;
 };
 
-function formatDistance(meters: number): string {
+function formatDistance(meters: number, lang: Lang): string {
   if (meters < 1000) return `${Math.max(10, Math.round(meters / 10) * 10)} m`;
-  return `${(meters / 1000).toFixed(1).replace('.', ',')} km`;
+  return `${decimal(meters / 1000, 1, lang)} km`;
 }
 
 /** Ungefärlig gångtid med 80 m/min (knappt 5 km/h). */
@@ -25,14 +26,24 @@ function walkingMinutes(meters: number): number {
   return Math.max(1, Math.round(meters / 80));
 }
 
-function geolocationMessage(error: GeolocationPositionError): string {
+function geolocationMessage(error: GeolocationPositionError, lang: Lang): string {
+  const t = translator(lang);
   switch (error.code) {
     case error.PERMISSION_DENIED:
-      return 'Platsåtkomst är avstängd. Tillåt plats för alltiditid.se i webbläsarens inställningar, eller sök hållplats nedan.';
+      return t(
+        'Platsåtkomst är avstängd. Tillåt plats för alltiditid.se i webbläsarens inställningar, eller sök hållplats nedan.',
+        'Location access is off. Allow location for alltiditid.se in your browser settings, or search for a stop.'
+      );
     case error.TIMEOUT:
-      return 'Det tog för lång tid att hitta din position. Försök igen, eller sök hållplats nedan.';
+      return t(
+        'Det tog för lång tid att hitta din position. Försök igen, eller sök hållplats nedan.',
+        'Finding your location took too long. Try again, or search for a stop.'
+      );
     default:
-      return 'Din position gick inte att hitta just nu. Försök igen, eller sök hållplats nedan.';
+      return t(
+        'Din position gick inte att hitta just nu. Försök igen, eller sök hållplats nedan.',
+        'Your location could not be found right now. Try again, or search for a stop.'
+      );
   }
 }
 
@@ -44,6 +55,7 @@ function geolocationMessage(error: GeolocationPositionError): string {
 export default function NearbyStops({ onSelect }: Props) {
   const [supported, setSupported] = useState(false);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
+  const { lang, t } = useLang();
 
   // navigator finns bara i webbläsaren; kontrollera efter att sidan laddats.
   useEffect(() => {
@@ -67,7 +79,7 @@ export default function NearbyStops({ onSelect }: Props) {
         })
           .then(async (res) => {
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Kunde inte hämta hållplatser.');
+            if (!res.ok) throw new Error(t(data.error || 'Kunde inte hämta hållplatser.', 'Could not load stops.'));
             return data;
           })
           .then((data) => {
@@ -75,17 +87,17 @@ export default function NearbyStops({ onSelect }: Props) {
             setStatus(
               stops.length > 0
                 ? { kind: 'done', stops }
-                : { kind: 'error', message: 'Inga hållplatser hittades inom 1,5 km.' }
+                : { kind: 'error', message: t('Inga hållplatser hittades inom 1,5 km.', 'No stops found within 1.5 km.') }
             );
           })
           .catch((err) => {
             setStatus({
               kind: 'error',
-              message: err.message || 'Kunde inte hämta hållplatser just nu.',
+              message: err.message || t('Kunde inte hämta hållplatser just nu.', 'Could not load stops right now.'),
             });
           });
       },
-      (error) => setStatus({ kind: 'error', message: geolocationMessage(error) }),
+      (error) => setStatus({ kind: 'error', message: geolocationMessage(error, lang) }),
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 }
     );
   }
@@ -112,12 +124,12 @@ export default function NearbyStops({ onSelect }: Props) {
       >
         <span aria-hidden="true">📍 </span>
         {status.kind === 'locating'
-          ? 'Hittar din position…'
+          ? t('Hittar din position…', 'Finding your location…')
           : status.kind === 'loading'
-          ? 'Söker hållplatser…'
+          ? t('Söker hållplatser…', 'Searching for stops…')
           : status.kind === 'done'
-          ? 'Uppdatera närmaste hållplatser'
-          : 'Hållplatser nära mig'}
+          ? t('Uppdatera närmaste hållplatser', 'Refresh nearest stops')
+          : t('Hållplatser nära mig', 'Stops near me')}
       </button>
 
       <div aria-live="polite">
@@ -129,7 +141,7 @@ export default function NearbyStops({ onSelect }: Props) {
 
         {status.kind === 'done' ? (
           <ul
-            aria-label="Närmaste hållplatser"
+            aria-label={t('Närmaste hållplatser', 'Nearest stops')}
             style={{ listStyle: 'none', margin: '8px 0 0 0', padding: 0, display: 'grid', gap: '6px' }}
           >
             {status.stops.map((stop) => (
@@ -157,7 +169,11 @@ export default function NearbyStops({ onSelect }: Props) {
                 >
                   <span>{stop.name}</span>
                   <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim, whiteSpace: 'nowrap' }}>
-                    {formatDistance(stop.distance)} · ca {walkingMinutes(stop.distance)} min gång
+                    {formatDistance(stop.distance, lang)} ·{' '}
+                    {t(
+                      `ca ${walkingMinutes(stop.distance)} min gång`,
+                      `about ${walkingMinutes(stop.distance)} min walk`
+                    )}
                   </span>
                 </button>
               </li>

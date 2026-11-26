@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import type { Departure, RiderMood } from '../lib/types';
 import { colors, fonts } from './styles';
+import { lineLabel, trackLabel, useLang } from '../lib/i18n';
 
 type Props = {
   trip: Departure;
@@ -15,10 +16,10 @@ type Props = {
   onClose: () => void;
 };
 
-const RIDER_OPTIONS: { key: RiderMood; label: string }[] = [
-  { key: 'on-time', label: 'Jag är i tid' },
-  { key: 'slightly-late', label: 'Lite sen' },
-  { key: 'delayed', label: 'Försenad' },
+const RIDER_OPTIONS: { key: RiderMood; label: string; labelEn: string }[] = [
+  { key: 'on-time', label: 'Jag är i tid', labelEn: "I'm on time" },
+  { key: 'slightly-late', label: 'Lite sen', labelEn: 'A bit late' },
+  { key: 'delayed', label: 'Försenad', labelEn: 'Delayed' },
 ];
 
 export default function OnBoardPanel({
@@ -33,6 +34,7 @@ export default function OnBoardPanel({
   onShare,
   onClose,
 }: Props) {
+  const { lang, t } = useLang();
   const isArrival = trip.directionType === 'arrivals';
   const newTime = trip.newTime || trip.estimatedTime;
   const sheetRef = useRef<HTMLElement>(null);
@@ -70,12 +72,13 @@ export default function OnBoardPanel({
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '14px' }}>
         <div style={{ minWidth: 0 }}>
-          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>Jag är ombord</span>
+          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>{t('Jag är ombord', "I'm on board")}</span>
           <h2
             id="resenar-lage-rubrik"
             style={{ fontFamily: fonts.display, fontSize: '1.25rem', fontWeight: 800, margin: '2px 0 0', color: colors.text, lineHeight: 1.2, fontVariantNumeric: 'normal' }}
           >
-            {isArrival ? `Ankomst ${stopName}` : `Mot ${trip.destination}`} {trip.scheduledTime}
+            {isArrival ? `${t('Ankomst', 'Arriving')} ${stopName}` : `${t('Mot', 'To')} ${trip.destination}`}{' '}
+            {trip.scheduledTime}
             {trip.status === 'delayed' && newTime ? (
               <span style={{ color: colors.amber }}>
                 {' '}
@@ -85,7 +88,13 @@ export default function OnBoardPanel({
             ) : null}
           </h2>
           <div style={{ fontSize: '0.8125rem', color: colors.textDim, marginTop: '4px' }}>
-            {[isArrival ? `Från ${trip.destination}` : `Från ${stopName}`, trip.line, trip.operator, trip.track, trip.deviation]
+            {[
+              `${t('Från', 'From')} ${isArrival ? trip.destination : stopName}`,
+              lineLabel(trip.line, lang),
+              trip.operator,
+              trackLabel(trip.track, lang),
+              trip.deviation,
+            ]
               .filter(Boolean)
               .join(' · ')}
           </div>
@@ -107,7 +116,7 @@ export default function OnBoardPanel({
             cursor: 'pointer',
           }}
         >
-          Stäng
+          {t('Stäng', 'Close')}
         </button>
       </div>
 
@@ -125,8 +134,10 @@ export default function OnBoardPanel({
             lineHeight: 1.45,
           }}
         >
-          Resan finns inte längre på tavlan, troligen för att den redan har gått. Tiderna nedan
-          uppdateras inte längre.
+          {t(
+            'Resan finns inte längre på tavlan, troligen för att den redan har gått. Tiderna nedan uppdateras inte längre.',
+            'The trip is no longer on the board, probably because it has already left. The times below no longer update.'
+          )}
         </p>
       ) : null}
 
@@ -151,21 +162,21 @@ export default function OnBoardPanel({
                 cursor: 'pointer',
               }}
             >
-              {opt.label}
+              {t(opt.label, opt.labelEn)}
             </button>
           );
         })}
       </div>
 
       <label htmlFor="notis" className="sr-only">
-        Notis till den som hämtar
+        {t('Notis till den som hämtar', 'Note for whoever is picking you up')}
       </label>
       <input
         id="notis"
         type="text"
         value={riderNote}
         onChange={(e) => onRiderNoteChange(e.target.value)}
-        placeholder="Notis, t.ex. Sitter i främre vagnen"
+        placeholder={t('Notis, t.ex. Sitter i främre vagnen', "Note, e.g. I'm in the front carriage")}
         style={{
           width: '100%',
           boxSizing: 'border-box',
@@ -201,7 +212,7 @@ export default function OnBoardPanel({
             marginBottom: '4px',
           }}
         >
-          Meddelandet som skickas
+          {t('Meddelandet som skickas', 'The message that will be sent')}
         </strong>
         {shareMessage}
       </div>
@@ -222,12 +233,12 @@ export default function OnBoardPanel({
             cursor: 'pointer',
           }}
         >
-          Skicka till den som hämtar
+          {t('Skicka till den som hämtar', 'Send to whoever is picking you up')}
         </button>
 
         {copied ? (
           <span role="status" style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>
-            Meddelandet är kopierat.
+            {t('Meddelandet är kopierat.', 'Message copied.')}
           </span>
         ) : null}
       </div>

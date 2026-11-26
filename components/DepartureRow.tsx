@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { BoardDirection, Departure } from '../lib/types';
 import { colors, fonts } from './styles';
 import { COUNTDOWN_MAX_MIN, lineBadge, lineName, parseLocal } from '../lib/lineFormat';
+import { lineLabel, trackLabel, useLang } from '../lib/i18n';
 
 type Props = {
   item: Departure;
@@ -38,6 +39,8 @@ export default function DepartureRow({
   stale = false,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const { lang, t } = useLang();
+  const line = lineLabel(item.line, lang);
   const isDelayed = item.status === 'delayed';
   const isCancelled = item.status === 'cancelled';
   const onlySchedule = !isCancelled && !isDelayed && item.hasRealtime === false;
@@ -55,20 +58,24 @@ export default function DepartureRow({
     : minutesLeft === null || minutesLeft >= COUNTDOWN_MAX_MIN
     ? clock
     : minutesLeft <= 0
-    ? 'Nu'
+    ? t('Nu', 'Now')
     : `${minutesLeft} min`;
   // Bokade tåg (fjärr- och regionaltåg) visas som på stationsskylten och biljetten:
   // ordinarie avgångstid stort, nedräkningen smått. Lokaltrafik tvärtom.
   const booked = item.transportMode === 'train';
   const countdown =
-    minutesLeft === null || minutesLeft >= COUNTDOWN_MAX_MIN ? '' : minutesLeft <= 0 ? 'nu' : `om ${minutesLeft} min`;
+    minutesLeft === null || minutesLeft >= COUNTDOWN_MAX_MIN
+      ? ''
+      : minutesLeft <= 0
+      ? t('nu', 'now')
+      : t(`om ${minutesLeft} min`, `in ${minutesLeft} min`);
   // Ordinarie tid → väntad tid, när de skiljer sig (t.ex. en buss 2 min sen: "18:35 → 18:37").
   const shifted = !isCancelled && !isDelayed && clock !== item.scheduledTime;
 
   const badge = lineBadge(item.line);
-  const name = lineName(item.line, badge);
-  const towards = direction === 'arrivals' ? `Från ${item.destination}` : item.destination;
-  const details = [item.stopLabel, item.track].filter(Boolean).join(' · ');
+  const name = lineLabel(lineName(item.line, badge), lang);
+  const towards = direction === 'arrivals' ? `${t('Från', 'From')} ${item.destination}` : item.destination;
+  const details = [item.stopLabel, trackLabel(item.track, lang)].filter(Boolean).join(' · ');
   const compensation =
     isCancelled || (isDelayed && (item.delayMinutes || 0) >= COMPENSATION_DELAY_MIN);
 
@@ -92,18 +99,21 @@ export default function DepartureRow({
 
   // Knappens namn är det som syns på raden (så att röststyrning hittar den, WCAG 2.5.3),
   // följt av en dold förklaring för skärmläsare, t.ex. "Buss 160, ordinarie 14:05".
-  const spokenExtra = `${item.line}, ${
+  const spokenExtra = `${line}, ${
     isCancelled
-      ? `inställd, ordinarie tid ${item.scheduledTime}`
+      ? `${t('inställd, ordinarie tid', 'cancelled, scheduled time')} ${item.scheduledTime}`
       : isDelayed
-      ? `försenad${item.delayMinutes ? ` ${item.delayMinutes} min` : ''}, ny tid ${newTime}, ordinarie ${item.scheduledTime}`
+      ? `${t('försenad', 'delayed')}${item.delayMinutes ? ` ${item.delayMinutes} min` : ''}, ${t('ny tid', 'new time')} ${newTime}, ${t(
+          'ordinarie',
+          'scheduled'
+        )} ${item.scheduledTime}`
       : `${
           booked
-            ? countdown || 'ordinarie avgångstid'
-            : `ordinarie ${item.scheduledTime}`
-        }${shifted && !early ? `, väntas ${clock}` : ''}${early ? `, ${early} min tidig, väntas ${clock}` : ''}${
-          onlySchedule ? ', enligt tidtabell' : ''
-        }`
+            ? countdown || t('ordinarie avgångstid', 'scheduled departure time')
+            : `${t('ordinarie', 'scheduled')} ${item.scheduledTime}`
+        }${shifted && !early ? `, ${t('väntas', 'expected')} ${clock}` : ''}${
+          early ? `, ${early} ${t('min tidig, väntas', 'min early, expected')} ${clock}` : ''
+        }${onlySchedule ? t(', enligt tidtabell', ', according to timetable') : ''}`
   }`;
 
   return (
@@ -155,7 +165,7 @@ export default function DepartureRow({
             fontVariantNumeric: 'tabular-nums',
           }}
         >
-          {badge}
+          {lineLabel(badge, lang)}
         </span>
 
         {/* Destination och detaljer */}
@@ -236,23 +246,23 @@ export default function DepartureRow({
             }}
           >
             {isCancelled ? (
-              'Inställd'
+              t('Inställd', 'Cancelled')
             ) : item.pending ? (
-              <span style={{ color: colors.amber, fontWeight: 600 }}>Står kvar</span>
+              <span style={{ color: colors.amber, fontWeight: 600 }}>{t('Står kvar', 'Still at platform')}</span>
             ) : booked ? (
               // Bokat tåg: ordinarie tid står stort ovanför.
               <>
                 {lateBooked ? (
-                  <span style={{ fontWeight: 700 }}>{item.delayMinutes ? `+${item.delayMinutes} min` : 'Ny tid'}</span>
+                  <span style={{ fontWeight: 700 }}>{item.delayMinutes ? `+${item.delayMinutes} min` : t('Ny tid', 'New time')}</span>
                 ) : isDelayed ? (
-                  'Försenad'
+                  t('Försenad', 'Delayed')
                 ) : (
                   ''
                 )}
-                {early ? <span style={{ color: colors.okText }}>{`${clock} · ${early} min tidig`}</span> : ''}
+                {early ? <span style={{ color: colors.okText }}>{`${clock} · ${early} ${t('min tidig', 'min early')}`}</span> : ''}
                 {early && countdown ? ' · ' : ''}
                 {isDelayed ? '' : countdown}
-                {onlySchedule ? `${countdown ? ' · ' : ''}ingen realtid` : ''}
+                {onlySchedule ? `${countdown ? ' · ' : ''}${t('ingen realtid', 'no real-time')}` : ''}
               </>
             ) : isDelayed ? (
               <>
@@ -261,16 +271,16 @@ export default function DepartureRow({
               </>
             ) : early ? (
               <span style={{ color: colors.okText }}>
-                {item.scheduledTime} → {clock} · {early} min tidig
+                {item.scheduledTime} → {clock} · {early} {t('min tidig', 'min early')}
               </span>
             ) : bigTime === clock ? (
               // Långt fram står klockslaget redan stort.
-              onlySchedule ? 'ingen realtid' : null
+              onlySchedule ? t('ingen realtid', 'no real-time') : null
             ) : (
               <>
                 {item.scheduledTime}
                 {shifted ? ` → ${clock}` : ''}
-                {onlySchedule ? ' · ingen realtid' : ''}
+                {onlySchedule ? ` · ${t('ingen realtid', 'no real-time')}` : ''}
               </>
             )}
           </span>
@@ -291,14 +301,14 @@ export default function DepartureRow({
           }}
         >
           <span style={{ flexBasis: '100%' }}>
-            {item.line} · {item.operator}
-            {onlySchedule ? ' · Realtid kommer när avgången närmar sig.' : ''}
+            {line} · {item.operator}
+            {onlySchedule ? t(' · Realtid kommer när avgången närmar sig.', ' · Real-time appears as departure approaches.') : ''}
           </span>
           <button
             type="button"
             aria-pressed={isSelectedTrip}
-            aria-label={`${isSelectedTrip ? 'Vald resa' : 'Jag är ombord'}: ${item.line} ${
-              direction === 'arrivals' ? 'från' : 'mot'
+            aria-label={`${isSelectedTrip ? t('Vald resa', 'Selected trip') : t('Jag är ombord', "I'm on board")}: ${line} ${
+              direction === 'arrivals' ? t('från', 'from') : t('mot', 'to')
             } ${item.destination} ${item.scheduledTime}`}
             onClick={() => onSelectOnBoard(item)}
             style={{
@@ -313,7 +323,7 @@ export default function DepartureRow({
               cursor: 'pointer',
             }}
           >
-            {isSelectedTrip ? 'Vald resa' : 'Jag är ombord'}
+            {isSelectedTrip ? t('Vald resa', 'Selected trip') : t('Jag är ombord', "I'm on board")}
           </button>
           {onShowTrain && item.trainNumber && (item.transportMode === 'train' || item.transportMode === 'commuter') ? (
             <button
@@ -331,14 +341,17 @@ export default function DepartureRow({
                 cursor: 'pointer',
               }}
             >
-              Hela resan
+              {t('Hela resan', 'Whole journey')}
             </button>
           ) : null}
           {onToggleMyTrip ? (
             <button
               type="button"
               aria-pressed={isMyTrip}
-              aria-label={`${isMyTrip ? 'Min resa' : 'Spara som min resa'}: ${item.line} mot ${item.destination}`}
+              aria-label={`${isMyTrip ? t('Min resa', 'My trip') : t('Spara som min resa', 'Save as my trip')}: ${line} ${t(
+                'mot',
+                'to'
+              )} ${item.destination}`}
               onClick={() => onToggleMyTrip(item)}
               style={{
                 minHeight: '44px',
@@ -352,7 +365,7 @@ export default function DepartureRow({
                 cursor: 'pointer',
               }}
             >
-              {isMyTrip ? '✓ Min resa' : 'Spara som min resa'}
+              {isMyTrip ? `✓ ${t('Min resa', 'My trip')}` : t('Spara som min resa', 'Save as my trip')}
             </button>
           ) : null}
           {compensation ? (
@@ -362,7 +375,7 @@ export default function DepartureRow({
               rel="noopener noreferrer"
               style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.amber }}
             >
-              Rätt till ersättning?
+              {t('Rätt till ersättning?', 'Entitled to compensation?')}
             </a>
           ) : null}
         </div>

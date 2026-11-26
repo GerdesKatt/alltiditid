@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import type { Disruption } from '../lib/types';
 import { colors } from './styles';
+import { lineLabel, useLang, type Lang } from '../lib/i18n';
 
 type Props = {
   disruptions: Disruption[];
 };
 
 /** "Gröna linjen 17", "Gröna linjen 19", "Buss 4" → "Gröna linjen 17, 19 · Buss 4". */
-export function formatLines(lines: string[]): string {
+export function formatLines(lines: string[], lang: Lang = 'sv'): string {
   const groups = new Map<string, string[]>();
   const order: string[] = [];
   for (const line of lines) {
@@ -20,7 +21,7 @@ export function formatLines(lines: string[]): string {
     }
     if (designation) groups.get(name)!.push(designation);
   }
-  return order.map((name) => `${name} ${groups.get(name)!.join(', ')}`.trim()).join(' · ');
+  return order.map((name) => `${lineLabel(name, lang)} ${groups.get(name)!.join(', ')}`.trim()).join(' · ');
 }
 
 /**
@@ -56,6 +57,7 @@ function loadDismissed(): string[] {
 }
 
 export default function DisruptionBox({ disruptions }: Props) {
+  const { lang, t } = useLang();
   const [showAll, setShowAll] = useState(false);
   const [dismissed, setDismissed] = useState<string[]>([]);
   useEffect(() => setDismissed(loadDismissed()), []);
@@ -63,7 +65,10 @@ export default function DisruptionBox({ disruptions }: Props) {
   if (active.length === 0) {
     return dismissed.length && disruptions.length ? (
       <button type="button" onClick={() => restore()} style={linkButton}>
-        Visa {disruptions.length} dolda {disruptions.length === 1 ? 'störning' : 'störningar'}
+        {t(
+          `Visa ${disruptions.length} dolda ${disruptions.length === 1 ? 'störning' : 'störningar'}`,
+          `Show ${disruptions.length} hidden ${disruptions.length === 1 ? 'disruption' : 'disruptions'}`
+        )}
       </button>
     ) : null;
   }
@@ -88,7 +93,7 @@ export default function DisruptionBox({ disruptions }: Props) {
     }
   }
   return (
-    <section aria-label="Störningar" style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px' }}>
+    <section aria-label={t('Störningar', 'Disruptions')} style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px' }}>
       {shown.map((d) => (
         <details
           key={d.text}
@@ -113,7 +118,7 @@ export default function DisruptionBox({ disruptions }: Props) {
           >
             <strong style={{ color: colors.delayedText }}>
               <span aria-hidden="true">⚠ </span>
-              {formatLines(d.lines)}
+              {formatLines(d.lines, lang)}
             </strong>
             <span className="disruption-teaser" style={{ display: 'block', color: colors.textSoft }}>
               {d.text}
@@ -131,17 +136,17 @@ export default function DisruptionBox({ disruptions }: Props) {
               }}
               style={linkButton}
             >
-              Fäll ihop
+              {t('Fäll ihop', 'Collapse')}
             </button>
             <button type="button" onClick={() => dismiss(d.text)} style={linkButton}>
-              Dölj störningen
+              {t('Dölj störningen', 'Hide disruption')}
             </button>
           </div>
         </details>
       ))}
       {showAll && active.length > VISIBLE ? (
         <button type="button" onClick={() => setShowAll(false)} style={linkButton}>
-          Visa färre störningar
+          {t('Visa färre störningar', 'Show fewer disruptions')}
         </button>
       ) : null}
       {hidden > 0 ? (
@@ -161,7 +166,10 @@ export default function DisruptionBox({ disruptions }: Props) {
             textDecoration: 'underline',
           }}
         >
-          Visa {hidden} {hidden === 1 ? 'störning' : 'störningar'} till
+          {t(
+            `Visa ${hidden} ${hidden === 1 ? 'störning' : 'störningar'} till`,
+            `Show ${hidden} more ${hidden === 1 ? 'disruption' : 'disruptions'}`
+          )}
         </button>
       ) : null}
     </section>

@@ -1,19 +1,21 @@
 import React from 'react';
 import { colors } from './styles';
+import { useLang } from '../lib/i18n';
 
 export type AppTab = 'trafik' | 'flyg';
 
-const TABS: { key: AppTab; label: string }[] = [
-  { key: 'trafik', label: 'Kollektivtrafik' },
-  { key: 'flyg', label: 'Flyg' },
+const TABS: { key: AppTab; label: string; labelEn: string }[] = [
+  { key: 'trafik', label: 'Kollektivtrafik', labelEn: 'Public transport' },
+  { key: 'flyg', label: 'Flyg', labelEn: 'Flights' },
 ];
 
 /** De två flikarna överst: kollektivtrafik och flyg. */
 export default function ModeTabs({ tab, onChange }: { tab: AppTab; onChange: (tab: AppTab) => void }) {
+  const { t } = useLang();
   return (
     <div
       role="group"
-      aria-label="Visa"
+      aria-label={t('Visa', 'Show')}
       style={{
         display: 'grid',
         // Vid stor text hamnar flikarna under varandra i stället för utanför skärmen.
@@ -25,14 +27,14 @@ export default function ModeTabs({ tab, onChange }: { tab: AppTab; onChange: (ta
         backgroundColor: colors.surfaceRaised,
       }}
     >
-      {TABS.map((t) => {
-        const active = t.key === tab;
+      {TABS.map((tb) => {
+        const active = tb.key === tab;
         return (
           <button
-            key={t.key}
+            key={tb.key}
             type="button"
             aria-pressed={active}
-            onClick={() => onChange(t.key)}
+            onClick={() => onChange(tb.key)}
             style={{
               minHeight: '44px',
               borderRadius: 'var(--radius-control)',
@@ -44,7 +46,7 @@ export default function ModeTabs({ tab, onChange }: { tab: AppTab; onChange: (ta
               cursor: 'pointer',
             }}
           >
-            {t.label}
+            {t(tb.label, tb.labelEn)}
           </button>
         );
       })}

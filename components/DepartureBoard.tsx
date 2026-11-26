@@ -7,6 +7,7 @@ import { groupKey } from '../lib/lineFormat';
 import DirectionToggle from './DirectionToggle';
 import { colors, emptyState } from './styles';
 import { isMyTrip, type MyTrip } from '../lib/myTrip';
+import { useLang } from '../lib/i18n';
 
 type Props = {
   stopName: string;
@@ -90,6 +91,7 @@ export default function DepartureBoard({
   view,
   onViewChange,
 }: Props) {
+  const { lang, t } = useLang();
   const [limit, setLimit] = useState(PAGE_SIZE);
   // Ny hållplats, riktning eller vy: börja om från de första raderna.
   useEffect(() => setLimit(PAGE_SIZE), [stopName, direction, view]);
@@ -111,22 +113,22 @@ export default function DepartureBoard({
   const lastSummary = useRef('');
   useEffect(() => {
     let summary = '';
-    if (errorMsg) summary = `Fel: ${errorMsg}`;
-    else if (offline) summary = 'Ingen uppkoppling. Visar senast sparade tavla.';
+    if (errorMsg) summary = `${t('Fel', 'Error')}: ${errorMsg}`;
+    else if (offline) summary = t('Ingen uppkoppling. Visar senast sparade tavla.', 'No connection. Showing the last saved board.');
     else if (!loading && updatedAt) {
       const delayed = departures.filter((d) => d.status === 'delayed').length;
       const cancelled = departures.filter((d) => d.status === 'cancelled').length;
       const parts = [
-        delayed ? `${delayed} ${delayed === 1 ? 'försenad' : 'försenade'}` : '',
-        cancelled ? `${cancelled} ${cancelled === 1 ? 'inställd' : 'inställda'}` : '',
+        delayed ? `${delayed} ${delayed === 1 ? t('försenad', 'delayed') : t('försenade', 'delayed')}` : '',
+        cancelled ? `${cancelled} ${cancelled === 1 ? t('inställd', 'cancelled') : t('inställda', 'cancelled')}` : '',
       ].filter(Boolean);
-      summary = `${stopName}: ${parts.length ? parts.join(', ') : 'inga förseningar'}.`;
+      summary = `${stopName}: ${parts.length ? parts.join(', ') : t('inga förseningar', 'no delays')}.`;
     }
     if (summary && summary !== lastSummary.current) {
       lastSummary.current = summary;
       setAnnouncement(summary);
     }
-  }, [departures, errorMsg, offline, loading, updatedAt, stopName]);
+  }, [departures, errorMsg, offline, loading, updatedAt, stopName, lang]);
   const hidden = Math.max(0, total - limit);
 
   const updatedLabel = updatedAt
@@ -154,7 +156,9 @@ export default function DepartureBoard({
         <div style={{ flexBasis: '100%', display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '10px' }}>
           <div style={{ flex: '1 1 10rem', minWidth: 0 }}>
             <span style={{ fontSize: '0.8125rem', color: colors.textDim, display: 'block' }}>
-              {direction === 'arrivals' ? 'Visar ankomster till' : 'Visar avgångar från'}
+              {direction === 'arrivals'
+                ? t('Visar ankomster till', 'Showing arrivals at')
+                : t('Visar avgångar från', 'Showing departures from')}
             </span>
             <h1 style={{ fontSize: '1.375rem', fontWeight: 800, margin: 0, color: colors.text, overflowWrap: 'anywhere' }}>
               {stopName}
@@ -164,7 +168,11 @@ export default function DepartureBoard({
             type="button"
             aria-pressed={isFavorite}
             disabled={favoritesFull}
-            title={favoritesFull ? 'Du kan spara högst 8 hållplatser. Ta bort en först.' : undefined}
+            title={
+              favoritesFull
+                ? t('Du kan spara högst 8 hållplatser. Ta bort en först.', 'You can save at most 8 stops. Remove one first.')
+                : undefined
+            }
             onClick={onToggleFavorite}
             style={{
               flexShrink: 0,
@@ -184,12 +192,12 @@ export default function DepartureBoard({
             <span aria-hidden="true" style={{ color: colors.brand, marginRight: '6px' }}>
               {isFavorite ? '★' : '☆'}
             </span>
-            {isFavorite ? 'Sparad' : favoritesFull ? 'Listan full' : 'Spara'}
+            {isFavorite ? t('Sparad', 'Saved') : favoritesFull ? t('Listan full', 'List full') : t('Spara', 'Save')}
           </button>
           <button
             type="button"
             onClick={onOpenStation}
-            aria-label={`Om stationen ${stopName}`}
+            aria-label={`${t('Om stationen', 'About the station')} ${stopName}`}
             style={{
               flexShrink: 0,
               minHeight: '44px',
@@ -206,7 +214,7 @@ export default function DepartureBoard({
             }}
           >
             <span aria-hidden="true" style={{ fontSize: '1.125rem', lineHeight: 1 }}>ⓘ</span>
-            <span className="station-btn-label"> Om stationen</span>
+            <span className="station-btn-label"> {t('Om stationen', 'About the station')}</span>
           </button>
         </div>
 
@@ -230,13 +238,14 @@ export default function DepartureBoard({
               whiteSpace: 'nowrap',
             }}
           >
-            {view === 'lines' ? '✓ ' : ''}Per linje
+            {view === 'lines' ? '✓ ' : ''}
+            {t('Per linje', 'By line')}
           </button>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {updatedAt && !stale && !offline ? (
-            <span style={{ fontSize: '0.8125rem', color: colors.textDim }}>{`Uppdaterad ${updatedLabel}`}</span>
+            <span style={{ fontSize: '0.8125rem', color: colors.textDim }}>{`${t('Uppdaterad', 'Updated')} ${updatedLabel}`}</span>
           ) : null}
           {updatedAt && !stale && !offline ? (
             // Ingen färgad bricka: bara avvikelser får färg. Pricken betyder realtid.
@@ -251,7 +260,7 @@ export default function DepartureBoard({
               }}
             >
               {limited ? null : <span className="rt-dot" aria-hidden="true" />}
-              {limited ? 'Begränsad realtid' : 'Realtid'}
+              {limited ? t('Begränsad realtid', 'Limited real-time') : t('Realtid', 'Real-time')}
             </span>
           ) : null}
         </div>
@@ -278,9 +287,12 @@ export default function DepartureBoard({
           <span aria-hidden="true">⚠</span>
           <span>
             <strong style={{ display: 'block' }}>
-              {offline ? 'Ingen anslutning' : 'Tavlan uppdateras inte just nu'}
+              {offline ? t('Ingen anslutning', 'No connection') : t('Tavlan uppdateras inte just nu', 'The board is not updating right now')}
             </strong>
-            Tiderna är från {updatedLabel} och kan ha ändrats. Försöker igen…
+            {t(
+              `Tiderna är från ${updatedLabel} och kan ha ändrats. Försöker igen…`,
+              `These times are from ${updatedLabel} and may have changed. Retrying…`
+            )}
           </span>
         </div>
       ) : null}
@@ -300,7 +312,7 @@ export default function DepartureBoard({
           {errorMsg}
         </div>
       ) : loading ? (
-        <div role="status" aria-label="Hämtar tidtabell i realtid" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <div role="status" aria-label={t('Hämtar tidtabell i realtid', 'Loading real-time timetable')} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {Array.from({ length: SKELETON_ROWS }, (_, i) => (
             <div
               key={i}
@@ -319,23 +331,32 @@ export default function DepartureBoard({
         <div style={emptyState}>
           {filterText.trim() ? (
             <>
-              Inga avgångar här matchar <strong>{filterText.trim()}</strong>.
+              {t('Inga avgångar här matchar', 'No departures here match')} <strong>{filterText.trim()}</strong>.
               <span style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', marginTop: '10px' }}>
                 {/^\d{2,5}$/.test(filterText.trim()) ? (
                   <button type="button" onClick={() => onShowTrain(filterText.trim())} style={emptyButton}>
-                    Visa tåg {filterText.trim()}, var det än är
+                    {t(
+                      `Visa tåg ${filterText.trim()}, var det än är`,
+                      `Show train ${filterText.trim()}, wherever it is`
+                    )}
                   </button>
                 ) : null}
                 <button type="button" onClick={onClearFilter} style={emptyButton}>
-                  Rensa filtret
+                  {t('Rensa filtret', 'Clear filter')}
                 </button>
               </span>
             </>
           ) : (
-            <>
-              Inga träffar hittades för valt trafikslag på denna station. Prova att välja <strong>Alla</strong> eller
-              byt station.
-            </>
+            t(
+              <>
+                Inga träffar hittades för valt trafikslag på denna station. Prova att välja <strong>Alla</strong> eller
+                byt station.
+              </>,
+              <>
+                Nothing found for the selected mode at this station. Try choosing <strong>All</strong> or change
+                station.
+              </>
+            )
           )}
         </div>
       ) : (
@@ -382,14 +403,14 @@ export default function DepartureBoard({
                 cursor: 'pointer',
               }}
             >
-              Visa fler ({hidden} till)
+              {t(`Visa fler (${hidden} till)`, `Show more (${hidden} more)`)}
             </button>
           ) : null}
         </>
       )}
 
       <p style={{ fontSize: '0.8125rem', color: colors.textFaint, margin: '12px 0 0 0' }}>
-        Trafikdata från{' '}
+        {t('Trafikdata från', 'Traffic data from')}{' '}
         <a
           href="https://www.trafiklab.se"
           target="_blank"
@@ -398,8 +419,10 @@ export default function DepartureBoard({
         >
           Trafiklab.se
         </a>
-        , Trafikverket, SL och Västtrafik. Hallonpricken betyder realtid. Tider med ~ och
-        &quot;ingen realtid&quot; kommer från tidtabellen.
+        {t(
+          ', Trafikverket, SL och Västtrafik. Hallonpricken betyder realtid. Tider med ~ och "ingen realtid" kommer från tidtabellen.',
+          ', Trafikverket, SL and Västtrafik. The raspberry dot means real-time. Times with ~ and "no real-time" come from the timetable.'
+        )}
       </p>
     </section>
   );

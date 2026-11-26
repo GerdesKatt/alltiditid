@@ -1,21 +1,23 @@
 import React from 'react';
 import type { BoardDirection } from '../lib/types';
 import { colors } from './styles';
+import { useLang } from '../lib/i18n';
 
 type Props = {
   direction: BoardDirection;
   onChange: (direction: BoardDirection) => void;
 };
 
-const OPTIONS: { key: BoardDirection; label: string; activeBorder: string; activeBg: string }[] = [
-  { key: 'departures', label: 'Avgångar', activeBorder: colors.accentStrong, activeBg: colors.accentStrong },
-  { key: 'arrivals', label: 'Ankomster', activeBorder: colors.arrivalsBg, activeBg: colors.arrivalsBg },
+const OPTIONS: { key: BoardDirection; label: string; labelEn: string; activeBorder: string; activeBg: string }[] = [
+  { key: 'departures', label: 'Avgångar', labelEn: 'Departures', activeBorder: colors.accentStrong, activeBg: colors.accentStrong },
+  { key: 'arrivals', label: 'Ankomster', labelEn: 'Arrivals', activeBorder: colors.arrivalsBg, activeBg: colors.arrivalsBg },
 ];
 
 /** Avgångar/Ankomster, direkt vid tavlan så att man inte behöver öppna inställningarna. */
 export default function DirectionToggle({ direction, onChange }: Props) {
+  const { t } = useLang();
   return (
-    <div role="group" aria-label="Visa" style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
+    <div role="group" aria-label={t('Visa', 'Show')} style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
       {OPTIONS.map((opt) => {
         const active = direction === opt.key;
         return (
@@ -36,7 +38,7 @@ export default function DirectionToggle({ direction, onChange }: Props) {
               cursor: 'pointer',
             }}
           >
-            {opt.label}
+            {t(opt.label, opt.labelEn)}
           </button>
         );
       })}
