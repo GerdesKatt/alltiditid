@@ -195,8 +195,9 @@ function StopRow({ stop, now, distance, onOpen }: { stop: StopOption; now: numbe
   const seen = new Set<string>();
   const next = (deps || [])
     .filter((d) => {
+      // Från Hem hinner man inte en avgång som går nu: visa den som går om minst en minut.
       const at = parseLocal(d.expectedAt);
-      return at === null || at >= now - 30_000;
+      return at === null || at >= now + 60_000;
     })
     .filter((d) => {
       const key = groupKey(d);
