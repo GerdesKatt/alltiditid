@@ -16,6 +16,8 @@ import {
 } from '../lib/analytics';
 import OnBoardPanel from './OnBoardPanel';
 import StationSheet from './StationSheet';
+import FlightView from './FlightView';
+import ModeTabs, { type AppTab } from './ModeTabs';
 import { loadStopIndex, stopPageFor, type StopIndex } from '../lib/stopIndex';
 import SearchPanel from './SearchPanel';
 import SwitchStopButton from './SwitchStopButton';
@@ -113,6 +115,25 @@ export default function App({ initialStop, intro }: AppProps) {
   // Hållplatslistan (för stationsbladet och adresser som /slussen-t-bana), hämtas i efterhand.
   const [stopIndex, setStopIndex] = useState<StopIndex | null>(null);
   const [stationOpen, setStationOpen] = useState(false);
+  // Kollektivtrafik eller flyg, och flygplatsen som sökningen pekade på.
+  const [tab, setTab] = useState<AppTab>('trafik');
+  const [flightAirport, setFlightAirport] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    try {
+      if (!initialStop && window.localStorage.getItem('alltiditid:flik') === 'flyg') setTab('flyg');
+    } catch {
+      // Ingen lagring.
+    }
+  }, [initialStop]);
+  function changeTab(next: AppTab) {
+    setTab(next);
+    setStationOpen(false);
+    try {
+      window.localStorage.setItem('alltiditid:flik', next);
+    } catch {
+      // Valet gäller tills sidan laddas om.
+    }
+  }
   const [riderStatus, setRiderStatus] = useState<RiderMood>('on-time');
   const [riderNote, setRiderNote] = useState('');
   const [copiedMsg, setCopiedMsg] = useState(false);
@@ -457,6 +478,9 @@ export default function App({ initialStop, intro }: AppProps) {
       </a>
       <Header onContactClick={() => setActiveInfoTab('contact')} />
       <main id="innehall">
+      <ModeTabs tab={tab} onChange={changeTab} />
+      {tab === 'flyg' ? <FlightView initialAirport={flightAirport} /> : null}
+      <div hidden={tab === 'flyg'}>
 
       {stationOpen && !onBoardTrip ? (
         <StationSheet
@@ -511,6 +535,12 @@ export default function App({ initialStop, intro }: AppProps) {
           searchingStops={searchingStops}
           suggestions={suggestions}
           recentStops={recentStops}
+          onOpenAirport={(iata) => {
+            setFlightAirport(iata);
+            setStationQuery('');
+            setSuggestions([]);
+            changeTab('flyg');
+          }}
           onSuggestionSelect={(stop) => {
             setSelectedStop({ id: stop.id, name: stop.name });
             setRecentStops((list) => rememberStop(list, stop));
@@ -630,6 +660,7 @@ export default function App({ initialStop, intro }: AppProps) {
 
       {intro}
       <AboutSection />
+      </div>
       </main>
 
       <InfoFooter
