@@ -6,6 +6,7 @@ import DisruptionBox from './DisruptionBox';
 import { groupKey } from '../lib/lineFormat';
 import DirectionToggle from './DirectionToggle';
 import { colors, emptyState } from './styles';
+import { isMyTrip, type MyTrip } from '../lib/myTrip';
 
 type Props = {
   stopName: string;
@@ -22,6 +23,10 @@ type Props = {
   source: BoardSource;
   selectedTripId: string | null;
   onSelectOnBoard: (item: Departure) => void;
+  /** Sparad "Min resa" (bara vid avgångar), hållplatsen som visas och växlingen. */
+  myTrip: MyTrip | null;
+  stopId: string;
+  onToggleMyTrip: (item: Departure) => void;
   isFavorite: boolean;
   /** Listan är full och hållplatsen är inte sparad: knappen förklarar i stället för att spara. */
   favoritesFull: boolean;
@@ -51,6 +56,9 @@ export default function DepartureBoard({
   source,
   selectedTripId,
   onSelectOnBoard,
+  myTrip,
+  stopId,
+  onToggleMyTrip,
   isFavorite,
   favoritesFull,
   onToggleFavorite,
@@ -254,6 +262,8 @@ export default function DepartureBoard({
                   now={now}
                   isSelectedTrip={selectedTripId === item.id}
                   onSelectOnBoard={onSelectOnBoard}
+                  isMyTrip={isMyTrip(myTrip, item, stopId)}
+                  onToggleMyTrip={direction === 'departures' ? onToggleMyTrip : undefined}
                 />
               ))}
             </div>
