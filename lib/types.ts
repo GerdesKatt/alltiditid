@@ -67,7 +67,12 @@ export type Flight = {
   airlineIata?: string;
   /** Destination vid avgångar, avreseort vid ankomster. */
   place?: string;
+  /** IATA-koden för `place`, t.ex. "CPH". */
+  placeIata?: string;
+  /** Engelska namnet när det skiljer sig från det svenska. */
+  placeEn?: string;
   via?: string[];
+  viaIata?: string[];
   scheduledAt: string;
   scheduledTime: string;
   expectedAt: string;

@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { onRequest } from '../functions/api/trafik.js';
-import { flightBoard, normalizeFlight, utcToLocal, waitTimes } from '../lib/flights.mjs';
+import { flightBoard, flightMatches, normalizeFlight, utcToLocal, waitTimes } from '../lib/flights.mjs';
 
 const utcIn = (min) => new Date(Date.now() + min * 60000).toISOString().slice(0, 19) + 'Z';
 
@@ -119,4 +119,45 @@ test('ny tid i statustexten och terminal utan T', () => {
   assert.equal(f.status, 'delayed');
   assert.equal(f.newTime, '11:40');
   assert.equal(f.delayMinutes, 20);
+});
+
+test('filtret hittar flyg på kod, svenskt och engelskt namn och flygplatsnamn', () => {
+  const cph = normalizeFlight(
+    flight('SK1417', 30, {
+      ArrivalAirportSwedish: 'Köpenhamn',
+      ArrivalAirportEnglish: 'Copenhagen',
+      ArrivalAirportIata: 'CPH',
+    }),
+    'departures'
+  );
+  assert.equal(cph.placeIata, 'CPH');
+  assert.equal(cph.placeEn, 'Copenhagen');
+  for (const q of ['CPH', 'cph', 'Köpenhamn', 'kopenhamn', 'Copenhagen', 'copen', 'Kastrup', 'kastrup', 'SK1417', 'sk 1417', 'SAS', 'LH1234']) {
+    assert.ok(flightMatches(cph, q), q);
+  }
+  for (const q of ['OSL', 'Oslo', 'Gardermoen', 'Heathrow']) assert.ok(!flightMatches(cph, q), q);
+});
+
+test('filtret känner igen orten även när koden saknas i svaret', () => {
+  const osl = normalizeFlight(flight('DY4321', 20, { ArrivalAirportSwedish: 'Oslo' }), 'departures');
+  assert.ok(flightMatches(osl, 'OSL'));
+  assert.ok(flightMatches(osl, 'Gardermoen'));
+  const lon = normalizeFlight(flight('BA777', 20), 'departures');
+  assert.ok(flightMatches(lon, 'Heathrow'));
+  assert.ok(flightMatches(lon, 'LHR'));
+});
+
+test('ankomster matchar avreseortens kod och via-orter', () => {
+  const f = normalizeFlight(
+    {
+      FlightId: 'AY811',
+      DepartureAirportSwedish: 'Helsingfors',
+      DepartureAirportEnglish: 'Helsinki',
+      DepartureAirportIata: 'HEL',
+      ViaDestinations: [{ AirportSwedish: 'Åbo', AirportEnglish: 'Turku', AirportIata: 'TKU' }],
+      ArrivalTime: { ScheduledUtc: utcIn(30) },
+    },
+    'arrivals'
+  );
+  for (const q of ['HEL', 'Helsinki', 'helsingfors', 'Vantaa', 'TKU', 'Åbo']) assert.ok(flightMatches(f, q), q);
 });

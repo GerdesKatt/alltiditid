@@ -1,5 +1,6 @@
 import data from '../data/stops.json';
 import { REGIONS } from './regions';
+import { groupFor, groupStop } from './stationGroups.mjs';
 import type { StopOption } from './types';
 
 /** En hållplats med egen sida (/gullmarsplan), från scripts/fetch-stops.mjs. */
@@ -30,10 +31,12 @@ export function stopById(id: string): StopPage | undefined {
 }
 
 /**
- * Hållplatsen som tavlan ska visa. Några stationer slås ihop med sina grannhållplatser
- * i snabbvalen (Göteborg C med Nils Ericsson och Drottningtorget); samma tavla här.
+ * Hållplatsen som tavlan ska visa. Hållplatser som hör ihop (lib/stationGroups.mjs) visar
+ * hela stationen, så att /t-centralen-t-bana och /stockholm-centralstation får samma tavla.
  */
 export function boardStopFor(stop: StopPage): StopOption {
+  const group = groupFor(stop.id);
+  if (group) return groupStop(group);
   for (const region of REGIONS) {
     for (const st of region.stations) {
       if (st.id.split(',')[0] === stop.id) return st;

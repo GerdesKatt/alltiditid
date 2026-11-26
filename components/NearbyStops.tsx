@@ -14,6 +14,8 @@ type Status =
 
 type Props = {
   onSelect: (stop: StopOption) => void;
+  /** Visas på samma rad som knappen, till höger (t.ex. regionväljaren). */
+  trailing?: React.ReactNode;
 };
 
 function formatDistance(meters: number, lang: Lang): string {
@@ -52,7 +54,7 @@ function geolocationMessage(error: GeolocationPositionError, lang: Lang): string
  * skickar en avrundad position (cirka 100 m) till API:et och visar de närmaste
  * hållplatserna med avstånd och ungefärlig gångtid.
  */
-export default function NearbyStops({ onSelect }: Props) {
+export default function NearbyStops({ onSelect, trailing }: Props) {
   const [supported, setSupported] = useState(false);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const { lang, t } = useLang();
@@ -62,7 +64,6 @@ export default function NearbyStops({ onSelect }: Props) {
     setSupported(typeof navigator !== 'undefined' && 'geolocation' in navigator);
   }, []);
 
-  if (!supported) return null;
 
   function locate() {
     setStatus({ kind: 'locating' });
@@ -105,32 +106,47 @@ export default function NearbyStops({ onSelect }: Props) {
   const busy = status.kind === 'locating' || status.kind === 'loading';
 
   return (
-    <div style={{ marginBottom: '12px' }}>
+    <div style={{ marginBottom: '10px' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 8px' }}>
+      {supported ? (
       <button
         type="button"
         onClick={locate}
         disabled={busy}
+        aria-label={status.kind === 'idle' ? t('Hållplatser nära mig', 'Stops near me') : undefined}
         style={{
           minHeight: '44px',
-          padding: '0 16px',
+          display: 'inline-flex',
+          textAlign: 'left',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '0 12px 0 10px',
           borderRadius: 'var(--radius-control)',
-          border: `1px solid ${colors.borderStrong}`,
-          backgroundColor: colors.surface,
-          color: colors.text,
+          border: 'none',
+          backgroundColor: 'transparent',
+          color: colors.accent,
+          fontFamily: 'inherit',
           fontWeight: 700,
           fontSize: '0.875rem',
           cursor: busy ? 'default' : 'pointer',
+          marginLeft: '-10px',
         }}
       >
-        <span aria-hidden="true">📍 </span>
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" />
+          <circle cx="12" cy="9.5" r="2.5" />
+        </svg>
         {status.kind === 'locating'
           ? t('Hittar din position…', 'Finding your location…')
           : status.kind === 'loading'
           ? t('Söker hållplatser…', 'Searching for stops…')
           : status.kind === 'done'
-          ? t('Uppdatera närmaste hållplatser', 'Refresh nearest stops')
-          : t('Hållplatser nära mig', 'Stops near me')}
+          ? t('Uppdatera nära mig', 'Refresh near me')
+          : t('Nära mig', 'Near me')}
       </button>
+      ) : null}
+      {trailing}
+      </div>
 
       <div aria-live="polite">
         {status.kind === 'error' ? (

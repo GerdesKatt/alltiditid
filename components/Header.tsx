@@ -46,8 +46,6 @@ export default function Header({ onContactClick, linkBase = '' }: Props) {
           alignItems: 'center',
           gap: '12px',
           textDecoration: 'none',
-          // Vid stor text radbryts underrubriken i stället för att sticka ut.
-          minWidth: 0,
           maxWidth: '100%',
         }}
       >
@@ -59,7 +57,7 @@ export default function Header({ onContactClick, linkBase = '' }: Props) {
           <circle cx="74" cy="71" r="16" fill="var(--on-brand)" />
         </svg>
 
-        <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, overflowWrap: 'anywhere' }}>
+        <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <span
             style={{
               fontFamily: fonts.display,
@@ -75,6 +73,7 @@ export default function Header({ onContactClick, linkBase = '' }: Props) {
           <span
             className="site-tagline"
             style={{
+              overflowWrap: 'anywhere',
               fontSize: '0.8125rem',
               fontWeight: 600,
               letterSpacing: '0.04em',

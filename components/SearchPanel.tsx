@@ -72,6 +72,16 @@ export default function SearchPanel({
     setActiveIndex(-1);
     setDismissed(false);
   }, [suggestions]);
+  // Tavlans filter är hopfällda tills man ber om dem, men öppna om något filter redan gäller.
+  const activeFilterCount = (mode !== 'all' ? 1 : 0) + (filterText.trim() ? 1 : 0);
+  const [filtersOpen, setFiltersOpen] = useState(activeFilterCount > 0);
+  const activeModeLabel = currentRegion.modes.find((m) => m.key === mode)?.label;
+  const summary = [
+    mode !== 'all' && activeModeLabel ? modeLabel(activeModeLabel, lang) : null,
+    filterText.trim() ? `"${filterText.trim()}"` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ') || t('Trafikslag, linje', 'Mode, line');
   const listOpen = !dismissed && (searchingStops || suggestions.length > 0);
   const optionId = (i: number) => `hallplats-forslag-${i}`;
 
@@ -113,10 +123,11 @@ export default function SearchPanel({
           style={{
             float: 'right',
             minHeight: '44px',
-            padding: '0 16px',
+            marginTop: '-4px',
+            padding: '0 14px',
             borderRadius: '10px',
-            border: `1px solid ${colors.borderMuted}`,
-            backgroundColor: colors.surface,
+            border: 'none',
+            backgroundColor: colors.surfaceRaised,
             color: colors.text,
             fontWeight: 700,
             fontSize: '0.875rem',
@@ -128,7 +139,7 @@ export default function SearchPanel({
       ) : null}
       <h2
         style={{
-          fontSize: '1.625rem',
+          fontSize: '1.375rem',
           fontWeight: 800,
           letterSpacing: '-0.02em',
           margin: '0 0 4px 0',
@@ -139,7 +150,7 @@ export default function SearchPanel({
       </h2>
 
       {/* Sökfältet först: det är det en stressad resenär letar efter. */}
-        <div style={{ position: 'relative', margin: '10px 0 12px' }}>
+        <div style={{ position: 'relative', margin: '12px 0 10px' }}>
           <label htmlFor="sok-hallplats" className="sr-only">
             {t('Sök hållplats eller station', 'Search stop or station')}
           </label>
@@ -307,11 +318,73 @@ export default function SearchPanel({
           ) : null}
         </div>
 
-      {/* Närmaste hållplatser via plats (frågar först när knappen trycks) */}
-      <NearbyStops onSelect={onSuggestionSelect} />
+      {/* Nära mig och region på en rad: två små verktyg, inte två egna block. */}
+      <NearbyStops
+        onSelect={onSuggestionSelect}
+        trailing={
+          <div style={{ position: 'relative', marginLeft: 'auto' }}>
+            <label htmlFor="valj-region" className="sr-only">
+              {t('Region för snabbvalen', 'Region for quick picks')}
+            </label>
+            <select
+              id="valj-region"
+              value={region}
+              onChange={(e) => onRegionChange(e.target.value as RegionKey)}
+              style={{
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                minHeight: '44px',
+                maxWidth: '100%',
+                padding: '0 32px 0 12px',
+                borderRadius: 'var(--radius-control)',
+                // Ram på ett reglage: minst 3:1 mot bakgrunden.
+                border: `1px solid ${colors.borderStrong}`,
+                backgroundColor: 'transparent',
+                color: colors.textDim,
+                fontFamily: 'inherit',
+                fontWeight: 600,
+                fontSize: '0.8125rem',
+                cursor: 'pointer',
+              }}
+            >
+              {REGIONS.map((reg) => (
+                <option key={reg.key} value={reg.key}>
+                  {t(reg.label, REGION_EN[reg.key])}
+                </option>
+              ))}
+            </select>
+            <span
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                right: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                pointerEvents: 'none',
+                color: colors.textDim,
+                fontSize: '0.625rem',
+              }}
+            >
+              ▼
+            </span>
+          </div>
+        }
+      />
 
-      {/* Snabbval av station */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px', marginBottom: '12px' }}>
+      {/* Snabbval av station: en rad som rullar i sidled i stället för flera rader. */}
+      <div
+        role="group"
+        aria-label={t('Snabbval', 'Quick picks')}
+        className="chip-scroll"
+        style={{
+          display: 'flex',
+          gap: '6px',
+          overflowX: 'auto',
+          margin: '0 -20px',
+          padding: '0 20px 2px',
+          scrollPaddingInline: '20px',
+        }}
+      >
         {currentRegion.stations.map((stop) => {
           const active = selectedStop.id === stop.id;
           return (
@@ -321,144 +394,175 @@ export default function SearchPanel({
               aria-pressed={active}
               onClick={() => onQuickStopSelect(stop)}
               style={{
+                flexShrink: 0,
                 minHeight: '36px',
                 padding: '0 12px',
                 borderRadius: 'var(--radius-control)',
-                border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
-                backgroundColor: active ? colors.accentStrong : colors.chipBg,
+                border: active ? `1px solid ${colors.accentStrong}` : 'none',
+                backgroundColor: active ? colors.accentStrong : colors.surfaceRaised,
                 color: active ? colors.onAccent : colors.text,
                 fontWeight: 600,
                 fontSize: '0.8125rem',
                 cursor: 'pointer',
               }}
             >
-              {active ? '✓ ' : ''}
               {stop.shortName || stop.name}
             </button>
           );
         })}
       </div>
 
-      {/* Regioner */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: '8px',
-          marginBottom: '12px',
-        }}
-      >
-        {REGIONS.map((reg) => {
-          const active = region === reg.key;
-          return (
-            <button
-              key={reg.key}
-              type="button"
-              aria-pressed={active}
-              onClick={() => onRegionChange(reg.key)}
-              style={{
-                minHeight: '36px',
-                padding: '0 12px',
-                borderRadius: 'var(--radius-control)',
-                border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
-                backgroundColor: active ? colors.accentStrong : colors.surface,
-                color: active ? colors.onAccent : colors.text,
-                fontWeight: 700,
-                fontSize: '0.8125rem',
-                cursor: 'pointer',
-              }}
-            >
-              {active ? '✓ ' : ''}
-              {t(reg.label, REGION_EN[reg.key])}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Trafikslag och filter gäller tavlan, så de visas först när en hållplats är vald. */}
+      {/* Trafikslag och filter gäller tavlan, så de visas först när en hållplats är vald,
+          och bara när man ber om dem. */}
       {selectedStop.id ? (
-        <>
-      {/* Trafikslag */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '10px',
-          marginBottom: '12px',
-        }}
-      >
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-          {currentRegion.modes.map((m) => {
-            const active = mode === m.key;
-            return (
-              <button
-                key={m.key}
-                type="button"
-                aria-pressed={active}
-                onClick={() => onModeChange(m.key)}
-                style={{
-                  minHeight: '36px',
-                  padding: '0 12px',
-                  borderRadius: 'var(--radius-control)',
-                  border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
-                  backgroundColor: active ? colors.accentStrong : colors.surface,
-                  color: active ? colors.onAccent : colors.text,
-                  fontWeight: 700,
-                  fontSize: '0.8125rem',
-                  cursor: 'pointer',
-                }}
-              >
-                {active ? '✓ ' : ''}
-                {modeLabel(m.label, lang)}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-        <label
-          htmlFor="filtrera-avgangar"
-          style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim, margin: '14px 0 6px' }}
-        >
-          {t('Filtrera tavlan för', 'Filter the board for')} {selectedStop.shortName || selectedStop.name}
-        </label>
-        <input
-          id="filtrera-avgangar"
-          type="search"
-          autoComplete="off"
-          value={filterText}
-          onChange={(e) => onFilterTextChange(e.target.value)}
-          placeholder={t('Linje, tågnummer eller destination', 'Line, train number or destination')}
-          style={textInput(colors.borderStrong)}
-        />
-        {filterTrain ? (
+        <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: `1px solid ${colors.border}` }}>
           <button
             type="button"
-            onClick={() => onOpenTrain!(filterTrain)}
+            aria-expanded={filtersOpen}
+            aria-controls="tavlans-filter"
+            onClick={() => setFiltersOpen((o) => !o)}
             style={{
-              marginTop: '8px',
               width: '100%',
-              minHeight: '48px',
-              padding: '0 14px',
-              borderRadius: 'var(--radius-control)',
-              border: `1px solid ${colors.borderStrong}`,
-              backgroundColor: colors.surface,
+              minHeight: '44px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: 0,
+              border: 'none',
+              background: 'none',
               color: colors.text,
-              fontSize: '0.9375rem',
+              fontFamily: 'inherit',
+              fontSize: '0.875rem',
               fontWeight: 700,
               textAlign: 'left',
               cursor: 'pointer',
             }}
           >
-            {t(
-              `Tåg ${filterTrain}: visa hela resan, var tåget än är`,
-              `Train ${filterTrain}: show the whole journey, wherever it is`
-            )}
+            <span>{t('Filtrera tavlan', 'Filter the board')}</span>
+            {activeFilterCount > 0 ? (
+              <span
+                style={{
+                  minWidth: '20px',
+                  height: '20px',
+                  padding: '0 6px',
+                  borderRadius: '10px',
+                  backgroundColor: colors.accentStrong,
+                  color: colors.onAccent,
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {activeFilterCount}
+                <span className="sr-only">{t(' aktiva', ' active')}</span>
+              </span>
+            ) : null}
+            <span
+              style={{
+                marginLeft: 'auto',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                color: colors.textDim,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {filtersOpen ? t('Dölj', 'Hide') : summary}
+              <span
+                aria-hidden="true"
+                style={{
+                  display: 'inline-block',
+                  marginLeft: '6px',
+                  fontSize: '0.625rem',
+                  transform: filtersOpen ? 'rotate(180deg)' : undefined,
+                }}
+              >
+                ▼
+              </span>
+            </span>
           </button>
-        ) : null}
-        </>
+
+          {filtersOpen ? (
+            <div id="tavlans-filter" style={{ marginTop: '8px' }}>
+              <div
+                role="group"
+                aria-label={t('Trafikslag', 'Mode of transport')}
+                className="chip-scroll"
+                style={{
+                  display: 'flex',
+                  gap: '6px',
+                  overflowX: 'auto',
+                  margin: '0 -20px 10px',
+                  padding: '0 20px 2px',
+                }}
+              >
+                {currentRegion.modes.map((m) => {
+                  const active = mode === m.key;
+                  return (
+                    <button
+                      key={m.key}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => onModeChange(m.key)}
+                      style={{
+                        flexShrink: 0,
+                        minHeight: '36px',
+                        padding: '0 12px',
+                        borderRadius: 'var(--radius-control)',
+                        border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
+                        backgroundColor: active ? colors.accentStrong : 'transparent',
+                        color: active ? colors.onAccent : colors.text,
+                        fontWeight: 600,
+                        fontSize: '0.8125rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {modeLabel(m.label, lang)}
+                    </button>
+                  );
+                })}
+              </div>
+              <label htmlFor="filtrera-avgangar" className="sr-only">
+                {t('Filtrera tavlan för', 'Filter the board for')} {selectedStop.shortName || selectedStop.name}
+              </label>
+              <input
+                id="filtrera-avgangar"
+                type="search"
+                autoComplete="off"
+                value={filterText}
+                onChange={(e) => onFilterTextChange(e.target.value)}
+                placeholder={t('Linje, tågnummer eller destination', 'Line, train number or destination')}
+                style={textInput(colors.borderStrong)}
+              />
+              {filterTrain ? (
+                <button
+                  type="button"
+                  onClick={() => onOpenTrain!(filterTrain)}
+                  style={{
+                    marginTop: '8px',
+                    width: '100%',
+                    minHeight: '48px',
+                    padding: '0 14px',
+                    borderRadius: 'var(--radius-control)',
+                    border: `1px solid ${colors.borderStrong}`,
+                    backgroundColor: colors.surface,
+                    color: colors.text,
+                    fontSize: '0.9375rem',
+                    fontWeight: 700,
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t(
+                    `Tåg ${filterTrain}: visa hela resan, var tåget än är`,
+                    `Train ${filterTrain}: show the whole journey, wherever it is`
+                  )}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       ) : null}
     </section>
   );

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { flightStatus, langFromBrowser, lineLabel, modesSentence, trainPosition } from '../lib/lang.ts';
+import { flightStatus, langFromBrowser, lineLabel, modeLabel, modesSentence, trainPosition } from '../lib/lang.ts';
 
 test('språket följer webbläsaren: det första kända språket vinner', () => {
   assert.equal(langFromBrowser(['sv-SE', 'en-US']), 'sv');
@@ -17,6 +17,12 @@ test('linjer och trafikslag på engelska', () => {
   assert.equal(lineLabel('SJ Snabbtåg 537', 'en'), 'SJ Snabbtåg 537');
   assert.equal(lineLabel('Buss 160', 'sv'), 'Buss 160');
   assert.equal(modesSentence(['T-bana', 'Spårvagn', 'Buss'], 'en'), 'metro, tram and bus');
+  assert.equal(modeLabel('Anropsstyrd', 'en'), 'On-demand');
+  assert.equal(lineLabel('Linje 5', 'en'), 'Line 5');
+  // Alla trafikslag som API:et skickar har en engelsk text.
+  for (const m of ['Tåg', 'T-bana', 'Spårvagn', 'Buss', 'Båt', 'Pendeltåg', 'Anropsstyrd', 'Linje']) {
+    assert.notEqual(modeLabel(m, 'en'), m, m);
+  }
 });
 
 test('tågets position och flygstatus översätts', () => {
