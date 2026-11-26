@@ -15,7 +15,7 @@ function PopularStops() {
   return (
     <section style={{ margin: '18px 0' }}>
       <StopLinks title="Populära hållplatser" links={links} />
-      <p style={{ margin: '12px 0 0', fontSize: '14px' }}>
+      <p style={{ margin: '12px 0 0', fontSize: '0.875rem' }}>
         <a href="/hallplatser" style={{ color: colors.text, fontWeight: 600 }}>
           Alla hållplatser
         </a>

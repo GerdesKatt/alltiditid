@@ -134,7 +134,7 @@ export default function InfoFooter({ activeTab, onTabChange, onChangeAnalyticsCh
         paddingTop: '20px',
         paddingBottom: '24px',
         color: colors.textDim,
-        fontSize: '13px',
+        fontSize: '0.8125rem',
       }}
     >
       <div style={{ display: 'flex', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
@@ -151,7 +151,7 @@ export default function InfoFooter({ activeTab, onTabChange, onChangeAnalyticsCh
               backgroundColor: activeTab === tab.key ? colors.surfaceRaised : 'transparent',
               color: colors.text,
               cursor: 'pointer',
-              fontSize: '12px',
+              fontSize: '0.8125rem',
               fontWeight: 600,
             }}
           >
@@ -169,7 +169,7 @@ export default function InfoFooter({ activeTab, onTabChange, onChangeAnalyticsCh
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: '8px',
-          fontSize: '12px',
+          fontSize: '0.8125rem',
           color: colors.textFaint,
         }}
       >

@@ -8,7 +8,7 @@ export default function StopLinks({ title, links }: { title: string; links: Stop
   if (links.length === 0) return null;
   return (
     <nav aria-label={title} style={{ marginTop: '18px' }}>
-      <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 8px 0', color: colors.text }}>{title}</h3>
+      <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, margin: '0 0 8px 0', color: colors.text }}>{title}</h3>
       <ul style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', listStyle: 'none', margin: 0, padding: 0 }}>
         {links.map((l) => (
           <li key={l.slug}>
@@ -23,7 +23,7 @@ export default function StopLinks({ title, links }: { title: string; links: Stop
                 borderRadius: 'var(--radius-control)',
                 backgroundColor: colors.surfaceRaised,
                 color: colors.text,
-                fontSize: '14px',
+                fontSize: '0.875rem',
                 fontWeight: 600,
                 textDecoration: 'none',
               }}

@@ -178,7 +178,7 @@ export default function FlightView({ initialAirport }: Props) {
                 border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
                 backgroundColor: active ? colors.accentStrong : colors.surface,
                 color: active ? colors.onAccent : colors.text,
-                fontSize: '13px',
+                fontSize: '0.8125rem',
                 fontWeight: 600,
                 cursor: 'pointer',
                 flexShrink: 0,
@@ -190,10 +190,10 @@ export default function FlightView({ initialAirport }: Props) {
         })}
       </div>
 
-      <span style={{ fontSize: '12px', color: colors.textDim, display: 'block' }}>
+      <span style={{ fontSize: '0.8125rem', color: colors.textDim, display: 'block' }}>
         {arrivals ? 'Visar ankomster till' : 'Visar avgångar från'}
       </span>
-      <h1 id="flyg-rubrik" style={{ fontSize: '22px', fontWeight: 800, margin: '0 0 10px', color: colors.text }}>
+      <h1 id="flyg-rubrik" style={{ fontSize: '1.375rem', fontWeight: 800, margin: '0 0 10px', color: colors.text }}>
         {airportObj.name}
       </h1>
 
@@ -213,12 +213,12 @@ export default function FlightView({ initialAirport }: Props) {
             border: `1px solid ${colors.borderStrong}`,
             backgroundColor: colors.surface,
             color: colors.text,
-            fontSize: '15px',
+            fontSize: '0.9375rem',
           }}
         />
       </div>
 
-      <p style={{ margin: '0 0 12px', fontSize: '12px', color: stale ? colors.amber : colors.textDim }}>
+      <p style={{ margin: '0 0 12px', fontSize: '0.8125rem', color: stale ? colors.amber : colors.textDim }}>
         {updatedAt
           ? `${stale ? 'Senast hämtad' : 'Uppdaterad'} ${clock(updatedAt)} · flygtiderna uppdateras var 10:e minut`
           : ''}
@@ -235,12 +235,12 @@ export default function FlightView({ initialAirport }: Props) {
             border: `1px solid ${colors.border}`,
           }}
         >
-          <div style={{ fontSize: '13px', fontWeight: 600, color: colors.textDim, marginBottom: '8px' }}>
+          <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim, marginBottom: '8px' }}>
             Säkerhetskontroll, väntetid nu
           </div>
           <ul style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))', gap: '6px 14px', listStyle: 'none', margin: 0, padding: 0 }}>
             {queues.map((q) => (
-              <li key={`${q.name}|${q.fastTrack}`} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', fontSize: '14px' }}>
+              <li key={`${q.name}|${q.fastTrack}`} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', fontSize: '0.875rem' }}>
                 <span style={{ color: colors.text }}>
                   {q.name}
                   {q.fastTrack ? <span style={{ color: colors.textDim }}> FastTrack</span> : null}
@@ -278,7 +278,7 @@ export default function FlightView({ initialAirport }: Props) {
         </ul>
       )}
 
-      <p style={{ fontSize: '12px', color: colors.textDim, marginTop: '14px' }}>
+      <p style={{ fontSize: '0.8125rem', color: colors.textDim, marginTop: '14px' }}>
         Flyginformation från Swedavia. Kontrollera alltid tider och gate med ditt flygbolag.
       </p>
     </section>
@@ -349,7 +349,7 @@ function FlightRow({
             color: cancelled ? colors.textDim : colors.text,
             fontFamily: fonts.display,
             fontWeight: 800,
-            fontSize: '13px',
+            fontSize: '0.8125rem',
             textAlign: 'center',
             whiteSpace: 'nowrap',
           }}
@@ -360,7 +360,7 @@ function FlightRow({
           <span
             style={{
               display: 'block',
-              fontSize: '16px',
+              fontSize: '1rem',
               fontWeight: 700,
               color: cancelled ? colors.textDim : colors.text,
               textDecoration: cancelled ? 'line-through' : 'none',
@@ -372,7 +372,7 @@ function FlightRow({
             {arrivals ? 'Från ' : ''}
             {f.place || f.flightId}
           </span>
-          <span style={{ display: 'block', fontSize: '13px', color: colors.textDim, marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim, marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {[f.airline, where].filter(Boolean).join(' · ')}
           </span>
         </span>
@@ -381,7 +381,7 @@ function FlightRow({
             style={{
               display: 'block',
               fontFamily: fonts.display,
-              fontSize: '22px',
+              fontSize: '1.375rem',
               fontWeight: 800,
               letterSpacing: '-0.02em',
               color: cancelled ? colors.textDim : colors.text,
@@ -394,7 +394,7 @@ function FlightRow({
             <span
               style={{
                 display: 'block',
-                fontSize: '13px',
+                fontSize: '0.8125rem',
                 fontWeight: cancelled || delayed ? 600 : 500,
                 color: cancelled ? colors.cancelledText : delayed ? colors.amber : colors.textDim,
                 whiteSpace: 'nowrap',
@@ -413,7 +413,7 @@ function FlightRow({
             padding: '12px 14px',
             borderRadius: 'var(--radius-control)',
             backgroundColor: colors.surfaceRaised,
-            fontSize: '14px',
+            fontSize: '0.875rem',
             lineHeight: 1.6,
             color: colors.text,
           }}

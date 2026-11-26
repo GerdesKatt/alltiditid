@@ -60,11 +60,11 @@ export default function MyTrainCard({
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '-10px' }}>
-        <span style={{ fontSize: '13px', fontWeight: 600, color: colors.textDim }}>Mitt tåg</span>
+        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>Mitt tåg</span>
         <button
           type="button"
           onClick={onRemove}
-          style={{ minHeight: '44px', padding: '0 4px 0 12px', marginRight: '-4px', border: 'none', background: 'none', color: colors.textDim, fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+          style={{ minHeight: '44px', padding: '0 4px 0 12px', marginRight: '-4px', border: 'none', background: 'none', color: colors.textDim, fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
         >
           Ta bort<span className="sr-only"> mitt tåg</span>
         </button>
@@ -74,12 +74,12 @@ export default function MyTrainCard({
         onClick={onOpen}
         style={{ display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', color: colors.text, textAlign: 'left', cursor: 'pointer', font: 'inherit' }}
       >
-        <span style={{ display: 'block', fontFamily: fonts.display, fontSize: '18px', fontWeight: 800 }}>
+        <span style={{ display: 'block', fontFamily: fonts.display, fontSize: '1.125rem', fontWeight: 800 }}>
           {journey ? `${journey.product} ${journey.number}` : `Tåg ${train.number}`}
           {journey?.to ? <span style={{ fontWeight: 600, color: colors.textDim }}> mot {journey.to}</span> : null}
         </span>
         {journey?.position ? (
-          <span style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', fontSize: '15px', fontWeight: 600 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', fontSize: '0.9375rem', fontWeight: 600 }}>
             <span className="rt-dot" aria-hidden="true" />
             {journey.position}
           </span>
@@ -87,7 +87,7 @@ export default function MyTrainCard({
           <span style={{ display: 'block', marginTop: '6px', color: colors.textDim }}>{journey ? '' : 'Hämtar tåget…'}</span>
         )}
         {target && arr ? (
-          <span style={{ display: 'block', marginTop: '6px', fontSize: '15px' }}>
+          <span style={{ display: 'block', marginTop: '6px', fontSize: '0.9375rem' }}>
             Framme i {target.name}{' '}
             <strong style={{ fontFamily: fonts.display }}>{arr.scheduled}</strong>
             {shown && shown !== arr.scheduled ? (
@@ -96,7 +96,7 @@ export default function MyTrainCard({
           </span>
         ) : null}
         {byte ? (
-          <span style={{ display: 'block', marginTop: '4px', fontSize: '14px', color: colors.textDim }}>
+          <span style={{ display: 'block', marginTop: '4px', fontSize: '0.875rem', color: colors.textDim }}>
             Byte till {byte.line} mot {byte.destination} {byte.scheduledTime} · tryck för att se om du hinner
           </span>
         ) : null}

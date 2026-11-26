@@ -1,7 +1,7 @@
 import React from 'react';
 import { colors } from './styles';
 
-const paragraph = { color: colors.textDim, fontSize: '14px', lineHeight: 1.65 } as const;
+const paragraph = { color: colors.textDim, fontSize: '0.875rem', lineHeight: 1.65 } as const;
 
 export default function AboutSection() {
   return (
@@ -15,7 +15,7 @@ export default function AboutSection() {
         marginBottom: '26px',
       }}
     >
-      <h2 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 10px 0', color: colors.text }}>
+      <h2 style={{ fontSize: '1.125rem', fontWeight: 800, margin: '0 0 10px 0', color: colors.text }}>
         Så fungerar avgångstavlan på alltiditid.se
       </h2>
       <p style={{ ...paragraph, margin: '0 0 12px 0' }}>

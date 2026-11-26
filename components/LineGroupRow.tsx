@@ -70,7 +70,7 @@ export default function LineGroupRow({ items, direction, now }: Props) {
           color: colors.badgeText,
           fontFamily: fonts.display,
           fontWeight: 800,
-          fontSize: '14px',
+          fontSize: '0.875rem',
           textAlign: 'center',
           fontVariantNumeric: 'tabular-nums',
         }}
@@ -82,7 +82,7 @@ export default function LineGroupRow({ items, direction, now }: Props) {
         <span
           style={{
             display: 'block',
-            fontSize: '16px',
+            fontSize: '1rem',
             fontWeight: 700,
             color: colors.text,
             overflow: 'hidden',
@@ -96,7 +96,7 @@ export default function LineGroupRow({ items, direction, now }: Props) {
           <span
             style={{
               display: 'block',
-              fontSize: '12px',
+              fontSize: '0.8125rem',
               color: colors.textDim,
               marginTop: '2px',
               overflow: 'hidden',
@@ -116,7 +116,7 @@ export default function LineGroupRow({ items, direction, now }: Props) {
               <span
                 key={t.id}
                 style={{
-                  fontSize: i === 0 ? '15px' : '13px',
+                  fontSize: i === 0 ? '0.9375rem' : '0.8125rem',
                   fontWeight: i === 0 ? 800 : 700,
                   fontVariantNumeric: 'tabular-nums',
                   display: 'inline-flex',
@@ -139,7 +139,7 @@ export default function LineGroupRow({ items, direction, now }: Props) {
                     ? t.scheduledTime
                     : `${schedule && /min$/.test(countdownFor(t, now)) ? '~' : ''}${countdownFor(t, now)}`}
                 </span>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: colors.textDim }}>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>
                   {trainNumber
                     ? cancelled
                       ? 'inställd'
