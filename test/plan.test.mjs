@@ -89,3 +89,55 @@ test('action=plan kräver POST och en start', async () => {
   });
   assert.equal(none.status, 400);
 });
+
+test('action=plan: datum, tid och framme senast går vidare till ResRobot', async () => {
+  const urls = [];
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+    urls.push(u);
+    if (u.includes('/location.name?')) {
+      return new Response(JSON.stringify({ stopLocationOrCoordLocation: [{ StopLocation: { extId: '740000006', name: 'Karlstad Centralstation' } }] }));
+    }
+    if (u.includes('/trip?')) return new Response(JSON.stringify({ Trip: [karlstadTrip] }));
+    return new Response('{}', { status: 404 });
+  };
+  const res = await onRequest({
+    request: new Request('https://alltiditid.se/api/trafik?action=plan', {
+      method: 'POST',
+      body: JSON.stringify({ to: 'Karlstad', fromId: '740021705', date: '2026-11-27', time: '09:00', arrive: true }),
+    }),
+    env: { TRAFIKLAB_RESROBOT_KEY: 'rr' },
+    waitUntil() {},
+  });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.arrive, true);
+  assert.equal(body.trips[0].arrDate, '2026-11-26');
+  const trip = urls.find((u) => u.includes('/trip?'));
+  assert.ok(trip.includes('date=2026-11-27') && trip.includes('time=09:00') && trip.includes('searchForArrival=1'));
+});
+
+test('action=plan: en gatuadress söks bland adresser först och planeras till koordinaterna', async () => {
+  const urls = [];
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+    urls.push(u);
+    if (u.includes('/location.name?') && u.includes('type=A')) {
+      return new Response(JSON.stringify({ stopLocationOrCoordLocation: [{ CoordLocation: { name: 'Drottninggatan 12, Karlstad', lat: 59.3805, lon: 13.5034 } }] }));
+    }
+    if (u.includes('/trip?')) return new Response(JSON.stringify({ Trip: [karlstadTrip] }));
+    return new Response('{}', { status: 404 });
+  };
+  const res = await onRequest({
+    request: new Request('https://alltiditid.se/api/trafik?action=plan', {
+      method: 'POST',
+      body: JSON.stringify({ to: 'Drottninggatan 12 Karlstad', lat: 59.2801, lon: 17.9612 }),
+    }),
+    env: { TRAFIKLAB_RESROBOT_KEY: 'rr' },
+    waitUntil() {},
+  });
+  assert.equal(res.status, 200);
+  const trip = urls.find((u) => u.includes('/trip?'));
+  assert.ok(trip.includes('destCoordLat=59.3805') && trip.includes('originCoordLat='), 'från position till adress');
+  assert.ok(urls.findIndex((u) => u.includes('type=A')) < urls.findIndex((u) => u.includes('/trip?')));
+});

@@ -5,22 +5,12 @@ import { useLang } from '../lib/i18n';
 import { lineColor } from '../lib/lineFormat';
 import { track } from '../lib/track';
 import type { TransportMode } from '../lib/types';
+import { dayLabel, type PlanLeg, type PlanPoint, type PlanTrip } from '../lib/plannedTrip';
 
-type Point = { name: string; time: string; rtTime: string; track: string };
-type Leg =
-  | { kind: 'walk'; from: Point; to: Point; minutes: number; meters: number }
-  | {
-      kind: 'ride';
-      mode: TransportMode;
-      line: string;
-      direction: string;
-      from: Point;
-      to: Point;
-      minutes: number;
-      cancelled: boolean;
-    };
-type Trip = { dep: string; arr: string; minutes: number; changes: number; legs: Leg[] };
-type Plan = { to: string; fromHere: boolean; trips: Trip[] };
+type Point = PlanPoint;
+type Leg = PlanLeg;
+type Trip = PlanTrip;
+type Plan = { to: string; fromHere: boolean; date: string; time: string; arrive: boolean; trips: Trip[] };
 
 type Props = {
   /** Det man skrev under "Vart ska du?". */
@@ -28,7 +18,14 @@ type Props = {
   /** Tavlans hållplats: start om positionen inte går att få. */
   fromId: string;
   fromName: string;
+  /** Spara en resa som Min resa. */
+  onSave: (to: string, from: string, trip: Trip) => void;
+  /** Avgångstiden för den resa som redan är sparad, så att knappen visar Sparad. */
+  savedKey: string;
 };
+
+const pad = (n: number) => String(n).padStart(2, '0');
+const isoDay = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 const duration = (min: number) =>
   min >= 60 ? `${Math.floor(min / 60)} h ${min % 60 ? `${min % 60} min` : ''}`.trim() : `${min} min`;
@@ -49,8 +46,13 @@ function position(): Promise<{ lat: number; lon: number } | null> {
  * Hela resan dit man ska, med byten och gång: buss till Fruängen, T-bana till T-Centralen,
  * regionaltåg till Karlstad. Startar där man står (positionen) eller vid tavlans hållplats.
  */
-export default function JourneyPlan({ goal, fromId, fromName }: Props) {
-  const { t } = useLang();
+export default function JourneyPlan({ goal, fromId, fromName, onSave, savedKey }: Props) {
+  const { t, lang } = useLang();
+  // Tid: nu, eller ett valt datum och klockslag, som avgång eller senaste ankomst.
+  const [whenMode, setWhenMode] = useState<'now' | 'later'>('now');
+  const [date, setDate] = useState(() => isoDay(new Date(Date.now() + 86_400_000)));
+  const [time, setTime] = useState('08:00');
+  const [arrive, setArrive] = useState(false);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -58,7 +60,8 @@ export default function JourneyPlan({ goal, fromId, fromName }: Props) {
   const [asked, setAsked] = useState('');
 
   const target = goal.trim();
-  const stale = plan !== null && asked !== target;
+  const query = `${target}|${whenMode}|${date}|${time}|${arrive}`;
+  const stale = plan !== null && asked !== query;
 
   async function find(fromPosition: boolean) {
     if (target.length < 2) return;
@@ -66,7 +69,7 @@ export default function JourneyPlan({ goal, fromId, fromName }: Props) {
     setError('');
     setPlan(null);
     setOpen(0);
-    setAsked(target);
+    setAsked(query);
     const pos = fromPosition ? await position() : null;
     if (fromPosition && !pos && !fromId) {
       setLoading(false);
@@ -77,7 +80,11 @@ export default function JourneyPlan({ goal, fromId, fromName }: Props) {
       const res = await fetch('/api/trafik?action=plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(pos ? { to: target, ...pos } : { to: target, fromId, fromName }),
+        body: JSON.stringify({
+          to: target,
+          ...(pos ? pos : { fromId, fromName }),
+          ...(whenMode === 'later' ? { date, time, arrive } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '');
@@ -92,8 +99,66 @@ export default function JourneyPlan({ goal, fromId, fromName }: Props) {
 
   if (target.length < 2) return null;
 
+  const tomorrow = isoDay(new Date(Date.now() + 86_400_000));
+  const chip = (on: boolean): React.CSSProperties => ({
+    minHeight: '40px',
+    padding: '0 12px',
+    border: `1px solid ${on ? colors.text : colors.borderStrong}`,
+    backgroundColor: on ? colors.accentStrong : 'transparent',
+    color: on ? colors.onAccent : colors.text,
+    fontSize: '0.8125rem',
+    fontWeight: 600,
+    cursor: 'pointer',
+  });
+
   return (
     <div style={{ marginTop: '14px' }}>
+      <fieldset style={{ border: 'none', margin: '0 0 12px', padding: 0 }}>
+        <legend style={{ ...label, marginBottom: '6px' }}>{t('När', 'When')}</legend>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          <button type="button" aria-pressed={whenMode === 'now'} onClick={() => setWhenMode('now')} style={chip(whenMode === 'now')}>
+            {t('Nu', 'Now')}
+          </button>
+          <button
+            type="button"
+            aria-pressed={whenMode === 'later' && date === tomorrow}
+            onClick={() => {
+              setWhenMode('later');
+              setDate(tomorrow);
+            }}
+            style={chip(whenMode === 'later' && date === tomorrow)}
+          >
+            {t('I morgon', 'Tomorrow')}
+          </button>
+          <button
+            type="button"
+            aria-pressed={whenMode === 'later' && date !== tomorrow}
+            onClick={() => setWhenMode('later')}
+            style={chip(whenMode === 'later' && date !== tomorrow)}
+          >
+            {t('Annan dag', 'Other day')}
+          </button>
+        </div>
+        {whenMode === 'later' ? (
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '8px', marginTop: '10px' }}>
+            <label style={fieldLabel}>
+              {t('Datum', 'Date')}
+              <input type="date" value={date} min={isoDay(new Date())} onChange={(e) => setDate(e.target.value)} style={field} />
+            </label>
+            <label style={fieldLabel}>
+              {t('Tid', 'Time')}
+              <input type="time" value={time} step={300} onChange={(e) => setTime(e.target.value)} style={field} />
+            </label>
+            <label style={fieldLabel}>
+              <span className="sr-only">{t('Tiden gäller', 'The time is')}</span>
+              <select value={arrive ? 'arr' : 'dep'} onChange={(e) => setArrive(e.target.value === 'arr')} style={field}>
+                <option value="dep">{t('Åk efter', 'Leave after')}</option>
+                <option value="arr">{t('Framme senast', 'Arrive by')}</option>
+              </select>
+            </label>
+          </div>
+        ) : null}
+      </fieldset>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
         <button type="button" onClick={() => find(true)} disabled={loading} style={primary}>
           {loading ? t('Söker resa…', 'Finding a trip…') : t(`Resa till ${target}`, `Trip to ${target}`)}
@@ -106,8 +171,8 @@ export default function JourneyPlan({ goal, fromId, fromName }: Props) {
       </div>
       <p style={{ margin: '6px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
         {t(
-          'Startar där du står. Positionen används bara för sökningen och sparas inte.',
-          'Starts where you are. Your location is only used for the search and is not stored.'
+          'Startar där du står, eller vid hållplatsen. Positionen används bara för sökningen och sparas inte.',
+          'Starts where you are, or at the stop. Your location is only used for the search and is not stored.'
         )}
       </p>
 
@@ -119,6 +184,8 @@ export default function JourneyPlan({ goal, fromId, fromName }: Props) {
             <p style={label}>
               {plan.fromHere ? t('Från din position', 'From your location') : t(`Från ${fromName}`, `From ${fromName}`)} ·{' '}
               {plan.to}
+              {plan.date ? ` · ${dayLabel(plan.date, Date.now(), lang)}` : ''}
+              {plan.time ? ` · ${plan.arrive ? t('framme', 'arrive') : t('efter', 'after')} ${plan.time}` : ''}
             </p>
             <ol style={{ listStyle: 'none', margin: '6px 0 0', padding: 0 }}>
               {plan.trips.map((trip, i) => {
@@ -148,6 +215,9 @@ export default function JourneyPlan({ goal, fromId, fromName }: Props) {
                     >
                       <span style={{ fontFamily: fonts.display, fontSize: '1.375rem', fontWeight: 800, letterSpacing: '-0.03em' }}>
                         {trip.dep}–{trip.arr}
+                        {trip.arrDate && trip.depDate && trip.arrDate !== trip.depDate ? (
+                          <sup style={{ fontSize: '0.75rem', marginLeft: '2px' }}>+1</sup>
+                        ) : null}
                       </span>
                       <span style={{ fontSize: '0.875rem', color: colors.textDim }}>
                         {duration(trip.minutes)} ·{' '}
@@ -160,11 +230,29 @@ export default function JourneyPlan({ goal, fromId, fromName }: Props) {
                       </span>
                     </button>
                     {expanded ? (
-                      <ol style={{ listStyle: 'none', margin: '0 0 12px', padding: 0 }}>
-                        {trip.legs.map((l, j) => (
-                          <LegRow key={j} leg={l} />
-                        ))}
-                      </ol>
+                      <>
+                        <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                          {trip.legs.map((l, j) => (
+                            <LegRow key={j} leg={l} />
+                          ))}
+                        </ol>
+                        <div style={{ margin: '4px 0 14px' }}>
+                          {savedKey === `${trip.depDate} ${trip.dep}` ? (
+                            <span style={{ ...secondary, display: 'inline-flex', alignItems: 'center' }}>✓ {t('Sparad som min resa', 'Saved as my trip')}</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onSave(plan.to, plan.fromHere ? t('din position', 'your location') : fromName, trip);
+                                track('funktion', 0, 'reseplan_spara');
+                              }}
+                              style={primary}
+                            >
+                              {t('Spara som min resa', 'Save as my trip')}
+                            </button>
+                          )}
+                        </div>
+                      </>
                     ) : null}
                   </li>
                 );
@@ -177,7 +265,7 @@ export default function JourneyPlan({ goal, fromId, fromName }: Props) {
   );
 }
 
-function LegRow({ leg }: { leg: Leg }) {
+export function LegRow({ leg }: { leg: Leg }) {
   const { t } = useLang();
   if (leg.kind === 'walk') {
     return (
@@ -191,7 +279,7 @@ function LegRow({ leg }: { leg: Leg }) {
       </li>
     );
   }
-  const tint = lineColor({ line: leg.line, transportMode: leg.mode });
+  const tint = lineColor({ line: leg.line, transportMode: leg.mode as TransportMode });
   const num = leg.line.match(/\S+$/)?.[0] || leg.line;
   const late = (p: Point) => p.rtTime && p.rtTime !== p.time;
   const time = (p: Point) => (
@@ -243,6 +331,26 @@ const label: React.CSSProperties = {
   letterSpacing: '0.14em',
   textTransform: 'uppercase',
   color: colors.textDim,
+};
+
+const fieldLabel: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '4px',
+  fontSize: '0.8125rem',
+  fontWeight: 600,
+  color: colors.textDim,
+};
+
+const field: React.CSSProperties = {
+  minHeight: '44px',
+  padding: '0 10px',
+  border: `1px solid ${colors.borderStrong}`,
+  borderRadius: 0,
+  backgroundColor: colors.surface,
+  color: colors.text,
+  fontSize: '1rem',
+  fontFamily: 'inherit',
 };
 
 const primary: React.CSSProperties = {

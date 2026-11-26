@@ -26,6 +26,8 @@ import { alternativeFor } from '../lib/alternative.mjs';
 import { matchConnection } from '../lib/transferMatch.mjs';
 import { groupKey } from '../lib/lineFormat';
 import JourneyPlan from './JourneyPlan';
+import PlannedTripCard from './PlannedTripCard';
+import { loadPlannedTrip, storePlannedTrip, type PlannedTrip } from '../lib/plannedTrip';
 import { loadStopIndex, stopPageFor, type StopIndex } from '../lib/stopIndex';
 import SearchPanel from './SearchPanel';
 import StopAbout from './StopAbout';
@@ -261,6 +263,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
   }, []);
   const [favorites, setFavorites] = useState<StopOption[]>([]);
   const [myTrip, setMyTrip] = useState<MyTrip | null>(null);
+  // En planerad resa från reseplaneraren (t.ex. i morgon), sparad som Min resa.
+  const [planned, setPlanned] = useState<PlannedTrip | null>(null);
   const [recentStops, setRecentStops] = useState<StopOption[]>([]);
   // Resans egna avgångar när tavlan visar en annan hållplats.
   const [tripDepartures, setTripDepartures] = useState<Departure[]>([]);
@@ -271,6 +275,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
   useEffect(() => {
     setFavorites(loadFavorites());
     setMyTrip(loadMyTrip());
+    setPlanned(loadPlannedTrip());
     setRecentStops(loadRecentStops());
     try {
       const savedView = window.localStorage.getItem(VIEW_KEY);
@@ -636,6 +641,16 @@ export default function App({ initialStop, page, intro }: AppProps) {
 
   const journeyCards = (
     <>
+      {planned ? (
+        <PlannedTripCard
+          planned={planned}
+          now={now}
+          onRemove={() => {
+            setPlanned(null);
+            storePlannedTrip(null);
+          }}
+        />
+      ) : null}
       {myTrain ? (
         <MyTrainCard
           train={myTrain}
@@ -679,7 +694,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
       ) : null}
     </>
   );
-  cardShownRef.current = Boolean(myTrain || myTrip);
+  cardShownRef.current = Boolean(myTrain || myTrip || planned);
 
   return (
     <div id="alltiditid-app" className="app-shell" style={{ maxWidth: '860px', margin: '0 auto' }}>
@@ -691,14 +706,13 @@ export default function App({ initialStop, page, intro }: AppProps) {
       <ModeTabs
         active={tab === 'resa' ? 'resa' : tab === 'flyg' ? 'sok' : !wide && controlsOpen && hasStop ? 'sok' : 'trafik'}
         onChange={onMenu}
-        hasJourney={Boolean(myTrain || myTrip)}
+        hasJourney={Boolean(myTrain || myTrip || planned)}
       />
       {tab === 'flyg' ? <FlightView initialAirport={flightAirport} /> : null}
       {tab === 'resa' ? (
         <section aria-label={t('Min resa', 'My trip')} style={{ marginBottom: '24px' }}>
           <h1 style={{ fontSize: '1.375rem', fontWeight: 800, margin: '0 0 12px' }}>{t('Min resa', 'My trip')}</h1>
       {journeyCards}
-          {!myTrain && !myTrip ? (
             <div
               style={{
                 padding: '20px',
@@ -716,10 +730,20 @@ export default function App({ initialStop, page, intro }: AppProps) {
                 autoComplete="off"
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
-                placeholder={t('t.ex. Flemingsberg', 'e.g. Flemingsberg')}
+                placeholder={t('Ort, hållplats eller adress', 'Town, stop or address')}
                 style={{ ...textInput(colors.borderStrong), display: 'block', marginTop: '6px', minHeight: '48px', fontSize: '1rem' }}
               />
-              <JourneyPlan goal={goal} fromId={hasStop ? selectedStop.id : ''} fromName={hasStop ? selectedStop.name : ''} />
+              <JourneyPlan
+                goal={goal}
+                fromId={hasStop ? selectedStop.id : ''}
+                fromName={hasStop ? selectedStop.name : ''}
+                savedKey={planned ? `${planned.trip.depDate} ${planned.trip.dep}` : ''}
+                onSave={(to, from, trip) => {
+                  const next = { to, from, trip, savedAt: Date.now() };
+                  setPlanned(next);
+                  storePlannedTrip(next);
+                }}
+              />
               {goal.trim().length >= 2 && hasStop && goalHits.length > 0 ? (
                 <p
                   style={{
@@ -836,7 +860,6 @@ export default function App({ initialStop, page, intro }: AppProps) {
                 )}
               </p>
             </div>
-          ) : null}
         </section>
       ) : null}
       <div>

@@ -1687,13 +1687,20 @@ async function handlePlan(request, keys, context) {
   const fromId = String((body && body.fromId) || '').split(',')[0].trim();
   const fromName = String((body && body.fromName) || '').trim().slice(0, 80);
   const fromCoord = inSweden(lat, lon);
+  // Valfri tid: ett datum och en tid, och om tiden gäller avgång eller senaste ankomst.
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(body && body.date)) ? String(body.date) : '';
+  const time = /^\d{2}:\d{2}$/.test(String(body && body.time)) ? String(body.time) : '';
+  const arrive = Boolean(body && body.arrive) && Boolean(time);
+  const when = `${date ? `&date=${date}` : ''}${time ? `&time=${time}` : ''}${arrive ? '&searchForArrival=1' : ''}`;
   if (to.length < 2) return jsonResponse({ error: 'Skriv vart du ska.' }, 400);
   if (!fromCoord && !/^\d{6,12}$/.test(fromId)) return jsonResponse({ error: 'Välj var du startar.' }, 400);
   if (!keys.resrobot) return jsonResponse({ error: 'Reseplaneraren är inte konfigurerad.' }, 501);
 
   const env = context && context.env;
   const origin = fromCoord ? `c${lat.toFixed(3)},${lon.toFixed(3)}` : `s${fromId}`;
-  const cacheKey = new Request(`https://cache.alltiditid.se/plan-v1/${origin}/${encodeURIComponent(to.toLowerCase())}`);
+  const cacheKey = new Request(
+    `https://cache.alltiditid.se/plan-v2/${origin}/${encodeURIComponent(to.toLowerCase())}/${date || 'idag'}/${time || 'nu'}/${arrive ? 'framme' : 'avgang'}`
+  );
   const cached = await cacheGet(cacheKey);
   if (cached) {
     try {
@@ -1712,18 +1719,26 @@ async function handlePlan(request, keys, context) {
       return res.json();
     });
 
-  let dest;
-  try {
-    dest = pickDestination(await rr(`location.name?input=${encodeURIComponent(to)}&maxNo=5`));
-  } catch {
-    return jsonResponse({ error: 'Kunde inte söka just nu.' }, 502);
+  // Gatuadress (har en siffra): leta bland adresser först. Annars hållplatser och orter först,
+  // och adresser om det inte gav något. type=A är HAFAS sätt att be om adresser.
+  const lookups = /\d/.test(to) ? ['&type=A', ''] : ['', '&type=A'];
+  let dest = null;
+  let failed = false;
+  for (const type of lookups) {
+    try {
+      dest = pickDestination(await rr(`location.name?input=${encodeURIComponent(to)}&maxNo=5${type}`));
+    } catch {
+      failed = true;
+    }
+    if (dest) break;
   }
+  if (!dest && failed) return jsonResponse({ error: 'Kunde inte söka just nu.' }, 502);
   if (!dest) return jsonResponse({ error: `Hittade ingen plats som heter ${to}.` }, 404);
 
   const destPart = dest.kind === 'stop' ? `destId=${dest.id}` : `destCoordLat=${dest.lat}&destCoordLong=${dest.lon}`;
   const originPart = (id) =>
     fromCoord ? `originCoordLat=${lat.toFixed(5)}&originCoordLong=${lon.toFixed(5)}` : `originId=${id}`;
-  const tripFrom = async (id) => mapTrips(await rr(`trip?${originPart(id)}&${destPart}&numF=4&passlist=0`), { clean: (n) => cleanPlaceName(n) || n });
+  const tripFrom = async (id) => mapTrips(await rr(`trip?${originPart(id)}&${destPart}${when}&numF=4&passlist=0`), { clean: (n) => cleanPlaceName(n) || n });
 
   let trips = [];
   try {
@@ -1742,7 +1757,7 @@ async function handlePlan(request, keys, context) {
   }
   if (trips.length === 0) return jsonResponse({ error: `Hittade ingen resa till ${dest.name}.`, to: dest.name }, 404);
 
-  const data = { to: cleanPlaceName(dest.name) || dest.name, fromHere: fromCoord, trips };
+  const data = { to: cleanPlaceName(dest.name) || dest.name, fromHere: fromCoord, date, time, arrive, trips };
   await cachePut(cacheKey, jsonResponse(data, 200, { 'Cache-Control': 'public, max-age=60' }), context);
   return jsonResponse(data, 200, { 'Cache-Control': 'no-store' });
 }
