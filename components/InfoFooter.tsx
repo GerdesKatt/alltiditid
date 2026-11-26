@@ -62,6 +62,12 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
               you. A response for the same rounded location is cached for at most 5 minutes.
             </li>
             <li style={privacyItem}>
+              <strong>Can I make it?</strong> When you turn on walking time, your location is followed while the
+              board is open. The walking time is calculated in your browser, and the location is never sent anywhere
+              and never stored. Only your choice (on or off, and walking pace) is saved in local storage. Turn it off
+              with Turn off.
+            </li>
+            <li style={privacyItem}>
               <strong>Departure boards.</strong> When you view a board, our server fetches departures from Trafiklab,
               Trafikverket, SL and Västtrafik. Only the stop&apos;s id and name are sent, nothing about you.
             </li>
@@ -145,6 +151,11 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
               telefon innan den skickas till vår server och vidare till Trafiklab (ResRobot) för att
               hitta närmaste hållplatser. Positionen sparas inte och kopplas inte till dig. Ett svar
               för samma avrundade position mellanlagras i högst 5 minuter.
+            </li>
+            <li style={privacyItem}>
+              <strong>Hinner jag dit?</strong> När du slår på gångtid följs din position medan tavlan är öppen.
+              Gångtiden räknas i din webbläsare, och positionen skickas aldrig någonstans och sparas inte. Bara ditt
+              val (på eller av, och gångtakt) sparas i local storage. Du stänger av med Stäng av.
             </li>
             <li style={privacyItem}>
               <strong>Avgångstavlor.</strong> När du visar en tavla hämtar vår server avgångar från

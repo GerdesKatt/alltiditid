@@ -16,6 +16,8 @@ export type Connection = {
   status: string;
   track?: string;
   margin: number | null;
+  /** Turens id hos Trafiklab, så att turen man sitter på inte räknas som en anslutning. */
+  tripId?: string;
   /** Hållplatserna efter bytesstationen (med stops=1), för att söka på ett mål längs linjen. */
   stopsAfter?: string[];
 };

@@ -3,6 +3,11 @@ import type { BoardDirection, BoardSource, Departure, Disruption, TransportMode 
 import DepartureRow from './DepartureRow';
 import LineGroupRow from './LineGroupRow';
 import DisruptionBox from './DisruptionBox';
+import WalkBar from './WalkBar';
+import FindTrip from './FindTrip';
+import { useWalk } from '../lib/useWalk';
+import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
+import { parseLocal } from '../lib/lineFormat';
 import { groupKey } from '../lib/lineFormat';
 import DirectionToggle from './DirectionToggle';
 import { colors, emptyState } from './styles';
@@ -119,6 +124,19 @@ export default function DepartureBoard({
   onViewChange,
 }: Props) {
   const { lang, t } = useLang();
+  const walk = useWalk(stopId);
+  const walkMin = direction === 'departures' && walk.state.kind === 'ready' ? walk.state.minutes : null;
+  // Gångbeskedet visas bara på den första avgången man hinner till, så att tavlan inte blir rörig.
+  const walkTargetId = useMemo(() => {
+    if (walkMin === null) return null;
+    const hit = departures.find((d) => {
+      const expected = parseLocal(d.expectedAt);
+      if (d.status === 'cancelled' || d.pending || expected === null) return false;
+      const minutesLeft = Math.floor((expected - now) / 60000);
+      return walkVerdict(minutesLeft, walkMin, platformMinutes(d.transportMode)).kind !== 'missed';
+    });
+    return hit ? hit.id : null;
+  }, [departures, walkMin, now]);
   const [limit, setLimit] = useState(PAGE_SIZE);
   // Ny hållplats, riktning eller vy: börja om från de första raderna.
   useEffect(() => setLimit(PAGE_SIZE), [stopName, direction, view]);
@@ -362,6 +380,21 @@ export default function DepartureBoard({
 
       {!errorMsg ? <DisruptionBox disruptions={disruptions} /> : null}
 
+      {direction === 'departures' && !errorMsg ? (
+        // Två verktyg på en rad när de är stängda; öppnade tar de hela bredden.
+        <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: '4px', alignItems: 'flex-start' }}>
+          <WalkBar
+            stopName={stopName}
+            state={walk.state}
+            pace={walk.pace}
+            onTurnOn={walk.turnOn}
+            onTurnOff={walk.turnOff}
+            onPace={walk.setPace}
+          />
+          <FindTrip stop={{ id: stopId, name: stopName }} mode={mode} onShowTrain={onShowTrain} onShowTrip={onShowTrip} />
+        </div>
+      ) : null}
+
       {errorMsg ? (
         <div
           style={{
@@ -444,6 +477,7 @@ export default function DepartureBoard({
                   onShowTrain={onShowTrain}
                   onShowTrip={onShowTrip}
                   stale={stale || offline}
+                  walkMinutes={item.id === walkTargetId ? walkMin : null}
                 />
               ))}
             </div>
