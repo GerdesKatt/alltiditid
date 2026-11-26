@@ -25,6 +25,7 @@ import { track } from '../lib/track';
 import { alternativeFor } from '../lib/alternative.mjs';
 import { matchConnection } from '../lib/transferMatch.mjs';
 import { groupKey } from '../lib/lineFormat';
+import JourneyPlan from './JourneyPlan';
 import { loadStopIndex, stopPageFor, type StopIndex } from '../lib/stopIndex';
 import SearchPanel from './SearchPanel';
 import StopAbout from './StopAbout';
@@ -718,19 +719,23 @@ export default function App({ initialStop, page, intro }: AppProps) {
                 placeholder={t('t.ex. Flemingsberg', 'e.g. Flemingsberg')}
                 style={{ ...textInput(colors.borderStrong), display: 'block', marginTop: '6px', minHeight: '48px', fontSize: '1rem' }}
               />
+              <JourneyPlan goal={goal} fromId={hasStop ? selectedStop.id : ''} fromName={hasStop ? selectedStop.name : ''} />
+              {goal.trim().length >= 2 && hasStop && goalHits.length > 0 ? (
+                <p
+                  style={{
+                    margin: '18px 0 0',
+                    fontSize: '0.6875rem',
+                    fontWeight: 600,
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                    color: colors.textDim,
+                  }}
+                >
+                  {t(`Direkt från ${selectedStop.name}`, `Direct from ${selectedStop.name}`)}
+                </p>
+              ) : null}
               {goal.trim().length >= 2 ? (
-                !hasStop ? (
-                  <p style={{ margin: '10px 0 0', fontSize: '0.875rem', color: colors.textDim }}>
-                    {t('Välj först var du står, under Nu eller Sök.', 'First choose where you are, under Now or Search.')}
-                  </p>
-                ) : goalHits.length === 0 ? (
-                  <p style={{ margin: '10px 0 0', fontSize: '0.875rem', color: colors.textDim }}>
-                    {t(
-                      `Inga avgångar från ${selectedStop.name} mot ${goal.trim()} den närmaste timmen.`,
-                      `No departures from ${selectedStop.name} towards ${goal.trim()} in the next hour.`
-                    )}
-                  </p>
-                ) : (
+                !hasStop || goalHits.length === 0 ? null : (
                   <ul style={{ listStyle: 'none', margin: '10px 0 0', padding: 0 }}>
                     {goalHits.map((d) => (
                       <li

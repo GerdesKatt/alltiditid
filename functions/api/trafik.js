@@ -6,6 +6,7 @@ import { locateOnRoute, vehiclePositions } from '../../lib/gtfsrt.mjs';
 import { FERRY_PREFIX, ferryBoard, ferryHarbors, searchFerryHarbors } from '../../lib/ferries.mjs';
 import { stopsAfter } from '../../lib/transferMatch.mjs';
 import { pickSearchHits } from '../../lib/searchHits.mjs';
+import { mapTrips, pickDestination } from '../../lib/plan.mjs';
 
 function parseTimeToMinutes(timeStr) {
   if (!timeStr || typeof timeStr !== 'string') return null;
@@ -1657,6 +1658,94 @@ function tidyStopName(name) {
  * Koordinaterna avrundas till tre decimaler (cirka 100 m) innan de skickas
  * vidare eller används som cachenyckel, och sparas inte.
  */
+/** Reseplaneraren får högst så här många ResRobot-anrop per dygn (sökning + resa räknas var för sig). */
+const PLAN_CALLS_PER_DAY = 3000;
+
+const inSweden = (lat, lon) =>
+  Number.isFinite(lat) && Number.isFinite(lon) && lat >= 55 && lat <= 69.2 && lon >= 10.5 && lon <= 24.3;
+
+/**
+ * POST action=plan med { to, fromId?, fromName?, lat?, lon? }.
+ * Hela resan från där man står (eller från en hållplats) till vad som helst man skrev:
+ * en hållplats, en adress eller en plats. Gång till första hållplatsen räknas in.
+ * Positionen skickas i innehållet, inte i adressen, och sparas inte.
+ */
+async function handlePlan(request, keys, context) {
+  if (request.method !== 'POST') {
+    return jsonResponse({ error: 'Använd POST.' }, 405, { Allow: 'POST' });
+  }
+  let body = null;
+  try {
+    body = await request.json();
+  } catch {
+    body = null;
+  }
+  const to = String((body && body.to) || '').trim().slice(0, 100);
+  const lat = Number(body && body.lat);
+  const lon = Number(body && body.lon);
+  const fromId = String((body && body.fromId) || '').split(',')[0].trim();
+  const fromName = String((body && body.fromName) || '').trim().slice(0, 80);
+  const fromCoord = inSweden(lat, lon);
+  if (to.length < 2) return jsonResponse({ error: 'Skriv vart du ska.' }, 400);
+  if (!fromCoord && !/^\d{6,12}$/.test(fromId)) return jsonResponse({ error: 'Välj var du startar.' }, 400);
+  if (!keys.resrobot) return jsonResponse({ error: 'Reseplaneraren är inte konfigurerad.' }, 501);
+
+  const env = context && context.env;
+  const origin = fromCoord ? `c${lat.toFixed(3)},${lon.toFixed(3)}` : `s${fromId}`;
+  const cacheKey = new Request(`https://cache.alltiditid.se/plan-v1/${origin}/${encodeURIComponent(to.toLowerCase())}`);
+  const cached = await cacheGet(cacheKey);
+  if (cached) {
+    try {
+      return jsonResponse(await cached.json(), 200, { 'Cache-Control': 'no-store' });
+    } catch {
+      // Hämta på nytt nedan
+    }
+  }
+  if (!(await allowCall(env, 'resrobot-plan', PLAN_CALLS_PER_DAY))) {
+    return jsonResponse({ error: 'Reseplaneraren har nått dagens gräns. Försök igen i morgon.' }, 429);
+  }
+
+  const rr = (path) =>
+    fetch(`${RESROBOT_BASE}/${path}&format=json&lang=sv&accessId=${encodeURIComponent(keys.resrobot)}`).then((res) => {
+      if (!res.ok) throw new Error(String(res.status));
+      return res.json();
+    });
+
+  let dest;
+  try {
+    dest = pickDestination(await rr(`location.name?input=${encodeURIComponent(to)}&maxNo=5`));
+  } catch {
+    return jsonResponse({ error: 'Kunde inte söka just nu.' }, 502);
+  }
+  if (!dest) return jsonResponse({ error: `Hittade ingen plats som heter ${to}.` }, 404);
+
+  const destPart = dest.kind === 'stop' ? `destId=${dest.id}` : `destCoordLat=${dest.lat}&destCoordLong=${dest.lon}`;
+  const originPart = (id) =>
+    fromCoord ? `originCoordLat=${lat.toFixed(5)}&originCoordLong=${lon.toFixed(5)}` : `originId=${id}`;
+  const tripFrom = async (id) => mapTrips(await rr(`trip?${originPart(id)}&${destPart}&numF=4&passlist=0`), { clean: (n) => cleanPlaceName(n) || n });
+
+  let trips = [];
+  try {
+    trips = await tripFrom(fromId);
+  } catch {
+    trips = [];
+  }
+  // Samlade stationer (740098…) känner ResRobot inte alltid till: leta upp hållplatsen på namnet.
+  if (trips.length === 0 && !fromCoord && fromName) {
+    try {
+      const alt = pickDestination(await rr(`location.name?input=${encodeURIComponent(fromName)}&maxNo=3`));
+      if (alt && alt.kind === 'stop' && alt.id !== fromId) trips = await tripFrom(alt.id);
+    } catch {
+      trips = [];
+    }
+  }
+  if (trips.length === 0) return jsonResponse({ error: `Hittade ingen resa till ${dest.name}.`, to: dest.name }, 404);
+
+  const data = { to: cleanPlaceName(dest.name) || dest.name, fromHere: fromCoord, trips };
+  await cachePut(cacheKey, jsonResponse(data, 200, { 'Cache-Control': 'public, max-age=60' }), context);
+  return jsonResponse(data, 200, { 'Cache-Control': 'no-store' });
+}
+
 async function handleNearby(request, keys, context) {
   // Positionen skickas i anropets innehåll (POST), inte i adressen, så att den
   // inte hamnar i loggar, webbläsarhistorik eller mellanlagringar som sparar adresser.
@@ -2520,6 +2609,9 @@ export async function onRequest(context) {
     }
     if (action === 'nearby') {
       return await handleNearby(request, keys, context);
+    }
+    if (action === 'plan') {
+      return await handlePlan(request, keys, context);
     }
 
     // Avgångstavlor cachas kort i Cloudflare så att automatisk uppdatering
