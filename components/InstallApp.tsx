@@ -27,7 +27,9 @@ export default function InstallApp() {
       (navigator as Navigator & { standalone?: boolean }).standalone === true;
     let dismissed = false;
     try {
-      dismissed = window.localStorage.getItem(DISMISS_KEY) === '1';
+      // Ett × gömmer knappen i två veckor, inte för alltid.
+      const at = Number(window.localStorage.getItem(DISMISS_KEY) || 0);
+      dismissed = at > 1 && Date.now() - at < 14 * 86_400_000;
     } catch {
       dismissed = false;
     }
@@ -55,7 +57,7 @@ export default function InstallApp() {
   function dismiss() {
     setVisible(false);
     try {
-      window.localStorage.setItem(DISMISS_KEY, '1');
+      window.localStorage.setItem(DISMISS_KEY, String(Date.now()));
     } catch {
       // Ingen lagring: frågan kommer tillbaka nästa gång.
     }
