@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import React from 'react';
+import '@fontsource-variable/inter/wght.css';
+import '@fontsource-variable/schibsted-grotesk/wght.css';
 import './globals.css';
 import { PREFETCH_SCRIPT } from '../lib/prefetch';
 
@@ -31,8 +33,8 @@ export default function RootLayout({
       <head>
         {/* Startar hämtningen av tavlan innan React har laddat (lib/prefetch.ts). */}
         <script dangerouslySetInnerHTML={{ __html: PREFETCH_SCRIPT }} />
-        <meta name="theme-color" content="#020617" media="(prefers-color-scheme: dark)" />
-        <meta name="theme-color" content="#eef2f7" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#121019" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)" />
         {/*
           Google Analytics laddas inte här utan i lib/analytics.ts, och bara om ett
           mätnings-id finns och efter samtycke via ConsentBanner.
@@ -50,8 +52,7 @@ export default function RootLayout({
           padding: '20px 16px',
           backgroundColor: 'var(--c-bg)',
           color: 'var(--c-text)',
-          fontFamily:
-            'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          fontFamily: 'var(--font-text)',
         }}
       >
         {children}

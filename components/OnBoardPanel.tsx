@@ -233,8 +233,8 @@ export default function OnBoardPanel({
             borderRadius: '10px',
             border: 'none',
             // Fast grön med mörk text: samma i mörkt och ljust tema (7,9:1).
-            backgroundColor: '#10b981',
-            color: '#062e22',
+            backgroundColor: colors.accentStrong,
+            color: colors.onAccent,
             fontWeight: 800,
             fontSize: '13px',
             cursor: 'pointer',

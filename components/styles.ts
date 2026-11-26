@@ -60,6 +60,8 @@ export const colors = {
   messageBg: 'var(--c-message-bg)',
   /** Byt hållplats-knappen */
   switchBg: 'var(--c-switch-bg)',
+  /** Text på Byt hållplats-knappen */
+  switchText: 'var(--c-switch-text)',
   /** Skuggor */
   shadow: 'var(--c-shadow)',
   /** Märke: i tid / realtid */
@@ -84,6 +86,17 @@ export const colors = {
   /** Varningsruta (resan försvunnen) */
   noticeBg: 'var(--c-notice-bg)',
   noticeText: 'var(--c-notice-text)',
+  /** Linjebricka: bläck med ljus text */
+  badgeBg: 'var(--c-badge-bg)',
+  badgeText: 'var(--c-badge-text)',
+  /** Varumärket: hallon. Bara för logga och realtid. */
+  brand: 'var(--brand)',
+} as const;
+
+/** Typsnitt (brand guiden, avsnitt Typografi). */
+export const fonts = {
+  display: 'var(--font-display)',
+  text: 'var(--font-text)',
 } as const;
 
 /** Textfält (stationssök, filter). */

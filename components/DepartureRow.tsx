@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { BoardDirection, Departure } from '../lib/types';
-import { colors } from './styles';
+import { colors, fonts } from './styles';
 import { COUNTDOWN_MAX_MIN, lineBadge, lineName, parseLocal } from '../lib/lineFormat';
 
 type Props = {
@@ -115,10 +115,10 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
             flexShrink: 0,
             minWidth: '44px',
             padding: '4px 6px',
-            borderRadius: '8px',
-            border: `1px solid ${colors.accent}`,
-            backgroundColor: colors.accentTint,
-            color: colors.text,
+            borderRadius: 'var(--radius-badge)',
+            backgroundColor: colors.badgeBg,
+            color: colors.badgeText,
+            fontFamily: fonts.display,
             fontWeight: 800,
             fontSize: '14px',
             textAlign: 'center',
@@ -170,7 +170,8 @@ export default function DepartureRow({ item, direction, now, isSelectedTrip, onS
           <span
             style={{
               display: 'block',
-              fontSize: '20px',
+              fontFamily: fonts.display,
+              fontSize: '22px',
               fontWeight: 800,
               fontVariantNumeric: 'tabular-nums',
               color: timeColor,
