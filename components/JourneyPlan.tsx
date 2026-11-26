@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { colors, fonts } from './styles';
 import { useLang } from '../lib/i18n';
 import { lineColor } from '../lib/lineFormat';
@@ -70,12 +70,16 @@ export default function JourneyPlan({ goal, fromId, fromName, onSave, savedKey }
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(0);
   const [asked, setAsked] = useState('');
+  // Start: där man står (positionen) eller tavlans hållplats.
+  const [fromMode, setFromMode] = useState<'here' | 'stop'>('here');
+  const useStop = fromMode === 'stop' && Boolean(fromId);
 
   const target = goal.trim();
-  const query = `${target}|${whenMode}|${date}|${time}|${arrive}`;
+  const query = `${target}|${whenMode}|${date}|${time}|${arrive}|${useStop ? fromId : 'here'}`;
   const stale = plan !== null && asked !== query;
 
-  async function find(fromPosition: boolean) {
+  async function find() {
+    const fromPosition = !useStop;
     if (target.length < 2) return;
     setLoading(true);
     setError('');
@@ -108,6 +112,14 @@ export default function JourneyPlan({ goal, fromId, fromName, onSave, savedKey }
       setLoading(false);
     }
   }
+
+  // Har man redan sökt och byter tid eller start: sök om av sig själv (samma mål).
+  useEffect(() => {
+    if (!asked || loading || asked === query || asked.split('|')[0] !== target) return;
+    const timer = setTimeout(() => find(), 500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   if (target.length < 2) return null;
 
@@ -171,22 +183,36 @@ export default function JourneyPlan({ goal, fromId, fromName, onSave, savedKey }
           </div>
         ) : null}
       </fieldset>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-        <button type="button" onClick={() => find(true)} disabled={loading} style={primary}>
-          {loading ? t('Söker resa…', 'Finding a trip…') : t(`Resa till ${target}`, `Trip to ${target}`)}
-        </button>
-        {fromId ? (
-          <button type="button" onClick={() => find(false)} disabled={loading} style={secondary}>
-            {t(`Från ${fromName}`, `From ${fromName}`)}
-          </button>
-        ) : null}
-      </div>
-      <p style={{ margin: '6px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
-        {t(
-          'Startar där du står, eller vid hållplatsen. Positionen används bara för sökningen och sparas inte.',
-          'Starts where you are, or at the stop. Your location is only used for the search and is not stored.'
-        )}
-      </p>
+      {fromId ? (
+        <fieldset style={{ border: 'none', margin: '0 0 14px', padding: 0 }}>
+          <legend style={{ ...label, marginBottom: '6px' }}>{t('Från', 'From')}</legend>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            <button type="button" aria-pressed={!useStop} onClick={() => setFromMode('here')} style={chip(!useStop)}>
+              {t('Där jag är', 'Where I am')}
+            </button>
+            <button type="button" aria-pressed={useStop} onClick={() => setFromMode('stop')} style={chip(useStop)}>
+              {fromName}
+            </button>
+          </div>
+        </fieldset>
+      ) : null}
+      <button
+        id="sok-resa"
+        type="button"
+        onClick={() => find()}
+        disabled={loading}
+        style={{ ...primary, width: '100%', minHeight: '52px', fontSize: '1rem', opacity: loading ? 0.7 : 1 }}
+      >
+        {loading ? t('Söker resa…', 'Finding a trip…') : `${t('Sök resa', 'Find trip')} →`}
+      </button>
+      {!useStop ? (
+        <p style={{ margin: '6px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
+          {t(
+            'Startar där du står. Positionen används bara för sökningen och sparas inte.',
+            'Starts where you are. Your location is only used for the search and is not stored.'
+          )}
+        </p>
+      ) : null}
 
       <div aria-live="polite">
         {error ? <p style={{ margin: '12px 0 0', fontSize: '0.9375rem', color: colors.amber }}>{error}</p> : null}
