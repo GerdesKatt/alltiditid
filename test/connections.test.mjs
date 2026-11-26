@@ -45,3 +45,30 @@ test('anslutningar räknas från ankomsten, tåget självt utesluts', async () =
   assert.equal(body.transfer, 7, 'stor station: 7 min');
   assert.deepEqual(body.departures.map((d) => [d.line.split(' ').pop(), d.margin]), [['1', -1], ['12', 2], ['8730', 8]]);
 });
+
+test('Stockholm C: bytet tar med Stockholm City, T-Centralen och Cityterminalen', async () => {
+  const urls = [];
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+    urls.push(u);
+    const m = /\/v1\/departures\/(\d+)\//.exec(u);
+    if (m) {
+      const dep = { '740001617': call('P', '41', 'TRAIN', 40), '740020749': call('T', '14', 'METRO', 39) }[m[1]];
+      return new Response(JSON.stringify({ stops: [{ id: m[1], name: m[1] === '740001617' ? 'Stockholm City station' : 'Stop' }], departures: dep ? [dep] : [] }));
+    }
+    return new Response('{}', { status: 404 });
+  };
+  const arrival = t(30).slice(0, 16);
+  const res = await onRequest({
+    request: new Request(`https://alltiditid.se/api/trafik?action=connections&station=Stockholm%20C&arrival=${arrival}&train=532`),
+    env: { TRAFIKLAB_REALTIME_API_KEY: 'rt' },
+    waitUntil() {},
+  });
+  const body = await res.json();
+  assert.equal(res.status, 200);
+  assert.ok(!urls.some((u) => u.includes('/stops/name/')), 'ingen sökning behövs');
+  for (const id of ['740000001', '740001617', '740020749', '740000622']) {
+    assert.ok(urls.some((u) => u.includes(`/v1/departures/${id}/`)), id);
+  }
+  assert.deepEqual(body.departures.map((d) => d.line.split(' ').pop()).sort(), ['14', '41']);
+});

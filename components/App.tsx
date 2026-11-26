@@ -18,6 +18,8 @@ import OnBoardPanel from './OnBoardPanel';
 import StationSheet from './StationSheet';
 import FlightView from './FlightView';
 import TrainSheet from './TrainSheet';
+import MyTrainCard from './MyTrainCard';
+import { loadMyTrain, myTrainFor, storeMyTrain, type MyTrain } from '../lib/myTrain';
 import SheetBackdrop from './SheetBackdrop';
 import { colors } from './styles';
 import ModeTabs, { type AppTab } from './ModeTabs';
@@ -127,6 +129,10 @@ export default function App({ initialStop, intro }: AppProps) {
   const [stationOpen, setStationOpen] = useState(false);
   // Tåget vars hela resa visas (från tavlan eller en sökning på tågnummer).
   const [trainNumber, setTrainNumber] = useState<string | null>(null);
+  const [myTrain, setMyTrain] = useState<MyTrain | null>(null);
+  useEffect(() => {
+    setMyTrain(loadMyTrain());
+  }, []);
   // Kollektivtrafik eller flyg, och flygplatsen som sökningen pekade på.
   const [tab, setTab] = useState<AppTab>('trafik');
   const [flightAirport, setFlightAirport] = useState<string | undefined>(undefined);
@@ -498,6 +504,12 @@ export default function App({ initialStop, intro }: AppProps) {
         <TrainSheet
           number={trainNumber}
           onClose={() => setTrainNumber(null)}
+          saved={myTrain?.number === trainNumber}
+          onToggleSaved={() => {
+            const next = myTrain?.number === trainNumber ? null : myTrainFor(trainNumber);
+            setMyTrain(next);
+            storeMyTrain(next);
+          }}
           onOpenStation={(name) => {
             // "Linköping C" (Trafikverket) heter "Linköping Centralstation" hos Trafiklab.
             const q = name.replace(/\s+C$/i, ' Centralstation');
@@ -611,6 +623,19 @@ export default function App({ initialStop, intro }: AppProps) {
       </div>
 
       <div className="layout-board">
+      {myTrain ? (
+        <MyTrainCard
+          train={myTrain}
+          onOpen={() => {
+            setStationOpen(false);
+            setTrainNumber(myTrain.number);
+          }}
+          onRemove={() => {
+            setMyTrain(null);
+            storeMyTrain(null);
+          }}
+        />
+      ) : null}
       {myTrip ? (
         <MyTripCard
           trip={myTrip}

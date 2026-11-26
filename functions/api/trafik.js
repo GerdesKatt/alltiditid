@@ -552,6 +552,19 @@ function minTransfer(station) {
   return BIG_STATIONS.test(String(station || '').trim()) ? 7 : 4;
 }
 
+/**
+ * Knutpunkter där ett byte ofta sker mellan hållplatser med olika namn hos Trafiklab:
+ * fjärrtåg på Stockholm C, pendeltåg vid Stockholm City, T-bana vid T-Centralen och
+ * Flygbussarna vid Cityterminalen. Bytet visar dem tillsammans (högst fyra id:n).
+ */
+const HUBS = {
+  'stockholm c': { name: 'Stockholm C', ids: '740000001,740001617,740020749,740000622' },
+  'stockholm city': { name: 'Stockholm C', ids: '740001617,740000001,740020749,740000622' },
+  'stockholm odenplan': { name: 'Odenplan', ids: '740001618,740021013,740098559' },
+  'göteborg c': { name: 'Göteborg C', ids: '740000002,740030117,740015585,740020483' },
+  'arlanda c': { name: 'Arlanda C', ids: '740000556,740000492,740000708' },
+};
+
 /** "Linköping C" (Trafikverket) → "Linköping Centralstation" (Trafiklab). */
 function trafiklabName(tvName) {
   return String(tvName || '').trim().replace(/\s+C$/i, ' Centralstation');
@@ -568,8 +581,8 @@ async function handleConnections(url, keys, context) {
   if (!station || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(arrival)) {
     return jsonResponse({ error: 'Station och ankomsttid behövs.' }, 400);
   }
-  let stop = null;
-  for (const q of [trafiklabName(station), station]) {
+  let stop = HUBS[station.toLowerCase()] ? { id: HUBS[station.toLowerCase()].ids, name: HUBS[station.toLowerCase()].name } : null;
+  for (const q of stop ? [] : [trafiklabName(station), station]) {
     try {
       const hits = keys.realtime ? await realtimeSearch(keys.realtime, q) : await resrobotSearch(keys.resrobot, q);
       stop = hits.find((h) => !h.modes || h.modes.includes('Tåg')) || hits[0] || null;

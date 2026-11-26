@@ -116,11 +116,16 @@ export default function TrainSheet({
   number,
   onClose,
   onOpenStation,
+  saved: trainSaved = false,
+  onToggleSaved,
 }: {
   number: string;
   onClose: () => void;
   /** Visar tavlan för en station på tågets väg. */
   onOpenStation?: (name: string) => void;
+  /** Mitt tåg: sparat tåg överst på startsidan. */
+  saved?: boolean;
+  onToggleSaved?: () => void;
 }) {
   // Stationen vars val (Byte här, Visa tavlan) är utfällda.
   const [openStop, setOpenStop] = useState<string | null>(null);
@@ -328,6 +333,19 @@ export default function TrainSheet({
             {title}
           </h2>
           {journey?.operator ? <span style={{ fontSize: '13px', color: colors.textDim }}>{journey.operator}</span> : null}
+          {onToggleSaved && journey ? (
+            <button
+              type="button"
+              aria-pressed={trainSaved}
+              onClick={onToggleSaved}
+              style={{ ...stopAction(trainSaved), display: 'block', marginTop: '8px' }}
+            >
+              <span aria-hidden="true" style={{ color: trainSaved ? colors.onAccent : colors.brand, marginRight: '6px' }}>
+                {trainSaved ? '★' : '☆'}
+              </span>
+              {trainSaved ? 'Sparat som mitt tåg' : 'Spara som mitt tåg'}
+            </button>
+          ) : null}
         </div>
         <button
           type="button"
