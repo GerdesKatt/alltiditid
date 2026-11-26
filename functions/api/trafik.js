@@ -2418,10 +2418,61 @@ async function handleWaitTimes(url, env, context) {
   return response;
 }
 
+/** Händelserna som tas emot, och etiketterna som får följa med "funktion". */
+const EVENT_NAMES = ['forsta_avgang', 'aterkommande', 'tittade_och_gick', 'byte_snabbt', 'sokavhopp', 'funktion'];
+const EVENT_LABELS = /^[a-z0-9_-]{0,32}$/;
+/** Ett tak per dygn, så att ett fel i appen eller en robot inte fyller databasen. */
+const EVENT_DAILY_LIMIT = 50000;
+
+/**
+ * Räknar en händelse: antal, summa och (för tider) hinkar per dygn. Ingen IP-adress,
+ * inget id, ingen tidpunkt utöver dygnet sparas.
+ */
+async function handleEvent(request, env) {
+  const ok = () => new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
+  if (request.method !== 'POST') return jsonResponse({ error: 'Använd POST.' }, 405);
+  const db = env && env.HISTORY;
+  if (!db) return ok();
+  let body;
+  try {
+    const text = await request.text();
+    if (text.length > 300) return ok();
+    body = JSON.parse(text);
+  } catch {
+    return ok();
+  }
+  const name = String(body?.n || '');
+  const label = String(body?.l || '');
+  const value = Math.max(0, Math.min(600000, Math.round(Number(body?.v) || 0)));
+  if (!EVENT_NAMES.includes(name) || !EVENT_LABELS.test(label)) return ok();
+  try {
+    if (!(await allowCall({ HISTORY: db }, 'events', EVENT_DAILY_LIMIT))) return ok();
+    const day = new Date().toISOString().slice(0, 10);
+    await db
+      .prepare(
+        'CREATE TABLE IF NOT EXISTS events (day TEXT NOT NULL, name TEXT NOT NULL, label TEXT NOT NULL, n INTEGER NOT NULL, total INTEGER NOT NULL, under1s INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, name, label))'
+      )
+      .run();
+    await db
+      .prepare(
+        'INSERT INTO events (day, name, label, n, total, under1s) VALUES (?1, ?2, ?3, 1, ?4, ?5) ' +
+          'ON CONFLICT (day, name, label) DO UPDATE SET n = n + 1, total = total + ?4, under1s = under1s + ?5'
+      )
+      .bind(day, name, label, value, name === 'forsta_avgang' && value < 1000 ? 1 : 0)
+      .run();
+  } catch {
+    // Mätningen får aldrig ge fel i appen.
+  }
+  return ok();
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const action = url.searchParams.get('action') || 'departures';
+
+  // Egna mätpunkter (lib/track.ts): inga kakor, inget id, bara namn och tal per dygn.
+  if (action === 'event') return await handleEvent(request, env);
 
   // Flyg och kötider kräver inga Trafiklab-nycklar.
   try {

@@ -107,13 +107,13 @@ export default function FindTrip({ stop, mode, onShowTrain, onShowTrip }: Props)
       <button
         type="button"
         onClick={() => search('boarded', stop)}
+        title={t('Sitter du redan på? Hitta turen du åker med', 'Already on board? Find the trip you are on')}
         style={{
           minHeight: '44px',
           display: 'inline-flex',
           alignItems: 'center',
           gap: '6px',
-          marginBottom: '10px',
-          padding: '0 12px 0 10px',
+          padding: '0 10px',
           border: 'none',
           backgroundColor: 'transparent',
           color: colors.accent,
@@ -124,7 +124,7 @@ export default function FindTrip({ stop, mode, onShowTrain, onShowTrip }: Props)
         }}
       >
         <span aria-hidden="true">🚇</span>
-        {t('Sitter du redan på? Hitta din tur', 'Already on board? Find your trip')}
+        {t('Hitta min tur', 'Find my trip')}
       </button>
     );
   }

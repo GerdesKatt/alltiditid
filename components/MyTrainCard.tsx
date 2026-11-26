@@ -3,11 +3,12 @@ import type { MyTrain } from '../lib/myTrain';
 import { arrivalAt, BYTE_EVENT, COMPENSATION_DELAY_MIN, loadByte, storeByte, verdict } from '../lib/byte';
 import type { Connection, SavedByte } from '../lib/byte';
 import { colors, fonts } from './styles';
+import { compensationLink } from '../lib/compensation';
 import { lineLabel, trackLabel, trainPosition, useLang } from '../lib/i18n';
 
 type Part = { scheduled: string; estimated?: string; actual?: string; delay: number };
 type Stop = { name: string; arrival?: Part; departure?: Part; passed?: boolean };
-type Journey = { number: string; date?: string; product: string; to?: string; position?: string; stops: Stop[] };
+type Journey = { number: string; date?: string; product: string; operator?: string; to?: string; position?: string; stops: Stop[] };
 
 const smallButton: React.CSSProperties = {
   minHeight: '44px',
@@ -118,6 +119,8 @@ export default function MyTrainCard({
   const arrived = Boolean(arr?.actual) || Boolean(target?.passed);
   const lateBy = arr?.delay || 0;
   const compensation = lateBy >= COMPENSATION_DELAY_MIN;
+  // Bolagets egen ansökan, när vi vet vilket bolag som kör tåget.
+  const claim = compensationLink(journey?.operator, journey?.product);
 
   return (
     <section
@@ -235,12 +238,12 @@ export default function MyTrainCard({
             `With a delay of at least ${COMPENSATION_DELAY_MIN} minutes you may be entitled to compensation.`
           )}{' '}
           <a
-            href="https://www.hallakonsument.se/varor-och-tjanster/resor/"
+            href={claim.url}
             target="_blank"
             rel="noopener noreferrer"
             style={{ fontWeight: 700, color: colors.delayedText }}
           >
-            {t('Så ansöker du', 'How to claim (in Swedish)')}
+            {claim.name ? t(`Så söker du hos ${claim.name}`, `How to claim from ${claim.name}`) : t('Så ansöker du', 'How to claim (in Swedish)')}
           </a>
         </div>
       ) : null}

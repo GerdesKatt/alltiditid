@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { BoardDirection, Departure } from '../lib/types';
 import { COMPENSATION_DELAY_MIN } from '../lib/byte';
+import { compensationLink } from '../lib/compensation';
 import { colors, fonts } from './styles';
 import { COUNTDOWN_MAX_MIN, lineBadge, lineColor, lineName, parseLocal } from '../lib/lineFormat';
 import { lineLabel, trackLabel, useLang } from '../lib/i18n';
@@ -23,6 +24,10 @@ type Props = {
   stale?: boolean;
   /** Gångtid till hållplatsen i minuter när "Hinner jag dit?" är på, annars null. */
   walkMinutes?: number | null;
+  /** Inställd: nästa avgång som tar en dit i stället. */
+  alternative?: Departure | null;
+  /** Raden fälldes ut. */
+  onOpen?: (item: Departure) => void;
 };
 
 /** Beskedet visas bara för avgångar inom den här tiden; längre fram spelar gångtiden ingen roll än. */
@@ -46,6 +51,8 @@ export default function DepartureRow({
   onShowTrip,
   stale = false,
   walkMinutes = null,
+  alternative = null,
+  onOpen,
 }: Props) {
   const [open, setOpen] = useState(false);
   const { lang, t } = useLang();
@@ -156,7 +163,10 @@ export default function DepartureRow({
       <button
         type="button"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          if (!open) onOpen?.(item);
+          setOpen((v) => !v);
+        }}
         style={{
           width: '100%',
           display: 'flex',
@@ -339,7 +349,25 @@ export default function DepartureRow({
           {walkText ? `, ${t('gångtid', 'walking')}: ${walkText}` : ''}
         </span>
       </button>
-
+      {isCancelled && alternative ? (
+        // Alltid ett nästa steg: det inställda följs av vad man tar i stället.
+        <p
+          style={{
+            margin: '-4px 14px 10px',
+            padding: '8px 10px',
+            borderRadius: 'var(--radius-control)',
+            backgroundColor: colors.surfaceRaised,
+            fontSize: '0.875rem',
+            lineHeight: 1.35,
+            color: colors.text,
+          }}
+        >
+          <strong>{t('Ta istället:', 'Take instead:')}</strong>{' '}
+          {lineLabel(alternative.line, lang)} {t('mot', 'to')} {alternative.destination} ·{' '}
+          {alternative.newTime || alternative.estimatedTime || alternative.scheduledTime}
+          {alternative.track ? ` · ${trackLabel(alternative.track, lang)}` : ''}
+        </p>
+      ) : null}
       {open ? (
         <div
           style={{
@@ -426,12 +454,17 @@ export default function DepartureRow({
           ) : null}
           {compensation ? (
             <a
-              href="https://www.hallakonsument.se/varor-och-tjanster/resor/"
+              href={compensationLink(item.operator, item.line).url}
               target="_blank"
               rel="noopener noreferrer"
               style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.amber }}
             >
-              {t('Rätt till ersättning?', 'Entitled to compensation?')}
+              {compensationLink(item.operator, item.line).name
+                ? t(
+                    `Rätt till ersättning? Så söker du hos ${compensationLink(item.operator, item.line).name}`,
+                    `Entitled to compensation? How to claim from ${compensationLink(item.operator, item.line).name}`
+                  )
+                : t('Rätt till ersättning?', 'Entitled to compensation?')}
             </a>
           ) : null}
         </div>

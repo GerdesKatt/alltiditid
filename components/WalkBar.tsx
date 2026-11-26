@@ -44,13 +44,13 @@ export default function WalkBar({ stopName, state, pace, onTurnOn, onTurnOff, on
       <button
         type="button"
         onClick={onTurnOn}
+        title={t('Hinner jag dit? Visa gångtid till hållplatsen', 'Can I make it? Show walking time to the stop')}
         style={{
           minHeight: '44px',
           display: 'inline-flex',
           alignItems: 'center',
           gap: '6px',
-          marginBottom: '10px',
-          padding: '0 12px 0 10px',
+          padding: '0 10px',
           borderRadius: 'var(--radius-control)',
           border: 'none',
           backgroundColor: 'transparent',
@@ -62,7 +62,7 @@ export default function WalkBar({ stopName, state, pace, onTurnOn, onTurnOff, on
         }}
       >
         <span aria-hidden="true">🚶</span>
-        {t('Hinner jag dit? Visa gångtid', 'Can I make it? Show walking time')}
+        {t('Gångtid', 'Walking time')}
       </button>
     );
   }

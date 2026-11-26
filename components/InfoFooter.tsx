@@ -80,6 +80,15 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
               site and how fast it loads. It sets no cookies, stores nothing in your browser and does not follow you
               between sites. We only see aggregated numbers, never individual visitors.
             </li>
+            <li style={privacyItem}>
+              <strong>Our own counts.</strong> To see whether the site works, we count a few events per day, such
+              as how fast the first departure appears and whether a search is abandoned. No cookies, no IP address
+              and nothing that identifies you is stored: only a day, an event name and a tally.
+            </li>
+            <li style={privacyItem}>
+              <strong>Suggestions and filters.</strong> Which lines you open and which mode you picked at a stop
+              are remembered only in your own browser, so the site can suggest your usual trip. Nothing is sent to us.
+            </li>
             {ANALYTICS_ENABLED ? (
               <li style={privacyItem}>
                 <strong>Google Analytics (only if you accept).</strong> With your consent we also use Google Analytics
@@ -171,6 +180,16 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
               många som besöker sajten och hur snabbt den laddar. Den sätter inga kakor, sparar
               ingenting i din webbläsare och följer dig inte mellan sajter. Vi ser bara
               sammanräknade siffror, aldrig enskilda besökare.
+            </li>
+            <li style={privacyItem}>
+              <strong>Egna räkningar.</strong> För att se om sajten fungerar räknar vi några händelser
+              per dag, till exempel hur snabbt första avgången syns och om en sökning avbryts. Inga
+              kakor, ingen IP-adress och inget som pekar ut dig sparas: bara dag, händelse och antal.
+            </li>
+            <li style={privacyItem}>
+              <strong>Förslag och filter.</strong> Vilka linjer du öppnar och vilket trafikslag du valt
+              på en hållplats sparas bara i din egen webbläsare, så att sajten kan föreslå din vanliga
+              resa. Inget skickas till oss.
             </li>
             {ANALYTICS_ENABLED ? (
               <li style={privacyItem}>

@@ -14,13 +14,15 @@ type Props = {
   showingStop: boolean;
   onShowStop: () => void;
   onRemove: () => void;
+  /** Nästa avgång är inställd: det man tar i stället. */
+  alternative?: Departure | null;
 };
 
 /**
  * "Min resa" överst: de tre nästa avgångarna för en sparad linje och riktning,
  * så att svaret på "när går nästa?" syns utan ett enda tryck.
  */
-export default function MyTripCard({ trip, next, loading, now, showingStop, onShowStop, onRemove }: Props) {
+export default function MyTripCard({ trip, next, loading, now, showingStop, onShowStop, onRemove, alternative = null }: Props) {
   const { lang, t } = useLang();
   const badge = lineBadge(trip.line);
   const name = lineLabel(lineName(trip.line, badge), lang);
@@ -186,6 +188,23 @@ export default function MyTripCard({ trip, next, loading, now, showingStop, onSh
           })
         )}
       </div>
+
+      {next[0]?.status === 'cancelled' && alternative ? (
+        // Inställt: alltid ett nästa steg.
+        <p
+          style={{
+            margin: '10px 0 0',
+            padding: '8px 10px',
+            borderRadius: '8px',
+            backgroundColor: colors.surfaceRaised,
+            fontSize: '0.875rem',
+          }}
+        >
+          <strong>{t('Inställd. Ta istället:', 'Cancelled. Take instead:')}</strong>{' '}
+          {lineLabel(alternative.line, lang)} {t('mot', 'to')} {alternative.destination} ·{' '}
+          {alternative.newTime || alternative.estimatedTime || alternative.scheduledTime}
+        </p>
+      ) : null}
 
       {deviation ? (
         <p
