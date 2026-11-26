@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { colors, fonts } from './styles';
 import { useLang } from '../lib/i18n';
-import { at, dayLabel, type PlannedTrip } from '../lib/plannedTrip';
+import { at, dayLabel, isNear, type PlannedTrip } from '../lib/plannedTrip';
 import { LegRow, rideLabel } from './JourneyPlan';
 
 type Props = { planned: PlannedTrip; now: number; onRemove: () => void };
@@ -33,6 +33,46 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
       : trip.dep;
   const started = today && minutes <= -10;
 
+  // Långt kvar (i morgon, eller fler än tre timmar): en kompakt rad, så att Nu-vyn visar nuet.
+  const [expanded, setExpanded] = useState(false);
+  if (!isNear(planned, now) && !expanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        aria-label={t(`Din resa ${day} ${trip.dep} till ${planned.to}. Visa`, `Your trip ${day} ${trip.dep} to ${planned.to}. Show`)}
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: '10px',
+          width: '100%',
+          maxWidth: '40rem',
+          minHeight: '48px',
+          marginBottom: '14px',
+          padding: '10px 0',
+          border: 'none',
+          borderTop: `1px solid ${colors.text}`,
+          borderBottom: `1px solid ${colors.border}`,
+          background: 'none',
+          color: colors.text,
+          textAlign: 'left',
+          cursor: 'pointer',
+        }}
+      >
+        <span style={label}>{day}</span>
+        <span style={{ fontFamily: fonts.display, fontWeight: 800, fontSize: '1.125rem', fontVariantNumeric: 'proportional-nums' }}>
+          {trip.dep}
+        </span>
+        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.875rem' }}>
+          {t('till', 'to')} {planned.to}
+        </span>
+        <span aria-hidden="true" style={{ fontSize: '0.875rem', color: colors.textDim }}>
+          →
+        </span>
+      </button>
+    );
+  }
+
   return (
     <section
       className="invert"
@@ -54,6 +94,8 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
           fontFamily: fonts.display,
           fontSize: 'clamp(3rem, 16vw, 4.5rem)',
           fontWeight: 900,
+              // Proportionella siffror: fast bredd ger luft runt kolonet i den här storleken.
+              fontVariantNumeric: 'proportional-nums',
           lineHeight: 0.95,
           letterSpacing: '-0.05em',
         }}

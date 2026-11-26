@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Departure, StopOption, TransportMode } from '../lib/types';
+import Icon from './Icon';
 import { colors, fonts } from './styles';
 import { lineLabel, useLang } from '../lib/i18n';
 import { lineBadge } from '../lib/lineFormat';
@@ -123,7 +124,7 @@ export default function FindTrip({ stop, mode, onShowTrain, onShowTrip }: Props)
           cursor: 'pointer',
         }}
       >
-        <span aria-hidden="true">🚇</span>
+        <Icon name="train" />
         {t('Hitta min tur', 'Find my trip')}
       </button>
     );
@@ -151,7 +152,7 @@ export default function FindTrip({ stop, mode, onShowTrain, onShowTrip }: Props)
     >
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '8px' }}>
         <h2 style={{ flex: 1, minWidth: 0, fontSize: '0.9375rem', fontWeight: 800, margin: 0 }}>
-          <span aria-hidden="true">🚇 </span>
+          <Icon name="train" /> 
           {heading}
         </h2>
         <button

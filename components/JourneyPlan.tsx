@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import Icon from './Icon';
 import { colors, fonts } from './styles';
 import { useLang } from '../lib/i18n';
 import { lineColor } from '../lib/lineFormat';
@@ -27,6 +28,9 @@ type Props = {
 /** "SL buss 144": bolaget först, sedan slag och nummer. Utan bolag: "Buss 144". */
 export function rideLabel(leg: Leg): string {
   if (leg.kind !== 'ride') return '';
+  // "Snabbtåg tåg 566" (äldre sparade resor) → "Snabbtåg 566"
+  const line = leg.line.replace(/^(\S*?(tåg|buss|båt))\s+\2\b/i, '$1');
+  if (line !== leg.line) return rideLabel({ ...leg, line });
   // Resor sparade före bolagsnamnen: "Länstrafik buss 144" → "Buss 144".
   if (/^länstrafik\s/i.test(leg.line) && !leg.agency) {
     const rest = leg.line.replace(/^länstrafik\s+/i, '');
@@ -309,7 +313,7 @@ export function LegRow({ leg }: { leg: Leg }) {
     return (
       <li style={{ display: 'flex', gap: '12px', padding: '8px 0', fontSize: '0.875rem', color: colors.textDim }}>
         <span aria-hidden="true" style={{ width: '44px', flexShrink: 0, textAlign: 'center' }}>
-          🚶
+          <Icon name="walk" />
         </span>
         <span>
           {t('Gå', 'Walk')} {leg.minutes} min{leg.meters ? ` (${leg.meters} m)` : ''} {t('till', 'to')} {leg.to.name}

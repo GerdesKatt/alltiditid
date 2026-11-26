@@ -29,7 +29,7 @@ import { matchConnection } from '../lib/transferMatch.mjs';
 import { groupKey } from '../lib/lineFormat';
 import JourneyPlan from './JourneyPlan';
 import PlannedTripCard from './PlannedTripCard';
-import { loadPlannedTrip, storePlannedTrip, type PlannedTrip } from '../lib/plannedTrip';
+import { isNear, loadPlannedTrip, storePlannedTrip, type PlannedTrip } from '../lib/plannedTrip';
 import { loadStopIndex, stopPageFor, type StopIndex } from '../lib/stopIndex';
 import SearchPanel from './SearchPanel';
 import StopAbout from './StopAbout';
@@ -700,7 +700,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
   // Svaret på "när går min?" står då alltid överst, utan ett enda tryck.
   const autoTrip = useMemo(() => {
     if (!restored || !hasStop || direction !== 'departures' || departures.length === 0) return null;
-    if (myTrain || planned || (myTrip && myTrip.stopId === selectedStop.id)) return null;
+    // En planerad resa långt fram (i morgon) är en kompakt rad: då behövs ändå svaret för nu.
+    if (myTrain || (planned && isNear(planned, now)) || (myTrip && myTrip.stopId === selectedStop.id)) return null;
     const upcoming = departures.filter((d) => {
       const at = parseLocal(d.expectedAt);
       if (d.status === 'cancelled' || at === null || at < now - DEPARTED_GRACE_MS) return false;

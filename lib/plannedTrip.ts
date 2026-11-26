@@ -64,6 +64,12 @@ export function storePlannedTrip(p: PlannedTrip | null) {
   }
 }
 
+/** Tre timmar före avgång blir den planerade resan det stora blocket; innan dess en kompakt rad. */
+export const NEAR_MS = 3 * 60 * 60_000;
+export function isNear(p: PlannedTrip, now = Date.now()): boolean {
+  return at(p.trip.depDate, p.trip.dep) - now <= NEAR_MS;
+}
+
 /** "i dag", "i morgon", "fre 28 nov" */
 export function dayLabel(date: string, now: number, lang: 'sv' | 'en'): string {
   const start = new Date(now);

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { Disruption } from '../lib/types';
+import Icon from './Icon';
 import { colors } from './styles';
 import { lineLabel, useLang, type Lang } from '../lib/i18n';
 
@@ -90,7 +91,9 @@ export default function DisruptionBox({ disruptions }: Props) {
   }
 
   // Alla berörda linjer, utan dubbletter, i den ordning störningarna kommer.
-  const allLines = formatLines(Array.from(new Set(active.flatMap((d) => d.lines))), lang);
+  // Linjerna bara när de är få; annars bara antalet, så att raden inte blir en uppräkning.
+  const lineSet = Array.from(new Set(active.flatMap((d) => d.lines)));
+  const allLines = lineSet.length <= 3 ? formatLines(lineSet, lang) : '';
   const count = `${active.length} ${
     active.length === 1 ? t('störning', 'disruption') : t('störningar', 'disruptions')
   }`;
@@ -101,8 +104,9 @@ export default function DisruptionBox({ disruptions }: Props) {
       style={{
         marginBottom: '10px',
         borderRadius: 0,
-        border: `1px solid ${colors.delayedBorder}`,
-        backgroundColor: colors.delayedBg,
+        // En rad med en signalkant, ingen orange ruta.
+        borderLeft: `3px solid ${colors.delayedBorder}`,
+        backgroundColor: 'transparent',
         color: colors.text,
       }}
     >
@@ -127,8 +131,7 @@ export default function DisruptionBox({ disruptions }: Props) {
         }}
       >
         <span style={{ flex: 1, minWidth: 0 }}>
-          <span aria-hidden="true">⚠ </span>
-          {count}
+          <Icon name="alert" size={15} /> {count}
           {allLines ? ` · ${allLines}` : ''}
         </span>
         <span style={{ flexShrink: 0, textDecoration: 'underline' }}>{open ? t('Dölj', 'Hide') : t('Visa', 'Show')}</span>
