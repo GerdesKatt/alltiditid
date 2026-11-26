@@ -197,18 +197,19 @@ export default function DepartureBoard({
             </span>
           ) : null}
           {updatedAt && !stale && !offline ? (
+            // Ingen färgad bricka: bara avvikelser får färg. Pricken betyder realtid.
             <span
               style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
                 fontSize: '12px',
-                fontWeight: 700,
-                padding: '5px 11px',
-                borderRadius: '999px',
-                backgroundColor: limited ? colors.delayedBg : colors.okBg,
-                border: `1px solid ${limited ? colors.delayedBorder : colors.okBorder}`,
-                color: limited ? colors.delayedText : colors.okText,
+                fontWeight: 600,
+                color: limited ? colors.amber : colors.textDim,
               }}
             >
-              {limited ? 'Begränsad realtid' : 'Realtid från Trafiklab'}
+              {limited ? null : <span className="rt-dot" aria-hidden="true" />}
+              {limited ? 'Begränsad realtid' : 'Realtid'}
             </span>
           ) : null}
         </div>
@@ -291,8 +292,8 @@ export default function DepartureBoard({
         >
           Trafiklab.se
         </a>
-        , Trafikverket, SL och Västtrafik. Avgångar märkta &quot;tidtabell&quot; saknar
-        realtidsdata.
+        , Trafikverket, SL och Västtrafik. Hallonpricken betyder realtid. Tider med ~ och
+        &quot;ingen realtid&quot; kommer från tidtabellen.
       </p>
     </section>
   );

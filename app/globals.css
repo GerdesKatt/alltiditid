@@ -309,3 +309,36 @@ details[open] .disruption-teaser {
     display: none !important;
   }
 }
+
+/*
+ * Realtidspricken: hallon med en ljus ring. Ringen pulserar en gång när tiden
+ * uppdateras (raden byter key), inte i en evig loop. "Puls, inte studs."
+ */
+.rt-dot {
+  position: relative;
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-tint);
+}
+.rt-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--brand);
+  opacity: 0;
+  animation: rt-pulse 1200ms var(--ease-out) 1;
+}
+@keyframes rt-pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  to {
+    transform: scale(3.2);
+    opacity: 0;
+  }
+}

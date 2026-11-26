@@ -124,7 +124,7 @@ export default function LineGroupRow({ items, direction, now }: Props) {
                   alignItems: 'center',
                   lineHeight: 1.2,
                   padding: '3px 8px',
-                  borderRadius: '7px',
+                  borderRadius: 'var(--radius-badge)',
                   backgroundColor: colors.surfaceRaised,
                   border: `1px solid ${
                     cancelled ? colors.cancelledBorder : delayed ? colors.delayedBorder : colors.border
@@ -135,7 +135,9 @@ export default function LineGroupRow({ items, direction, now }: Props) {
               >
                 {/* Tåg med tågnummer: avgångstiden stort (som på biljetten), annars nedräkningen. */}
                 <span style={{ textDecoration: cancelled ? 'line-through' : 'none' }}>
-                  {trainNumber ? t.scheduledTime : countdownFor(t, now)}
+                  {trainNumber
+                    ? t.scheduledTime
+                    : `${schedule && /min$/.test(countdownFor(t, now)) ? '~' : ''}${countdownFor(t, now)}`}
                 </span>
                 <span style={{ fontSize: '11px', fontWeight: 600, color: colors.textDim }}>
                   {trainNumber
