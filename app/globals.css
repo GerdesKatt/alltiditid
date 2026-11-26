@@ -405,7 +405,10 @@ input[type='search']::-webkit-search-decoration {
   }
   .app-tab {
     min-height: 48px;
+    min-width: 0;
+    padding: 2px;
     font-size: 0.875rem;
+    overflow-wrap: anywhere;
   }
   /* Plats för menyn, så att sidfoten och sista raden går att nå. */
   .app-shell {
