@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import AboutSection from './AboutSection';
 import DepartureBoard from './DepartureBoard';
@@ -106,6 +106,16 @@ type AppProps = {
   /** Text om sidans hållplats under tavlan, renderad på servern för sökmotorerna. */
   intro?: React.ReactNode;
 };
+
+/** Trafikslagen som kan väljas på tavlan, i den ordning de visas. */
+const BOARD_MODES: { key: Exclude<TransportMode, 'all'>; label: string }[] = [
+  { key: 'train', label: 'Tåg' },
+  { key: 'commuter', label: 'Pendel' },
+  { key: 'subway', label: 'T-bana' },
+  { key: 'tram', label: 'Spårvagn' },
+  { key: 'bus', label: 'Buss' },
+  { key: 'ferry', label: 'Båt' },
+];
 
 export default function App({ initialStop, page, intro }: AppProps) {
   const { lang, t } = useLang();
@@ -441,6 +451,13 @@ export default function App({ initialStop, page, intro }: AppProps) {
     return () => clearInterval(tick);
   }, []);
 
+  // Trafikslagen som faktiskt går från hållplatsen just nu, för valen på tavlan.
+  // Det valda visas alltid, så att det går att välja bort även om det inte längre finns.
+  const boardModes = useMemo(
+    () => BOARD_MODES.filter((m) => m.key === mode || departures.some((d) => d.transportMode === m.key)),
+    [departures, mode]
+  );
+
   const queryLower = filterText.trim().toLowerCase();
   const filtered = departures.filter((d) => {
     const expected = parseLocal(d.expectedAt);
@@ -704,8 +721,6 @@ export default function App({ initialStop, page, intro }: AppProps) {
             showBoard();
           }}
           onClose={restored && !wide ? () => setControlsOpen(false) : undefined}
-          mode={mode}
-          onModeChange={setMode}
           stationQuery={stationQuery}
           onStationQueryChange={setStationQuery}
           searchingStops={searchingStops}
@@ -743,7 +758,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
         <div className="switch-stop switch-stop--top">
           <SwitchStopButton
             onClick={() => setControlsOpen(true)}
-            activeFilter={mode !== 'all' || filterText.trim() !== ''}
+            activeFilter={filterText.trim() !== ''}
           />
         </div>
       )}
@@ -806,6 +821,9 @@ export default function App({ initialStop, page, intro }: AppProps) {
         }}
         direction={direction}
         onDirectionChange={setDirection}
+        modes={boardModes}
+        mode={mode}
+        onModeChange={setMode}
         departures={filtered}
         disruptions={disruptions}
         loading={loading}
@@ -843,7 +861,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
               setControlsOpen(true);
               window.scrollTo({ top: 0 });
             }}
-            activeFilter={mode !== 'all' || filterText.trim() !== ''}
+            activeFilter={filterText.trim() !== ''}
           />
         </div>
       ) : null}

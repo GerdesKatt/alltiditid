@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { BoardDirection, BoardSource, Departure, Disruption } from '../lib/types';
+import type { BoardDirection, BoardSource, Departure, Disruption, TransportMode } from '../lib/types';
 import DepartureRow from './DepartureRow';
 import LineGroupRow from './LineGroupRow';
 import DisruptionBox from './DisruptionBox';
@@ -7,12 +7,16 @@ import { groupKey } from '../lib/lineFormat';
 import DirectionToggle from './DirectionToggle';
 import { colors, emptyState } from './styles';
 import { isMyTrip, type MyTrip } from '../lib/myTrip';
-import { useLang } from '../lib/i18n';
+import { modeLabel, useLang } from '../lib/i18n';
 
 type Props = {
   stopName: string;
   direction: BoardDirection;
   onDirectionChange: (direction: BoardDirection) => void;
+  /** Trafikslagen som går från hållplatsen (svenska etiketter), och det valda. */
+  modes: { key: TransportMode; label: string }[];
+  mode: TransportMode;
+  onModeChange: (mode: TransportMode) => void;
   departures: Departure[];
   disruptions: Disruption[];
   loading: boolean;
@@ -86,6 +90,9 @@ export default function DepartureBoard({
   stopName,
   direction,
   onDirectionChange,
+  modes,
+  mode,
+  onModeChange,
   departures,
   disruptions,
   loading,
@@ -258,6 +265,44 @@ export default function DepartureBoard({
             {t('Per linje', 'By line')}
           </button>
         </div>
+
+        {/* Trafikslag direkt på tavlan: vid Stockholm C ska man kunna se bara tågen
+            utan att öppna sökpanelen. Visas bara när hållplatsen har mer än ett slag. */}
+        {modes.length > 1 || mode !== 'all' ? (
+          <div
+            role="group"
+            aria-label={t('Trafikslag', 'Mode of transport')}
+            className="chip-scroll"
+            style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}
+          >
+            {[{ key: 'all' as TransportMode, label: 'Alla' }, ...modes].map((m) => {
+              const active = mode === m.key;
+              return (
+                <button
+                  key={m.key}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => onModeChange(m.key)}
+                  style={{
+                    flexShrink: 0,
+                    minHeight: '40px',
+                    padding: '0 14px',
+                    borderRadius: '999px',
+                    border: `1px solid ${active ? colors.accentStrong : colors.borderMuted}`,
+                    backgroundColor: active ? colors.accentStrong : 'transparent',
+                    color: active ? colors.onAccent : colors.text,
+                    fontWeight: active ? 800 : 600,
+                    fontSize: '0.8125rem',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {modeLabel(m.label, lang)}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {updatedAt && !stale && !offline ? (

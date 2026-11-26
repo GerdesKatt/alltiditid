@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { REGIONS } from '../lib/regions';
 import NearbyStops from './NearbyStops';
-import type { Region, RegionKey, StopOption, TransportMode } from '../lib/types';
+import type { Region, RegionKey, StopOption } from '../lib/types';
 import { colors, textInput } from './styles';
 import { AIRPORTS } from '../lib/flights.mjs';
 import { modeLabel, REGION_EN, useLang } from '../lib/i18n';
@@ -14,8 +14,6 @@ type Props = {
   onQuickStopSelect: (stop: StopOption) => void;
   /** Stänger panelen (visas bara när det finns något att gå tillbaka till). */
   onClose?: () => void;
-  mode: TransportMode;
-  onModeChange: (mode: TransportMode) => void;
   stationQuery: string;
   onStationQueryChange: (query: string) => void;
   searchingStops: boolean;
@@ -38,8 +36,6 @@ export default function SearchPanel({
   selectedStop,
   onQuickStopSelect,
   onClose,
-  mode,
-  onModeChange,
   stationQuery,
   onStationQueryChange,
   searchingStops,
@@ -72,16 +68,11 @@ export default function SearchPanel({
     setActiveIndex(-1);
     setDismissed(false);
   }, [suggestions]);
-  // Tavlans filter är hopfällda tills man ber om dem, men öppna om något filter redan gäller.
-  const activeFilterCount = (mode !== 'all' ? 1 : 0) + (filterText.trim() ? 1 : 0);
+  // Textfiltret är hopfällt tills man ber om det, men öppet om det redan gäller.
+  // Trafikslagen ligger direkt på tavlan (DepartureBoard), där de behövs.
+  const activeFilterCount = filterText.trim() ? 1 : 0;
   const [filtersOpen, setFiltersOpen] = useState(activeFilterCount > 0);
-  const activeModeLabel = currentRegion.modes.find((m) => m.key === mode)?.label;
-  const summary = [
-    mode !== 'all' && activeModeLabel ? modeLabel(activeModeLabel, lang) : null,
-    filterText.trim() ? `"${filterText.trim()}"` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ') || t('Trafikslag, linje', 'Mode, line');
+  const summary = filterText.trim() ? `"${filterText.trim()}"` : t('Linje, tågnummer', 'Line, train number');
   const listOpen = !dismissed && (searchingStops || suggestions.length > 0);
   const optionId = (i: number) => `hallplats-forslag-${i}`;
 
@@ -412,8 +403,7 @@ export default function SearchPanel({
         })}
       </div>
 
-      {/* Trafikslag och filter gäller tavlan, så de visas först när en hållplats är vald,
-          och bara när man ber om dem. */}
+      {/* Filtret gäller tavlan, så det visas först när en hållplats är vald, och bara när man ber om det. */}
       {selectedStop.id ? (
         <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: `1px solid ${colors.border}` }}>
           <button
@@ -485,44 +475,6 @@ export default function SearchPanel({
 
           {filtersOpen ? (
             <div id="tavlans-filter" style={{ marginTop: '8px' }}>
-              <div
-                role="group"
-                aria-label={t('Trafikslag', 'Mode of transport')}
-                className="chip-scroll"
-                style={{
-                  display: 'flex',
-                  gap: '6px',
-                  overflowX: 'auto',
-                  margin: '0 -20px 10px',
-                  padding: '0 20px 2px',
-                }}
-              >
-                {currentRegion.modes.map((m) => {
-                  const active = mode === m.key;
-                  return (
-                    <button
-                      key={m.key}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => onModeChange(m.key)}
-                      style={{
-                        flexShrink: 0,
-                        minHeight: '36px',
-                        padding: '0 12px',
-                        borderRadius: 'var(--radius-control)',
-                        border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
-                        backgroundColor: active ? colors.accentStrong : 'transparent',
-                        color: active ? colors.onAccent : colors.text,
-                        fontWeight: 600,
-                        fontSize: '0.8125rem',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {modeLabel(m.label, lang)}
-                    </button>
-                  );
-                })}
-              </div>
               <label htmlFor="filtrera-avgangar" className="sr-only">
                 {t('Filtrera tavlan för', 'Filter the board for')} {selectedStop.shortName || selectedStop.name}
               </label>
