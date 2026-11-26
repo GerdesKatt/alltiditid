@@ -21,6 +21,8 @@ type Props = {
   fromName: string;
   /** Spara en resa som Min resa. */
   onSave: (to: string, from: string, trip: Trip) => void;
+  /** Rensa: tömmer Vart ska du? och resultaten. */
+  onClear?: () => void;
   /** Avgångstiden för den resa som redan är sparad, så att knappen visar Sparad. */
   savedKey: string;
 };
@@ -62,7 +64,7 @@ function position(): Promise<{ lat: number; lon: number } | null> {
  * Hela resan dit man ska, med byten och gång: buss till Fruängen, T-bana till T-Centralen,
  * regionaltåg till Karlstad. Startar där man står (positionen) eller vid tavlans hållplats.
  */
-export default function JourneyPlan({ goal, fromId, fromName, onSave, savedKey }: Props) {
+export default function JourneyPlan({ goal, fromId, fromName, onSave, savedKey, onClear }: Props) {
   const { t, lang } = useLang();
   // Tid: nu, eller ett valt datum och klockslag, som avgång eller senaste ankomst.
   const [whenMode, setWhenMode] = useState<'now' | 'later'>('now');
@@ -116,6 +118,15 @@ export default function JourneyPlan({ goal, fromId, fromName, onSave, savedKey }
       setLoading(false);
     }
   }
+
+  // Tömt fält: glöm förra sökningen, så att ett nytt mål börjar från början.
+  useEffect(() => {
+    if (target.length === 0) {
+      setPlan(null);
+      setAsked('');
+      setError('');
+    }
+  }, [target]);
 
   // Har man redan sökt och byter tid eller start: sök om av sig själv (samma mål).
   useEffect(() => {
@@ -223,12 +234,40 @@ export default function JourneyPlan({ goal, fromId, fromName, onSave, savedKey }
 
         {plan && !stale ? (
           <section aria-label={t(`Resor till ${plan.to}`, `Trips to ${plan.to}`)} style={{ marginTop: '16px' }}>
-            <p style={label}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+            <p style={{ ...label, flex: 1 }}>
               {plan.fromHere ? t('Från din position', 'From your location') : t(`Från ${fromName}`, `From ${fromName}`)} ·{' '}
               {plan.to}
               {plan.date ? ` · ${dayLabel(plan.date, Date.now(), lang)}` : ''}
               {plan.time ? ` · ${plan.arrive ? t('framme', 'arrive') : t('efter', 'after')} ${plan.time}` : ''}
             </p>
+            {onClear ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setPlan(null);
+                  setAsked('');
+                  onClear();
+                }}
+                style={{
+                  flexShrink: 0,
+                  minHeight: '32px',
+                  marginTop: '-8px',
+                  padding: 0,
+                  border: 'none',
+                  background: 'none',
+                  color: colors.text,
+                  fontSize: '0.8125rem',
+                  fontWeight: 700,
+                  textDecoration: 'underline',
+                  textUnderlineOffset: '3px',
+                  cursor: 'pointer',
+                }}
+              >
+                {t('Rensa', 'Clear')}
+              </button>
+            ) : null}
+            </div>
             <ol style={{ listStyle: 'none', margin: '6px 0 0', padding: 0 }}>
               {plan.trips.map((trip, i) => {
                 const expanded = open === i;
