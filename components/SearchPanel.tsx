@@ -424,6 +424,9 @@ export default function SearchPanel({
           ) : null}
         </div>
 
+        {/* Filtret gäller tavlan, så det visas först när en hållplats är vald. */}
+        {selectedStop.id ? (
+          <>
         <label
           htmlFor="filtrera-avgangar"
           style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: colors.textDim, margin: '14px 0 6px' }}
@@ -460,6 +463,8 @@ export default function SearchPanel({
           >
             Tåg {filterTrain}: visa hela resan, var tåget än är
           </button>
+        ) : null}
+          </>
         ) : null}
       </div>
     </section>
