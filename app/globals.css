@@ -420,14 +420,18 @@ input[type='search']::-webkit-search-decoration {
 .app-tab-dot {
   background-color: var(--on-brand);
 }
+.app-tab {
+  position: relative;
+}
+/* Pricken (något är sparat) ligger bredvid texten utan att flytta den. */
 .app-tab-dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   margin-left: 6px;
   border-radius: 50%;
-  background-color: var(--brand);
-  vertical-align: 1px;
+  background-color: currentColor;
+  vertical-align: 0.15em;
 }
 @media (max-width: 767px) {
   .app-tabs {
@@ -448,7 +452,7 @@ input[type='search']::-webkit-search-decoration {
     min-height: 52px;
     min-width: 0;
     padding: 4px 2px;
-    flex-direction: column;
+    flex-direction: row;
     gap: 3px;
     font-size: 0.75rem;
     letter-spacing: 0.06em;

@@ -124,6 +124,8 @@ export default function MyTripCard({
               fontFamily: fonts.display,
               fontSize: 'clamp(3rem, 16vw, 4.5rem)',
               fontWeight: 900,
+              // Proportionella siffror: fast bredd ger luft runt kolonet i den här storleken.
+              fontVariantNumeric: 'proportional-nums',
               lineHeight: 0.95,
               letterSpacing: '-0.05em',
               color: headCancelled || headDelayed ? colors.amber : colors.text,

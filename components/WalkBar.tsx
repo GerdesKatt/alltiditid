@@ -1,4 +1,5 @@
 import React from 'react';
+import Icon from './Icon';
 import { colors } from './styles';
 import { decimal, useLang } from '../lib/i18n';
 import type { WalkState } from '../lib/useWalk';
@@ -61,7 +62,7 @@ export default function WalkBar({ stopName, state, pace, onTurnOn, onTurnOff, on
           cursor: 'pointer',
         }}
       >
-        <span aria-hidden="true">🚶</span>
+        <Icon name="walk" />
         {t('Gångtid', 'Walking time')}
       </button>
     );
@@ -102,7 +103,7 @@ export default function WalkBar({ stopName, state, pace, onTurnOn, onTurnOff, on
       }}
     >
       <span role="status" style={{ flex: '1 1 12rem', minWidth: 0, color: colors.text, fontWeight: 600 }}>
-        <span aria-hidden="true">🚶 </span>
+        <Icon name="walk" /> 
         {message}
       </span>
       {state.kind === 'ready' || state.kind === 'locating' ? (

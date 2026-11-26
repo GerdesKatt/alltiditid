@@ -14,12 +14,12 @@ export default function FavoritesBar({ favorites, currentId, onSelect }: Props) 
   const { t } = useLang();
   if (favorites.length === 0) return null;
   return (
-    <nav aria-label={t('Sparade hållplatser', 'Saved stops')} style={{ marginBottom: '14px' }}>
+    <nav aria-label={t('Sparade hållplatser', 'Saved stops')} style={{ marginBottom: '6px' }}>
       <ul
         className="favorites-scroll"
         style={{
           display: 'flex',
-          gap: '8px',
+          gap: '18px',
           listStyle: 'none',
           margin: 0,
           padding: '2px 0 4px',
@@ -35,19 +35,22 @@ export default function FavoritesBar({ favorites, currentId, onSelect }: Props) 
                 aria-current={current ? 'true' : undefined}
                 onClick={() => onSelect(stop)}
                 style={{
-                  minHeight: '40px',
-                  padding: '0 14px',
-                  borderRadius: 'var(--radius-control)',
-                  border: `1px solid ${current ? colors.accentStrong : colors.borderStrong}`,
-                  backgroundColor: current ? colors.accentStrong : colors.surface,
-                  color: current ? colors.onAccent : colors.text,
+                  // En lätt rad: stjärna och namn, det valda understruket.
+                  minHeight: '44px',
+                  padding: 0,
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                  color: current ? colors.text : colors.textDim,
+                  textDecoration: current ? 'underline' : 'none',
+                  textUnderlineOffset: '5px',
+                  textDecorationThickness: '2px',
                   fontSize: '0.875rem',
-                  fontWeight: current ? 800 : 600,
+                  fontWeight: current ? 700 : 600,
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                 }}
               >
-                <span aria-hidden="true" style={{ color: current ? colors.onAccent : colors.brand, marginRight: '6px' }}>
+                <span aria-hidden="true" style={{ color: 'inherit', marginRight: '6px' }}>
                   ★
                 </span>
                 {stop.shortName || stop.name}

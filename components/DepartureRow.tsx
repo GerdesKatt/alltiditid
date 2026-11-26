@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { BoardDirection, Departure } from '../lib/types';
 import { COMPENSATION_DELAY_MIN } from '../lib/byte';
 import { compensationLink } from '../lib/compensation';
+import Icon from './Icon';
 import { colors, fonts } from './styles';
 import { COUNTDOWN_MAX_MIN, lineBadge, lineColor, lineName, parseLocal } from '../lib/lineFormat';
 import { lineLabel, trackLabel, useLang } from '../lib/i18n';
@@ -251,7 +252,7 @@ export default function DepartureRow({
                   fontWeight: 700,
                 }}
               >
-                <span aria-hidden="true">🚶 </span>
+                <Icon name="walk" size={14} /> 
                 {walkText}
               </span>
             ) : null}

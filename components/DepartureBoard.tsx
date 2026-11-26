@@ -294,7 +294,7 @@ export default function DepartureBoard({
             >
               {direction === 'arrivals' ? t('Ankomster till', 'Arrivals at') : t('Avgångar från', 'Departures from')}
             </span>
-            <h1 style={{ fontSize: 'clamp(2rem, 9vw, 2.75rem)', fontWeight: 900, lineHeight: 1, letterSpacing: '-0.045em', margin: 0, color: colors.text, overflowWrap: 'anywhere' }}>
+            <h1 style={{ fontSize: stopName.length > 16 ? 'clamp(1.5rem, 6.5vw, 2rem)' : 'clamp(2rem, 9vw, 2.75rem)', fontWeight: 900, lineHeight: 1, letterSpacing: '-0.045em', margin: 0, color: colors.text, overflowWrap: 'anywhere' }}>
               {stopName}
             </h1>
           </div>
@@ -403,7 +403,7 @@ export default function DepartureBoard({
             role="group"
             aria-label={t('Trafikslag', 'Mode of transport')}
             className="chip-scroll"
-            style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}
+            style={{ flexBasis: '100%', display: 'flex', gap: '18px', overflowX: 'auto', borderBottom: `1px solid ${colors.border}` }}
           >
             {[{ key: 'all' as TransportMode, label: 'Alla' }, ...modes].map((m) => {
               const active = mode === m.key;
@@ -414,15 +414,17 @@ export default function DepartureBoard({
                   aria-pressed={active}
                   onClick={() => onModeChange(m.key)}
                   style={{
+                    // Ett lätt reglage: text, och en linje under det valda.
                     flexShrink: 0,
-                    minHeight: '40px',
-                    padding: '0 14px',
-                    borderRadius: 0,
-                    border: `1px solid ${active ? colors.accentStrong : colors.borderMuted}`,
-                    backgroundColor: active ? colors.accentStrong : 'transparent',
-                    color: active ? colors.onAccent : colors.text,
-                    fontWeight: active ? 800 : 600,
-                    fontSize: '0.8125rem',
+                    minHeight: '44px',
+                    padding: '0 2px',
+                    marginBottom: '-1px',
+                    border: 'none',
+                    borderBottom: `2px solid ${active ? colors.text : 'transparent'}`,
+                    backgroundColor: 'transparent',
+                    color: active ? colors.text : colors.textDim,
+                    fontWeight: active ? 700 : 600,
+                    fontSize: '0.875rem',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
                   }}
@@ -549,7 +551,11 @@ export default function DepartureBoard({
         </div>
       ) : null}
 
-      {!errorMsg ? <DisruptionBox disruptions={disruptions} /> : null}
+      {!errorMsg ? (
+        <DisruptionBox
+          disruptions={mode === 'all' ? disruptions : disruptions.filter((d) => d.lines.length === 0 || d.lines.some((l) => lineMode(l) === mode))}
+        />
+      ) : null}
 
       {errorMsg ? (
         <div
@@ -681,4 +687,16 @@ export default function DepartureBoard({
       </p>
     </section>
   );
+}
+
+/** "Pendeltåg 41" → commuter, "Gröna linjen 17" → subway: för att visa störningar för valt trafikslag. */
+function lineMode(line: string): TransportMode | null {
+  const l = line.toLowerCase();
+  if (l.includes('linjen') || l.startsWith('tunnelbana')) return 'subway';
+  if (l.startsWith('pendeltåg')) return 'commuter';
+  if (l.startsWith('buss')) return 'bus';
+  if (l.includes('spårv') || l.includes('tvärbana') || l.includes('lidingöbana') || l.includes('nockebybana')) return 'tram';
+  if (l.includes('båt') || l.includes('färja')) return 'ferry';
+  if (l.includes('tåg')) return 'train';
+  return null;
 }
