@@ -22,6 +22,7 @@ export const REGIONS: Region[] = [
       { key: 'subway', label: 'T-bana' },
       { key: 'tram', label: 'Spårvagn' },
       { key: 'bus', label: 'Buss' },
+      { key: 'ferry', label: 'Båt' },
     ],
   },
   {
@@ -39,6 +40,7 @@ export const REGIONS: Region[] = [
       { key: 'commuter', label: 'Pendeltåg' },
       { key: 'bus', label: 'SL-buss' },
       { key: 'tram', label: 'Tvärbana/Lokal' },
+      { key: 'ferry', label: 'Båt' },
       { key: 'train', label: 'Fjärr/Regional' },
     ],
   },
