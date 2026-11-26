@@ -16,6 +16,8 @@ type Props = {
   onToggleMyTrip?: (item: Departure) => void;
   /** Öppnar tågets hela resa (bara tåg med tågnummer). */
   onShowTrain?: (trainNumber: string) => void;
+  /** Öppnar turens hela resa (buss, T-bana, spårvagn, båt). */
+  onShowTrip?: (trip: { id: string; date: string }) => void;
   /** Tavlan är gammal (ingen anslutning): pricken släcks och tiderna tonas ned. */
   stale?: boolean;
 };
@@ -35,6 +37,7 @@ export default function DepartureRow({
   isMyTrip = false,
   onToggleMyTrip,
   onShowTrain,
+  onShowTrip,
   stale = false,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -71,6 +74,11 @@ export default function DepartureRow({
   // Ordinarie tid → väntad tid, när de skiljer sig (t.ex. en buss 2 min sen: "18:35 → 18:37").
   const shifted = !isCancelled && !isDelayed && clock !== item.scheduledTime;
 
+  // Hela resan: tåg från Trafikverket (tågnummer), övriga från Trafiklab (tur).
+  const showsTrain = Boolean(
+    onShowTrain && item.trainNumber && (item.transportMode === 'train' || item.transportMode === 'commuter')
+  );
+  const showsTrip = Boolean(!showsTrain && onShowTrip && item.tripId && item.tripDate);
   const badge = lineBadge(item.line);
   const tint = lineColor(item);
   const name = lineLabel(lineName(item.line, badge), lang);
@@ -328,10 +336,14 @@ export default function DepartureRow({
           >
             {isSelectedTrip ? t('Vald resa', 'Selected trip') : t('Jag är ombord', "I'm on board")}
           </button>
-          {onShowTrain && item.trainNumber && (item.transportMode === 'train' || item.transportMode === 'commuter') ? (
+          {showsTrain || showsTrip ? (
             <button
               type="button"
-              onClick={() => onShowTrain(item.trainNumber!)}
+              onClick={() =>
+                showsTrain
+                  ? onShowTrain!(item.trainNumber!)
+                  : onShowTrip!({ id: item.tripId!, date: item.tripDate! })
+              }
               style={{
                 minHeight: '44px',
                 padding: '0 14px',
