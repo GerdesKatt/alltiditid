@@ -85,20 +85,21 @@ export default function DepartureRow({
     ? colors.textDim
     : colors.text;
 
-  // Hela raden läses upp som en mening, t.ex. "Buss 160 mot Årstaberg, 3 min, Läge J".
-  const spoken = `${item.line} ${direction === 'arrivals' ? 'från' : 'mot'} ${item.destination}, ${
+  // Knappens namn är det som syns på raden (så att röststyrning hittar den, WCAG 2.5.3),
+  // följt av en dold förklaring för skärmläsare, t.ex. "Buss 160, ordinarie 14:05".
+  const spokenExtra = `${item.line}, ${
     isCancelled
       ? `inställd, ordinarie tid ${item.scheduledTime}`
       : isDelayed
       ? `försenad${item.delayMinutes ? ` ${item.delayMinutes} min` : ''}, ny tid ${newTime}, ordinarie ${item.scheduledTime}`
       : `${
           booked
-            ? `avgår ${item.scheduledTime}${countdown ? `, ${countdown}` : ''}`
-            : `${bigTime === 'Nu' ? 'avgår nu' : bigTime}, ordinarie ${item.scheduledTime}`
+            ? countdown || 'ordinarie avgångstid'
+            : `ordinarie ${item.scheduledTime}`
         }${shifted && !early ? `, väntas ${clock}` : ''}${early ? `, ${early} min tidig, väntas ${clock}` : ''}${
           onlySchedule ? ', enligt tidtabell' : ''
         }`
-  }${details ? `, ${details}` : ''}${item.deviation ? `, ${item.deviation}` : ''}`;
+  }`;
 
   return (
     <div
@@ -112,7 +113,6 @@ export default function DepartureRow({
       <button
         type="button"
         aria-expanded={open}
-        aria-label={spoken}
         onClick={() => setOpen((v) => !v)}
         style={{
           width: '100%',
@@ -131,7 +131,6 @@ export default function DepartureRow({
       >
         {/* Linjemärke */}
         <span
-          aria-hidden="true"
           style={{
             flexShrink: 0,
             minWidth: '44px',
@@ -153,7 +152,7 @@ export default function DepartureRow({
         </span>
 
         {/* Destination och detaljer */}
-        <span aria-hidden="true" style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ flex: 1, minWidth: 0 }}>
           <span
             style={{
               display: 'block',
@@ -190,7 +189,7 @@ export default function DepartureRow({
         </span>
 
         {/* Tid: minuter kvar störst */}
-        <span aria-hidden="true" style={{ flexShrink: 0, textAlign: 'right' }}>
+        <span style={{ flexShrink: 0, textAlign: 'right' }}>
           <span
             style={{
               fontFamily: fonts.display,
@@ -207,7 +206,7 @@ export default function DepartureRow({
               gap: '6px',
             }}
           >
-            {realtime ? <span key={item.expectedAt} className="rt-dot" /> : null}
+            {realtime ? <span key={item.expectedAt} className="rt-dot" aria-hidden="true" /> : null}
             {shownBig}
           </span>
           <span
@@ -255,6 +254,7 @@ export default function DepartureRow({
             )}
           </span>
         </span>
+        <span className="sr-only">, {spokenExtra}</span>
       </button>
 
       {open ? (
@@ -317,7 +317,7 @@ export default function DepartureRow({
             <button
               type="button"
               aria-pressed={isMyTrip}
-              aria-label={`Spara ${item.line} mot ${item.destination} som min resa`}
+              aria-label={`${isMyTrip ? 'Min resa' : 'Spara som min resa'}: ${item.line} mot ${item.destination}`}
               onClick={() => onToggleMyTrip(item)}
               style={{
                 minHeight: '44px',
