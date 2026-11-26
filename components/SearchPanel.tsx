@@ -27,6 +27,8 @@ type Props = {
   onOpenAirport?: (iata: string) => void;
   /** Öppnar ett tågs hela resa, när sökningen är ett tågnummer. */
   onOpenTrain?: (trainNumber: string) => void;
+  /** Flygtavlan, som snabbval (flyg ligger inte i menyn). */
+  onOpenFlights?: () => void;
 };
 
 export default function SearchPanel({
@@ -46,6 +48,7 @@ export default function SearchPanel({
   recentStops,
   onOpenAirport,
   onOpenTrain,
+  onOpenFlights,
 }: Props) {
   const { lang, t } = useLang();
   // "532", "tåg 532", "train 532" eller "SJ 532": ett tågnummer.
@@ -401,6 +404,26 @@ export default function SearchPanel({
             </button>
           );
         })}
+        {onOpenFlights ? (
+          <button
+            type="button"
+            onClick={onOpenFlights}
+            style={{
+              flexShrink: 0,
+              minHeight: '36px',
+              padding: '0 12px',
+              borderRadius: 'var(--radius-control)',
+              border: `1px solid ${colors.borderStrong}`,
+              backgroundColor: 'transparent',
+              color: colors.text,
+              fontWeight: 600,
+              fontSize: '0.8125rem',
+              cursor: 'pointer',
+            }}
+          >
+            {t('Flyg', 'Flights')}
+          </button>
+        ) : null}
       </div>
 
       {/* Filtret gäller tavlan, så det visas först när en hållplats är vald, och bara när man ber om det. */}

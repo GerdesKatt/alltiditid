@@ -7,3 +7,4 @@ export function groupStop(group: StationGroup): StopOption;
 export function groupedStop<T extends StopOption>(stop: T): T;
 export function sameStation(a: string, b: string): boolean;
 export function mergeStops<T extends StopOption>(list: T[]): T[];
+export function mergeSameName<T extends StopOption>(list: T[]): T[];

@@ -9,7 +9,7 @@ import { useWalk } from '../lib/useWalk';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { parseLocal } from '../lib/lineFormat';
 import { groupKey } from '../lib/lineFormat';
-import DirectionToggle from './DirectionToggle';
+import { alternativeFor } from '../lib/alternative.mjs';
 import { colors, emptyState } from './styles';
 import { isMyTrip, type MyTrip } from '../lib/myTrip';
 import { modeLabel, useLang } from '../lib/i18n';
@@ -51,6 +51,8 @@ type Props = {
   onClearFilter: () => void;
   view: BoardView;
   onViewChange: (view: BoardView) => void;
+  /** En rad fälldes ut (för "Brukar du ta …?"). */
+  onRowOpen?: (item: Departure) => void;
 };
 
 export type BoardView = 'list' | 'lines';
@@ -79,6 +81,51 @@ function listStyle(count: number): React.CSSProperties {
     ['--rows' as string]: Math.ceil(count / 2),
   };
 }
+
+const iconButton = {
+  flexShrink: 0,
+  width: '44px',
+  height: '44px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 0,
+  borderRadius: 'var(--radius-control)',
+  border: `1px solid ${colors.borderStrong}`,
+  backgroundColor: colors.surface,
+  color: colors.text,
+  cursor: 'pointer',
+} as const;
+
+const menuItem = {
+  display: 'block',
+  width: '100%',
+  minHeight: '44px',
+  padding: '0 12px',
+  border: 'none',
+  borderRadius: 'var(--radius-control)',
+  background: 'none',
+  color: colors.text,
+  fontFamily: 'inherit',
+  fontSize: '0.9375rem',
+  fontWeight: 600,
+  textAlign: 'left',
+  cursor: 'pointer',
+} as const;
+
+const chipOff = {
+  minHeight: '32px',
+  marginLeft: '4px',
+  padding: '0 10px',
+  borderRadius: 'var(--radius-control)',
+  border: `1px solid ${colors.borderStrong}`,
+  backgroundColor: 'transparent',
+  color: colors.text,
+  fontFamily: 'inherit',
+  fontSize: '0.75rem',
+  fontWeight: 700,
+  cursor: 'pointer',
+} as const;
 
 const emptyButton = {
   minHeight: '44px',
@@ -122,6 +169,7 @@ export default function DepartureBoard({
   onClearFilter,
   view,
   onViewChange,
+  onRowOpen,
 }: Props) {
   const { lang, t } = useLang();
   const walk = useWalk(stopId);
@@ -138,6 +186,36 @@ export default function DepartureBoard({
     return hit ? hit.id : null;
   }, [departures, walkMin, now]);
   const [limit, setLimit] = useState(PAGE_SIZE);
+  // Menyn med det man gör ibland: ankomster, per linje, stationen.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('touchstart', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('touchstart', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
+  // Inställda avgångar: nästa som tar en dit i stället.
+  const alternatives = useMemo(() => {
+    const map = new Map<string, Departure>();
+    for (const d of departures) {
+      if (d.status !== 'cancelled') continue;
+      const alt = alternativeFor(d, departures);
+      if (alt) map.set(d.id, alt);
+    }
+    return map;
+  }, [departures]);
   // Ny hållplats, riktning eller vy: börja om från de första raderna.
   useEffect(() => setLimit(PAGE_SIZE), [stopName, direction, view]);
 
@@ -181,6 +259,8 @@ export default function DepartureBoard({
     : '';
   // Data äldre än så här räknas som inaktuell och visas som en varning.
   const stale = updatedAt ? now - updatedAt.getTime() > STALE_AFTER_MS : false;
+  // Hur gammal den visade tavlan är, i hela minuter (minst 1).
+  const ageMin = updatedAt ? Math.max(1, Math.floor((now - updatedAt.getTime()) / 60000)) : 0;
   const limited = source === 'resrobot';
 
   return (
@@ -198,13 +278,13 @@ export default function DepartureBoard({
           gap: '8px',
         }}
       >
-        <div style={{ flexBasis: '100%', display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '10px' }}>
-          <div style={{ flex: '1 1 7rem', minWidth: 0 }}>
-            <span style={{ fontSize: '0.8125rem', color: colors.textDim, display: 'block' }}>
-              {direction === 'arrivals'
-                ? t('Visar ankomster till', 'Showing arrivals at')
-                : t('Visar avgångar från', 'Showing departures from')}
-            </span>
+        <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'flex-end', gap: '6px' }}>
+          <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+            {direction === 'arrivals' ? (
+              <span style={{ fontSize: '0.8125rem', color: colors.textDim, display: 'block' }}>
+                {t('Ankomster till', 'Arrivals at')}
+              </span>
+            ) : null}
             <h1 style={{ fontSize: '1.375rem', fontWeight: 800, margin: 0, color: colors.text, overflowWrap: 'anywhere' }}>
               {stopName}
             </h1>
@@ -212,78 +292,99 @@ export default function DepartureBoard({
           <button
             type="button"
             aria-pressed={isFavorite}
+            aria-label={
+              isFavorite
+                ? t(`${stopName} är sparad`, `${stopName} is saved`)
+                : favoritesFull
+                ? t('Listan är full', 'The list is full')
+                : t(`Spara ${stopName}`, `Save ${stopName}`)
+            }
             disabled={favoritesFull}
             title={
               favoritesFull
                 ? t('Du kan spara högst 8 hållplatser. Ta bort en först.', 'You can save at most 8 stops. Remove one first.')
-                : undefined
+                : isFavorite
+                ? t('Sparad', 'Saved')
+                : t('Spara', 'Save')
             }
             onClick={onToggleFavorite}
-            style={{
-              flexShrink: 0,
-              minHeight: '44px',
-              padding: '0 14px',
-              borderRadius: 'var(--radius-control)',
-              border: `1px solid ${colors.borderStrong}`,
-              backgroundColor: colors.surface,
-              color: colors.text,
-              fontSize: '0.875rem',
-              fontWeight: 700,
-              cursor: favoritesFull ? 'not-allowed' : 'pointer',
-              opacity: favoritesFull ? 0.6 : 1,
-              whiteSpace: 'nowrap',
-            }}
+            style={{ ...iconButton, cursor: favoritesFull ? 'not-allowed' : 'pointer', opacity: favoritesFull ? 0.6 : 1 }}
           >
-            <span aria-hidden="true" style={{ color: colors.brand, marginRight: '6px' }}>
+            <span aria-hidden="true" style={{ fontSize: '1.125rem', lineHeight: 1, color: colors.brand }}>
               {isFavorite ? '★' : '☆'}
             </span>
-            {isFavorite ? t('Sparad', 'Saved') : favoritesFull ? t('Listan full', 'List full') : t('Spara', 'Save')}
           </button>
-          <button
-            type="button"
-            onClick={onOpenStation}
-            style={{
-              flexShrink: 0,
-              minHeight: '44px',
-              minWidth: '44px',
-              padding: '0 12px',
-              borderRadius: 'var(--radius-control)',
-              border: `1px solid ${colors.borderStrong}`,
-              backgroundColor: colors.surface,
-              color: colors.text,
-              fontSize: '0.875rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {t('Stationen', 'Station')}
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-          <DirectionToggle direction={direction} onChange={onDirectionChange} />
-          {/* C2: ett enda av/på-val i stället för en egen rad med Lista/Per linje. */}
-          <button
-            type="button"
-            aria-pressed={view === 'lines'}
-            onClick={() => onViewChange(view === 'lines' ? 'list' : 'lines')}
-            style={{
-              minHeight: '44px',
-              padding: '0 12px',
-              borderRadius: '10px',
-              border: view === 'lines' ? `1px solid ${colors.accent}` : `1px solid ${colors.borderMuted}`,
-              backgroundColor: view === 'lines' ? colors.accentTint : 'transparent',
-              color: colors.text,
-              fontWeight: view === 'lines' ? 800 : 600,
-              fontSize: '0.8125rem',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {view === 'lines' ? '✓ ' : ''}
-            {t('Per linje', 'By line')}
-          </button>
+          <div ref={menuRef} style={{ position: 'relative', flexShrink: 0 }}>
+            <button
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-label={t('Mer', 'More')}
+              title={t('Ankomster, per linje, stationen', 'Arrivals, by line, station')}
+              onClick={() => setMenuOpen((v) => !v)}
+              style={iconButton}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <circle cx="5" cy="12" r="1.9" />
+                <circle cx="12" cy="12" r="1.9" />
+                <circle cx="19" cy="12" r="1.9" />
+              </svg>
+            </button>
+            {menuOpen ? (
+              <div
+                role="menu"
+                aria-label={t('Mer', 'More')}
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: 'calc(100% + 6px)',
+                  zIndex: 30,
+                  minWidth: '13rem',
+                  padding: '4px',
+                  borderRadius: 'var(--radius-card)',
+                  border: `1px solid ${colors.borderStrong}`,
+                  backgroundColor: colors.surface,
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.18)',
+                }}
+              >
+                <button
+                  type="button"
+                  role="menuitemcheckbox"
+                  aria-checked={direction === 'arrivals'}
+                  onClick={() => {
+                    onDirectionChange(direction === 'arrivals' ? 'departures' : 'arrivals');
+                    setMenuOpen(false);
+                  }}
+                  style={menuItem}
+                >
+                  {direction === 'arrivals' ? t('Visa avgångar', 'Show departures') : t('Visa ankomster', 'Show arrivals')}
+                </button>
+                <button
+                  type="button"
+                  role="menuitemcheckbox"
+                  aria-checked={view === 'lines'}
+                  onClick={() => {
+                    onViewChange(view === 'lines' ? 'list' : 'lines');
+                    setMenuOpen(false);
+                  }}
+                  style={menuItem}
+                >
+                  {view === 'lines' ? t('Visa som lista', 'Show as a list') : t('Per linje och riktning', 'By line and direction')}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onOpenStation();
+                  }}
+                  style={menuItem}
+                >
+                  {t('Om stationen', 'About the station')}
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {/* Trafikslag direkt på tavlan: vid Stockholm C ska man kunna se bara tågen
@@ -324,10 +425,8 @@ export default function DepartureBoard({
           </div>
         ) : null}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          {updatedAt && !stale && !offline ? (
-            <span style={{ fontSize: '0.8125rem', color: colors.textDim }}>{`${t('Uppdaterad', 'Updated')} ${updatedLabel}`}</span>
-          ) : null}
+        {/* En rad: när tavlan uppdaterades, och de två verktygen. Öppnade tar de hela bredden. */}
+        <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', columnGap: '4px', rowGap: '6px', flexWrap: 'wrap' }}>
           {updatedAt && !stale && !offline ? (
             // Ingen färgad bricka: bara avvikelser får färg. Pricken betyder realtid.
             <span
@@ -335,14 +434,40 @@ export default function DepartureBoard({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
+                marginRight: 'auto',
                 fontSize: '0.8125rem',
                 fontWeight: 600,
                 color: limited ? colors.amber : colors.textDim,
               }}
             >
               {limited ? null : <span className="rt-dot" aria-hidden="true" />}
-              {limited ? t('Begränsad realtid', 'Limited real-time') : t('Realtid', 'Real-time')}
+              {limited ? t('Begränsad realtid', 'Limited real-time') : `${t('Realtid', 'Real-time')} · ${updatedLabel}`}
+              {view === 'lines' ? (
+                <button
+                  type="button"
+                  onClick={() => onViewChange('list')}
+                  aria-label={t('Per linje är på. Visa som lista', 'By line is on. Show as a list')}
+                  style={{ ...chipOff }}
+                >
+                  {t('Per linje', 'By line')} ✕
+                </button>
+              ) : null}
             </span>
+          ) : (
+            <span style={{ marginRight: 'auto' }} />
+          )}
+          {direction === 'departures' && !errorMsg ? (
+            <>
+              <WalkBar
+                stopName={stopName}
+                state={walk.state}
+                pace={walk.pace}
+                onTurnOn={walk.turnOn}
+                onTurnOff={walk.turnOff}
+                onPace={walk.setPace}
+              />
+              <FindTrip stop={{ id: stopId, name: stopName }} mode={mode} onShowTrain={onShowTrain} onShowTrip={onShowTrip} />
+            </>
           ) : null}
         </div>
       </div>
@@ -371,29 +496,14 @@ export default function DepartureBoard({
               {offline ? t('Ingen anslutning', 'No connection') : t('Tavlan uppdateras inte just nu', 'The board is not updating right now')}
             </strong>
             {t(
-              `Tiderna är från ${updatedLabel} och kan ha ändrats. Försöker igen…`,
-              `These times are from ${updatedLabel} and may have changed. Retrying…`
+              `Tiderna är från ${updatedLabel}, ${ageMin} min gamla, och kan ha ändrats. Försöker igen…`,
+              `These times are from ${updatedLabel}, ${ageMin} min old, and may have changed. Retrying…`
             )}
           </span>
         </div>
       ) : null}
 
       {!errorMsg ? <DisruptionBox disruptions={disruptions} /> : null}
-
-      {direction === 'departures' && !errorMsg ? (
-        // Två verktyg på en rad när de är stängda; öppnade tar de hela bredden.
-        <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: '4px', alignItems: 'flex-start' }}>
-          <WalkBar
-            stopName={stopName}
-            state={walk.state}
-            pace={walk.pace}
-            onTurnOn={walk.turnOn}
-            onTurnOff={walk.turnOff}
-            onPace={walk.setPace}
-          />
-          <FindTrip stop={{ id: stopId, name: stopName }} mode={mode} onShowTrain={onShowTrain} onShowTrip={onShowTrip} />
-        </div>
-      ) : null}
 
       {errorMsg ? (
         <div
@@ -478,6 +588,8 @@ export default function DepartureBoard({
                   onShowTrip={onShowTrip}
                   stale={stale || offline}
                   walkMinutes={item.id === walkTargetId ? walkMin : null}
+                  alternative={alternatives.get(item.id) || null}
+                  onOpen={onRowOpen}
                 />
               ))}
             </div>
