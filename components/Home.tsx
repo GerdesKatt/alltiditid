@@ -6,6 +6,7 @@ import { lineLabel, useLang } from '../lib/i18n';
 import { countdownFor, groupKey, lineBadge, lineColor, parseLocal } from '../lib/lineFormat';
 import { boardUrl } from '../lib/prefetch';
 import { positionAllowed, rememberPositionAllowed } from '../lib/visits';
+import InstallApp from './InstallApp';
 
 type Nearby = StopOption & { distance: number };
 
@@ -159,6 +160,8 @@ export default function Home({ stops, now, onOpenStop, onSearch, onOpenFlights }
           </button>
         </div>
       </section>
+
+      <InstallApp />
     </div>
   );
 }
