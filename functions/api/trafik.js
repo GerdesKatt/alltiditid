@@ -579,6 +579,75 @@ function gtfsOperator(agency) {
   return hit ? hit[1] : '';
 }
 
+/** Nyckeln för GTFS Sweden 3 Realtime: det förväntade namnet, annars en hemlighet med GTFS i namnet. */
+function gtfsKeyFrom(env) {
+  const name =
+    ['TRAFIKLAB_GTFS_RT_KEY', 'TRAFIKLAB_GTFS_REALTIME_KEY', 'GTFS_RT_KEY'].find((k) => env && env[k]) ||
+    Object.keys(env || {}).find((k) => /GTFS/i.test(k) && typeof env[k] === 'string' && env[k]);
+  return { name: name || '', value: name ? env[name] : '' };
+}
+
+/**
+ * Driftstatus för de källor som inte går att prova utan nycklarna: svarar de, och med vad?
+ * Inga hemligheter lämnas ut, bara om nyckeln finns, statuskoder och antal. Sparas två minuter.
+ */
+async function handleStatus(keys, context) {
+  const cacheKey = new Request('https://cache.alltiditid.se/status-v1');
+  const cached = await cacheGet(cacheKey);
+  if (cached) return cached;
+  const out = { gtfs: { key: Boolean(keys.gtfsRt), keyName: gtfsKeyFrom(context.env).name }, ferries: {} };
+  if (keys.gtfsRt) {
+    try {
+      const res = await fetch(
+        `https://opendata.samtrafiken.se/gtfs-rt-sweden/sl/VehiclePositionsSweden.pb?key=${encodeURIComponent(keys.gtfsRt)}`
+      );
+      out.gtfs.status = res.status;
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      out.gtfs.bytes = bytes.length;
+      if (res.ok) {
+        const ids = Object.keys(vehiclePositions(bytes));
+        out.gtfs.vehicles = ids.length;
+        out.gtfs.sampleTripIds = ids.slice(0, 3);
+      } else {
+        out.gtfs.message = new TextDecoder().decode(bytes.subarray(0, 200));
+      }
+    } catch (err) {
+      out.gtfs.error = String(err && err.message ? err.message : err).slice(0, 200);
+    }
+  }
+  if (keys.trafikverket) {
+    try {
+      const res = await fetch(TRAFIKVERKET_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/xml; charset=utf-8' },
+        body: `<REQUEST><LOGIN authenticationkey="${keys.trafikverket}" /><QUERY objecttype="FerryRoute" schemaversion="1.2" limit="200" /></REQUEST>`,
+      });
+      out.ferries.status = res.status;
+      const text = await res.text();
+      let data = null;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        // Inte JSON: visa början av svaret nedan.
+      }
+      const routes = data?.RESPONSE?.RESULT?.[0]?.FerryRoute;
+      if (Array.isArray(routes)) {
+        out.ferries.routes = routes.length;
+        out.ferries.harbors = ferryHarbors(routes).length;
+        out.ferries.firstRouteKeys = routes[0] ? Object.keys(routes[0]) : [];
+        out.ferries.firstHarbor = routes[0]?.Harbors?.[0] || null;
+      } else {
+        out.ferries.message = text.slice(0, 300);
+      }
+    } catch (err) {
+      out.ferries.error = String(err && err.message ? err.message : err).slice(0, 200);
+    }
+  }
+  const response = jsonResponse(out, 200, { 'Cache-Control': 'public, max-age=120' });
+  await cachePut(cacheKey, response.clone(), context);
+  return response;
+}
+
 /** Bronskvoten är 30 000 anrop i månaden: högst så här många per dygn, sedan räknas läget ur tiderna. */
 const GTFS_RT_DAILY_LIMIT = 900;
 /** Så länge gäller en hämtad lista med positioner. Ett anrop per operatör och period, bara när någon tittar. */
@@ -676,7 +745,11 @@ async function handleTrip(url, keys, context) {
   } catch {
     located = journey;
   }
-  const response = jsonResponse({ ...located, mode, updatedAt: nowIso }, 200, { 'Cache-Control': 'public, max-age=60' });
+  const response = jsonResponse(
+    { ...located, mode, agency: String(data.agency?.name || ''), updatedAt: nowIso },
+    200,
+    { 'Cache-Control': 'public, max-age=60' }
+  );
   await cachePut(cacheKey, response.clone(), context);
   return response;
 }
@@ -1463,14 +1536,7 @@ async function fetchFerryHarbors(trafikverketKey, context) {
   }
   const xmlBody = `<REQUEST>
   <LOGIN authenticationkey="${trafikverketKey}" />
-  <QUERY objecttype="FerryRoute" schemaversion="1.2" limit="200">
-    <INCLUDE>Id</INCLUDE>
-    <INCLUDE>Name</INCLUDE>
-    <INCLUDE>Shortname</INCLUDE>
-    <INCLUDE>Deleted</INCLUDE>
-    <INCLUDE>Harbors.Id</INCLUDE>
-    <INCLUDE>Harbors.Name</INCLUDE>
-  </QUERY>
+  <QUERY objecttype="FerryRoute" schemaversion="1.2" limit="200" />
 </REQUEST>`;
   try {
     const res = await fetch(TRAFIKVERKET_URL, {
@@ -2364,7 +2430,7 @@ export async function onRequest(context) {
     resrobot: env.TRAFIKLAB_RESROBOT_KEY || env.TRAFIKLAB_API_KEY || env.TRAFIKLAB_REALTIME_KEY,
     trafikverket: env.TRAFIKVERKET_API_KEY,
     // GTFS Sweden 3 Realtime: fordonens GPS-läge i Hela resan.
-    gtfsRt: env.TRAFIKLAB_GTFS_RT_KEY || env.TRAFIKLAB_GTFS_REALTIME_KEY || env.GTFS_RT_KEY,
+    gtfsRt: gtfsKeyFrom(env).value,
     vasttrafikKey: env.VASTTRAFIK_KEY,
     vasttrafikSecret: env.VASTTRAFIK_SECRET,
   };
@@ -2388,6 +2454,9 @@ export async function onRequest(context) {
     }
     if (action === 'trip') {
       return await handleTrip(url, keys, context);
+    }
+    if (action === 'status') {
+      return await handleStatus(keys, context);
     }
     if (action === 'connections') {
       return await handleConnections(url, keys, context);
