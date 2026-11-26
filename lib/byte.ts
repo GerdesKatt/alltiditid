@@ -22,6 +22,8 @@ type Part = { scheduled: string; estimated?: string; actual?: string };
 type JourneyLike = { date?: string; stops: { arrival?: Part; departure?: Part }[] };
 
 const BYTE_KEY = 'alltiditid:byte';
+/** Skickas på window när bytet sparas eller tas bort. */
+export const BYTE_EVENT = 'alltiditid:byte';
 
 export function loadByte(train: string): SavedByte | null {
   try {
@@ -38,6 +40,12 @@ export function storeByte(b: SavedByte | null): void {
     else window.localStorage.removeItem(BYTE_KEY);
   } catch {
     // Valet gäller tills sidan laddas om.
+  }
+  // Kortet under Min resa visar bytet direkt, inte först vid nästa uppdatering.
+  try {
+    window.dispatchEvent(new Event(BYTE_EVENT));
+  } catch {
+    // Äldre webbläsare: kortet uppdateras vid nästa hämtning.
   }
 }
 

@@ -2,7 +2,8 @@
  * "Mitt tåg": ett sparat tåg (t.ex. 532) som visas överst på startsidan med läge och
  * ankomst. Gäller samma dag; sparas bara i webbläsaren.
  */
-export type MyTrain = { number: string; date: string };
+/** `off` är stationen man kliver av på, om det inte är slutstationen. */
+export type MyTrain = { number: string; date: string; off?: string };
 
 const KEY = 'alltiditid:mitt-tag';
 
@@ -20,7 +21,7 @@ export function loadMyTrain(): MyTrain | null {
     const d = String(t.date || '');
     const yesterday = new Date(Date.parse(`${today()}T00:00:00Z`) - 86400000).toISOString().slice(0, 10);
     if (d !== today() && !(d === yesterday && new Date().getHours() < 4)) return null;
-    return { number: String(t.number), date: d };
+    return { number: String(t.number), date: d, ...(typeof t.off === 'string' && t.off ? { off: t.off } : {}) };
   } catch {
     return null;
   }

@@ -1,6 +1,8 @@
 import { historyRows, saveHistory } from '../../lib/history.mjs';
 import { airportByIata, datesToFetch, flightBoard, waitTimes } from '../../lib/flights.mjs';
 import { missingTrains, trainJourney } from '../../lib/trains.mjs';
+import { tripJourney } from '../../lib/trips.mjs';
+import { pickSearchHits } from '../../lib/searchHits.mjs';
 
 function parseTimeToMinutes(timeStr) {
   if (!timeStr || typeof timeStr !== 'string') return null;
@@ -546,6 +548,47 @@ async function handleTrain(url, keys, context) {
   return jsonResponse({ error: `Hittade inget tåg ${number} i dag.` }, 404);
 }
 
+/**
+ * En bussturs, tunnelbanetågs, spårvagns eller båts hela resa (Trafiklab Trips).
+ * Svaret sparas en minut i Cloudflare: Trafiklab uppdaterar inte oftare än så,
+ * och många som följer samma buss ska inte kosta ett anrop var.
+ */
+async function handleTrip(url, keys, context) {
+  const id = String(url.searchParams.get('id') || '').trim();
+  const date = String(url.searchParams.get('date') || '').trim();
+  if (!/^[\w.:-]{1,64}$/.test(id) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return jsonResponse({ error: 'Ange en tur och ett datum.' }, 400);
+  }
+  if (!keys.realtime) return jsonResponse({ error: 'Turens resa saknas just nu.' }, 503);
+
+  const cacheKey = new Request(`https://alltiditid.se/api/trafik?action=trip&id=${encodeURIComponent(id)}&date=${date}`, { method: 'GET' });
+  const cached = await cacheGet(cacheKey);
+  if (cached) return cached;
+
+  let data;
+  try {
+    const res = await fetch(
+      `${REALTIME_BASE}/trips/${encodeURIComponent(id)}/${date}?key=${encodeURIComponent(keys.realtime)}`
+    );
+    if (res.status === 404) return jsonResponse({ error: 'Hittade inte turen.' }, 404);
+    if (!res.ok) throw new Error(String(res.status));
+    data = await res.json();
+  } catch {
+    return jsonResponse({ error: 'Kunde inte hämta turen från Trafiklab just nu.' }, 502);
+  }
+  const mode = classifyRealtimeMode(data.route || {}, data.agency);
+  const nowIso = new Date().toISOString();
+  const journey = tripJourney(data, swedishDateTime(nowIso), {
+    lineName: buildLineName(data.route || {}, mode),
+    trackLabel: (designation) => trackLabelFor(designation, mode),
+    cleanName: (name) => cleanPlaceName(name) || name,
+  });
+  if (journey.stops.length === 0) return jsonResponse({ error: 'Hittade inte turen.' }, 404);
+  const response = jsonResponse({ ...journey, mode, updatedAt: nowIso }, 200, { 'Cache-Control': 'public, max-age=60' });
+  await cachePut(cacheKey, response.clone(), context);
+  return response;
+}
+
 /** Minsta bytestid i minuter. Stora stationer har långa gångar mellan spåren. */
 const BIG_STATIONS = /^(stockholm c|göteborg c|malmö c|uppsala c|norrköping c|linköping c|lund c|hässleholm c|nässjö c|hallsberg|katrineholm c|alvesta|örebro c|gävle c|arlanda c|södertälje syd|sundsvall c|karlstad c|jönköping c|helsingborg c)$/i;
 function minTransfer(station) {
@@ -768,6 +811,10 @@ function mapRealtimeCall(call, direction) {
     id: `${call.trip?.trip_id || scheduledIso}-${call.trip?.start_date || ''}-${scheduledTime}`,
     line: buildLineName(route, itemMode),
     trainNumber,
+    // Turen, så att hela resan kan visas för buss, T-bana, spårvagn och båt.
+    ...(call.trip?.trip_id && call.trip?.start_date
+      ? { tripId: String(call.trip.trip_id), tripDate: String(call.trip.start_date).slice(0, 10) }
+      : {}),
     operator: String(call.agency?.operator || call.agency?.name || 'Trafikoperatör').trim(),
     destination: cleanPlaceName(String(title)) || String(title),
     scheduledTime,
@@ -821,10 +868,10 @@ async function realtimeSearch(key, q) {
   if (!res.ok) throw new Error(`Trafiklab Realtime sökfel (status ${res.status})`);
   const data = await res.json();
   const groups = Array.isArray(data.stop_groups) ? data.stop_groups : [];
-  return groups
+  const sorted = groups
     .filter((g) => g && g.id && (!Array.isArray(g.transport_modes) || g.transport_modes.length > 0))
-    .sort((a, b) => (Number(b.average_daily_stop_times) || 0) - (Number(a.average_daily_stop_times) || 0))
-    .slice(0, 8)
+    .sort((a, b) => (Number(b.average_daily_stop_times) || 0) - (Number(a.average_daily_stop_times) || 0));
+  return pickSearchHits(sorted, 8)
     .map((g) => {
       const out = { id: String(g.id), name: cleanPlaceName(String(g.name)) };
       const place = placeOfStopGroup(g);
@@ -842,6 +889,7 @@ const SEARCH_MODE_LABELS = {
   METRO: 'T-bana',
   TRAM: 'Spårvagn',
   BUS: 'Buss',
+  BOAT: 'Båt',
   FERRY: 'Båt',
   SHIP: 'Båt',
   TAXI: 'Anropsstyrd',
@@ -2076,6 +2124,9 @@ export async function onRequest(context) {
     }
     if (action === 'train') {
       return await handleTrain(url, keys, context);
+    }
+    if (action === 'trip') {
+      return await handleTrip(url, keys, context);
     }
     if (action === 'connections') {
       return await handleConnections(url, keys, context);

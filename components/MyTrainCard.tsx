@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { MyTrain } from '../lib/myTrain';
-import { arrivalAt, COMPENSATION_DELAY_MIN, loadByte, verdict } from '../lib/byte';
+import { arrivalAt, BYTE_EVENT, COMPENSATION_DELAY_MIN, loadByte, storeByte, verdict } from '../lib/byte';
 import type { Connection, SavedByte } from '../lib/byte';
 import { colors, fonts } from './styles';
 import { lineLabel, trackLabel, trainPosition, useLang } from '../lib/i18n';
@@ -28,10 +28,13 @@ const smallButton: React.CSSProperties = {
 export default function MyTrainCard({
   train,
   onOpen,
+  onPickByte,
   onRemove,
 }: {
   train: MyTrain;
   onOpen: () => void;
+  /** Öppnar tågets resa för att välja station och byte. */
+  onPickByte: () => void;
   onRemove: () => void;
 }) {
   const { lang, t } = useLang();
@@ -39,29 +42,43 @@ export default function MyTrainCard({
   const [byte, setByte] = useState<SavedByte | null>(null);
   const [connections, setConnections] = useState<Connection[] | null>(null);
   const [transfer, setTransfer] = useState(4);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     let active = true;
     function load() {
       fetch(`/api/trafik?action=train&number=${encodeURIComponent(train.number)}`)
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => active && data && setJourney(data))
+        .then(async (res) => ({ ok: res.ok, status: res.status, data: res.ok ? await res.json() : null }))
+        .then(({ ok, status, data }) => {
+          if (!active) return;
+          if (ok && data) {
+            setJourney(data);
+            setNotFound(false);
+          } else if (status === 404) {
+            setNotFound(true);
+          }
+        })
         .catch(() => {});
       if (active) setByte(loadByte(train.number));
     }
     load();
+    // Bytet sparas i tågets resa: visa det här direkt.
+    const onByte = () => active && setByte(loadByte(train.number));
+    window.addEventListener(BYTE_EVENT, onByte);
     const timer = setInterval(() => {
       if (!document.hidden) load();
     }, 60_000);
     return () => {
       active = false;
       clearInterval(timer);
+      window.removeEventListener(BYTE_EVENT, onByte);
     };
   }, [train.number]);
 
   const last = journey?.stops[journey.stops.length - 1];
   const byteStop = byte ? journey?.stops.find((s) => s.name === byte.station) : undefined;
-  const target = byteStop || last;
+  const offStop = train.off ? journey?.stops.find((s) => s.name === train.off) : undefined;
+  const target = byteStop || offStop || last;
   const arr = target?.arrival;
   const shown = arr?.actual || arr?.estimated;
   const byteArrival = journey && byteStop ? arrivalAt(journey, byteStop) : '';
@@ -134,7 +151,14 @@ export default function MyTrainCard({
           <span className="rt-dot" aria-hidden="true" />
           {trainPosition(journey.position, lang)}
         </p>
-      ) : journey ? null : (
+      ) : journey ? null : notFound ? (
+        <p role="alert" style={{ margin: '6px 0 0', fontSize: '0.9375rem', color: colors.errorText }}>
+          {t(
+            `Hittar inget tåg ${train.number} i dag. Kontrollera numret på biljetten.`,
+            `Can't find train ${train.number} today. Check the number on your ticket.`
+          )}
+        </p>
+      ) : (
         <p style={{ margin: '6px 0 0', color: colors.textDim }}>{t('Hämtar tåget…', 'Loading the train…')}</p>
       )}
       {target && arr ? (
@@ -143,7 +167,7 @@ export default function MyTrainCard({
           {shown && shown !== arr.scheduled ? (
             <>
               <s style={{ color: colors.textDim }}>{arr.scheduled}</s>{' '}
-              <strong style={{ fontFamily: fonts.display, color: colors.amber }}>
+              <strong style={{ fontFamily: fonts.display, color: colors.amber, whiteSpace: 'nowrap' }}>
                 {shown}
                 {lateBy > 0 ? ` +${lateBy} min` : ''}
               </strong>
@@ -179,6 +203,13 @@ export default function MyTrainCard({
               <span style={{ fontFamily: fonts.text, fontSize: '0.875rem', fontWeight: 500, color: colors.textDim }}> · {trackLabel(savedConn.track, lang)}</span>
             ) : null}
           </div>
+          <button
+            type="button"
+            onClick={() => storeByte(null)}
+            style={{ minHeight: '44px', padding: 0, border: 'none', background: 'none', color: colors.textDim, fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+          >
+            {t('Ta bort bytet', 'Remove the connection')}
+          </button>
         </div>
       ) : null}
 
@@ -215,12 +246,16 @@ export default function MyTrainCard({
       ) : null}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
-        <button type="button" onClick={onOpen} style={smallButton}>
-          {t('Hela resan', 'Whole journey')}
-        </button>
-        <button type="button" onClick={onOpen} style={smallButton}>
-          {byte ? t('Ändra byte', 'Change connection') : t('Kolla ett byte', 'Check a connection')}
-        </button>
+        {notFound ? null : (
+          <button type="button" onClick={onOpen} style={smallButton}>
+            {t('Hela resan', 'Whole journey')}
+          </button>
+        )}
+        {notFound ? null : (
+          <button type="button" onClick={onPickByte} style={smallButton}>
+            {byte ? t('Ändra byte', 'Change connection') : t('Kolla ett byte', 'Check a connection')}
+          </button>
+        )}
       </div>
     </section>
   );
