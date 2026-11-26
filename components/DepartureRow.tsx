@@ -4,6 +4,7 @@ import { COMPENSATION_DELAY_MIN } from '../lib/byte';
 import { colors, fonts } from './styles';
 import { COUNTDOWN_MAX_MIN, lineBadge, lineColor, lineName, parseLocal } from '../lib/lineFormat';
 import { lineLabel, trackLabel, useLang } from '../lib/i18n';
+import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 
 type Props = {
   item: Departure;
@@ -20,7 +21,12 @@ type Props = {
   onShowTrip?: (trip: { id: string; date: string }) => void;
   /** Tavlan är gammal (ingen anslutning): pricken släcks och tiderna tonas ned. */
   stale?: boolean;
+  /** Gångtid till hållplatsen i minuter när "Hinner jag dit?" är på, annars null. */
+  walkMinutes?: number | null;
 };
+
+/** Beskedet visas bara för avgångar inom den här tiden; längre fram spelar gångtiden ingen roll än. */
+const WALK_HORIZON_MIN = 60;
 
 
 /**
@@ -39,6 +45,7 @@ export default function DepartureRow({
   onShowTrain,
   onShowTrip,
   stale = false,
+  walkMinutes = null,
 }: Props) {
   const [open, setOpen] = useState(false);
   const { lang, t } = useLang();
@@ -73,6 +80,19 @@ export default function DepartureRow({
       : t(`om ${minutesLeft} min`, `in ${minutesLeft} min`);
   // Ordinarie tid → väntad tid, när de skiljer sig (t.ex. en buss 2 min sen: "18:35 → 18:37").
   const shifted = !isCancelled && !isDelayed && clock !== item.scheduledTime;
+
+  // "Hinner jag dit?": gångtid plus tid ner till perrongen mot minuterna kvar.
+  const walk =
+    walkMinutes !== null && !isCancelled && !item.pending && minutesLeft !== null && minutesLeft < WALK_HORIZON_MIN
+      ? walkVerdict(minutesLeft, walkMinutes, platformMinutes(item.transportMode))
+      : null;
+  const walkText = !walk
+    ? ''
+    : walk.kind === 'missed'
+    ? t('Hinner inte', "Won't make it")
+    : walk.kind === 'go'
+    ? t('Gå nu', 'Leave now')
+    : t(`Gå om ${walk.leaveIn} min`, `Leave in ${walk.leaveIn} min`);
 
   // Hela resan: tåg från Trafikverket (tågnummer), övriga från Trafiklab (tur).
   const showsTrain = Boolean(
@@ -207,6 +227,21 @@ export default function DepartureRow({
               whiteSpace: 'nowrap',
             }}
           >
+            {walk ? (
+              <span
+                style={{
+                  display: 'inline-block',
+                  marginRight: '6px',
+                  padding: walk.kind === 'go' ? '0 6px' : 0,
+                  borderRadius: 'var(--radius-badge)',
+                  backgroundColor: walk.kind === 'go' ? colors.accentStrong : 'transparent',
+                  color: walk.kind === 'go' ? colors.onAccent : walk.kind === 'missed' ? colors.textFaint : colors.okText,
+                  fontWeight: 700,
+                }}
+              >
+                {walkText}
+              </span>
+            ) : null}
             {[name, details].filter(Boolean).join(' · ')}
             {item.deviation && !(isCancelled && item.deviation === 'Inställd') ? (
               <span style={{ color: colors.amber, fontWeight: 600 }}>
@@ -296,7 +331,10 @@ export default function DepartureRow({
             )}
           </span>
         </span>
-        <span className="sr-only">, {spokenExtra}</span>
+        <span className="sr-only">
+          , {spokenExtra}
+          {walkText ? `, ${walkText}` : ''}
+        </span>
       </button>
 
       {open ? (

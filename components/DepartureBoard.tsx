@@ -3,6 +3,8 @@ import type { BoardDirection, BoardSource, Departure, Disruption, TransportMode 
 import DepartureRow from './DepartureRow';
 import LineGroupRow from './LineGroupRow';
 import DisruptionBox from './DisruptionBox';
+import WalkBar from './WalkBar';
+import { useWalk } from '../lib/useWalk';
 import { groupKey } from '../lib/lineFormat';
 import DirectionToggle from './DirectionToggle';
 import { colors, emptyState } from './styles';
@@ -119,6 +121,8 @@ export default function DepartureBoard({
   onViewChange,
 }: Props) {
   const { lang, t } = useLang();
+  const walk = useWalk(stopId);
+  const walkMin = direction === 'departures' && walk.state.kind === 'ready' ? walk.state.minutes : null;
   const [limit, setLimit] = useState(PAGE_SIZE);
   // Ny hållplats, riktning eller vy: börja om från de första raderna.
   useEffect(() => setLimit(PAGE_SIZE), [stopName, direction, view]);
@@ -362,6 +366,17 @@ export default function DepartureBoard({
 
       {!errorMsg ? <DisruptionBox disruptions={disruptions} /> : null}
 
+      {direction === 'departures' && !errorMsg ? (
+        <WalkBar
+          stopName={stopName}
+          state={walk.state}
+          pace={walk.pace}
+          onTurnOn={walk.turnOn}
+          onTurnOff={walk.turnOff}
+          onPace={walk.setPace}
+        />
+      ) : null}
+
       {errorMsg ? (
         <div
           style={{
@@ -444,6 +459,7 @@ export default function DepartureBoard({
                   onShowTrain={onShowTrain}
                   onShowTrip={onShowTrip}
                   stale={stale || offline}
+                  walkMinutes={walkMin}
                 />
               ))}
             </div>
