@@ -60,6 +60,9 @@ const MODE_EN: Record<string, string> = {
   Fjärrtåg: 'Long-distance train',
   'Pågatåg/Öresund': 'Pågatåg/Öresund',
   Flyg: 'Flights',
+  // Anropsstyrd trafik (Trafiklabs TAXI): beställs i förväg.
+  Anropsstyrd: 'On-demand',
+  Linje: 'Line',
 };
 
 export function modeLabel(sv: string, lang: Lang): string {
@@ -95,6 +98,7 @@ const LINE_PREFIX_EN: [RegExp, string][] = [
   [/^Snabbtåg\b/, 'High-speed train'],
   [/^Regionaltåg\b/, 'Regional train'],
   [/^Nattåg\b/, 'Night train'],
+  [/^Linje\b/, 'Line'],
 ];
 
 /** Linjen på engelska när den börjar med ett allmänt ord; egennamn lämnas. */
