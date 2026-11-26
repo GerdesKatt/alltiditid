@@ -56,6 +56,7 @@ const MODE_EN: Record<string, string> = {
   'Pendel/Tåg': 'Commuter/Train',
   'Båt/Färja': 'Boat/Ferry',
   Båt: 'Boat',
+  Vägfärja: 'Road ferry',
   Färja: 'Ferry',
   Fjärrtåg: 'Long-distance train',
   'Pågatåg/Öresund': 'Pågatåg/Öresund',

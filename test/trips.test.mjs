@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { tripJourney } from '../lib/trips.mjs';
+import { tripJourney, uniqueAlerts } from '../lib/trips.mjs';
 
 const call = (name, arr, dep, extra = {}) => ({
   stop: { id: `s-${name}`, area_id: `a-${name}`, name },
@@ -74,4 +74,17 @@ test('äldre stavning av fälten och tomt svar', () => {
   assert.equal(j.stops[1].arrival.estimated, '09:12');
   assert.equal(j.stops[1].cancelled, true);
   assert.deepEqual(tripJourney({}, '2026-11-26T09:05').stops, []);
+});
+
+test('samma störning skriven på två sätt visas en gång', () => {
+  assert.deepEqual(
+    uniqueAlerts([
+      { title: 'Stn.medd. Avstängd hiss Skärmarbrink' },
+      { title: 'Avstängd hiss vid Skärmarbrink' },
+      { title: 'Inställda avgångar' },
+      { title: 'Inställda avgångar' },
+    ]),
+    ['Avstängd hiss vid Skärmarbrink', 'Inställda avgångar']
+  );
+  assert.deepEqual(uniqueAlerts(undefined), []);
 });
