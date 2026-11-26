@@ -556,8 +556,9 @@ async function handleTrain(url, keys, context) {
  * Okända operatörer får inget GPS-läge (läget räknas då ur tiderna som förut).
  */
 const GTFS_OPERATORS = [
-  [/^sl$|storstockholms/i, 'sl'],
-  [/^ul$|upplands lokaltrafik/i, 'ul'],
+  // Namnet i datan är "AB SL Kundtjänst", inte bara "SL".
+  [/(^|[^a-zåäö])sl([^a-zåäö]|$)|storstockholms/i, 'sl'],
+  [/(^|[^a-zåäö])ul([^a-zåäö]|$)|upplands lokaltrafik/i, 'ul'],
   [/västtrafik/i, 'vt'],
   [/skånetrafiken/i, 'skane'],
   [/östgötatrafiken/i, 'otraf'],
@@ -592,7 +593,7 @@ function gtfsKeyFrom(env) {
  * Inga hemligheter lämnas ut, bara om nyckeln finns, statuskoder och antal. Sparas två minuter.
  */
 async function handleStatus(keys, context) {
-  const cacheKey = new Request('https://cache.alltiditid.se/status-v1');
+  const cacheKey = new Request('https://cache.alltiditid.se/status-v2');
   const cached = await cacheGet(cacheKey);
   if (cached) return cached;
   const out = { gtfs: { key: Boolean(keys.gtfsRt), keyName: gtfsKeyFrom(context.env).name }, ferries: {} };
@@ -635,7 +636,7 @@ async function handleStatus(keys, context) {
         out.ferries.routes = routes.length;
         out.ferries.harbors = ferryHarbors(routes).length;
         out.ferries.firstRouteKeys = routes[0] ? Object.keys(routes[0]) : [];
-        out.ferries.firstHarbor = routes[0]?.Harbors?.[0] || null;
+        out.ferries.firstHarbor = routes[0]?.Harbor?.[0] || routes[0]?.Harbors?.[0] || null;
       } else {
         out.ferries.message = text.slice(0, 300);
       }

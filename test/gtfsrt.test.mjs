@@ -81,7 +81,8 @@ test('API: turens resa får GPS-läge när operatören har det, annars läget ur
     const u = String(url);
     if (u.includes('/v1/trips/')) {
       return new Response(JSON.stringify({
-        agency: { name: /tur-vt/.test(u) ? 'Okänd trafik' : 'SL' },
+        // Så heter SL i Trafiklabs riktiga svar. "Kundtjänst" får inte tolkas som UL eller SL av misstag.
+        agency: { name: /tur-vt/.test(u) ? 'Konsulttrafik AB' : 'AB SL Kundtjänst' },
         route: { name: 'Buss', designation: '4', transport_mode: 'BUS', origin: { name: 'Start' }, destination: { name: 'Slut' } },
         trip: { trip_id: 'x', start_date: '2026-11-26' },
         calls,

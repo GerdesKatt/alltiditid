@@ -4,7 +4,8 @@ import { ferryDepartures, ferryHarbors, searchFerryHarbors } from '../lib/ferrie
 
 const routes = [
   { Id: 1, Name: 'Hönöleden', Shortname: 'Hönö', Harbors: [{ Id: 11, Name: 'Lilla Varholmen' }, { Id: 12, Name: 'Hönö Pinan' }] },
-  { Id: 2, Name: 'Gullmarsleden', Harbors: [{ Id: 21, Name: 'Finnsbo' }, { Id: 22, Name: 'Skår' }] },
+  // Så här ser Trafikverkets riktiga svar ut: fältet heter Harbor.
+  { Id: 2, Name: 'Gullmarsleden', Harbor: [{ Id: 21, Name: 'Finnsbo' }, { Id: 22, Name: 'Skår' }] },
   { Id: 3, Name: 'Nedlagd', Deleted: true, Harbors: [{ Id: 31, Name: 'Borta' }] },
   { Id: 4, Name: 'Björköleden', Harbors: [{ Id: 11, Name: 'Lilla Varholmen' }, { Id: 41, Name: 'Björkö' }] },
 ];
