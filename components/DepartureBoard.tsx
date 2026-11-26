@@ -31,6 +31,8 @@ type Props = {
   /** Listan är full och hållplatsen är inte sparad: knappen förklarar i stället för att spara. */
   favoritesFull: boolean;
   onToggleFavorite: () => void;
+  /** Öppnar bladet "Om stationen". */
+  onOpenStation: () => void;
   view: BoardView;
   onViewChange: (view: BoardView) => void;
 };
@@ -62,6 +64,7 @@ export default function DepartureBoard({
   isFavorite,
   favoritesFull,
   onToggleFavorite,
+  onOpenStation,
   view,
   onViewChange,
 }: Props) {
@@ -160,6 +163,28 @@ export default function DepartureBoard({
               {isFavorite ? '★' : '☆'}
             </span>
             {isFavorite ? 'Sparad' : favoritesFull ? 'Listan full' : 'Spara'}
+          </button>
+          <button
+            type="button"
+            onClick={onOpenStation}
+            aria-label={`Om stationen ${stopName}`}
+            style={{
+              flexShrink: 0,
+              minHeight: '44px',
+              minWidth: '44px',
+              padding: '0 12px',
+              borderRadius: 'var(--radius-control)',
+              border: `1px solid ${colors.borderStrong}`,
+              backgroundColor: colors.surface,
+              color: colors.text,
+              fontSize: '14px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span aria-hidden="true" style={{ fontSize: '18px', lineHeight: 1 }}>ⓘ</span>
+            <span className="station-btn-label"> Om stationen</span>
           </button>
         </div>
 

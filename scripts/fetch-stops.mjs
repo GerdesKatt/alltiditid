@@ -11,6 +11,8 @@ import { buildStopList } from '../lib/stopList.mjs';
 
 const OUT = new URL('../data/stops.json', import.meta.url);
 const FALLBACK = new URL('../data/stops.fallback.json', import.meta.url);
+// Samma lista för appen i webbläsaren (stationsbladet och adresser som /slussen-t-bana).
+const PUBLIC_OUT = new URL('../public/stops.json', import.meta.url);
 const LIMIT = Number(process.argv[2]) || 500;
 const key = process.env.TRAFIKLAB_REALTIME_API_KEY;
 
@@ -47,3 +49,4 @@ if (!stops || stops.length === 0) {
 
 await mkdir(new URL('../data/', import.meta.url), { recursive: true });
 await writeFile(OUT, `${JSON.stringify(stops)}\n`);
+await writeFile(PUBLIC_OUT, `${JSON.stringify(stops)}\n`);

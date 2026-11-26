@@ -15,6 +15,8 @@ import {
   storeConsent,
 } from '../lib/analytics';
 import OnBoardPanel from './OnBoardPanel';
+import StationSheet from './StationSheet';
+import { loadStopIndex, stopPageFor, type StopIndex } from '../lib/stopIndex';
 import SearchPanel from './SearchPanel';
 import SwitchStopButton from './SwitchStopButton';
 import { REGIONS } from '../lib/regions';
@@ -108,6 +110,9 @@ export default function App({ initialStop, intro }: AppProps) {
   const [activeInfoTab, setActiveInfoTab] = useState<InfoTab>('about');
 
   const [onBoardTrip, setOnBoardTrip] = useState<Departure | null>(null);
+  // Hållplatslistan (för stationsbladet och adresser som /slussen-t-bana), hämtas i efterhand.
+  const [stopIndex, setStopIndex] = useState<StopIndex | null>(null);
+  const [stationOpen, setStationOpen] = useState(false);
   const [riderStatus, setRiderStatus] = useState<RiderMood>('on-time');
   const [riderNote, setRiderNote] = useState('');
   const [copiedMsg, setCopiedMsg] = useState(false);
@@ -210,10 +215,34 @@ export default function App({ initialStop, intro }: AppProps) {
     }
   }
 
+  // Listan hämtas när tavlan väl visas, så att den inte tävlar med avgångarna.
   useEffect(() => {
     if (!restored) return;
-    saveState({ stop: selectedStop, direction, region }, initialStop);
-  }, [restored, selectedStop, direction, region]);
+    const t = setTimeout(() => {
+      loadStopIndex().then((index) => {
+        if (index) setStopIndex(index);
+      });
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [restored]);
+
+  const stationPage = stopPageFor(stopIndex, selectedStop.id);
+
+  useEffect(() => {
+    if (!restored) return;
+    saveState({ stop: selectedStop, direction, region }, initialStop, stationPage?.slug);
+  }, [restored, selectedStop, direction, region, stationPage?.slug]);
+
+  /** Byt hållplats från stationsbladet (grannhållplatserna). */
+  function selectStopFromSheet(stop: StopOption) {
+    setSelectedStop(stop);
+    setRecentStops((list) => rememberStop(list, stop));
+    const stopRegion = regionForStop(stop.id);
+    if (stopRegion !== 'all') setRegion(stopRegion);
+    setMode('all');
+    setStationOpen(false);
+    showBoard();
+  }
 
   const currentRegionObj = REGIONS.find((r) => r.key === region) || REGIONS[0];
 
@@ -429,6 +458,18 @@ export default function App({ initialStop, intro }: AppProps) {
       <Header onContactClick={() => setActiveInfoTab('contact')} />
       <main id="innehall">
 
+      {stationOpen && !onBoardTrip ? (
+        <StationSheet
+          stop={selectedStop}
+          page={stationPage}
+          neighbours={(stationPage?.near || [])
+            .map((id) => stopIndex?.byId.get(id))
+            .filter((n): n is NonNullable<typeof n> => Boolean(n))}
+          onSelectStop={selectStopFromSheet}
+          onClose={() => setStationOpen(false)}
+        />
+      ) : null}
+
       {onBoardTrip ? (
         <OnBoardPanel
           trip={onBoardTrip}
@@ -537,6 +578,10 @@ export default function App({ initialStop, intro }: AppProps) {
           storeFavorites(next);
         }}
         stopName={selectedStop.name}
+        onOpenStation={() => {
+          setStationOpen(true);
+          if (!stopIndex) loadStopIndex().then((index) => index && setStopIndex(index));
+        }}
         direction={direction}
         onDirectionChange={setDirection}
         departures={filtered}
