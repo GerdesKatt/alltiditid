@@ -23,7 +23,7 @@ import { loadModeFor, storeModeFor } from '../lib/modeMemory';
 import { habitFor, recordOpen } from '../lib/habits';
 import { useWalk } from '../lib/useWalk';
 import Home from './Home';
-import { boardRecentlyShown, homeStops, markBoardShown, recordVisit } from '../lib/visits';
+import { homeStops, markBoardShown, recordVisit } from '../lib/visits';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { track } from '../lib/track';
 import { alternativeFor } from '../lib/alternative.mjs';
@@ -253,7 +253,6 @@ export default function App({ initialStop, page, intro }: AppProps) {
   const [restored, setRestored] = useState(false);
   // Hem eller en hållplats tavla. Hem är startplatsen; Nu och ordmärket leder alltid dit.
   const [screen, setScreen] = useState<'home' | 'board'>(initialStop ? 'board' : 'home');
-  const screenChosen = React.useRef(Boolean(initialStop));
   const [offline, setOffline] = useState(false);
   const [view, setView] = useState<BoardView>('list');
   // Har man själv valt lista eller per linje gäller det. Annars visas stora stationer per linje
@@ -302,8 +301,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
     const saved = loadSavedState(initialStop);
     // Återkommande besökare: bara om en hållplats redan var sparad (ingen ny lagring för mätningen).
     track('aterkommande', 0, saved ? 'ja' : 'nej');
-    // Tittade man på en tavla för under tio minuter sedan öppnas den igen; annars Hem.
-    if (!initialStop) setScreen(saved && boardRecentlyShown() ? 'board' : 'home');
+    // Sidan öppnas alltid på Hem (utom hållplatssidor, som öppnar sin tavla).
     if (saved) {
       setRegion(saved.region);
       setSelectedStop(saved.stop);
@@ -754,15 +752,26 @@ export default function App({ initialStop, page, intro }: AppProps) {
     if (myTrain || (planned && isNear(planned, now)) || (myTrip && myTrip.stopId === selectedStop.id)) return null;
     const upcoming = departures.filter((d) => {
       const at = parseLocal(d.expectedAt);
-      if (d.status === 'cancelled' || at === null || at < now - DEPARTED_GRACE_MS) return false;
-      if (walkMin === null) return true;
+      if (d.status === 'cancelled' || at === null) return false;
+      // Samma trafikslag som tavlan visar.
+      if (mode !== 'all' && d.transportMode !== mode) return false;
+      // En avgång som går nu hinner man inte: minst en minut kvar.
+      if (walkMin === null) return at >= now + 60_000;
       return walkVerdict(Math.floor((at - now) / 60000), walkMin, platformMinutes(d.transportMode)).kind !== 'missed';
     });
     const pick = (habit && upcoming.find((d) => groupKey(d) === habit.key)) || upcoming[0];
     if (!pick) return null;
     return { trip: tripFrom(pick, selectedStop.id, selectedStop.name), reason: habit && groupKey(pick) === habit.key ? ('habit' as const) : ('next' as const) };
-  }, [restored, hasStop, direction, departures, myTrain, planned, myTrip, selectedStop.id, selectedStop.name, habit, walkMin, now]);
-  const autoNext = autoTrip ? nextForTrip(autoTrip.trip, departures, now, DEPARTED_GRACE_MS) : [];
+  }, [restored, hasStop, direction, departures, myTrain, planned, myTrip, selectedStop.id, selectedStop.name, habit, walkMin, now, mode]);
+  // Samma regel som valet: de avgångar som går om minst en minut (gångtid av).
+  const autoNext = autoTrip
+    ? nextForTrip(
+        autoTrip.trip,
+        walkMin === null ? departures.filter((d) => (parseLocal(d.expectedAt) ?? Infinity) >= now + 60_000) : departures,
+        now,
+        DEPARTED_GRACE_MS
+      )
+    : [];
   const autoCard = autoTrip ? (
     <MyTripCard
       trip={autoTrip.trip}
