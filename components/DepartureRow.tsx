@@ -228,17 +228,20 @@ export default function DepartureRow({
             }}
           >
             {walk ? (
+              // Gångbeskedet är en egen bricka med gubbe, så att det inte blandas ihop med avgångstiden.
               <span
                 style={{
                   display: 'inline-block',
                   marginRight: '6px',
-                  padding: walk.kind === 'go' ? '0 6px' : 0,
+                  padding: '0 6px',
                   borderRadius: 'var(--radius-badge)',
-                  backgroundColor: walk.kind === 'go' ? colors.accentStrong : 'transparent',
-                  color: walk.kind === 'go' ? colors.onAccent : walk.kind === 'missed' ? colors.textFaint : colors.okText,
+                  backgroundColor:
+                    walk.kind === 'go' ? colors.accentStrong : walk.kind === 'relax' ? colors.okBg : colors.surfaceRaised,
+                  color: walk.kind === 'go' ? colors.onAccent : walk.kind === 'relax' ? colors.okText : colors.textDim,
                   fontWeight: 700,
                 }}
               >
+                <span aria-hidden="true">🚶 </span>
                 {walkText}
               </span>
             ) : null}
@@ -333,7 +336,7 @@ export default function DepartureRow({
         </span>
         <span className="sr-only">
           , {spokenExtra}
-          {walkText ? `, ${walkText}` : ''}
+          {walkText ? `, ${t('gångtid', 'walking')}: ${walkText}` : ''}
         </span>
       </button>
 

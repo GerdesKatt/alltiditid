@@ -82,7 +82,7 @@ export default function WalkBar({ stopName, state, pace, onTurnOn, onTurnOff, on
           `Du är ${decimal(state.meters / 1000, 1, lang)} km från ${stopName}. Gångtid visas när du är närmare än 2,5 km.`,
           `You are ${decimal(state.meters / 1000, 1, lang)} km from ${stopName}. Walking time shows within 2.5 km.`
         )
-      : t(`Ca ${state.minutes} min gång till ${stopName}`, `About ${state.minutes} min walk to ${stopName}`);
+      : t(`Gångtid till ${stopName}: ca ${state.minutes} min`, `Walking time to ${stopName}: about ${state.minutes} min`);
 
   return (
     <div
