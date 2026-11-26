@@ -25,6 +25,9 @@ import { colors, textInput } from './styles';
 import ModeTabs, { type AppTab } from './ModeTabs';
 import { loadStopIndex, stopPageFor, type StopIndex } from '../lib/stopIndex';
 import SearchPanel from './SearchPanel';
+import StopAbout from './StopAbout';
+import type { StopPage } from '../lib/stops';
+import { groupedStop, mergeStops, sameStation } from '../lib/stationGroups.mjs';
 import SwitchStopButton from './SwitchStopButton';
 import { REGIONS } from '../lib/regions';
 import { loadSavedState, regionForStop, saveState } from '../lib/savedStop';
@@ -94,11 +97,13 @@ function markFirstBoard(rows: number) {
 type AppProps = {
   /** Hållplatssidor (/gullmarsplan) startar på sin hållplats i stället för den senaste. */
   initialStop?: StopOption;
-  /** Text om hållplatsen under tavlan, renderad på servern för sökmotorerna. */
+  /** Hållplatssidan som sidan gäller (/gullmarsplan). */
+  page?: StopPage;
+  /** Text om sidans hållplats under tavlan, renderad på servern för sökmotorerna. */
   intro?: React.ReactNode;
 };
 
-export default function App({ initialStop, intro }: AppProps) {
+export default function App({ initialStop, page, intro }: AppProps) {
   const { lang, t } = useLang();
   const [region, setRegion] = useState<RegionKey>('all');
   const [selectedStop, setSelectedStopRaw] = useState<StopOption>(initialStop || REGIONS[0].stations[0]);
@@ -270,7 +275,10 @@ export default function App({ initialStop, intro }: AppProps) {
     return () => clearTimeout(t);
   }, [restored]);
 
-  const stationPage = stopPageFor(stopIndex, selectedStop.id);
+  // Sidans egen hållplats så länge tavlan visar den (eller stationen den hör till, så att
+  // /t-centralen-t-bana stannar på sin sida), annars den valda hållplatsens sida.
+  const stationPage =
+    page && sameStation(page.id, selectedStop.id) ? page : stopPageFor(stopIndex, selectedStop.id);
 
   useEffect(() => {
     if (!restored || !hasStop) return;
@@ -278,7 +286,8 @@ export default function App({ initialStop, intro }: AppProps) {
   }, [restored, hasStop, selectedStop, direction, region, stationPage?.slug]);
 
   /** Byt hållplats från stationsbladet (grannhållplatserna). */
-  function selectStopFromSheet(stop: StopOption) {
+  function selectStopFromSheet(picked: StopOption) {
+    const stop = groupedStop(picked);
     setSelectedStop(stop);
     setRecentStops((list) => rememberStop(list, stop));
     const stopRegion = regionForStop(stop.id);
@@ -310,7 +319,7 @@ export default function App({ initialStop, intro }: AppProps) {
       fetch(`/api/trafik?action=search&q=${encodeURIComponent(q)}`)
         .then((res) => res.json())
         .then((data) => {
-          setSuggestions(data.stops || []);
+          setSuggestions(mergeStops(data.stops || []));
           setSearchingStops(false);
         })
         .catch(() => {
@@ -629,8 +638,9 @@ export default function App({ initialStop, intro }: AppProps) {
                 if (!hit) return;
                 setTrainNumber(null);
                 setTab('trafik');
-                setSelectedStop({ id: hit.id, name: hit.name });
-                setRecentStops((list) => rememberStop(list, hit));
+                const station = groupedStop({ id: hit.id, name: hit.name });
+                setSelectedStop(station);
+                setRecentStops((list) => rememberStop(list, station));
                 const stopRegion = regionForStop(hit.id);
                 if (stopRegion !== 'all') setRegion(stopRegion);
                 setMode('all');
@@ -645,9 +655,11 @@ export default function App({ initialStop, intro }: AppProps) {
         <StationSheet
           stop={selectedStop}
           page={stationPage}
-          neighbours={(stationPage?.near || [])
-            .map((id) => stopIndex?.byId.get(id))
-            .filter((n): n is NonNullable<typeof n> => Boolean(n))}
+          neighbours={mergeStops(
+            (stationPage?.near || [])
+              .map((id) => stopIndex?.byId.get(id))
+              .filter((n): n is NonNullable<typeof n> => Boolean(n) && !sameStation(n.id, selectedStop.id))
+          )}
           onSelectStop={selectStopFromSheet}
           onClose={() => setStationOpen(false)}
         />
@@ -707,8 +719,10 @@ export default function App({ initialStop, intro }: AppProps) {
             setSuggestions([]);
             changeTab('flyg');
           }}
-          onSuggestionSelect={(stop) => {
-            setSelectedStop({ id: stop.id, name: stop.name });
+          onSuggestionSelect={(picked) => {
+            // Sökförslagen är redan ihopslagna; närmaste hållplatserna kommer också hit.
+            const stop = groupedStop(picked);
+            setSelectedStop({ id: stop.id, name: stop.name, ...(stop.shortName ? { shortName: stop.shortName } : {}) });
             setRecentStops((list) => rememberStop(list, stop));
             // Behåll vald region (och dess snabbval) om hållplatsen inte hör till en annan region.
             const stopRegion = regionForStop(stop.id);
@@ -832,7 +846,13 @@ export default function App({ initialStop, intro }: AppProps) {
       </div>
       </div>
 
-      {intro}
+      {/* Texten om hållplatsen följer tavlan: byter man hållplats på en hållplatssida visas
+          den nya hållplatsens text (eller ingen, om den saknar egen sida). */}
+      {page && stationPage?.id === page.id ? (
+        intro
+      ) : page && stationPage && stopIndex ? (
+        <StopAbout stop={stationPage} pages={stopIndex.list} />
+      ) : null}
       <AboutSection />
       </div>
       </div>

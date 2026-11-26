@@ -1,4 +1,5 @@
 import { REGIONS } from './regions';
+import { sameStation } from './stationGroups.mjs';
 import type { BoardDirection, RegionKey, StopOption } from './types';
 
 /**
@@ -18,7 +19,7 @@ export type SavedState = {
 
 /** Regionen vars snabbval innehåller hållplatsen, annars "Hela Sverige". */
 export function regionForStop(stopId: string): RegionKey {
-  const region = REGIONS.find((r) => r.key !== 'all' && r.stations.some((s) => s.id === stopId));
+  const region = REGIONS.find((r) => r.key !== 'all' && r.stations.some((s) => s.id === stopId || sameStation(s.id, stopId)));
   return region ? region.key : 'all';
 }
 

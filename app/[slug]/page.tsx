@@ -79,7 +79,7 @@ export default async function StopPageRoute({ params }: Params) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
       />
-      <App initialStop={board} intro={<StopAbout stop={stop} />} />
+      <App initialStop={board} page={stop} intro={<StopAbout stop={stop} pages={STOP_PAGES} />} />
     </>
   );
 }
