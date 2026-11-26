@@ -398,9 +398,13 @@ export default function App({ initialStop, page, intro }: AppProps) {
     page && sameStation(page.id, selectedStop.id) ? page : stopPageFor(stopIndex, selectedStop.id);
 
   useEffect(() => {
-    if (!restored || !hasStop) return;
-    saveState({ stop: selectedStop, direction, region }, initialStop, stationPage?.slug);
-  }, [restored, hasStop, selectedStop, direction, region, stationPage?.slug]);
+    if (!restored) return;
+    if (hasStop) saveState({ stop: selectedStop, direction, region }, initialStop, stationPage?.slug);
+    // På Hem är adressen startsidan: en omladdning ger Hem, och ingen hållplatstext följer med.
+    if (screen === 'home' && tab === 'trafik' && typeof window !== 'undefined' && window.location.pathname + window.location.search !== '/') {
+      window.history.replaceState(null, '', `/${window.location.hash}`);
+    }
+  }, [restored, hasStop, selectedStop, direction, region, stationPage?.slug, screen, tab]);
 
   /** Byt hållplats från stationsbladet (grannhållplatserna). */
   function selectStopFromSheet(picked: StopOption) {
@@ -1247,7 +1251,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
 
       {/* Texten om hållplatsen följer tavlan: byter man hållplats på en hållplatssida visas
           den nya hållplatsens text (eller ingen, om den saknar egen sida). */}
-      {page && stationPage?.id === page.id ? (
+      {tab === 'trafik' && screen === 'home' ? null : page && stationPage?.id === page.id ? (
         intro
       ) : page && stationPage && stopIndex ? (
         <StopAbout stop={stationPage} pages={stopIndex.list} />

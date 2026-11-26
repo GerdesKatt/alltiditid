@@ -402,8 +402,8 @@ export default function DepartureBoard({
           <div
             role="group"
             aria-label={t('Trafikslag', 'Mode of transport')}
-            className="chip-scroll"
-            style={{ flexBasis: '100%', display: 'flex', gap: '18px', overflowX: 'auto', borderBottom: `1px solid ${colors.border}` }}
+            // Ingen scrollbar rad: Safari ritar ibland inte om en sådan efter ett tryck (trasiga bokstäver).
+            style={{ flexBasis: '100%', display: 'flex', flexWrap: 'wrap', columnGap: '18px', borderBottom: `1px solid ${colors.border}` }}
           >
             {[{ key: 'all' as TransportMode, label: 'Alla' }, ...modes].map((m) => {
               const active = mode === m.key;
@@ -418,7 +418,6 @@ export default function DepartureBoard({
                     flexShrink: 0,
                     minHeight: '44px',
                     padding: '0 2px',
-                    marginBottom: '-1px',
                     border: 'none',
                     borderBottom: `2px solid ${active ? colors.text : 'transparent'}`,
                     backgroundColor: 'transparent',

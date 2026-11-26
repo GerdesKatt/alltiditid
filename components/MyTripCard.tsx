@@ -133,7 +133,16 @@ export default function MyTripCard({
               overflowWrap: 'anywhere',
             }}
           >
-            <span style={{ flex: 1, minWidth: 0 }}>{headSchedule && /min$/.test(headBig) ? `~${headBig}` : headBig}</span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              {headSchedule && /min$/.test(headBig) ? (
+                // "ungefär": ett litet, lugnt tecken, inte ett snett streck i jättestil.
+                <span aria-hidden="true" style={{ fontFamily: fonts.text, fontWeight: 500, fontSize: '0.45em', verticalAlign: '0.35em', marginRight: '0.12em', letterSpacing: 0 }}>
+                  ca
+                </span>
+              ) : null}
+              {headSchedule && /min$/.test(headBig) ? <span className="sr-only">{t('ungefär ', 'about ')}</span> : null}
+              {headBig}
+            </span>
             {verdict ? (
               <span
                 style={{
