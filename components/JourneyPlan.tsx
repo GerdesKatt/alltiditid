@@ -24,6 +24,18 @@ type Props = {
   savedKey: string;
 };
 
+/** "SL buss 144": bolaget först, sedan slag och nummer. Utan bolag: "Buss 144". */
+export function rideLabel(leg: Leg): string {
+  if (leg.kind !== 'ride') return '';
+  // Resor sparade före bolagsnamnen: "Länstrafik buss 144" → "Buss 144".
+  if (/^länstrafik\s/i.test(leg.line) && !leg.agency) {
+    const rest = leg.line.replace(/^länstrafik\s+/i, '');
+    return rest.charAt(0).toUpperCase() + rest.slice(1);
+  }
+  if (!leg.agency || leg.line.toLowerCase().startsWith(leg.agency.toLowerCase())) return leg.line;
+  return `${leg.agency} ${leg.line.charAt(0).toLowerCase()}${leg.line.slice(1)}`;
+}
+
 const pad = (n: number) => String(n).padStart(2, '0');
 const isoDay = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
@@ -226,7 +238,7 @@ export default function JourneyPlan({ goal, fromId, fromName, onSave, savedKey }
                           : t(`${trip.changes} byte${trip.changes > 1 ? 'n' : ''}`, `${trip.changes} change${trip.changes > 1 ? 's' : ''}`)}
                       </span>
                       <span style={{ flexBasis: '100%', fontSize: '0.8125rem', color: colors.textDim }}>
-                        {rides.map((r) => (r.kind === 'ride' ? r.line : '')).join(' → ')}
+                        {rides.map(rideLabel).join(' → ')}
                       </span>
                     </button>
                     {expanded ? (
@@ -308,7 +320,7 @@ export function LegRow({ leg }: { leg: Leg }) {
       </span>
       <span style={{ minWidth: 0, fontSize: '0.875rem', lineHeight: 1.45 }}>
         <strong style={{ display: 'block', fontSize: '0.9375rem', textDecoration: leg.cancelled ? 'line-through' : 'none' }}>
-          {leg.line}
+          {rideLabel(leg)}
           {leg.direction ? ` ${t('mot', 'to')} ${leg.direction}` : ''}
         </strong>
         {leg.cancelled ? <span style={{ display: 'block', color: colors.amber, fontWeight: 700 }}>{t('Inställd', 'Cancelled')}</span> : null}

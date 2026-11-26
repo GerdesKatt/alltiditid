@@ -11,6 +11,8 @@ export type PlanLeg =
       line: string;
       direction: string;
       operator?: string;
+      /** Bolaget i kortform, t.ex. SL eller SJ. */
+      agency?: string;
       from: PlanPoint;
       to: PlanPoint;
       minutes: number;
