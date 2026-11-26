@@ -546,6 +546,68 @@ async function handleTrain(url, keys, context) {
   return jsonResponse({ error: `Hittade inget tåg ${number} i dag.` }, 404);
 }
 
+/** Minsta bytestid i minuter. Stora stationer har långa gångar mellan spåren. */
+const BIG_STATIONS = /^(stockholm c|göteborg c|malmö c|uppsala c|norrköping c|linköping c|lund c|hässleholm c|nässjö c|hallsberg|katrineholm c|alvesta|örebro c|gävle c|arlanda c|södertälje syd|sundsvall c|karlstad c|jönköping c|helsingborg c)$/i;
+function minTransfer(station) {
+  return BIG_STATIONS.test(String(station || '').trim()) ? 7 : 4;
+}
+
+/** "Linköping C" (Trafikverket) → "Linköping Centralstation" (Trafiklab). */
+function trafiklabName(tvName) {
+  return String(tvName || '').trim().replace(/\s+C$/i, ' Centralstation');
+}
+
+/**
+ * action=connections&station=Linköping C&arrival=YYYY-MM-DDTHH:MM&train=532
+ * Avgångar från bytesstationen efter tågets väntade ankomst, med marginal i minuter.
+ */
+async function handleConnections(url, keys, context) {
+  const station = String(url.searchParams.get('station') || '').trim().slice(0, 80);
+  const arrival = String(url.searchParams.get('arrival') || '');
+  const train = String(url.searchParams.get('train') || '').replace(/\D/g, '');
+  if (!station || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(arrival)) {
+    return jsonResponse({ error: 'Station och ankomsttid behövs.' }, 400);
+  }
+  let stop = null;
+  for (const q of [trafiklabName(station), station]) {
+    try {
+      const hits = keys.realtime ? await realtimeSearch(keys.realtime, q) : await resrobotSearch(keys.resrobot, q);
+      stop = hits.find((h) => !h.modes || h.modes.includes('Tåg')) || hits[0] || null;
+    } catch {
+      stop = null;
+    }
+    if (stop) break;
+  }
+  if (!stop) return jsonResponse({ error: `Hittade inte ${station}.` }, 404);
+
+  const boardUrl = new URL(url.toString());
+  boardUrl.search = '';
+  boardUrl.searchParams.set('stopId', stop.id);
+  boardUrl.searchParams.set('stopName', stop.name);
+  boardUrl.searchParams.set('mode', 'all');
+  boardUrl.searchParams.set('direction', 'departures');
+  boardUrl.searchParams.set('time', arrival);
+  const res = await handleBoard(boardUrl, keys, context);
+  if (res.status !== 200) return res;
+  const body = await res.json();
+  const transfer = minTransfer(station);
+  const arrMs = Date.parse(`${arrival}:00Z`);
+  const departures = (body.departures || [])
+    .filter((d) => !train || !String(d.line || '').endsWith(` ${train}`))
+    .map((d) => {
+      const depMs = Date.parse(`${d.expectedAt || ''}:00Z`);
+      const margin = Number.isNaN(depMs) ? null : Math.round((depMs - arrMs) / 60000);
+      return { ...d, margin };
+    })
+    .filter((d) => d.margin === null || d.margin >= -2)
+    .slice(0, 40);
+  return jsonResponse(
+    { station, stop, arrival, transfer, departures, updatedAt: new Date().toISOString() },
+    200,
+    { 'Cache-Control': 'public, max-age=30' }
+  );
+}
+
 /** Lägger Trafikverkets uppgifter ovanpå en avgång (bara tåg, bara exakt matchning). */
 function applyTrafikverket(departure, tvUpdates, trainNumberCandidates) {
   if (departure.transportMode !== 'train' && departure.transportMode !== 'commuter') {
@@ -712,10 +774,12 @@ function mapRealtimeCall(call, direction) {
   };
 }
 
-async function realtimeBoard(key, stopId, direction) {
+async function realtimeBoard(key, stopId, direction, at) {
   const kind = direction === 'arrivals' ? 'arrivals' : 'departures';
+  // `at` ('YYYY-MM-DDTHH:MM', svensk tid): tavlan från den tiden i stället för nu.
+  const when = at ? `/${encodeURIComponent(at)}` : '';
   const res = await fetch(
-    `${REALTIME_BASE}/${kind}/${encodeURIComponent(stopId)}?key=${encodeURIComponent(key)}`
+    `${REALTIME_BASE}/${kind}/${encodeURIComponent(stopId)}${when}?key=${encodeURIComponent(key)}`
   );
   if (!res.ok) throw new Error(`Trafiklab Realtime svarade med status ${res.status}`);
   const data = await res.json();
@@ -1279,11 +1343,11 @@ function shortStopLabel(name) {
 }
 
 /** Hämtar en hållplats tavla: Trafiklab Realtime först, ResRobot som reserv. */
-async function fetchOneBoard(keys, stopId, direction) {
+async function fetchOneBoard(keys, stopId, direction, at) {
   let lastError = null;
   if (keys.realtime) {
     try {
-      const board = await realtimeBoard(keys.realtime, stopId, direction);
+      const board = await realtimeBoard(keys.realtime, stopId, direction, at);
       return { ...board, stopId, source: 'trafiklab-realtime' };
     } catch (err) {
       lastError = err;
@@ -1674,7 +1738,9 @@ async function handleBoard(url, keys, context) {
   ).slice(0, MAX_COMBINED_STOPS);
   const combined = stopIds.length > 1;
 
-  const results = await Promise.all(stopIds.map((id) => fetchOneBoard(keys, id, direction)));
+  const atParam = url.searchParams.get('time') || '';
+  const at = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(atParam) ? atParam : '';
+  const results = await Promise.all(stopIds.map((id) => fetchOneBoard(keys, id, direction, at)));
   const boards = results.filter((b) => !b.error);
   if (boards.length === 0) {
     const err = results[0] && results[0].error;
@@ -1989,6 +2055,9 @@ export async function onRequest(context) {
     }
     if (action === 'train') {
       return await handleTrain(url, keys, context);
+    }
+    if (action === 'connections') {
+      return await handleConnections(url, keys, context);
     }
     if (action === 'nearby') {
       return await handleNearby(request, keys, context);
