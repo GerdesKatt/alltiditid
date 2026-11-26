@@ -319,9 +319,10 @@ export function LegRow({ leg }: { leg: Leg }) {
           {leg.transfer ? (
             // Byte: kort gång, och bytestiden (marginal) som en egen uppgift.
             <>
+              {/* Bytestiden räknar med rulltrappor, spärrar och marginal. Sträckan från ResRobot är
+                  ofta ett standardvärde (100 m), så den visas inte. */}
               {t('Byte till', 'Change to')} {leg.to.name}
-              {leg.meters ? ` · ${leg.meters} m, ${t('ca', 'about')} ${leg.walkMinutes || 1} min ${t('gång', 'walk')}` : ''}
-              {leg.minutes ? ` · ${leg.minutes} min ${t('för bytet', 'for the change')}` : ''}
+              {leg.minutes ? ` · ${t('räkna med', 'allow')} ${leg.minutes} min` : ''}
             </>
           ) : (
             <>
