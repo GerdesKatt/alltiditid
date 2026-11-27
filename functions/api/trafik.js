@@ -1893,11 +1893,14 @@ async function addressInTown(addr, env, context, rr) {
   const town = await townPoint(addr.town, env, context, rr);
   if (!town) return { town: null, places: [] };
   const street = `${addr.street} ${addr.number}`;
-  const [osm, fromRr] = await Promise.all([
-    lookupPlaces(street, env, context, town).catch(() => ({ places: [] })),
+  const bare = addr.number.replace(/[a-zA-Z]$/, '');
+  // Kartan har ofta "4" men inte "4A", eller bara gatan: sök också så, nära orten.
+  const osmQueries = [street, ...(bare !== addr.number ? [`${addr.street} ${bare}`] : []), addr.street];
+  const [fromRr, ...osm] = await Promise.all([
     rr ? rr(`location.name?input=${encodeURIComponent(street)}&maxNo=10&type=A`).then(destinationCandidates).catch(() => []) : [],
+    ...osmQueries.map((oq) => lookupPlaces(oq, env, context, town).catch(() => ({ places: [] }))),
   ]);
-  return { town, places: [...fromRr, ...osm.places] };
+  return { town, places: [...fromRr, ...osm.flatMap((o) => o.places)] };
 }
 
 /** GET action=places&q=…[&lat=&lon=]: platser och adresser till förslagen under "Vart ska du?". */
@@ -2065,6 +2068,16 @@ async function handlePlan(request, keys, context) {
       .slice(0, 3)
       .map(({ kind, id, name, detail, type, lat: pLat, lon: pLon }) => ({ kind, id, name, detail, type, lat: pLat, lon: pLon }));
     if (dest.kind !== 'stop') dest = { ...dest, kind: 'coord', placeKind: dest.kind };
+  }
+
+  // Start och mål är samma plats (man sitter hemma och skriver sin egen adress): säg det,
+  // i stället för en resa fram och tillbaka.
+  const destName = cleanPlaceName(dest.name) || dest.name;
+  const sameStop = !fromCoord && dest.kind === 'stop' && dest.id === fromId;
+  const sameSpot =
+    fromCoord && Number.isFinite(Number(dest.lat)) && Number.isFinite(Number(dest.lon)) && distanceMeters(lat, lon, Number(dest.lat), Number(dest.lon)) < 200;
+  if (sameStop || sameSpot) {
+    return jsonResponse({ error: `Du är redan vid ${destName}. Start och mål är samma plats.`, to: destName, samePlace: true }, 409);
   }
 
   const destPart = dest.kind === 'stop' ? `destId=${dest.id}` : `destCoordLat=${dest.lat}&destCoordLong=${dest.lon}`;

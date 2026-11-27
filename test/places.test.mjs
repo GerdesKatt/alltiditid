@@ -337,3 +337,82 @@ test('action=plan: en inskriven start ("from") söks upp som målet', async () =
   assert.equal(c.status, 400);
   assert.equal(c.body.error, 'Skriv var du startar.');
 });
+
+// Så som Nils fick det live: "Blåklintsvägen 4A Älvsjö" blev 4a i Skogås, eftersom kartan
+// har huset i Älvsjö som "4" (utan A) och Skogås ligger 10 km bort.
+const HOME = { lat: 59.2728, lon: 17.9791 };
+const SKOGAS = { lat: 59.2177, lon: 18.1544 };
+function skogasFetch(urls) {
+  const house = (num, at, city, extra = {}) => ({
+    geometry: { coordinates: [at.lon, at.lat] },
+    properties: { street: 'Blåklintsvägen', housenumber: num, city, countrycode: 'SE', type: 'house', osm_key: 'place', osm_value: 'house', ...extra },
+  });
+  return async (url) => {
+    const u = decodeURIComponent(String(url));
+    urls.push(u);
+    if (u.includes('photon')) {
+      const q = /[?&]q=([^&]*)/.exec(u)[1];
+      let features = [];
+      if (/^älvsjö$/i.test(q)) features = [{ geometry: { coordinates: [18.0108, 59.2786] }, properties: { name: 'Älvsjö', osm_key: 'place', osm_value: 'suburb', type: 'suburb', city: 'Stockholm', countrycode: 'SE' } }];
+      else if (q === 'Blåklintsvägen 4') features = [house('4', HOME, 'Stockholm', { district: 'Herrängen' }), house('4a', SKOGAS, 'Skogås', { district: 'Hammartorp' })];
+      else if (q === 'Blåklintsvägen') features = [{ geometry: { coordinates: [HOME.lon, HOME.lat] }, properties: { name: 'Blåklintsvägen', osm_key: 'highway', osm_value: 'residential', type: 'street', city: 'Stockholm', countrycode: 'SE' } }];
+      else if (/^blåklintsvägen 4a/i.test(q)) features = [house('4a', SKOGAS, 'Skogås', { district: 'Hammartorp' })];
+      return new Response(JSON.stringify({ features }));
+    }
+    if (u.includes('/location.name?')) {
+      return new Response(JSON.stringify({ stopLocationOrCoordLocation: [{ CoordLocation: { name: 'Blåklintsvägen 4, Hällekis', ...HALLEKIS } }] }));
+    }
+    if (u.includes('/trip?')) return new Response(JSON.stringify({ Trip: [trip] }));
+    return new Response('{}', { status: 404 });
+  };
+}
+
+test('placeScore: 4A passar 4 och "4 A", men inte 14', () => {
+  assert.ok(placeScore('Blåklintsvägen 4A', 'Blåklintsvägen 4') >= 0.7);
+  assert.equal(placeScore('Blåklintsvägen 4A', 'Blåklintsvägen 4 A'), placeScore('Blåklintsvägen 4a', 'Blåklintsvägen 4a'));
+  assert.equal(placeScore('Blåklintsvägen 4A', 'Blåklintsvägen 14'), 0);
+  assert.equal(placeScore('Blåklintsvägen 4A', 'Blåklintsvägen 4B'), 0);
+});
+
+test('action=plan: "Blåklintsvägen 4A Älvsjö" blir huset i Älvsjö, inte 4a i Skogås', async () => {
+  const urls = [];
+  globalThis.fetch = skogasFetch(urls);
+  const res = await onRequest({
+    request: new Request('https://alltiditid.se/api/trafik?action=plan', { method: 'POST', body: JSON.stringify({ to: 'Blåklintsvägen 4A Älvsjö', fromId: '740021705' }) }),
+    env: { TRAFIKLAB_RESROBOT_KEY: 'rr' },
+    waitUntil() {},
+  });
+  const body = await res.json();
+  assert.equal(res.status, 200);
+  assert.equal(body.to, 'Blåklintsvägen 4');
+  assert.equal(body.toDetail, 'Herrängen, Stockholm');
+  assert.equal(body.sure, true);
+  assert.ok(urls.findLast((u) => u.includes('/trip?')).includes(`destCoordLat=${HOME.lat}`));
+});
+
+test('action=plan: utan ort vinner huset nära positionen över 4a i Skogås', async () => {
+  globalThis.fetch = skogasFetch([]);
+  const res = await onRequest({
+    request: new Request('https://alltiditid.se/api/trafik?action=plan', { method: 'POST', body: JSON.stringify({ to: 'Blåklintsvägen 4', lat: 59.2856, lon: 17.9649 }) }),
+    env: { TRAFIKLAB_RESROBOT_KEY: 'rr' },
+    waitUntil() {},
+  });
+  const body = await res.json();
+  assert.equal(body.to, 'Blåklintsvägen 4');
+  assert.equal(body.toDetail, 'Herrängen, Stockholm');
+});
+
+test('action=plan: sitter man redan på adressen säger appen det', async () => {
+  const urls = [];
+  globalThis.fetch = skogasFetch(urls);
+  const res = await onRequest({
+    request: new Request('https://alltiditid.se/api/trafik?action=plan', { method: 'POST', body: JSON.stringify({ to: 'Blåklintsvägen 4A Älvsjö', lat: HOME.lat + 0.0005, lon: HOME.lon }) }),
+    env: { TRAFIKLAB_RESROBOT_KEY: 'rr' },
+    waitUntil() {},
+  });
+  assert.equal(res.status, 409);
+  const body = await res.json();
+  assert.equal(body.samePlace, true);
+  assert.match(body.error, /Du är redan vid Blåklintsvägen 4/);
+  assert.ok(!urls.some((u) => u.includes('/trip?')), 'ingen resa söks');
+});
