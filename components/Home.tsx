@@ -25,6 +25,8 @@ type Props = {
   /** Vart ska du? från Hem: öppnar Min resa och söker resan. */
   onGoal: (text: string) => void;
   /** Platsen man skrev in när positionen är avstängd (null när den tas bort); blir start för resor. */
+  /** Ta bort en hållplats från Hem (id), eller glöm alla besök (null). */
+  onForget?: (id: string | null) => void;
   onStartAt?: (start: { name: string; lat: number; lon: number } | null) => void;
 };
 
@@ -42,7 +44,8 @@ const label: React.CSSProperties = {
  * och sök. Positionen sorterar dina hållplatser (närmast först) och visar andra nära dig;
  * den frågas om först när man trycker, och sparas aldrig.
  */
-export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain, onOpenAirport, onGoal, onStartAt }: Props) {
+export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain, onOpenAirport, onGoal, onStartAt, onForget }: Props) {
+  const [editing, setEditing] = useState(false);
   const { t } = useLang();
   const [nearby, setNearby] = useState<Nearby[] | null>(null);
   const [locating, setLocating] = useState(false);
@@ -258,7 +261,52 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
 
       {!fresh ? (
         <section aria-label={t('Dina hållplatser', 'Your stops')} style={{ marginBottom: '22px' }}>
-          <h2 style={label}>{t('Dina hållplatser', 'Your stops')}</h2>
+          <h2 style={{ ...label, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <span>{t('Dina hållplatser', 'Your stops')}</span>
+            {onForget ? (
+              <button
+                type="button"
+                onClick={() => setEditing((e) => !e)}
+                aria-pressed={editing}
+                style={{ border: 'none', background: 'none', padding: 0, color: colors.text, font: 'inherit', textDecoration: 'underline', cursor: 'pointer' }}
+              >
+                {editing ? t('Klar', 'Done') : t('Ändra', 'Edit')}
+              </button>
+            ) : null}
+          </h2>
+          {editing ? (
+            <>
+              <ul style={list}>
+                {mine.map((s) => (
+                  <li key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', minHeight: '56px', borderBottom: `1px solid ${colors.border}` }}>
+                    <span style={{ flex: 1, minWidth: 0, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => onForget?.(s.id)}
+                      aria-label={t(`Ta bort ${s.name}`, `Remove ${s.name}`)}
+                      style={{ minHeight: '40px', padding: '0 14px', border: `1px solid ${colors.text}`, borderRadius: 0, background: 'transparent', color: colors.text, fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer' }}
+                    >
+                      {t('Ta bort', 'Remove')}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <p style={{ margin: '10px 0 0', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 }}>
+                {t('Borttagna hållplatser glöms helt, även stjärnan och sökningarna. ', 'Removed stops are forgotten completely, including the star and searches. ')}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onForget?.(null);
+                    setEditing(false);
+                  }}
+                  style={{ border: 'none', background: 'none', padding: 0, color: colors.text, font: 'inherit', textDecoration: 'underline', cursor: 'pointer' }}
+                >
+                  {t('Glöm alla besök', 'Forget all visits')}
+                </button>
+                {t(' (stjärnmärkta ligger kvar).', ' (starred stops stay).')}
+              </p>
+            </>
+          ) : (
           <ul style={list}>
             {mine.map((s) => (
               <StopRow
@@ -271,6 +319,7 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
               />
             ))}
           </ul>
+          )}
         </section>
       ) : null}
 
@@ -330,12 +379,17 @@ function NearbyLines({
 
   type Row = { d: Departure; stop: Nearby };
   const best = new Map<string, Row>();
+  // Avgångar som redan syns under Dina hållplatser: då är det inte "lugnt läge", bara redan visat.
+  let alreadyShown = 0;
   for (const stop of [...stops].sort((a, b) => a.distance - b.distance)) {
     for (const d of boards[stop.id] || []) {
       const at = parseLocal(d.expectedAt);
       if (d.status === 'cancelled' || (at !== null && at < now + 60_000)) continue;
       const k = groupKey(d);
-      if (exclude.has(k)) continue;
+      if (exclude.has(k)) {
+        alreadyShown++;
+        continue;
+      }
       const had = best.get(k);
       // Närmaste hållplatsen vinner; på samma hållplats den första avgången.
       if (!had || (had.stop.id === stop.id && (parseLocal(had.d.expectedAt) ?? 0) > (at ?? 0))) best.set(k, { d, stop });
@@ -352,6 +406,14 @@ function NearbyLines({
   if (!loaded) return <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textDim }}>{t('Hämtar…', 'Loading…')}</p>;
   // Inga avgångar snart (landet, natten): visa ändå de närmaste hållplatserna, så att man kan se
   // när nästa går, och erbjud att planera resan. Appen ska alltid föreslå en väg framåt.
+  if (rows.length === 0 && alreadyShown > 0)
+    return (
+      <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textDim }}>
+        {t('Linjerna här nära syns redan under dina hållplatser ovan.', 'The lines nearby are already shown under your stops above.')}
+      </p>
+    );
+  // Strandad på riktigt först när närmaste hållplats ligger en bit bort; i stan räcker listan.
+  const nearest = Math.min(...stops.map((s) => s.distance));
   if (rows.length === 0)
     return (
       <>
@@ -376,7 +438,7 @@ function NearbyLines({
         <WayForward
           text={t('Eller skriv vart du ska, så letar vi upp första bästa resa.', 'Or type where you are going and we will find the first good trip.')}
         />
-        {here ? <StrandedTips lat={here.lat} lon={here.lon} /> : null}
+        {here && nearest >= 800 ? <StrandedTips lat={here.lat} lon={here.lon} /> : null}
       </>
     );
 

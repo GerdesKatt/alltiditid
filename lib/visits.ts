@@ -106,3 +106,21 @@ export function rememberPositionAllowed(ok: boolean): void {
     // Ingen lagring.
   }
 }
+
+/** Glöm en hållplats: alla besök tas bort, så att den inte längre dyker upp på Hem. */
+export function forgetStop(id: string): void {
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(read().filter((v) => v.id !== id)));
+  } catch {
+    // Ingen lagring.
+  }
+}
+
+/** Glöm alla besök (stjärnmärkta hållplatser ligger kvar). */
+export function forgetAllVisits(): void {
+  try {
+    window.localStorage.removeItem(KEY);
+  } catch {
+    // Ingen lagring.
+  }
+}
