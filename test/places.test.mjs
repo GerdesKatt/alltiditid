@@ -162,3 +162,139 @@ test('action=places: fungerar utan Trafiklab-nyckel och rangordnar', async () =>
   assert.deepEqual(body.places.map((p) => p.name), ['Clarion Hotel Sign']);
   assert.equal(body.source, 'osm');
 });
+
+// "Gata nr ort": orten i frågan ska räknas, och av lika bra träffar vinner den närmaste.
+const ALVSJO = { lat: 59.2786, lon: 18.0108 };
+const HALLEKIS = { lat: 58.6236, lon: 13.4239 };
+
+test('splitAddress: gata, nummer och ort i olika former', async () => {
+  const { splitAddress } = await import('../lib/places.mjs');
+  assert.deepEqual(splitAddress('Blåklintsvägen 4 älvsjö'), { street: 'Blåklintsvägen', number: '4', town: 'älvsjö' });
+  assert.deepEqual(splitAddress('Storgatan 12, Lund'), { street: 'Storgatan', number: '12', town: 'Lund' });
+  assert.deepEqual(splitAddress('Drottninggatan 12b'), { street: 'Drottninggatan', number: '12b', town: '' });
+  assert.deepEqual(splitAddress('Kungsgatan 3 A Uppsala'), { street: 'Kungsgatan', number: '3A', town: 'Uppsala' });
+  assert.deepEqual(splitAddress('Sankt Eriksgatan 55 Stockholm'), { street: 'Sankt Eriksgatan', number: '55', town: 'Stockholm' });
+  assert.deepEqual(splitAddress('Blåklintsvägen 4, 125 33 Älvsjö'), { street: 'Blåklintsvägen', number: '4', town: 'Älvsjö' });
+  assert.equal(splitAddress('Odenplan'), null);
+  assert.equal(splitAddress('Clarion sign'), null);
+});
+
+test('placeScore: husnumret måste stämma', () => {
+  assert.equal(placeScore('Blåklintsvägen 4', 'Blåklintsvägen 40, Hällekis'), 0);
+  assert.ok(placeScore('Blåklintsvägen 4', 'Blåklintsvägen 4, Hällekis') >= 0.7);
+  assert.ok(placeScore('Storgatan 3', 'Storgatan 3A') >= 0.7, '3 passar 3A');
+  assert.equal(placeScore('Storgatan 3', 'Storgatan 13'), 0);
+  assert.equal(placeScore('Blåklintsvägen 4 älvsjö', 'Blåklintsvägen 4, Hällekis'), 0, 'fel ort passar inte');
+  assert.ok(placeScore('Blåklintsvägen 4 älvsjö', 'Blåklintsvägen 4', 'Hägersten-Älvsjö, Stockholm') >= 0.7, 'stadsdelen räknas');
+});
+
+test('rankPlaces: samma adress i flera orter, den nära orten eller positionen vinner', () => {
+  const list = [
+    { kind: 'address', name: 'Blåklintsvägen 4, Hällekis', detail: '', ...HALLEKIS },
+    { kind: 'address', name: 'Blåklintsvägen 4, Stockholm', detail: '', lat: 59.2771, lon: 18.0016 },
+    { kind: 'address', name: 'Blåklintsvägen 4, Växjö', detail: '', lat: 56.88, lon: 14.8 },
+  ];
+  const inTown = rankPlaces('Blåklintsvägen 4 älvsjö', list, { town: ALVSJO });
+  assert.equal(inTown[0].name, 'Blåklintsvägen 4, Stockholm');
+  assert.ok(inTown[0].score >= 0.7, 'säker: ligger i Älvsjö');
+  assert.ok(inTown.slice(1).every((p) => p.score < 0.7), 'de andra orterna är bara gissningar');
+  assert.equal(rankPlaces('Blåklintsvägen 4', list, { near: { lat: 59.29, lon: 18.02 } })[0].name, 'Blåklintsvägen 4, Stockholm');
+  assert.equal(rankPlaces('Blåklintsvägen 4', list, { near: { lat: 56.9, lon: 14.8 } })[0].name, 'Blåklintsvägen 4, Växjö');
+  assert.equal(rankPlaces('Blåklintsvägen 4 hällekis', list, { town: HALLEKIS })[0].name, 'Blåklintsvägen 4, Hällekis');
+  // Utan ort: Odenplan i Stockholm vinner även från Göteborg över ett sämre namn nära.
+  const oden = rankPlaces('odenplan', [
+    { kind: 'poi', name: 'Odenplansgatan bageri', detail: '', lat: 57.7, lon: 11.97 },
+    { kind: 'stop', id: '1', name: 'Odenplan', lat: 59.343, lon: 18.049 },
+  ], { near: { lat: 57.7, lon: 11.97 } });
+  assert.equal(oden[0].name, 'Odenplan');
+});
+
+test('photonPlaces: stadsdelen kommer med i detaljen', () => {
+  const [p] = photonPlaces({
+    features: [{ geometry: { coordinates: [18.0016, 59.2771] }, properties: { street: 'Blåklintsvägen', housenumber: '4', city: 'Stockholm', district: 'Hägersten-Älvsjö', locality: 'Solberga', countrycode: 'SE', type: 'house', osm_key: 'place', osm_value: 'house' } }],
+  });
+  assert.equal(p.name, 'Blåklintsvägen 4');
+  assert.equal(p.detail, 'Solberga, Hägersten-Älvsjö, Stockholm');
+});
+
+/** ResRobot och Photon som de svarade för "Blåklintsvägen 4 älvsjö": bara Hällekis på hela frågan. */
+function alvsjoFetch(urls) {
+  return async (url) => {
+    const u = decodeURIComponent(String(url));
+    urls.push(u);
+    if (u.includes('/location.name?')) {
+      const input = /input=([^&]*)/.exec(u)[1];
+      if (/^älvsjö$/i.test(input)) {
+        return new Response(JSON.stringify({ stopLocationOrCoordLocation: [{ StopLocation: { extId: '740000789', name: 'Älvsjö station', ...ALVSJO } }] }));
+      }
+      if (input === 'Blåklintsvägen 4') {
+        return new Response(JSON.stringify({
+          stopLocationOrCoordLocation: [
+            { CoordLocation: { name: 'Blåklintsvägen 4, Hällekis', ...HALLEKIS } },
+            { CoordLocation: { name: 'Blåklintsvägen 4, Stockholm', lat: 59.2771, lon: 18.0016 } },
+          ],
+        }));
+      }
+      return new Response(JSON.stringify({ stopLocationOrCoordLocation: [{ CoordLocation: { name: 'Blåklintsvägen 4, Hällekis', ...HALLEKIS } }] }));
+    }
+    if (u.includes('photon')) return new Response(JSON.stringify({ features: [] }));
+    if (u.includes('/trip?')) return new Response(JSON.stringify({ Trip: [trip] }));
+    return new Response('{}', { status: 404 });
+  };
+}
+
+test('action=plan: "Blåklintsvägen 4 älvsjö" blir adressen i Älvsjö, inte Hällekis', async () => {
+  const urls = [];
+  globalThis.fetch = alvsjoFetch(urls);
+  const res = await onRequest({
+    request: new Request('https://alltiditid.se/api/trafik?action=plan', { method: 'POST', body: JSON.stringify({ to: 'Blåklintsvägen 4 älvsjö', lat: 59.29, lon: 18.0 }) }),
+    env: { TRAFIKLAB_RESROBOT_KEY: 'rr' },
+    waitUntil() {},
+  });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.to, 'Blåklintsvägen 4, Stockholm');
+  assert.equal(body.sure, true);
+  assert.ok(urls.find((u) => u.includes('/trip?')).includes('destCoordLat=59.2771'));
+  assert.ok(!urls.some((u) => u.includes('photon') && u.includes('lat=59.29')), 'positionen skickas inte till platssökningen');
+});
+
+test('action=plan: utan ort vinner adressen nära där man står', async () => {
+  globalThis.fetch = alvsjoFetch([]);
+  const near = async (lat, lon) => {
+    const res = await onRequest({
+      request: new Request('https://alltiditid.se/api/trafik?action=plan', { method: 'POST', body: JSON.stringify({ to: 'Blåklintsvägen 4', lat, lon }) }),
+      env: { TRAFIKLAB_RESROBOT_KEY: 'rr' },
+      waitUntil() {},
+    });
+    return (await res.json()).to;
+  };
+  assert.equal(await near(59.29, 18.0), 'Blåklintsvägen 4, Stockholm');
+  assert.equal(await near(58.6, 13.4), 'Blåklintsvägen 4, Hällekis');
+});
+
+test('action=places: "gata nr ort" letar gatan nära orten', async () => {
+  const urls = [];
+  globalThis.fetch = async (url) => {
+    const u = decodeURIComponent(String(url));
+    urls.push(u);
+    const q = /[?&]q=([^&]*)/.exec(u)[1];
+    if (/^älvsjö$/i.test(q)) {
+      return new Response(JSON.stringify({ features: [{ geometry: { coordinates: [ALVSJO.lon, ALVSJO.lat] }, properties: { name: 'Älvsjö', osm_key: 'place', osm_value: 'suburb', type: 'suburb', city: 'Stockholm', countrycode: 'SE' } }] }));
+    }
+    if (q === 'Blåklintsvägen 4') {
+      return new Response(JSON.stringify({
+        features: [
+          { geometry: { coordinates: [18.0016, 59.2771] }, properties: { street: 'Blåklintsvägen', housenumber: '4', city: 'Stockholm', countrycode: 'SE', type: 'house', osm_key: 'place', osm_value: 'house' } },
+          { geometry: { coordinates: [HALLEKIS.lon, HALLEKIS.lat] }, properties: { street: 'Blåklintsvägen', housenumber: '4', city: 'Hällekis', countrycode: 'SE', type: 'house', osm_key: 'place', osm_value: 'house' } },
+        ],
+      }));
+    }
+    return new Response(JSON.stringify({ features: [] }));
+  };
+  const res = await onRequest({ request: new Request('https://alltiditid.se/api/trafik?action=places&q=Bl%C3%A5klintsv%C3%A4gen%204%20%C3%A4lvsj%C3%B6'), env: {}, waitUntil() {} });
+  const body = await res.json();
+  assert.equal(body.places[0].name, 'Blåklintsvägen 4');
+  assert.equal(body.places[0].detail, 'Stockholm');
+  assert.ok(urls.some((u) => u.includes('q=Blåklintsvägen 4&') && u.includes('lat=59.3')), 'gatan söks nära Älvsjö');
+});
