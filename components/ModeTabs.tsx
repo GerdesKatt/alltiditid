@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLang } from '../lib/i18n';
 
-/** Appens lägen: Nu (Hem och tavlor), Min resa och Flyg. */
+/** Appens lägen: Avgångar (Hem och tavlor), Min resa och Flyg. */
 export type AppTab = 'trafik' | 'resa' | 'flyg';
 export type MenuKey = 'trafik' | 'resa' | 'flyg';
 
@@ -19,20 +19,20 @@ const ICONS: Record<MenuKey, React.ReactNode> = {
     <>
       <circle cx="5.5" cy="18.5" r="2.5" />
       <circle cx="18.5" cy="5.5" r="2.5" />
-      <path d="M7.8 17.4C12 15.5 7 11 11.5 9.2s4.6-1.3 4.9-1.6" strokeDasharray="2.2 2.2" />
+      <path d="M7.8 17.4C12 15.5 7 11 11.5 9.2s4.6-1.3 4.9-1.6" />
     </>
   ),
   flyg: <path d="M21 15.5v-1.7l-7.6-4.6V4.3a1.4 1.4 0 0 0-2.8 0v4.9L3 13.8v1.7l7.6-2.3v4.6l-2.1 1.6v1.3l3.5-1 3.5 1v-1.3l-2.1-1.6v-4.6z" />,
 };
 
 const TABS: { key: MenuKey; label: string; labelEn: string }[] = [
-  { key: 'trafik', label: 'Nu', labelEn: 'Now' },
+  { key: 'trafik', label: 'Avgångar', labelEn: 'Departures' },
   { key: 'resa', label: 'Min resa', labelEn: 'My trip' },
   { key: 'flyg', label: 'Flyg', labelEn: 'Flights' },
 ];
 
 /**
- * Tre val: Nu (Hem med sökfältet och tavlorna), Min resa och Flyg (flygtavla och väntetider).
+ * Tre val: Avgångar (Hem med sökfältet och tavlorna), Min resa och Flyg (flygtavla och väntetider).
  * Meny längst ned i mobilen där tummen når, flikar överst på bred skärm (globals.css).
  */
 export default function ModeTabs({

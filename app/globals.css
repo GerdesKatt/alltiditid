@@ -490,9 +490,18 @@ input[type='search']::-webkit-search-decoration {
     width: 22px;
     height: 22px;
   }
-  /* I mobilen markeras läget av symbolen och den vita texten, inte av en linje. */
+  /* Valt läge: samma linje som på bred skärm, överst i fliken (mot menyns kant). */
   .app-tab--active {
     box-shadow: none;
+  }
+  .app-tab--active::before {
+    content: '';
+    position: absolute;
+    top: -7px;
+    left: 22%;
+    right: 22%;
+    height: 2px;
+    background-color: var(--c-text);
   }
   /* Plats för menyn, så att sidfoten och sista raden går att nå. */
   .app-shell {

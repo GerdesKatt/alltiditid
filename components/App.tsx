@@ -1267,7 +1267,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
         <>
       {tab === 'trafik' ? (
         <button type="button" onClick={goHome} className="back-home">
-          <span aria-hidden="true">←</span> {t('Hem', 'Home')}
+          <span aria-hidden="true">←</span> {t('Avgångar', 'Departures')}
         </button>
       ) : null}
       {tab === 'trafik' ? autoCard : null}
