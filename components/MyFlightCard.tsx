@@ -118,7 +118,7 @@ export default function MyFlightCard({ saved, now, onRemove }: { saved: MyFlight
                 </div>
               ) : null}
               <div style={{ fontWeight: 700, marginTop: '6px' }}>
-                {t('Var vid säkerhetskontrollen senast', 'Be at security by')} {plan.atSecurity}
+                {t('Var vid security senast', 'Be at security by')} {plan.atSecurity}
               </div>
               <div>
                 {gateStatus ? <strong style={{ color: colors.amber }}>{gateStatus} · </strong> : null}
@@ -126,7 +126,7 @@ export default function MyFlightCard({ saved, now, onRemove }: { saved: MyFlight
               </div>
               <div style={{ color: colors.textDim, fontSize: '0.8125rem' }}>
                 {plan.queue !== null
-                  ? t(`Med ${plan.queue} min kötid i säkerheten just nu och ${plan.walkMin}–${plan.walkMax} min till gaten. Uppskattat.`, `With the queue now (${plan.queue} min) and ${plan.walkMin}–${plan.walkMax} min to the gate. Estimated.`)
+                  ? t(`Med ${plan.queue} min kötid i security just nu och ${plan.walkMin}–${plan.walkMax} min till gaten. Uppskattat.`, `With the queue now (${plan.queue} min) and ${plan.walkMin}–${plan.walkMax} min to the gate. Estimated.`)
                   : t(`Med ${plan.walkMin}–${plan.walkMax} min till gaten; kötiden räknas in närmare avgång. Uppskattat.`, `With ${plan.walkMin}–${plan.walkMax} min to the gate; the queue is added closer to departure. Estimated.`)}
               </div>
             </>

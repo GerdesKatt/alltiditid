@@ -565,14 +565,14 @@ function FlightRow({
         <div style={{ padding: '0 14px 16px', borderBottom: `1px solid ${colors.border}`, fontSize: '0.875rem', lineHeight: 1.45 }}>
           {plan ? (
             <div style={{ padding: '12px 0 14px', borderTop: `1px solid ${colors.border}` }}>
-              <div style={{ color: colors.textDim, fontSize: '0.8125rem' }}>{t('Var vid säkerheten senast', 'Be at security by')}</div>
+              <div style={{ color: colors.textDim, fontSize: '0.8125rem' }}>{t('Var vid security senast', 'Be at security by')}</div>
               <div style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1.1, fontVariantNumeric: 'tabular-nums', color: colors.text }}>
                 {plan.atSecurity}
               </div>
               <div style={{ color: colors.textDim, marginTop: '4px', fontSize: '0.8125rem' }}>
                 {plan.queue !== null
                   ? t(
-                      `Med ${plan.queue} min kötid i säkerheten just nu och ${plan.walkMin}–${plan.walkMax} min till gaten. Uppskattat.`,
+                      `Med ${plan.queue} min kötid i security just nu och ${plan.walkMin}–${plan.walkMax} min till gaten. Uppskattat.`,
                       `With ${plan.queue} min at security now and ${plan.walkMin}–${plan.walkMax} min to the gate. Estimated.`
                     )
                   : t(
