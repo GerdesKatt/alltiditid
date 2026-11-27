@@ -30,8 +30,8 @@ export default function AboutSection() {
             departures and security wait times at Swedish airports.
           </p>
           <p style={{ ...paragraph, margin: '0 0 12px 0' }}>
-            Being picked up? Tap your departure and choose <strong>I&apos;m on board</strong> to send a message with
-            your arrival time to the person meeting you.
+            Being picked up? Tap your departure and choose <strong>I&apos;m on board</strong> to send the person meeting
+            you a message saying which bus or train you are on and whether it is on time.
           </p>
           <p style={{ ...paragraph, margin: 0 }}>
             Add alltiditid.se to your home screen and it opens like an app. On iPhone: tap <strong>Share</strong> and
@@ -56,8 +56,8 @@ export default function AboutSection() {
             avgångar och väntetider i säkerhetskontrollen på svenska flygplatser.
           </p>
           <p style={{ ...paragraph, margin: '0 0 12px 0' }}>
-            Ska någon hämta dig? Tryck på din avgång och välj <strong>Jag är ombord</strong>, så kan du skicka ett
-            meddelande med när du är framme till den som möter dig.
+            Ska någon hämta dig? Tryck på din avgång och välj <strong>Jag är ombord</strong>, så skickar du ett meddelande
+            till den som möter dig om vilken buss eller vilket tåg du sitter på och om den är i tid.
           </p>
           <p style={{ ...paragraph, margin: 0 }}>
             Lägg alltiditid.se på hemskärmen så öppnas den som en app. På iPhone: tryck på <strong>Dela</strong> och
