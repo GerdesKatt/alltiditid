@@ -11,7 +11,7 @@ type Props = {
 };
 
 const TABS: { key: InfoTab; label: string; labelEn: string }[] = [
-  { key: 'about', label: 'Om alltiditid.se', labelEn: 'About alltiditid.se' },
+  { key: 'about', label: 'Om alltid i tid', labelEn: 'About alltid i tid' },
   { key: 'privacy', label: 'Integritet', labelEn: 'Privacy' },
   { key: 'terms', label: 'Ansvarsfriskrivning', labelEn: 'Disclaimer' },
   { key: 'contact', label: 'Kontakt', labelEn: 'Contact' },
@@ -36,7 +36,7 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
     case 'about':
       return (
         <p style={tabText}>
-          alltiditid.se is an independent information service showing current departure times, arrivals and delay
+          alltid i tid is an independent information service showing current departure times, arrivals and delay
           data based on open traffic data.
         </p>
       );
@@ -44,7 +44,7 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
       return (
         <div style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
           <p style={privacyPara}>
-            alltiditid.se has no accounts and shows no ads. Cookies are only used for statistics, and only if you have
+            alltid i tid has no accounts and shows no ads. Cookies are only used for statistics, and only if you have
             agreed to it. This is how the little that is needed is handled:
           </p>
           <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
@@ -60,6 +60,12 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
               allowed location access. It is rounded to about 100 metres on your phone before being sent to our server
               and on to Trafiklab (ResRobot) to find the nearest stops. The location is not stored and not linked to
               you. A response for the same rounded location is cached for at most 5 minutes.
+            </li>
+            <li style={privacyItem}>
+              <strong>Where to?</strong> When you search for an address, a hotel or another place, our server sends
+              what you typed to a geocoding service (Geoapify, or Photon run by komoot in Germany) to find the place.
+              Nothing about you is sent. The answer for the same search may be cached for up to 7 days, not linked to
+              you.
             </li>
             <li style={privacyItem}>
               <strong>Can I make it?</strong> When you turn on walking time, your location is followed while the
@@ -88,12 +94,9 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
             <li style={privacyItem}>
               <strong>Our own counts.</strong> To see whether the site works, we count a few events per day, such
               as how fast the first departure appears and whether a search is abandoned. No cookies, no IP address
-              and nothing that identifies you is stored: only a day, an event name and a tally.
-            </li>
-            <li style={privacyItem}>
-              <strong>Watch waiting list.</strong> The offer has ended. If you joined the list, we still keep your
-              email address, the price you picked and your language, with Cloudflare. We don't use them for anything
-              else and never share them. Email kontakt@alltiditid.se and we delete them.
+              and nothing that identifies you is stored: only a day, an event name and a tally. Once a day we
+              also count on how many different days in the past week you looked at a board (a number from 1 to
+              7), based on the stops already saved for Home.
             </li>
             <li style={privacyItem}>
               <strong>Suggestions and filters.</strong> Which lines you open and which mode you picked at a stop
@@ -116,7 +119,22 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
               deliver the page and protect it against attacks. We do not store IP addresses.
             </li>
           </ul>
-          <p style={privacyPara}>Questions about how your data is handled? Email kontakt@alltiditid.se.</p>
+          <p style={privacyPara}>
+            <strong>Data controller.</strong> Nils Gerdes, who runs alltid i tid as a private individual, is the
+            controller for the personal data described here. Contact: kontakt@alltiditid.se.
+          </p>
+          <p style={privacyPara}>
+            <strong>Legal basis.</strong> Most of the site handles no personal data at all. Your IP address at
+            Cloudflare, the location you choose to use and what you type in the place search are handled on the basis
+            of legitimate interest: delivering and protecting the site and giving you what you asked for. Google
+            Analytics is based on your consent, which you can withdraw at any time.
+          </p>
+          <p style={privacyPara}>
+            <strong>Your rights.</strong> You can ask what data we hold about you, and have it corrected or deleted.
+            You can object to processing and withdraw consent. Email kontakt@alltiditid.se. You also have the right
+            to complain to the Swedish Authority for Privacy Protection (IMY), imy.se.
+          </p>
+          <p style={privacyPara}>Last updated 27 November 2026.</p>
         </div>
       );
     case 'terms':
@@ -144,7 +162,7 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
     case 'about':
       return (
         <p style={tabText}>
-          alltiditid.se är en oberoende informationstjänst som visar aktuella avgångstider,
+          alltid i tid är en oberoende informationstjänst som visar aktuella avgångstider,
           ankomster och förseningsdata baserat på öppna trafikdata.
         </p>
       );
@@ -152,7 +170,7 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
       return (
         <div style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
           <p style={privacyPara}>
-            alltiditid.se har inga konton och visar inga annonser. Kakor används bara för statistik,
+            alltid i tid har inga konton och visar inga annonser. Kakor används bara för statistik,
             och bara om du har godkänt det. Så här hanteras det lilla som behövs:
           </p>
           <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
@@ -170,6 +188,12 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
               telefon innan den skickas till vår server och vidare till Trafiklab (ResRobot) för att
               hitta närmaste hållplatser. Positionen sparas inte och kopplas inte till dig. Ett svar
               för samma avrundade position mellanlagras i högst 5 minuter.
+            </li>
+            <li style={privacyItem}>
+              <strong>Vart ska du?</strong> När du söker en adress, ett hotell eller en annan plats skickar vår server
+              det du skrivit till en tjänst som hittar platser (Geoapify, eller Photon som drivs av komoot i
+              Tyskland). Inget om dig skickas. Svaret på samma sökning kan mellanlagras i upp till 7 dagar, utan
+              koppling till dig.
             </li>
             <li style={privacyItem}>
               <strong>Hinner jag dit?</strong> När du slår på gångtid följs din position medan tavlan är öppen.
@@ -200,12 +224,8 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
               <strong>Egna räkningar.</strong> För att se om sajten fungerar räknar vi några händelser
               per dag, till exempel hur snabbt första avgången syns och om en sökning avbryts. Inga
               kakor, ingen IP-adress och inget som pekar ut dig sparas: bara dag, händelse och antal.
-            </li>
-            <li style={privacyItem}>
-              <strong>Väntelistan för Bevakning.</strong> Erbjudandet är avslutat. Om du ställde dig i kön
-              har vi kvar din e-postadress, vilket pris du valde och språket, hos Cloudflare.
-              Vi använder dem inte till något annat och delar dem inte med någon. Mejla
-              kontakt@alltiditid.se så raderar vi dem.
+              En gång per dag räknar vi också hur många olika dagar den senaste veckan du tittat på en
+              tavla (ett tal mellan 1 och 7), utifrån hållplatserna som redan sparas för Hem.
             </li>
             <li style={privacyItem}>
               <strong>Förslag och filter.</strong> Vilka linjer du öppnar och vilket trafikslag du valt
@@ -243,8 +263,21 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
             </li>
           </ul>
           <p style={privacyPara}>
-            Frågor om hur dina uppgifter hanteras? Mejla kontakt@alltiditid.se.
+            <strong>Personuppgiftsansvarig.</strong> Nils Gerdes, som driver alltid i tid som privatperson, är
+            personuppgiftsansvarig för de uppgifter som beskrivs här. Kontakt: kontakt@alltiditid.se.
           </p>
+          <p style={privacyPara}>
+            <strong>Rättslig grund.</strong> Det mesta på sajten hanterar inga personuppgifter alls. Din IP-adress hos
+            Cloudflare, positionen du själv väljer att använda och det du skriver i platssökningen hanteras med stöd
+            av berättigat intresse: att leverera och skydda sajten och ge dig det du bett om. Google Analytics bygger
+            på ditt samtycke, som du kan återkalla när du vill.
+          </p>
+          <p style={privacyPara}>
+            <strong>Dina rättigheter.</strong> Du kan begära att få veta vilka uppgifter vi har om dig och få dem
+            rättade eller raderade. Du kan också invända mot behandlingen och återkalla ett samtycke. Mejla
+            kontakt@alltiditid.se. Du har rätt att klaga hos Integritetsskyddsmyndigheten (IMY), imy.se.
+          </p>
+          <p style={privacyPara}>Senast uppdaterad 27 november 2026.</p>
         </div>
       );
     case 'terms':
@@ -320,7 +353,7 @@ export default function InfoFooter({ activeTab, onTabChange, onChangeAnalyticsCh
           color: colors.textFaint,
         }}
       >
-        <span>{t('2026 alltiditid.se – Alla rättigheter förbehållna.', '2026 alltiditid.se – All rights reserved.')}</span>
+        <span>{t('2026 alltid i tid (alltiditid.se) – Alla rättigheter förbehållna.', '2026 alltid i tid (alltiditid.se) – All rights reserved.')}</span>
         <a href="mailto:kontakt@alltiditid.se" style={{ color: colors.textDim, textDecoration: 'none' }}>
           kontakt@alltiditid.se
         </a>

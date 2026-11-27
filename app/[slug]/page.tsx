@@ -27,19 +27,19 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const title = `${stop.name} – avgångar i realtid`;
   const url = `/${stop.slug}`;
   return {
-    title: `${title} | alltiditid`,
+    title: `${title} | alltid i tid`,
     description: description(stop),
     alternates: { canonical: url },
     openGraph: {
       type: 'website',
       locale: 'sv_SE',
-      siteName: 'alltiditid',
+      siteName: 'alltid i tid',
       url,
       title,
       description: description(stop),
-      images: [{ url: '/og.png', width: 1200, height: 630, alt: 'alltiditid: nästa avgång, i realtid' }],
+      images: [{ url: '/og-v2.png', width: 1200, height: 630, alt: 'alltid i tid: nästa avgång, i realtid' }],
     },
-    twitter: { card: 'summary_large_image', title, description: description(stop), images: ['/og.png'] },
+    twitter: { card: 'summary_large_image', title, description: description(stop), images: ['/og-v2.png'] },
   };
 }
 

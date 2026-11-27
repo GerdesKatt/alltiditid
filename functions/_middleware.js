@@ -55,7 +55,7 @@ export async function onRequest(context) {
   if (!(response.headers.get('Content-Type') || '').includes('text/html')) return response;
 
   const what = stop.arrivals ? 'Ankomster' : 'Avgångar';
-  const title = `${stop.name} – ${what.toLowerCase()} i realtid | alltiditid`;
+  const title = `${stop.name} – ${what.toLowerCase()} i realtid | alltid i tid`;
   const description = `${what} från ${stop.name} i realtid, med förseningar och störningar. Utan reklam, utan konto.`;
   const shareUrl = `${SITE}/?h=${encodeURIComponent(stop.id)}&n=${encodeURIComponent(stop.name)}${
     stop.arrivals ? '&visa=ankomster' : ''

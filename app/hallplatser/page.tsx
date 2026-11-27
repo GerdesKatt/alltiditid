@@ -6,7 +6,7 @@ import { colors } from '../../components/styles';
 import { STOP_PAGES } from '../../lib/stops';
 
 export const metadata: Metadata = {
-  title: 'Alla hållplatser – avgångar i realtid | alltiditid',
+  title: 'Alla hållplatser – avgångar i realtid | alltid i tid',
   description: 'Hållplatser och stationer i hela Sverige med avgångar i realtid, ordnade efter ort.',
   alternates: { canonical: '/hallplatser' },
 };

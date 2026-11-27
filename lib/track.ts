@@ -13,7 +13,9 @@ export type TrackName =
   | 'funktion'
   | 'bevakning'
   /** Flyg visades minst en gång under besöket (räknas en gång per sidvisning, hur man än kom dit). */
-  | 'flygflik';
+  | 'flygflik'
+  /** Dagens första tavla: antal olika dagar med en tavla senaste 7 dygnen (etikett 1–7). */
+  | 'aktiva_dagar';
 
 const sent = new Set<string>();
 

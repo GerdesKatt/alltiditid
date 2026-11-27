@@ -128,7 +128,8 @@ const REALTIME_BASE = 'https://realtime-api.trafiklab.se/v1';
 const RESROBOT_BASE = 'https://api.resrobot.se/v2.1';
 
 /** Hur länge en avgångstavla cachas i Cloudflare (sekunder). Trafiklab cachar själva i 60 s. */
-const BOARD_CACHE_SECONDS = 20;
+// Samma som appens uppdatering (30 s): varje hållplats kostar då högst två anrop i minuten.
+const BOARD_CACHE_SECONDS = 30;
 /** Hur länge Trafikverkets stationslista cachas (sekunder). */
 const STATION_LIST_CACHE_SECONDS = 24 * 60 * 60;
 
@@ -1123,8 +1124,15 @@ async function realtimeBoard(key, stopId, direction, at) {
     calls.find((c) => c && c.stop && c.stop.name)?.stop.name ||
     data.stops?.[0]?.name ||
     '';
+  // Hållplatsens läge, så att taxi- och cykelraden kan visas även när tavlan är tom.
+  const stop = data.stops?.find((s) => String(s.id) === String(stopId)) || data.stops?.[0];
+  const coords =
+    stop && Number.isFinite(Number(stop.lat)) && Number.isFinite(Number(stop.lon)) && stop.lat != null && stop.lon != null
+      ? { lat: Number(stop.lat), lon: Number(stop.lon) }
+      : null;
   return {
     stopName,
+    coords,
     departures: calls.map((call) => mapRealtimeCall(call, direction)),
   };
 }
@@ -1518,15 +1526,19 @@ function mapResrobotItem(item, direction) {
     directionType: direction,
     transportMode: itemMode,
     _trainCandidates: [trainNumber],
+    _coords:
+      item.lat != null && item.lon != null && Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lon))
+        ? { lat: Number(item.lat), lon: Number(item.lon) }
+        : null,
     _scheduledLocal: `${item.date || ''}T${scheduledTime}`,
     _offsetMin: !isCancelled && rawDiff !== null ? rawDiff : 0,
   };
 }
 
-async function resrobotBoard(key, stopId, direction) {
+async function resrobotBoard(key, stopId, direction, duration = 120) {
   const endpoint = direction === 'arrivals' ? 'arrivalBoard' : 'departureBoard';
   const res = await upstreamFetch(
-    `${RESROBOT_BASE}/${endpoint}?id=${encodeURIComponent(stopId)}&duration=120&passlist=1&format=json&accessId=${encodeURIComponent(key)}`
+    `${RESROBOT_BASE}/${endpoint}?id=${encodeURIComponent(stopId)}&duration=${duration}&passlist=1&format=json&accessId=${encodeURIComponent(key)}`
   );
   if (!res.ok) throw new Error(`Trafiklab svarade med status ${res.status}`);
   const data = await res.json();
@@ -2184,12 +2196,44 @@ function shortStopLabel(name) {
     .trim();
 }
 
+/**
+ * Tidtabell när realtiden är tom: Trafiklab Realtime visar bara en kort stund framåt, så
+ * på landsbygden (Vilhelmina, Arjeplog) blev tavlan tom fast bussen går om två timmar.
+ * Då frågas ResRobot med ett längre fönster. Högst så här många gånger per dygn, eftersom
+ * ResRobot-nyckeln har en mindre kvot.
+ */
+const TIMETABLE_FALLBACK_MINUTES = 360;
+const TIMETABLE_FALLBACK_PER_DAY = 300;
+/** En tom eller tidtabellsbaserad tavla ändras sällan: cacha den längre (sekunder). */
+const TIMETABLE_CACHE_SECONDS = 120;
+
 /** Hämtar en hållplats tavla: Trafiklab Realtime först, ResRobot som reserv. */
-async function fetchOneBoard(keys, stopId, direction, at) {
+async function fetchOneBoard(keys, stopId, direction, at, context) {
   let lastError = null;
   if (keys.realtime) {
     try {
       const board = await realtimeBoard(keys.realtime, stopId, direction, at);
+      if (board.departures.length === 0 && keys.resrobot && !at) {
+        const env = context && context.env;
+        if (await allowCall(env, 'resrobot-tidtabell', TIMETABLE_FALLBACK_PER_DAY)) {
+          try {
+            const timetable = await resrobotBoard(keys.resrobot, stopId, direction, TIMETABLE_FALLBACK_MINUTES);
+            if (timetable.departures.length > 0) {
+              return {
+                ...timetable,
+                stopName: board.stopName,
+                coords: board.coords,
+                stopId,
+                source: 'resrobot',
+                timetable: true,
+              };
+            }
+          } catch {
+            // Tidtabellen gick inte att hämta: visa den tomma realtidstavlan.
+          }
+        }
+        return { ...board, stopId, source: 'trafiklab-realtime', timetable: true };
+      }
       return { ...board, stopId, source: 'trafiklab-realtime' };
     } catch (err) {
       lastError = err;
@@ -2562,6 +2606,29 @@ function compareLines(a, b) {
   return a.localeCompare(b, 'sv');
 }
 
+/**
+ * Förseningshistoriken skrevs vid varje hämtning av en tavla, en rad per tur som går nu.
+ * D1:s gratisnivå är 100 000 skrivna rader per dygn, så samma tur skrivs nu bara om när
+ * förseningen eller statusen ändrats, eller efter 5 minuter. Gäller per instans.
+ */
+const HISTORY_REWRITE_MS = 5 * 60_000;
+const historySeen = new Map();
+
+export function unsavedHistoryRows(rows, now = Date.now()) {
+  const out = [];
+  for (const r of rows) {
+    const sig = `${r.delay_min}|${r.status}|${r.expected_at}`;
+    const prev = historySeen.get(r.trip_key);
+    if (prev && prev.sig === sig && now - prev.at < HISTORY_REWRITE_MS) continue;
+    historySeen.set(r.trip_key, { sig, at: now });
+    out.push(r);
+  }
+  if (historySeen.size > 5000) {
+    for (const [k, v] of historySeen) if (now - v.at > HISTORY_REWRITE_MS) historySeen.delete(k);
+  }
+  return out;
+}
+
 async function handleBoard(url, keys, context) {
   const stopParam = url.searchParams.get('stopId') || '740000001';
   // Vägfärjornas färjelägen har egen källa (Trafikverket).
@@ -2584,7 +2651,7 @@ async function handleBoard(url, keys, context) {
 
   const atParam = url.searchParams.get('time') || '';
   const at = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(atParam) ? atParam : '';
-  const results = await Promise.all(stopIds.map((id) => fetchOneBoard(keys, id, direction, at)));
+  const results = await Promise.all(stopIds.map((id) => fetchOneBoard(keys, id, direction, at, context)));
   const boards = results.filter((b) => !b.error);
   if (boards.length === 0) {
     const err = results[0] && results[0].error;
@@ -2692,7 +2759,8 @@ async function handleBoard(url, keys, context) {
       nowLocal: swedishDateTime(nowIso),
       seenAt: nowIso,
     });
-    if (rows.length && context.waitUntil) context.waitUntil(saveHistory(db, rows));
+    const fresh = unsavedHistoryRows(rows);
+    if (fresh.length && context.waitUntil) context.waitUntil(saveHistory(db, fresh));
   }
 
   const departures = timed
@@ -2703,7 +2771,9 @@ async function handleBoard(url, keys, context) {
 
   const grouped = groupDisruptions(departures, stopDisruptions);
   // Hållplatsens läge, för "Annat sätt härifrån" (Uber-upphämtning och lånecyklar).
-  const coords = timed.find((d) => d._coords)?._coords || null;
+  const coords = timed.find((d) => d._coords)?._coords || boards.find((b) => b.coords)?.coords || null;
+  // Tom realtid eller bara tidtabell överallt: ändras sällan, cacha längre.
+  const timetableOnly = boards.every((b) => b.timetable);
 
   return jsonResponse(
     {
@@ -2717,7 +2787,7 @@ async function handleBoard(url, keys, context) {
         : {}),
     },
     200,
-    { 'Cache-Control': `public, max-age=${BOARD_CACHE_SECONDS}` }
+    { 'Cache-Control': `public, max-age=${timetableOnly ? TIMETABLE_CACHE_SECONDS : BOARD_CACHE_SECONDS}` }
   );
 }
 
@@ -2757,8 +2827,24 @@ async function allowCall(env, api, limit) {
       .first();
     return !row || Number(row.n) <= limit;
   } catch {
-    return true;
+    // D1 svarar inte (t.ex. slut på dygnets skrivningar): släpp inte igenom allt, utan räkna
+    // i minnet och tillåt en tiondel av gränsen per instans, så att kvoterna hos Swedavia
+    // och ResRobot inte rusar iväg.
+    return allowInMemory(api, limit);
   }
+}
+
+const memoryCalls = new Map();
+
+/** Reservräknare när D1 inte svarar: per instans och dygn, högst en tiondel av gränsen. */
+export function allowInMemory(api, limit, day = new Date().toISOString().slice(0, 10)) {
+  const key = `${day}|${api}`;
+  const n = (memoryCalls.get(key) || 0) + 1;
+  memoryCalls.set(key, n);
+  if (memoryCalls.size > 200) {
+    for (const k of memoryCalls.keys()) if (!k.startsWith(day)) memoryCalls.delete(k);
+  }
+  return n <= Math.max(1, Math.ceil(limit / 10));
 }
 
 // ---------------------------------------------------------------------------
@@ -2769,11 +2855,27 @@ async function allowCall(env, api, limit) {
 /** Ej skrivna räknare: källa -> { calls, failures }. */
 const pendingCounts = new Map();
 
-function countUpstream(url, failed) {
+/** Ej skrivna fel: "källa|orsak|sökväg" -> antal, så att man ser varför en källa fallerar. */
+const pendingErrors = new Map();
+
+/** Sökvägen utan id:n och nycklar, t.ex. /v1/sites/:n/departures. */
+export function errorPath(url) {
+  try {
+    return new URL(String(url)).pathname.replace(/\d+/g, ':n').slice(0, 80);
+  } catch {
+    return '';
+  }
+}
+
+function countUpstream(url, failed, reason = '') {
   const source = sourceOf(url);
   const c = pendingCounts.get(source) || { calls: 0, failures: 0 };
   c.calls += 1;
-  if (failed) c.failures += 1;
+  if (failed) {
+    c.failures += 1;
+    const key = `${source}|${reason}|${errorPath(url)}`;
+    pendingErrors.set(key, (pendingErrors.get(key) || 0) + 1);
+  }
   pendingCounts.set(source, c);
 }
 
@@ -2782,10 +2884,10 @@ async function upstreamFetch(input, init) {
   const url = typeof input === 'string' ? input : input && input.url;
   try {
     const res = await fetch(input, init);
-    countUpstream(url, isFailure(res.status));
+    countUpstream(url, isFailure(res.status), String(res.status));
     return res;
   } catch (err) {
-    countUpstream(url, true);
+    countUpstream(url, true, err && err.name === 'AbortError' ? 'timeout' : 'nätfel');
     throw err;
   }
 }
@@ -2796,6 +2898,8 @@ async function flushUpstreamCounts(env) {
   if (!db || pendingCounts.size === 0) return;
   const rows = [...pendingCounts.entries()];
   pendingCounts.clear();
+  const errors = [...pendingErrors.entries()];
+  pendingErrors.clear();
   try {
     const day = new Date().toISOString().slice(0, 10);
     await db
@@ -2805,6 +2909,20 @@ async function flushUpstreamCounts(env) {
       'INSERT INTO upstream_calls (day, source, calls, failures) VALUES (?1, ?2, ?3, ?4) ON CONFLICT (day, source) DO UPDATE SET calls = calls + ?3, failures = failures + ?4'
     );
     await db.batch(rows.map(([source, c]) => stmt.bind(day, source, c.calls, c.failures)));
+    if (errors.length) {
+      await db
+        .prepare('CREATE TABLE IF NOT EXISTS upstream_errors (day TEXT NOT NULL, source TEXT NOT NULL, reason TEXT NOT NULL, path TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (day, source, reason, path))')
+        .run();
+      const errStmt = db.prepare(
+        'INSERT INTO upstream_errors (day, source, reason, path, n) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT (day, source, reason, path) DO UPDATE SET n = n + ?5'
+      );
+      await db.batch(
+        errors.map(([key, n]) => {
+          const [source, reason, path] = key.split('|');
+          return errStmt.bind(day, source, reason, path, n);
+        })
+      );
+    }
   } catch {
     // Räknarna är bara till för övervakningen.
   }
@@ -2815,9 +2933,28 @@ const DAILY_LIMITS = {
   'swedavia-flightinfo': FLIGHT_CALLS_PER_DAY,
   'swedavia-waittime': WAIT_CALLS_PER_DAY,
   'resrobot-plan': PLAN_CALLS_PER_DAY,
+  'resrobot-tidtabell': TIMETABLE_FALLBACK_PER_DAY,
   places: PLACES_CALLS_PER_DAY,
   gtfsrt: GTFS_RT_DAILY_LIMIT,
 };
+
+/**
+ * Lägger dagens vanligaste felorsak per källa till larmtexten, t.ex.
+ * "sl: 14 av 57 anrop i dag misslyckades. Vanligast: 503 på /v1/sites/:n/departures (9 st)."
+ */
+export function withErrorCauses(health, errorRows) {
+  const top = new Map();
+  for (const r of errorRows) {
+    const prev = top.get(r.source);
+    if (!prev || Number(r.n) > Number(prev.n)) top.set(r.source, r);
+  }
+  const problems = (health.problems || []).map((p) => {
+    const source = p.split(':')[0];
+    const r = top.get(source);
+    return r ? `${p.replace(/\.$/, '')}. Vanligast: ${r.reason} på ${r.path} (${r.n} st).` : p;
+  });
+  return { ...health, problems, errorsToday: errorRows };
+}
 
 /**
  * Hälsokontroll: fel och kvotförbrukning per källa. Gör inga externa anrop och
@@ -2842,7 +2979,15 @@ async function handleHealth(env) {
     } catch {
       // Likaså.
     }
-    const health = evaluateHealth(rows, today, capped, DAILY_LIMITS);
+    let errorRows = [];
+    try {
+      errorRows =
+        (await db.prepare('SELECT source, reason, path, n FROM upstream_errors WHERE day = ?1 ORDER BY n DESC LIMIT 20').bind(today).all())
+          .results || [];
+    } catch {
+      // Skapas vid första felet.
+    }
+    const health = withErrorCauses(evaluateHealth(rows, today, capped, DAILY_LIMITS), errorRows);
     return jsonResponse({ ...health, checkedAt: new Date().toISOString() }, health.ok ? 200 : 503, {
       'Cache-Control': 'no-store',
     });
@@ -2961,7 +3106,7 @@ async function handleWaitTimes(url, env, context) {
 }
 
 /** Händelserna som tas emot, och etiketterna som får följa med "funktion". */
-const EVENT_NAMES = ['forsta_avgang', 'aterkommande', 'tittade_och_gick', 'byte_snabbt', 'sokavhopp', 'funktion', 'bevakning', 'flygflik'];
+const EVENT_NAMES = ['forsta_avgang', 'aterkommande', 'tittade_och_gick', 'byte_snabbt', 'sokavhopp', 'funktion', 'bevakning', 'flygflik', 'aktiva_dagar'];
 const EVENT_LABELS = /^[a-z0-9_-]{0,32}$/;
 /** Ett tak per dygn, så att ett fel i appen eller en robot inte fyller databasen. */
 const EVENT_DAILY_LIMIT = 50000;
