@@ -2077,7 +2077,7 @@ async function handlePlan(request, keys, context) {
   const sameSpot =
     fromCoord && Number.isFinite(Number(dest.lat)) && Number.isFinite(Number(dest.lon)) && distanceMeters(lat, lon, Number(dest.lat), Number(dest.lon)) < 200;
   if (sameStop || sameSpot) {
-    return jsonResponse({ error: `Du är redan vid ${destName}. Start och mål är samma plats.`, to: destName, samePlace: true }, 409);
+    return jsonResponse({ error: sameStop || sure ? `Du är redan vid ${destName}. Start och mål är samma plats.` : `Du är redan framme: ${destName} ligger mindre än 200 m bort.`, to: destName, samePlace: true }, 409);
   }
 
   const destPart = dest.kind === 'stop' ? `destId=${dest.id}` : `destCoordLat=${dest.lat}&destCoordLong=${dest.lon}`;

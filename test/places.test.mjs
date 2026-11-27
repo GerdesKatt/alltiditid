@@ -182,7 +182,7 @@ test('splitAddress: gata, nummer och ort i olika former', async () => {
 test('placeScore: husnumret måste stämma', () => {
   assert.equal(placeScore('Blåklintsvägen 4', 'Blåklintsvägen 40, Hällekis'), 0);
   assert.ok(placeScore('Blåklintsvägen 4', 'Blåklintsvägen 4, Hällekis') >= 0.7);
-  assert.ok(placeScore('Storgatan 3', 'Storgatan 3A') >= 0.7, '3 passar 3A');
+  assert.ok(placeScore('Storgatan 3', 'Storgatan 3A') < 0.7, '3 och 3A är olika hus');
   assert.equal(placeScore('Storgatan 3', 'Storgatan 13'), 0);
   assert.equal(placeScore('Blåklintsvägen 4 älvsjö', 'Blåklintsvägen 4, Hällekis'), 0, 'fel ort passar inte');
   assert.ok(placeScore('Blåklintsvägen 4 älvsjö', 'Blåklintsvägen 4', 'Hägersten-Älvsjö, Stockholm') >= 0.7, 'stadsdelen räknas');
@@ -367,14 +367,16 @@ function skogasFetch(urls) {
   };
 }
 
-test('placeScore: 4A passar 4 och "4 A", men inte 14', () => {
-  assert.ok(placeScore('Blåklintsvägen 4A', 'Blåklintsvägen 4') >= 0.7);
+test('placeScore: 4A och 4 är olika hus (bara en osäker gissning), "4 A" är 4A, 14 passar inte', () => {
+  const near = placeScore('Blåklintsvägen 4A', 'Blåklintsvägen 4');
+  assert.ok(near > 0 && near < 0.7, 'grannhuset är aldrig säkert');
+  assert.ok(placeScore('Blåklintsvägen 4', 'Blåklintsvägen 4A') < 0.7);
   assert.equal(placeScore('Blåklintsvägen 4A', 'Blåklintsvägen 4 A'), placeScore('Blåklintsvägen 4a', 'Blåklintsvägen 4a'));
   assert.equal(placeScore('Blåklintsvägen 4A', 'Blåklintsvägen 14'), 0);
   assert.equal(placeScore('Blåklintsvägen 4A', 'Blåklintsvägen 4B'), 0);
 });
 
-test('action=plan: "Blåklintsvägen 4A Älvsjö" blir huset i Älvsjö, inte 4a i Skogås', async () => {
+test('action=plan: "Blåklintsvägen 4A Älvsjö" finns inte på kartan: grannhuset i Älvsjö som osäker gissning, inte 4a i Skogås', async () => {
   const urls = [];
   globalThis.fetch = skogasFetch(urls);
   const res = await onRequest({
@@ -386,8 +388,33 @@ test('action=plan: "Blåklintsvägen 4A Älvsjö" blir huset i Älvsjö, inte 4a
   assert.equal(res.status, 200);
   assert.equal(body.to, 'Blåklintsvägen 4');
   assert.equal(body.toDetail, 'Herrängen, Stockholm');
-  assert.equal(body.sure, true);
+  assert.equal(body.sure, false, 'fel hus: appen frågar "Stämmer målet?"');
+  assert.ok(!body.alternatives?.some((a) => a.detail?.includes('Skogås') && a.score >= 0.7));
   assert.ok(urls.findLast((u) => u.includes('/trip?')).includes(`destCoordLat=${HOME.lat}`));
+});
+
+test('action=plan: finns 4A i Älvsjö på kartan vinner det säkert över 4', async () => {
+  const A = { lat: 59.2731, lon: 17.9795 };
+  const base = skogasFetch([]);
+  globalThis.fetch = async (url) => {
+    const u = decodeURIComponent(String(url));
+    if (u.includes('photon') && /q=Blåklintsvägen 4A/i.test(u)) {
+      return new Response(JSON.stringify({ features: [
+        { geometry: { coordinates: [SKOGAS.lon, SKOGAS.lat] }, properties: { street: 'Blåklintsvägen', housenumber: '4a', city: 'Skogås', countrycode: 'SE', type: 'house', osm_key: 'place', osm_value: 'house' } },
+        { geometry: { coordinates: [A.lon, A.lat] }, properties: { street: 'Blåklintsvägen', housenumber: '4A', city: 'Stockholm', district: 'Herrängen', countrycode: 'SE', type: 'house', osm_key: 'place', osm_value: 'house' } },
+      ] }));
+    }
+    return base(url);
+  };
+  const res = await onRequest({
+    request: new Request('https://alltiditid.se/api/trafik?action=plan', { method: 'POST', body: JSON.stringify({ to: 'Blåklintsvägen 4A Älvsjö', fromId: '740021705' }) }),
+    env: { TRAFIKLAB_RESROBOT_KEY: 'rr' },
+    waitUntil() {},
+  });
+  const body = await res.json();
+  assert.equal(body.to, 'Blåklintsvägen 4A');
+  assert.equal(body.toDetail, 'Herrängen, Stockholm');
+  assert.equal(body.sure, true);
 });
 
 test('action=plan: utan ort vinner huset nära positionen över 4a i Skogås', async () => {
@@ -413,6 +440,6 @@ test('action=plan: sitter man redan på adressen säger appen det', async () => 
   assert.equal(res.status, 409);
   const body = await res.json();
   assert.equal(body.samePlace, true);
-  assert.match(body.error, /Du är redan vid Blåklintsvägen 4/);
+  assert.match(body.error, /Du är redan framme: Blåklintsvägen 4 ligger mindre än 200 m bort/);
   assert.ok(!urls.some((u) => u.includes('/trip?')), 'ingen resa söks');
 });
