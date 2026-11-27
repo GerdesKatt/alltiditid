@@ -2888,7 +2888,7 @@ async function handleWaitTimes(url, env, context) {
 }
 
 /** Händelserna som tas emot, och etiketterna som får följa med "funktion". */
-const EVENT_NAMES = ['forsta_avgang', 'aterkommande', 'tittade_och_gick', 'byte_snabbt', 'sokavhopp', 'funktion'];
+const EVENT_NAMES = ['forsta_avgang', 'aterkommande', 'tittade_och_gick', 'byte_snabbt', 'sokavhopp', 'funktion', 'bevakning'];
 const EVENT_LABELS = /^[a-z0-9_-]{0,32}$/;
 /** Ett tak per dygn, så att ett fel i appen eller en robot inte fyller databasen. */
 const EVENT_DAILY_LIMIT = 50000;
@@ -2897,6 +2897,57 @@ const EVENT_DAILY_LIMIT = 50000;
  * Räknar en händelse: antal, summa och (för tider) hinkar per dygn. Ingen IP-adress,
  * inget id, ingen tidpunkt utöver dygnet sparas.
  */
+/** Högst så här många anmälningar per dygn, så att en robot inte fyller tabellen. */
+const WAITLIST_DAILY_LIMIT = 500;
+const WAITLIST_PLANS = ['month', 'year', 'free'];
+
+/** Rimlig e-postadress: något@något.tld, utan mellanslag, högst 254 tecken. */
+export function validWaitlistEmail(value) {
+  const email = String(value || '').trim().toLowerCase();
+  if (email.length < 6 || email.length > 254) return null;
+  return /^[^\s@<>()",;:]+@[^\s@<>()",;:]+\.[a-z]{2,}$/.test(email) ? email : null;
+}
+
+/**
+ * Väntelistan för Bevakning (components/WatchOffer.tsx). Sparar e-post, valt pris och
+ * språk i D1, tabellen waitlist. En adress sparas en gång; nytt val skriver över det
+ * gamla. Svarar likadant oavsett om adressen redan fanns, så att listan inte kan läsas av.
+ * Läs listan i Cloudflare: D1 → HISTORY → Console: SELECT * FROM waitlist ORDER BY created;
+ */
+async function handleWaitlist(request, env) {
+  if (request.method !== 'POST') return jsonResponse({ error: 'Använd POST.' }, 405);
+  const db = env && env.HISTORY;
+  if (!db) return jsonResponse({ error: 'Väntelistan är inte påslagen.' }, 503);
+  let body;
+  try {
+    const text = await request.text();
+    if (text.length > 600) return jsonResponse({ error: 'För stort.' }, 400);
+    body = JSON.parse(text);
+  } catch {
+    return jsonResponse({ error: 'Ogiltig förfrågan.' }, 400);
+  }
+  const email = validWaitlistEmail(body && body.email);
+  const plan = WAITLIST_PLANS.includes(body && body.plan) ? body.plan : null;
+  const lang = body && body.lang === 'en' ? 'en' : 'sv';
+  if (!email || !plan) return jsonResponse({ error: 'Ange en giltig e-postadress.' }, 400);
+  try {
+    if (!(await allowCall(env, 'waitlist', WAITLIST_DAILY_LIMIT))) {
+      return jsonResponse({ error: 'Försök igen i morgon.' }, 429);
+    }
+    await db
+      .prepare('CREATE TABLE IF NOT EXISTS waitlist (email TEXT PRIMARY KEY, plan TEXT NOT NULL, lang TEXT NOT NULL, created TEXT NOT NULL, updated TEXT NOT NULL)')
+      .run();
+    const now = new Date().toISOString();
+    await db
+      .prepare('INSERT INTO waitlist (email, plan, lang, created, updated) VALUES (?1, ?2, ?3, ?4, ?4) ON CONFLICT (email) DO UPDATE SET plan = ?2, lang = ?3, updated = ?4')
+      .bind(email, plan, lang, now)
+      .run();
+  } catch {
+    return jsonResponse({ error: 'Kunde inte spara just nu.' }, 503);
+  }
+  return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
+}
+
 async function handleEvent(request, env) {
   const ok = () => new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
   if (request.method !== 'POST') return jsonResponse({ error: 'Använd POST.' }, 405);
@@ -3004,6 +3055,7 @@ async function route(context) {
 
   // Egna mätpunkter (lib/track.ts): inga kakor, inget id, bara namn och tal per dygn.
   if (action === 'event') return await handleEvent(request, env);
+  if (action === 'waitlist') return await handleWaitlist(request, env);
 
   // Flyg, kötider och lånecyklar kräver inga Trafiklab-nycklar.
   try {
