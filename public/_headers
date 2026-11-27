@@ -5,3 +5,7 @@
 /manifest.webmanifest
   Content-Type: application/manifest+json
   Cache-Control: public, max-age=3600
+
+# Filer med hash i namnet ändras aldrig: ett nytt bygge ger nya namn.
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
