@@ -159,6 +159,10 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
   );
   // Ny användare (inga egna hållplatser): nära dig först.
   const fresh = mine.length === 0;
+  // Borta hemifrån: positionen finns men ingen av dina hållplatser är i närheten. Då kommer
+  // det som går där du står först, och dina vanliga hållplatser under.
+  const away = !fresh && nearby !== null && nearby.length > 0 && mine.every((s) => distanceOf(s) === Infinity);
+  const nearFirst = fresh || away;
 
   const nearSection = (
     <section aria-label={t('Nära dig', 'Near you')} style={{ marginBottom: '22px' }}>
@@ -257,7 +261,7 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
         </section>
       ) : null}
       <SmartSearch onOpenStop={onOpenStop} onGoal={onGoal} onOpenTrain={onOpenTrain} onOpenAirport={onOpenAirport} />
-      {fresh ? nearSection : null}
+      {nearFirst ? nearSection : null}
 
       {!fresh ? (
         <section aria-label={t('Dina hållplatser', 'Your stops')} style={{ marginBottom: '22px' }}>
@@ -323,7 +327,7 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
         </section>
       ) : null}
 
-      {!fresh ? nearSection : null}
+      {!nearFirst ? nearSection : null}
 
 
       <InstallApp />
