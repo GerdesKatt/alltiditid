@@ -86,7 +86,7 @@ export default function FeedbackBox({ tab }: { tab: 'trafik' | 'resa' | 'flyg' }
             rows={4}
             autoFocus
             maxLength={MAX}
-            placeholder={t('Till exempel: saknar spårvagnen i Lund, eller en funktion i appen.', 'For example: the Lund tram is missing, or a feature in the app.')}
+            placeholder={t('Till exempel: saknar spårvagnen i Lund, en funktion i appen, eller adressen hittas inte.', 'For example: the Lund tram is missing, a feature in the app, or an address is not found.')}
             style={{
               width: '100%',
               boxSizing: 'border-box',
