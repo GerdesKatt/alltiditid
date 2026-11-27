@@ -6,6 +6,7 @@ import { AIRPORTS, airportByIata, flightMatches } from '../lib/flights.mjs';
 import { parseLocal } from '../lib/lineFormat';
 import DirectionToggle from './DirectionToggle';
 import QueueForecast from './QueueForecast';
+import { gatePlan } from '../lib/gateTime.mjs';
 import { flightStatus, translator, useLang, type Lang } from '../lib/i18n';
 import { colors, emptyState, fonts } from './styles';
 
@@ -355,6 +356,7 @@ export default function FlightView({ initialAirport }: Props) {
               open={openId === f.id}
               onToggle={() => setOpenId(openId === f.id ? null : f.id)}
               queues={queues.filter((q) => !f.terminal || !q.terminal || q.terminal === f.terminal)}
+              airport={airport}
             />
           ))}
         </ul>
@@ -377,6 +379,7 @@ function FlightRow({
   open,
   onToggle,
   queues,
+  airport,
 }: {
   flight: Flight;
   arrivals: boolean;
@@ -384,15 +387,20 @@ function FlightRow({
   open: boolean;
   onToggle: () => void;
   queues: SecurityQueue[];
+  airport: string;
 }) {
   const { lang, t } = useLang();
   const cancelled = f.status === 'cancelled';
   const delayed = f.status === 'delayed';
   const left = countdown(f, now, lang);
   const statusText = flightStatus(f.statusText, lang);
-  const where = [f.terminal ? `Terminal ${f.terminal}` : '', !arrivals && f.gate ? `Gate ${f.gate}` : '']
-    .filter(Boolean)
-    .join(' · ');
+  const where = !arrivals && f.gate ? `Gate ${f.gate}` : '';
+  // Kötiden nu gäller bara om flyget går inom tre timmar; senare säger "Brukar vara" mer.
+  const departsAt = parseLocal(f.expectedAt);
+  const soon = departsAt !== null && departsAt - now < 3 * 3600_000;
+  const regular = queues.filter((q) => !q.fastTrack);
+  const queueNow = soon && regular.length ? Math.max(...regular.map((q) => q.minutes)) : null;
+  const plan = arrivals ? null : gatePlan(f, airport, queueNow);
   const statusLine = cancelled
     ? t('Inställt', 'Cancelled')
     : delayed
@@ -401,7 +409,7 @@ function FlightRow({
     ? arrivals
       ? t('Landat', 'Landed')
       : t('Har lyft', 'Departed')
-    : flightStatus(f.gateText, lang) || statusText || left;
+    : flightStatus(f.gateText, lang) || statusText || (plan ? `${t('Boarding ca', 'Boarding ~')} ${plan.boarding}` : left);
 
   return (
     <li>
@@ -464,7 +472,25 @@ function FlightRow({
             {f.place || f.flightId}
           </span>
           <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim, marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {[shortAirline(f.airline), where].filter(Boolean).join(' · ')}
+            {f.terminal ? (
+              <span
+                style={{
+                  display: 'inline-block',
+                  marginRight: '6px',
+                  padding: '0 5px',
+                  borderRadius: 'var(--radius-badge)',
+                  border: `1.5px solid ${colors.text}`,
+                  color: colors.text,
+                  fontWeight: 800,
+                  fontFamily: fonts.display,
+                  lineHeight: 1.35,
+                }}
+                aria-label={`Terminal ${f.terminal}`}
+              >
+                T{f.terminal}
+              </span>
+            ) : null}
+            {[where, shortAirline(f.airline)].filter(Boolean).join(' · ')}
           </span>
         </span>
         <span style={{ flexShrink: 0, textAlign: 'right' }}>
@@ -509,6 +535,28 @@ function FlightRow({
             color: colors.text,
           }}
         >
+          {plan ? (
+            <div style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: `1px solid ${colors.border}` }}>
+              <div style={{ fontWeight: 700 }}>
+                {t('Var vid säkerhetskontrollen senast', 'Be at security by')} {plan.atSecurity}
+              </div>
+              <div>
+                {f.terminal ? `Terminal ${f.terminal} · ` : ''}
+                {t('Boarding ca', 'Boarding ~')} {plan.boarding} · {t('gaten stänger ca', 'gate closes ~')} {plan.gateCloses}
+              </div>
+              <div style={{ color: colors.textDim, fontSize: '0.8125rem' }}>
+                {plan.queue !== null
+                  ? t(
+                      `Räknat med kön nu (${plan.queue} min) och ${plan.walkMin}–${plan.walkMax} min promenad till gaten. Uppskattat, följ skyltarna och flygbolaget.`,
+                      `Counting the queue now (${plan.queue} min) and a ${plan.walkMin}–${plan.walkMax} min walk to the gate. Estimated; follow the signs and your airline.`
+                    )
+                  : t(
+                      `Räknat med ${plan.walkMin}–${plan.walkMax} min promenad till gaten, men inte kön: lägg till den (se Brukar vara). Uppskattat.`,
+                      `Counting a ${plan.walkMin}–${plan.walkMax} min walk to the gate but not the queue: add it (see Usually). Estimated.`
+                    )}
+              </div>
+            </div>
+          ) : null}
           {f.via?.length ? <div>Via {f.via.join(', ')}</div> : null}
           {f.codeshare?.length ? (
             <div>
