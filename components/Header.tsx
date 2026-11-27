@@ -1,5 +1,6 @@
 'use client';
 import ThemeButton from './ThemeButton';
+import FeedbackButton from './FeedbackButton';
 
 import React from 'react';
 import { colors, fonts } from './styles';
@@ -103,7 +104,8 @@ export default function Header({ onContactClick, onHome, linkBase = '' }: Props)
             {t('Kontakt', 'Contact')}
           </a>
         </nav>
-        {/* Skärmläge och språk syns även på mobilen, där menyn är dold. */}
+        {/* Tyck till, skärmläge och språk syns även på mobilen, där menyn är dold. */}
+        <FeedbackButton />
         <ThemeButton />
         <button
           type="button"

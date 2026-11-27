@@ -3256,6 +3256,69 @@ async function handleWaitlist(request, env) {
   return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
 }
 
+/** Högst så här många synpunkter per dygn, så att en robot inte fyller tabellen. */
+const FEEDBACK_DAILY_LIMIT = 300;
+const FEEDBACK_MAX_LENGTH = 1000;
+
+/** Rensar en synpunkt: trimmad, kontrolltecken bort, högst 1 000 tecken. Tom = null. */
+export function cleanFeedback(value) {
+  const text = String(value || '')
+    .replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  if (text.length < 2) return null;
+  return text.slice(0, FEEDBACK_MAX_LENGTH);
+}
+
+/** Sidan synpunkten skrevs på: bara sökväg och #, aldrig frågesträngen. */
+export function cleanFeedbackPage(value) {
+  const page = String(value || '').slice(0, 200);
+  return /^\/[\w\-./#åäöÅÄÖ%]*$/.test(page) ? page : '';
+}
+
+/**
+ * Tyck till (components/FeedbackButton.tsx). Sparar fritext, sidan och språket i D1,
+ * tabellen feedback. Ingen IP-adress, inget id, ingen e-post. Morgonkollen läser nya rader:
+ * SELECT created, page, lang, text FROM feedback WHERE created >= strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 day') ORDER BY created;
+ * (created är ISO-tid i UTC.)
+ */
+async function handleFeedback(request, env) {
+  if (request.method !== 'POST') return jsonResponse({ error: 'Använd POST.' }, 405);
+  const db = env && env.HISTORY;
+  if (!db) return jsonResponse({ error: 'Synpunkter tas inte emot just nu.' }, 503);
+  let body;
+  try {
+    const text = await request.text();
+    if (text.length > 4000) return jsonResponse({ error: 'För långt.' }, 400);
+    body = JSON.parse(text);
+  } catch {
+    return jsonResponse({ error: 'Ogiltig förfrågan.' }, 400);
+  }
+  // Fältet "webb" är dolt för människor; fyller en robot i det låtsas vi att allt gick bra.
+  if (body && body.webb) return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
+  const message = cleanFeedback(body && body.text);
+  if (!message) return jsonResponse({ error: 'Skriv något först.' }, 400);
+  const page = cleanFeedbackPage(body && body.page);
+  const lang = body && body.lang === 'en' ? 'en' : 'sv';
+  try {
+    if (!(await allowCall(env, 'feedback', FEEDBACK_DAILY_LIMIT))) {
+      return jsonResponse({ error: 'Försök igen i morgon.' }, 429);
+    }
+    await db
+      .prepare('CREATE TABLE IF NOT EXISTS feedback (id INTEGER PRIMARY KEY AUTOINCREMENT, created TEXT NOT NULL, page TEXT NOT NULL, lang TEXT NOT NULL, text TEXT NOT NULL)')
+      .run();
+    await db
+      .prepare('INSERT INTO feedback (created, page, lang, text) VALUES (?1, ?2, ?3, ?4)')
+      .bind(new Date().toISOString(), page, lang, message)
+      .run();
+    // Integritetstexten lovar högst 12 månader.
+    await db.prepare("DELETE FROM feedback WHERE created < strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-12 months')").run();
+  } catch {
+    return jsonResponse({ error: 'Kunde inte spara just nu.' }, 503);
+  }
+  return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
+}
+
 async function handleEvent(request, env) {
   const ok = () => new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
   if (request.method !== 'POST') return jsonResponse({ error: 'Använd POST.' }, 405);
@@ -3444,6 +3507,7 @@ async function route(context) {
   // Egna mätpunkter (lib/track.ts): inga kakor, inget id, bara namn och tal per dygn.
   if (action === 'event') return await handleEvent(request, env);
   if (action === 'waitlist') return await handleWaitlist(request, env);
+  if (action === 'feedback') return await handleFeedback(request, env);
 
   // Flyg, kötider och lånecyklar kräver inga Trafiklab-nycklar.
   try {

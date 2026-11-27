@@ -3,6 +3,7 @@ import type { InfoTab } from '../lib/types';
 import { colors } from './styles';
 import { ANALYTICS_ENABLED } from '../lib/analytics';
 import { useLang } from '../lib/i18n';
+import FeedbackButton from './FeedbackButton';
 
 type Props = {
   activeTab: InfoTab;
@@ -100,6 +101,13 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
               name of the site you followed a link from (such as reddit or google), never the full address.
             </li>
             <li style={privacyItem}>
+              <strong>Feedback.</strong> When you send something with Feedback, we store what you wrote, the
+              page you were on (such as the stop&apos;s address on the site), your language and the time. No IP
+              address, account or email is stored with it, and we only use it to improve the site. Please don&apos;t
+              write your name or other details about yourself. Feedback is deleted after at most 12 months. If you
+              want something you wrote removed, email kontakt@alltiditid.se and say roughly when and what you wrote.
+            </li>
+            <li style={privacyItem}>
               <strong>Suggestions and filters.</strong> Which lines you open and which mode you picked at a stop
               are remembered only in your own browser, so the site can suggest your usual trip. Nothing is sent to us.
             </li>
@@ -126,7 +134,7 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
           </p>
           <p style={privacyPara}>
             <strong>Legal basis.</strong> Most of the site handles no personal data at all. Your IP address at
-            Cloudflare, the location you choose to use and what you type in the place search are handled on the basis
+            Cloudflare, the location you choose to use, what you type in the place search and feedback you send are handled on the basis
             of legitimate interest: delivering and protecting the site and giving you what you asked for. We use no
             analytics cookies and no Google Analytics.
           </p>
@@ -231,6 +239,13 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
               reddit eller google), aldrig hela adressen.
             </li>
             <li style={privacyItem}>
+              <strong>Tyck till.</strong> När du skickar något med Tyck till sparar vi det du skrev, sidan du
+              var på (till exempel hållplatsens adress på sajten), ditt språkval och tidpunkten. Ingen IP-adress,
+              inget konto och ingen e-post sparas med det, och vi använder det bara för att göra sajten bättre.
+              Skriv inte ditt namn eller annat om dig. Synpunkterna raderas efter högst 12 månader. Vill du att
+              något du skrivit tas bort, mejla kontakt@alltiditid.se och berätta ungefär när och vad du skrev.
+            </li>
+            <li style={privacyItem}>
               <strong>Förslag och filter.</strong> Vilka linjer du öppnar och vilket trafikslag du valt
               på en hållplats sparas bara i din egen webbläsare, så att sajten kan föreslå din vanliga
               resa. Inget skickas till oss.
@@ -271,7 +286,7 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
           </p>
           <p style={privacyPara}>
             <strong>Rättslig grund.</strong> Det mesta på sajten hanterar inga personuppgifter alls. Din IP-adress hos
-            Cloudflare, positionen du själv väljer att använda och det du skriver i platssökningen hanteras med stöd
+            Cloudflare, positionen du själv väljer att använda, det du skriver i platssökningen och synpunkter du skickar hanteras med stöd
             av berättigat intresse: att leverera och skydda sajten och ge dig det du bett om. Vi använder inga
             analyskakor och inte Google Analytics.
           </p>
@@ -360,12 +375,15 @@ export default function InfoFooter({ activeTab, onTabChange, onChangeAnalyticsCh
         }}
       >
         <span>{t('2026 alltid i tid (alltiditid.se) – Alla rättigheter förbehållna.', '2026 alltid i tid (alltiditid.se) – All rights reserved.')}</span>
-        <a
-          href="mailto:kontakt@alltiditid.se"
-          style={{ color: colors.textDim, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', minHeight: '44px' }}
-        >
-          kontakt@alltiditid.se
-        </a>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <FeedbackButton variant="link" />
+          <a
+            href="mailto:kontakt@alltiditid.se"
+            style={{ color: colors.textDim, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', minHeight: '44px' }}
+          >
+            kontakt@alltiditid.se
+          </a>
+        </span>
       </div>
     </footer>
   );
