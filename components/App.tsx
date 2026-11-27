@@ -337,7 +337,9 @@ export default function App({ initialStop, page, intro }: AppProps) {
   // Hem lär sig vilka tavlor man tittar på, och när en tavla senast visades.
   useEffect(() => {
     if (!restored || screen !== 'board' || tab !== 'trafik' || !hasStop) return;
-    recordVisit({ id: selectedStop.id, name: selectedStop.name });
+    // Trogna användare: en gång per dag, hur många dagar senaste veckan (1–7). Bara antalet skickas.
+    const days = recordVisit({ id: selectedStop.id, name: selectedStop.name });
+    if (days > 0) track('aktiva_dagar', days, String(Math.min(days, 7)));
     markBoardShown();
     const timer = setInterval(() => markBoardShown(), 60_000);
     return () => clearInterval(timer);

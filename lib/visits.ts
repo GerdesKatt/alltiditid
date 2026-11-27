@@ -1,5 +1,6 @@
 import type { StopOption } from './types';
-import { stockholmHour } from './sweTime.mjs';
+import { stockholmDay, stockholmHour } from './sweTime.mjs';
+import { activeDays } from './activeDays.mjs';
 
 /**
  * Vilka hållplatser man tittar på och när på dygnet, för Hem: "dina hållplatser".
@@ -20,17 +21,24 @@ function read(): Visit[] {
   }
 }
 
-/** En tavla visades. Samma hållplats inom tio minuter räknas en gång. */
-export function recordVisit(stop: StopOption, now = Date.now()): void {
-  if (typeof window === 'undefined' || !stop.id) return;
+/**
+ * En tavla visades. Samma hållplats inom tio minuter räknas en gång.
+ * Returnerar antal aktiva dagar senaste veckan när det här var dagens första besök, annars 0.
+ */
+export function recordVisit(stop: StopOption, now = Date.now()): number {
+  if (typeof window === 'undefined' || !stop.id) return 0;
   const list = read();
-  if (list.some((v) => v.id === stop.id && now - v.t < 10 * 60_000)) return;
+  if (list.some((v) => v.id === stop.id && now - v.t < 10 * 60_000)) return 0;
+  const today = stockholmDay(now);
+  const firstToday = !list.some((v) => stockholmDay(v.t) === today);
   list.push({ id: stop.id, n: stop.name.slice(0, 80), h: stockholmHour(now), t: now });
   try {
     window.localStorage.setItem(KEY, JSON.stringify(list.slice(-MAX)));
   } catch {
     // Ingen lagring: Hem lär sig inte.
+    return 0;
   }
+  return firstToday ? activeDays(list, now) : 0;
 }
 
 /**

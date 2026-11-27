@@ -88,7 +88,9 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
             <li style={privacyItem}>
               <strong>Our own counts.</strong> To see whether the site works, we count a few events per day, such
               as how fast the first departure appears and whether a search is abandoned. No cookies, no IP address
-              and nothing that identifies you is stored: only a day, an event name and a tally.
+              and nothing that identifies you is stored: only a day, an event name and a tally. Once a day we
+              also count on how many different days in the past week you looked at a board (a number from 1 to
+              7), based on the stops already saved for Home.
             </li>
             <li style={privacyItem}>
               <strong>Watch waiting list.</strong> The offer has ended. If you joined the list, we still keep your
@@ -200,6 +202,8 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
               <strong>Egna räkningar.</strong> För att se om sajten fungerar räknar vi några händelser
               per dag, till exempel hur snabbt första avgången syns och om en sökning avbryts. Inga
               kakor, ingen IP-adress och inget som pekar ut dig sparas: bara dag, händelse och antal.
+              En gång per dag räknar vi också hur många olika dagar den senaste veckan du tittat på en
+              tavla (ett tal mellan 1 och 7), utifrån hållplatserna som redan sparas för Hem.
             </li>
             <li style={privacyItem}>
               <strong>Väntelistan för Bevakning.</strong> Erbjudandet är avslutat. Om du ställde dig i kön
