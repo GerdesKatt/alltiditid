@@ -128,7 +128,8 @@ const REALTIME_BASE = 'https://realtime-api.trafiklab.se/v1';
 const RESROBOT_BASE = 'https://api.resrobot.se/v2.1';
 
 /** Hur länge en avgångstavla cachas i Cloudflare (sekunder). Trafiklab cachar själva i 60 s. */
-const BOARD_CACHE_SECONDS = 20;
+// Samma som appens uppdatering (30 s): varje hållplats kostar då högst två anrop i minuten.
+const BOARD_CACHE_SECONDS = 30;
 /** Hur länge Trafikverkets stationslista cachas (sekunder). */
 const STATION_LIST_CACHE_SECONDS = 24 * 60 * 60;
 
@@ -2562,6 +2563,29 @@ function compareLines(a, b) {
   return a.localeCompare(b, 'sv');
 }
 
+/**
+ * Förseningshistoriken skrevs vid varje hämtning av en tavla, en rad per tur som går nu.
+ * D1:s gratisnivå är 100 000 skrivna rader per dygn, så samma tur skrivs nu bara om när
+ * förseningen eller statusen ändrats, eller efter 5 minuter. Gäller per instans.
+ */
+const HISTORY_REWRITE_MS = 5 * 60_000;
+const historySeen = new Map();
+
+export function unsavedHistoryRows(rows, now = Date.now()) {
+  const out = [];
+  for (const r of rows) {
+    const sig = `${r.delay_min}|${r.status}|${r.expected_at}`;
+    const prev = historySeen.get(r.trip_key);
+    if (prev && prev.sig === sig && now - prev.at < HISTORY_REWRITE_MS) continue;
+    historySeen.set(r.trip_key, { sig, at: now });
+    out.push(r);
+  }
+  if (historySeen.size > 5000) {
+    for (const [k, v] of historySeen) if (now - v.at > HISTORY_REWRITE_MS) historySeen.delete(k);
+  }
+  return out;
+}
+
 async function handleBoard(url, keys, context) {
   const stopParam = url.searchParams.get('stopId') || '740000001';
   // Vägfärjornas färjelägen har egen källa (Trafikverket).
@@ -2692,7 +2716,8 @@ async function handleBoard(url, keys, context) {
       nowLocal: swedishDateTime(nowIso),
       seenAt: nowIso,
     });
-    if (rows.length && context.waitUntil) context.waitUntil(saveHistory(db, rows));
+    const fresh = unsavedHistoryRows(rows);
+    if (fresh.length && context.waitUntil) context.waitUntil(saveHistory(db, fresh));
   }
 
   const departures = timed
@@ -2757,8 +2782,24 @@ async function allowCall(env, api, limit) {
       .first();
     return !row || Number(row.n) <= limit;
   } catch {
-    return true;
+    // D1 svarar inte (t.ex. slut på dygnets skrivningar): släpp inte igenom allt, utan räkna
+    // i minnet och tillåt en tiondel av gränsen per instans, så att kvoterna hos Swedavia
+    // och ResRobot inte rusar iväg.
+    return allowInMemory(api, limit);
   }
+}
+
+const memoryCalls = new Map();
+
+/** Reservräknare när D1 inte svarar: per instans och dygn, högst en tiondel av gränsen. */
+export function allowInMemory(api, limit, day = new Date().toISOString().slice(0, 10)) {
+  const key = `${day}|${api}`;
+  const n = (memoryCalls.get(key) || 0) + 1;
+  memoryCalls.set(key, n);
+  if (memoryCalls.size > 200) {
+    for (const k of memoryCalls.keys()) if (!k.startsWith(day)) memoryCalls.delete(k);
+  }
+  return n <= Math.max(1, Math.ceil(limit / 10));
 }
 
 // ---------------------------------------------------------------------------
