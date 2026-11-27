@@ -3320,6 +3320,58 @@ async function handleWaitlist(request, env) {
   return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
 }
 
+const FEEDBACK_DAILY_LIMIT = 300;
+const FEEDBACK_TABS = ['trafik', 'resa', 'flyg'];
+
+/** Synpunkten som den sparas: trimmad, 3–1000 tecken, utan styrtecken. */
+export function cleanFeedback(value) {
+  const text = String(value || '')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    .replace(/\r\n?/g, '\n')
+    .trim();
+  return text.length >= 3 && text.length <= 1000 ? text : null;
+}
+
+/**
+ * Synpunkter från knappen "Tyck till" (components/FeedbackBox.tsx). Sparar text, flik,
+ * språk och tid i D1, tabellen feedback. Inga IP-adresser och inget som pekar ut avsändaren.
+ * Morgonkollen läser nya rader: SELECT * FROM feedback WHERE created >= ? ORDER BY created;
+ */
+async function handleFeedback(request, env) {
+  if (request.method !== 'POST') return jsonResponse({ error: 'Använd POST.' }, 405);
+  const db = env && env.HISTORY;
+  if (!db) return jsonResponse({ error: 'Synpunkter är inte påslagna.' }, 503);
+  let body;
+  try {
+    const raw = await request.text();
+    if (raw.length > 6000) return jsonResponse({ error: 'För långt.' }, 400);
+    body = JSON.parse(raw);
+  } catch {
+    return jsonResponse({ error: 'Ogiltig förfrågan.' }, 400);
+  }
+  const text = cleanFeedback(body && body.text);
+  if (!text) return jsonResponse({ error: 'Skriv minst några ord, högst 1000 tecken.' }, 400);
+  const tab = FEEDBACK_TABS.includes(body && body.tab) ? body.tab : null;
+  const lang = body && body.lang === 'en' ? 'en' : 'sv';
+  try {
+    if (!(await allowCall(env, 'feedback', FEEDBACK_DAILY_LIMIT))) {
+      return jsonResponse({ error: 'Försök igen i morgon.' }, 429);
+    }
+    await db
+      .prepare('CREATE TABLE IF NOT EXISTS feedback (id INTEGER PRIMARY KEY AUTOINCREMENT, created TEXT NOT NULL, text TEXT NOT NULL, tab TEXT, lang TEXT NOT NULL)')
+      .run();
+    await db
+      .prepare('INSERT INTO feedback (created, text, tab, lang) VALUES (?1, ?2, ?3, ?4)')
+      .bind(new Date().toISOString(), text, tab, lang)
+      .run();
+    // Integritetstexten lovar att synpunkter raderas efter 12 månader.
+    await db.prepare('DELETE FROM feedback WHERE created < ?1').bind(new Date(Date.now() - 365 * 86400000).toISOString()).run();
+  } catch {
+    return jsonResponse({ error: 'Kunde inte spara just nu.' }, 503);
+  }
+  return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
+}
+
 async function handleEvent(request, env) {
   const ok = () => new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
   if (request.method !== 'POST') return jsonResponse({ error: 'Använd POST.' }, 405);
@@ -3508,6 +3560,7 @@ async function route(context) {
   // Egna mätpunkter (lib/track.ts): inga kakor, inget id, bara namn och tal per dygn.
   if (action === 'event') return await handleEvent(request, env);
   if (action === 'waitlist') return await handleWaitlist(request, env);
+  if (action === 'feedback') return await handleFeedback(request, env);
 
   // Flyg, kötider och lånecyklar kräver inga Trafiklab-nycklar.
   try {

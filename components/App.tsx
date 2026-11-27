@@ -66,6 +66,7 @@ const VIEW_KEY = 'alltiditid:vy';
 const WIDE_QUERY = '(min-width: 1100px)';
 import { buildShareMessage } from '../lib/shareMessage';
 import { lineLabel, useLang } from '../lib/i18n';
+import FeedbackBox from './FeedbackBox';
 import type {
   BoardDirection,
   BoardSource,
@@ -1390,6 +1391,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
       ) : page && stationPage && stopIndex ? (
         <StopAbout stop={stationPage} pages={stopIndex.list} />
       ) : null}
+      <FeedbackBox tab={tab} />
       <AboutSection />
       </div>
       </div>
