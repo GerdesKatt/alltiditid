@@ -84,8 +84,12 @@ export default function PlaceSuggest({ text, nearStopId, onPick, listId = 'vart-
         .filter((x) => placeScore(q, x.name) >= 0.7)
         .slice(0, 3)
         .map((x) => ({ kind: 'stop' as const, id: x.id, name: x.name, detail: [x.place, x.modes.join(', ')].filter(Boolean).join(' · '), lat: x.lat, lon: x.lon }));
-      const places = ((p as { places?: FoundPlace[] }).places || []) as ChosenPlace[];
-      const ranked = rankPlaces(q, [...stops, ...local, ...places]);
+      const places = ((p as { places?: (FoundPlace & { score?: number })[] }).places || []) as (ChosenPlace & { score?: number })[];
+      // Platserna är redan rangordnade av servern, som också förstår "gata nr ort"
+      // (Blåklintsvägen i Herrängen för "Blåklintsvägen 4A Älvsjö"). Hållplatserna rangordnas här.
+      const ranked = [...rankPlaces(q, [...stops, ...local]), ...places.filter((x) => (x.score ?? 0) > 0)].sort(
+        (a, b) => (b.score ?? 0) - (a.score ?? 0)
+      );
       // Trafiklabs egna träffar visas även om orden inte passar exakt (de kan känna till smeknamn).
       const list = ranked.length ? ranked : stops;
       const seen = new Set<string>();
