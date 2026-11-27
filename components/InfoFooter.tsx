@@ -116,6 +116,11 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
               </li>
             ) : null}
             <li style={privacyItem}>
+              <strong>Feedback.</strong> What you write under Give feedback is saved with the date, the tab you were
+              on and your language, but no IP address, account or contact details. We read it to improve the site and
+              delete it after 12 months. Please do not write names or contact details in it.
+            </li>
+            <li style={privacyItem}>
               <strong>Hosting.</strong> The site and server are run by Cloudflare, which receives your IP address to
               deliver the page and protect it against attacks. We do not store IP addresses.
             </li>
@@ -259,6 +264,11 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
                 </button>
               </li>
             ) : null}
+            <li style={privacyItem}>
+              <strong>Synpunkter.</strong> Det du skriver under Tyck till sparas med datum, vilken flik du var på och
+              ditt språk, men utan IP-adress, konto eller kontaktuppgifter. Vi läser det för att förbättra sajten och
+              raderar det efter 12 månader. Skriv gärna inte namn eller kontaktuppgifter i texten.
+            </li>
             <li style={privacyItem}>
               <strong>Drift.</strong> Sajten och servern drivs av Cloudflare, som tar emot din
               IP-adress för att kunna leverera sidan och skydda den mot attacker. Vi sparar inga
