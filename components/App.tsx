@@ -868,7 +868,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
       {tab === 'flyg' ? <FlightView initialAirport={flightAirport} /> : null}
       {tab === 'resa' ? (
         <section aria-label={t('Min resa', 'My trip')} style={{ marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '1.375rem', fontWeight: 800, margin: '0 0 12px' }}>{t('Min resa', 'My trip')}</h1>
+          <h1 style={{ fontSize: '1.375rem', fontWeight: 800, margin: '0 0 12px' }}>{t('Planera och följ din resa', 'Plan and follow your trip')}</h1>
       {journeyCards}
             <div
               style={{
