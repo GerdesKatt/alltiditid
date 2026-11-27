@@ -62,6 +62,12 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
               you. A response for the same rounded location is cached for at most 5 minutes.
             </li>
             <li style={privacyItem}>
+              <strong>Where to?</strong> When you search for an address, a hotel or another place, our server sends
+              what you typed to a geocoding service (Geoapify, or Photon run by komoot in Germany) to find the place.
+              Nothing about you is sent. The answer for the same search may be cached for up to 7 days, not linked to
+              you.
+            </li>
+            <li style={privacyItem}>
               <strong>Can I make it?</strong> When you turn on walking time, your location is followed while the
               board is open. The walking time is calculated in your browser, and the location is never sent anywhere
               and never stored. Only your choice (on or off, and walking pace) is saved in local storage. Turn it off
@@ -116,7 +122,22 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
               deliver the page and protect it against attacks. We do not store IP addresses.
             </li>
           </ul>
-          <p style={privacyPara}>Questions about how your data is handled? Email kontakt@alltiditid.se.</p>
+          <p style={privacyPara}>
+            <strong>Data controller.</strong> Nils Gerdes, who runs alltid i tid as a private individual, is the
+            controller for the personal data described here. Contact: kontakt@alltiditid.se.
+          </p>
+          <p style={privacyPara}>
+            <strong>Legal basis.</strong> Most of the site handles no personal data at all. Your IP address at
+            Cloudflare, the location you choose to use and what you type in the place search are handled on the basis
+            of legitimate interest: delivering and protecting the site and giving you what you asked for. Google
+            Analytics and the waiting list are based on your consent, which you can withdraw at any time.
+          </p>
+          <p style={privacyPara}>
+            <strong>Your rights.</strong> You can ask what data we hold about you, and have it corrected or deleted.
+            You can object to processing and withdraw consent. Email kontakt@alltiditid.se. You also have the right
+            to complain to the Swedish Authority for Privacy Protection (IMY), imy.se.
+          </p>
+          <p style={privacyPara}>Last updated 27 November 2026.</p>
         </div>
       );
     case 'terms':
@@ -170,6 +191,12 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
               telefon innan den skickas till vår server och vidare till Trafiklab (ResRobot) för att
               hitta närmaste hållplatser. Positionen sparas inte och kopplas inte till dig. Ett svar
               för samma avrundade position mellanlagras i högst 5 minuter.
+            </li>
+            <li style={privacyItem}>
+              <strong>Vart ska du?</strong> När du söker en adress, ett hotell eller en annan plats skickar vår server
+              det du skrivit till en tjänst som hittar platser (Geoapify, eller Photon som drivs av komoot i
+              Tyskland). Inget om dig skickas. Svaret på samma sökning kan mellanlagras i upp till 7 dagar, utan
+              koppling till dig.
             </li>
             <li style={privacyItem}>
               <strong>Hinner jag dit?</strong> När du slår på gångtid följs din position medan tavlan är öppen.
@@ -243,8 +270,21 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
             </li>
           </ul>
           <p style={privacyPara}>
-            Frågor om hur dina uppgifter hanteras? Mejla kontakt@alltiditid.se.
+            <strong>Personuppgiftsansvarig.</strong> Nils Gerdes, som driver alltid i tid som privatperson, är
+            personuppgiftsansvarig för de uppgifter som beskrivs här. Kontakt: kontakt@alltiditid.se.
           </p>
+          <p style={privacyPara}>
+            <strong>Rättslig grund.</strong> Det mesta på sajten hanterar inga personuppgifter alls. Din IP-adress hos
+            Cloudflare, positionen du själv väljer att använda och det du skriver i platssökningen hanteras med stöd
+            av berättigat intresse: att leverera och skydda sajten och ge dig det du bett om. Google Analytics och
+            väntelistan bygger på ditt samtycke, som du kan återkalla när du vill.
+          </p>
+          <p style={privacyPara}>
+            <strong>Dina rättigheter.</strong> Du kan begära att få veta vilka uppgifter vi har om dig och få dem
+            rättade eller raderade. Du kan också invända mot behandlingen och återkalla ett samtycke. Mejla
+            kontakt@alltiditid.se. Du har rätt att klaga hos Integritetsskyddsmyndigheten (IMY), imy.se.
+          </p>
+          <p style={privacyPara}>Senast uppdaterad 27 november 2026.</p>
         </div>
       );
     case 'terms':
