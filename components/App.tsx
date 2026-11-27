@@ -766,6 +766,16 @@ export default function App({ initialStop, page, intro }: AppProps) {
       ) : null}
     </>
   );
+  // Fliken och bokmärket heter som hållplatsen man tittar på, även när man bytt hållplats i appen
+  // eller kom via en delad länk (/?h=…). På Hem står det allmänna namnet.
+  useEffect(() => {
+    if (!restored) return;
+    const onBoard = screen === 'board' && hasStop && selectedStop.name;
+    document.title = onBoard
+      ? `${selectedStop.name} – ${t('avgångar i realtid', 'departures in real time')} | alltid i tid`
+      : t('alltid i tid – avgångar och ankomster i realtid', 'alltid i tid – departures and arrivals in real time');
+  }, [restored, screen, hasStop, selectedStop.name, t]);
+
   // Din avgång utan att något är sparat: linjen du brukar ta, annars nästa avgång du hinner.
   // Svaret på "när går min?" står då alltid överst, utan ett enda tryck.
   const autoTrip = useMemo(() => {
