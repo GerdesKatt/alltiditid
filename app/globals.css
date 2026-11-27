@@ -515,3 +515,19 @@ input[type='search']::-webkit-search-decoration {
   font-weight: 700;
   cursor: pointer;
 }
+/* "Om alltid i tid": ihopfälld rad med plus/minus i stället för webbläsarens triangel. */
+.om-tjansten > summary {
+  list-style: none;
+  justify-content: space-between;
+}
+.om-tjansten > summary::-webkit-details-marker {
+  display: none;
+}
+.om-tjansten > summary::after {
+  content: '+';
+  font-size: 1.125rem;
+  font-weight: 400;
+}
+.om-tjansten[open] > summary::after {
+  content: '−';
+}

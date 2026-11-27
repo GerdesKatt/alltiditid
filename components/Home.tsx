@@ -66,8 +66,28 @@ export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirpor
       },
       (err) => {
         setLocating(false);
-        if (err.code === err.PERMISSION_DENIED) rememberPositionAllowed(false);
-        setPosError(t('Din position gick inte att hitta.', 'Your location could not be found.'));
+        if (err.code === err.PERMISSION_DENIED) {
+          rememberPositionAllowed(false);
+          const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+          setPosError(
+            ios
+              ? t(
+                  'Platstjänster är avstängda för sidan. Slå på dem under Inställningar → Integritet och säkerhet → Platstjänster → Safari-webbplatser → Vid användning. Eller sök i fältet ovan.',
+                  'Location is turned off for this site. Turn it on under Settings → Privacy & Security → Location Services → Safari Websites → While Using. Or search above.'
+                )
+              : t(
+                  'Du har inte gett sidan tillgång till din position. Tillåt den i webbläsarens inställningar för webbplatsen, eller sök i fältet ovan.',
+                  'This site is not allowed to use your location. Allow it in the browser settings for the site, or search above.'
+                )
+          );
+        } else {
+          setPosError(
+            t(
+              'Positionen hittades inte just nu. Inomhus och under jord är signalen ofta svag. Försök igen, eller sök i fältet ovan.',
+              'Your location could not be found right now. Signal is often weak indoors and underground. Try again, or search above.'
+            )
+          );
+        }
       },
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 }
     );
@@ -109,7 +129,7 @@ export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirpor
       ) : (
         <NearbyLines stops={others} now={now} onOpenStop={onOpenStop} exclude={new Set(Object.values(covered).flat())} />
       )}
-      {posError ? <p style={{ margin: '8px 0 0', fontSize: '0.875rem', color: colors.amber }}>{posError}</p> : null}
+      {posError ? <p style={{ margin: '8px 0 0', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 }}>{posError}</p> : null}
     </section>
   );
 
