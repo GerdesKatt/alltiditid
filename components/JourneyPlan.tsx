@@ -2,13 +2,13 @@
 import React, { useEffect, useState } from 'react';
 import Icon from './Icon';
 import StrandedTips from './StrandedTips';
-import { colors, fonts } from './styles';
+import { colors, fonts, textInput } from './styles';
 import { useLang } from '../lib/i18n';
 import { lineColor } from '../lib/lineFormat';
 import { track } from '../lib/track';
 import type { TransportMode } from '../lib/types';
 import { dayLabel, type PlanLeg, type PlanPoint, type PlanTrip } from '../lib/plannedTrip';
-import { placeDetail, type ChosenPlace } from './PlaceSuggest';
+import PlaceSuggest, { placeDetail, type ChosenPlace } from './PlaceSuggest';
 import { stockholmDay } from '../lib/sweTime.mjs';
 
 type Point = PlanPoint;
@@ -24,6 +24,8 @@ type Plan = {
   sure?: boolean;
   alternatives?: ChosenPlace[];
   fromHere: boolean;
+  /** Den inskrivna starten som den tolkades, t.ex. "Blåklintsvägen 4, Stockholm". */
+  from?: string;
   /** Ingen hållplats inom gångavstånd: resan går från närmaste hållplats, så här långt bort. */
   farStart?: { name: string; meters: number };
   date: string;
@@ -106,18 +108,45 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
   const [noTrip, setNoTrip] = useState(false);
   const [lastPos, setLastPos] = useState<{ lat: number; lon: number } | null>(null);
   // Start: där man står (positionen) eller tavlans hållplats.
-  const [fromMode, setFromMode] = useState<'here' | 'stop'>('here');
+  // Annan plats: man skriver var man startar, t.ex. när positionen är avstängd.
+  const [fromMode, setFromMode] = useState<'here' | 'stop' | 'other'>('here');
+  const [fromText, setFromText] = useState('');
+  const [fromPick, setFromPick] = useState<ChosenPlace | null>(null);
+  const [fromOpen, setFromOpen] = useState(false);
   const useStop = fromMode === 'stop' && Boolean(fromId);
+  const useOther = fromMode === 'other';
+  // Bara ett valt förslag räknas, så att man inte söker om för varje bokstav man skriver.
+  const fromKey = fromPick ? fromPick.id || `${fromPick.lat},${fromPick.lon}` : '';
+
+  // Positionen redan nekad i webbläsaren: börja med hållplatsen eller ett fält att skriva i,
+  // i stället för att fråga och få ett fel.
+  useEffect(() => {
+    if (startAt || typeof navigator === 'undefined' || !navigator.permissions?.query) return;
+    navigator.permissions
+      .query({ name: 'geolocation' as PermissionName })
+      .then((r) => {
+        if (r.state === 'denied') setFromMode((m) => (m === 'here' ? (fromId ? 'stop' : 'other') : m));
+      })
+      .catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const focusFrom = () => setTimeout(() => document.getElementById('fran-plats')?.focus(), 0);
 
   const target = goal.trim();
   const placeKey = place ? place.id || `${place.lat},${place.lon}` : '';
-  const query = `${target}|${whenMode}|${date}|${time}|${arrive}|${useStop ? fromId : startAt ? `${startAt.lat},${startAt.lon}` : 'here'}|${placeKey}`;
+  const query = `${target}|${whenMode}|${date}|${time}|${arrive}|${useOther ? `other:${fromKey}` : useStop ? fromId : startAt ? `${startAt.lat},${startAt.lon}` : 'here'}|${placeKey}`;
   const hereName = startAt ? startAt.name : '';
   const stale = plan !== null && asked !== query;
 
   async function find() {
-    const fromPosition = !useStop;
+    const fromPosition = !useStop && !useOther;
     if (target.length < 2) return;
+    if (useOther && fromText.trim().length < 2) {
+      setError(t('Skriv var du startar.', 'Type where you start.'));
+      focusFrom();
+      return;
+    }
     setLoading(true);
     setError('');
     setNoTrip(false);
@@ -127,15 +156,22 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
     const pos = fromPosition ? (startAt ? { lat: startAt.lat, lon: startAt.lon } : await position()) : null;
     setLastPos(pos ? { lat: pos.lat, lon: pos.lon } : null);
     if (fromPosition && !pos && !fromId) {
+      // Ingen position och ingen hållplats: låt en skriva var man startar, direkt här.
       setLoading(false);
-      setError(
-        t(
-          'Kunde inte få din position. Skriv var du är under Avgångar (Linjer nära dig), eller öppna en hållplats där.',
-          'Could not get your location. Type where you are under Departures (Lines near you), or open a stop there.'
-        )
-      );
+      setFromMode('other');
+      setError(t('Kunde inte få din position. Skriv var du startar under Från.', 'Could not get your location. Type where you start under From.'));
+      focusFrom();
       return;
     }
+    const start = useOther
+      ? fromPick
+        ? fromPick.kind === 'stop' && fromPick.id
+          ? { fromId: fromPick.id, fromName: fromPick.name }
+          : { lat: fromPick.lat, lon: fromPick.lon, fromName: fromPick.name }
+        : { from: fromText.trim() }
+      : pos
+        ? pos
+        : { fromId, fromName };
     try {
       const res = await fetch('/api/trafik?action=plan', {
         method: 'POST',
@@ -143,7 +179,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
         body: JSON.stringify({
           to: target,
           ...(place ? { place } : {}),
-          ...(pos ? pos : { fromId, fromName }),
+          ...start,
           ...(whenMode === 'later' ? { date, time, arrive } : {}),
         }),
       });
@@ -246,21 +282,77 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
           </div>
         ) : null}
       </fieldset>
-      {fromId || startAt ? (
-        <fieldset style={{ border: 'none', margin: '0 0 14px', padding: 0 }}>
-          <legend style={{ ...label, marginBottom: '6px' }}>{t('Från', 'From')}</legend>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-            <button type="button" aria-pressed={!useStop} onClick={() => setFromMode('here')} style={chip(!useStop)}>
-              {hereName || t('Där jag är', 'Where I am')}
+      <fieldset style={{ border: 'none', margin: '0 0 14px', padding: 0 }}>
+        <legend style={{ ...label, marginBottom: '6px' }}>{t('Från', 'From')}</legend>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          <button type="button" aria-pressed={fromMode === 'here'} onClick={() => setFromMode('here')} style={chip(fromMode === 'here')}>
+            {hereName || t('Där jag är', 'Where I am')}
+          </button>
+          {fromId && fromName !== hereName ? (
+            <button type="button" aria-pressed={useStop} onClick={() => setFromMode('stop')} style={chip(useStop)}>
+              {fromName}
             </button>
-            {fromId && fromName !== hereName ? (
-              <button type="button" aria-pressed={useStop} onClick={() => setFromMode('stop')} style={chip(useStop)}>
-                {fromName}
-              </button>
+          ) : null}
+          <button
+            type="button"
+            aria-pressed={useOther}
+            onClick={() => {
+              setFromMode('other');
+              focusFrom();
+            }}
+            style={chip(useOther)}
+          >
+            {t('Annan plats', 'Somewhere else')}
+          </button>
+        </div>
+        {useOther ? (
+          <div style={{ marginTop: '8px' }}>
+            <label htmlFor="fran-plats" className="sr-only">
+              {t('Var startar du?', 'Where do you start?')}
+            </label>
+            <input
+              id="fran-plats"
+              type="text"
+              value={fromText}
+              autoComplete="off"
+              enterKeyHint="search"
+              role="combobox"
+              aria-expanded={fromOpen && fromText.trim().length >= 2}
+              aria-controls="fran-plats-lista"
+              onChange={(e) => {
+                setFromText(e.target.value);
+                setFromPick(null);
+                setFromOpen(true);
+              }}
+              onFocus={() => setFromOpen(true)}
+              onBlur={() => setFromOpen(false)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setFromOpen(false);
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  setFromOpen(false);
+                  (e.currentTarget as HTMLInputElement).blur();
+                  find();
+                }
+              }}
+              placeholder={t('Var startar du? Hållplats eller adress', 'Where do you start? Stop or address')}
+              style={{ ...textInput(colors.borderStrong), display: 'block', width: '100%', minHeight: '48px', fontSize: '1rem' }}
+            />
+            {fromOpen ? (
+              <PlaceSuggest
+                text={fromText}
+                nearStopId={fromId || undefined}
+                listId="fran-plats-lista"
+                onPick={(p) => {
+                  setFromText(p.name);
+                  setFromPick(p);
+                  setFromOpen(false);
+                }}
+              />
             ) : null}
           </div>
-        </fieldset>
-      ) : null}
+        ) : null}
+      </fieldset>
       <button
         id="sok-resa"
         type="button"
@@ -270,7 +362,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
       >
         {loading ? t('Söker resa…', 'Finding a trip…') : `${t('Sök resa', 'Find trip')} →`}
       </button>
-      {!useStop ? (
+      {fromMode === 'here' ? (
         <p style={{ margin: '6px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
           {hereName
             ? t(`Startar vid ${hereName}, som du skrev under Avgångar.`, `Starts at ${hereName}, as you typed under Departures.`)
@@ -300,7 +392,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
                 </p>
               ) : null}
             <p style={{ ...label, marginTop: '8px' }}>
-              {plan.fromHere ? (hereName ? t(`Från ${hereName}`, `From ${hereName}`) : t('Från din position', 'From your location')) : t(`Från ${fromName}`, `From ${fromName}`)}
+              {plan.fromHere ? (hereName ? t(`Från ${hereName}`, `From ${hereName}`) : t('Från din position', 'From your location')) : t(`Från ${plan.from || fromName}`, `From ${plan.from || fromName}`)}
               {plan.date ? ` · ${dayLabel(plan.date, Date.now(), lang)}` : ''}
               {plan.time ? ` · ${plan.arrive ? t('framme', 'arrive') : t('efter', 'after')} ${plan.time}` : ''}
             </p>
@@ -420,7 +512,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
                             <button
                               type="button"
                               onClick={() => {
-                                onSave(plan.to, plan.fromHere ? hereName || t('din position', 'your location') : fromName, trip);
+                                onSave(plan.to, plan.fromHere ? hereName || t('din position', 'your location') : plan.from || fromName, trip);
                                 track('funktion', 0, 'reseplan_spara');
                               }}
                               style={primary}
