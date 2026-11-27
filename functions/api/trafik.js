@@ -10,6 +10,7 @@ import { stopsAfter } from '../../lib/transferMatch.mjs';
 import { pickSearchHits, rankSearchHits } from '../../lib/searchHits.mjs';
 import { destinationCandidates, mapTrips, pickDestination } from '../../lib/plan.mjs';
 import { SURE, geoapifyPlaces, kmBetween, photonPlaces, placeScore, rankPlaces, splitAddress } from '../../lib/places.mjs';
+import { findInShard, shardKey } from '../../lib/addressBook.mjs';
 import { trafficForCounty } from '../../lib/countyTraffic.mjs';
 import { foldPlace } from '../../lib/transferMatch.mjs';
 import { allowedLicense, nearestStation, systemsNear } from '../../lib/mobility.mjs';
@@ -1915,14 +1916,14 @@ async function handlePlaces(url, env, context) {
   const lat = Number(url.searchParams.get('lat'));
   const lon = Number(url.searchParams.get('lon'));
   const bias = inSweden(lat, lon) ? { lat, lon } : null;
-  const data = await lookupPlaces(q, env, context, bias);
-  let ranked = rankPlaces(q, data.places, { near: bias });
+  const [data, book] = await Promise.all([lookupPlaces(q, env, context, bias), addressBook(q, env).catch(() => [])]);
+  let ranked = rankPlaces(q, [...book, ...data.places], { near: bias });
   const addr = splitAddress(q);
   if (addr && addr.town && !(ranked[0] && ranked[0].score >= SURE)) {
     const more = await addressInTown(addr, env, context, null);
-    if (more.town) ranked = rankPlaces(q, [...data.places, ...more.places], { town: more.town });
+    if (more.town) ranked = rankPlaces(q, [...book, ...data.places, ...more.places], { town: more.town });
   }
-  return jsonResponse({ places: ranked.slice(0, 5), source: data.source }, 200, {
+  return jsonResponse({ places: ranked.slice(0, 5).map(({ source, ...p }) => p), source: data.source }, 200, {
     'Cache-Control': 'public, max-age=3600',
   });
 }
@@ -1950,6 +1951,38 @@ function parseChosenPlace(p) {
   return { kind: 'coord', lat: pLat, lon: pLon, name, detail, placeKind, type };
 }
 
+// Lantmäteriets adresser (public/adresser/, byggda av scripts/build-addresses.mjs): alla
+// svenska husnummer, även de som kartan saknar (Blåklintsvägen 4A i Älvsjö). Filerna ligger
+// bland sajtens egna filer och läses via ASSETS, så det kostar inga anrop. Finns de inte
+// (före första bygget, eller i testerna) blir det inga träffar här.
+const shardCache = new Map();
+
+async function addressBook(text, env) {
+  const addr = splitAddress(text);
+  if (!addr || !env || !env.ASSETS || typeof env.ASSETS.fetch !== 'function') return [];
+  const key = shardKey(addr.street);
+  if (!key) return [];
+  let shard = shardCache.get(key);
+  if (shard === undefined) {
+    shard = null;
+    try {
+      const res = await env.ASSETS.fetch(new Request(`https://assets.local/adresser/${key}.json`));
+      if (res.ok) shard = await res.json();
+    } catch {
+      shard = null;
+    }
+    if (shardCache.size > 300) shardCache.clear();
+    shardCache.set(key, shard);
+  }
+  const found = findInShard(shard, addr.street, addr.number);
+  // Orten man skrev är oftast postorten (Älvsjö för 125 xx): de i den orten först.
+  if (addr.town) {
+    const inTown = found.filter((p) => placeScore(addr.town, p.detail) >= SURE);
+    if (inTown.length) return inTown;
+  }
+  return found;
+}
+
 /**
  * Det man skrev ("Clarion sign", "Blåklintsvägen 4 älvsjö", "fruangen") till en plats:
  * hållplatser och adresser från ResRobot och namngivna platser (hotell, arenor) från
@@ -1959,6 +1992,16 @@ function parseChosenPlace(p) {
  * och skickas inte till platssökningen.
  */
 async function findPlace(to, { rr, env, context, near = null }) {
+  // Lantmäteriets adresser först: rätt hus i rätt ort är säkert, och då behövs inga fler anrop.
+  const book = await addressBook(to, env);
+  if (book.length) {
+    const addr = splitAddress(to);
+    const ranked = rankPlaces(to, book, { near });
+    const towns = new Set(book.map((p) => p.detail));
+    // Samma adress i flera orter och varken ort eller position: låt man välja.
+    const clear = Boolean(addr && addr.town) || Boolean(near) || towns.size === 1;
+    if (ranked[0] && ranked[0].score >= SURE && clear) return { best: ranked[0], sure: true, ranked, failed: false };
+  }
   // Gatuadress (har en siffra): leta bland adresser först. type=A är HAFAS sätt att be om adresser.
   const lookups = /\d/.test(to) ? ['&type=A', ''] : ['', '&type=A'];
   const placesP = lookupPlaces(to, env, context, null).catch(() => ({ places: [] }));
@@ -1972,7 +2015,7 @@ async function findPlace(to, { rr, env, context, near = null }) {
     }
     if (rankPlaces(to, fromRr)[0]?.score >= SURE) break;
   }
-  const all = [...fromRr, ...(await placesP).places];
+  const all = [...book, ...fromRr, ...(await placesP).places];
   let ranked = rankPlaces(to, all, { near });
   // "Blåklintsvägen 4 älvsjö": om orten inte gav en säker träff, sök gatan nära orten.
   const addr = splitAddress(to);
