@@ -632,6 +632,11 @@ export default function DepartureBoard({
                 </button>
               </span>
             </>
+          ) : mode === 'all' ? (
+            t(
+              'Inga avgångar härifrån de närmaste timmarna, varken i realtid eller i tidtabellen.',
+              'No departures from here in the next few hours, in real time or in the timetable.'
+            )
           ) : (
             t(
               <>
