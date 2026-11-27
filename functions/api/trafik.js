@@ -2561,17 +2561,22 @@ async function handleBoard(url, keys, context) {
 // ---------------------------------------------------------------------------
 // Flyg från Swedavia (FlightInfo v2) och kötider i säkerhetskontrollen (WaitTime).
 //
-// Gratisprenumerationen på FlightInfo tillåter omkring 10 000 anrop per 30 dagar.
-// Därför: ett anrop ger hela dagen för en flygplats och riktning, svaret cachas i
-// 10 minuter och delas av alla besökare, och högst FLIGHT_CALLS_PER_DAY anrop görs
-// per dygn (räknat i D1). Nås gränsen visas den senast hämtade tavlan.
+// Gratisprenumerationen hos Swedavia ger 10 000 anrop per månad, och när de är slut
+// fungerar API:t inte resten av månaden (apideveloper.swedavia.se/faq). Det är oklart
+// om gränsen gäller per API eller för FlightInfo och WaitTime tillsammans, så de två
+// dygnsgränserna nedan räknas så att även summan håller sig under:
+// (150 + 150) × 31 = 9 300 anrop per månad.
+//
+// Ett anrop ger hela dagen för en flygplats och riktning, svaret cachas i 10 minuter
+// (kötiderna i 5) och delas av alla besökare, och anropen räknas per dygn i D1.
+// Nås gränsen visas den senast hämtade tavlan.
 // ---------------------------------------------------------------------------
 
 const FLIGHT_CACHE_SECONDS = 600;
 const FLIGHT_STALE_SECONDS = 86400;
-const FLIGHT_CALLS_PER_DAY = 300;
-const WAIT_CACHE_SECONDS = 120;
-const WAIT_CALLS_PER_DAY = 3000;
+const FLIGHT_CALLS_PER_DAY = 150;
+const WAIT_CACHE_SECONDS = 300;
+const WAIT_CALLS_PER_DAY = 150;
 const SWEDAVIA = 'https://api.swedavia.se';
 
 /** Räknar ett anrop och svarar om det ryms i dygnets gräns. Utan D1 tillåts det. */
