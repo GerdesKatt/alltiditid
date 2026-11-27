@@ -151,8 +151,8 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
       </div>
       <p style={{ margin: '10px 0 0', fontSize: '0.75rem', color: colors.textDim }}>
         {t(
-          'Tiderna är från när du sparade resan. Kolla avgångarna under Nu innan du går.',
-          'Times are from when you saved the trip. Check departures under Now before you leave.'
+          'Tiderna är från när du sparade resan. Kolla avgångarna under Avgångar innan du går.',
+          'Times are from when you saved the trip. Check the board under Departures before you leave.'
         )}
       </p>
     </section>
