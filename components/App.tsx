@@ -30,6 +30,7 @@ import { alternativeFor } from '../lib/alternative.mjs';
 import { matchConnection } from '../lib/transferMatch.mjs';
 import { groupKey } from '../lib/lineFormat';
 import JourneyPlan from './JourneyPlan';
+import PlaceSuggest, { type ChosenPlace } from './PlaceSuggest';
 import PlannedTripCard from './PlannedTripCard';
 import { isNear, loadPlannedTrip, storePlannedTrip, type PlannedTrip } from '../lib/plannedTrip';
 import { loadStopIndex, stopPageFor, type StopIndex } from '../lib/stopIndex';
@@ -679,6 +680,15 @@ export default function App({ initialStop, page, intro }: AppProps) {
 
   // Min resa utan något sparat: "Vart ska du?" bland avgångarna från tavlans hållplats.
   const [goal, setGoal] = useState('');
+  // Ett valt förslag (hållplats, plats eller adress), och om förslagen visas just nu.
+  const [goalPlace, setGoalPlace] = useState<ChosenPlace | null>(null);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const pickGoal = (p: ChosenPlace) => {
+    setGoal(p.name);
+    setGoalPlace(p);
+    setSuggestOpen(false);
+    track('funktion', 0, `mal_${p.kind}`);
+  };
   const goalHits = useMemo(() => {
     if (goal.trim().length < 2 || !hasStop) return [];
     return departures.filter((d) => d.status !== 'cancelled' && matchConnection(d, goal).hit).slice(0, 5);
@@ -825,16 +835,25 @@ export default function App({ initialStop, page, intro }: AppProps) {
                   autoComplete="off"
                   value={goal}
                   enterKeyHint="search"
-                  onChange={(e) => setGoal(e.target.value)}
+                  role="combobox"
+                  aria-expanded={suggestOpen}
+                  aria-controls="vart-ska-du-lista"
+                  onChange={(e) => {
+                    setGoal(e.target.value);
+                    setGoalPlace(null);
+                    setSuggestOpen(true);
+                  }}
                   onKeyDown={(e) => {
                     // Sök på tangentbordet startar resesökningen.
+                    if (e.key === 'Escape') setSuggestOpen(false);
                     if (e.key === 'Enter') {
                       e.preventDefault();
+                      setSuggestOpen(false);
                       (e.currentTarget as HTMLInputElement).blur();
                       document.getElementById('sok-resa')?.click();
                     }
                   }}
-                  placeholder={t('Ort, hållplats eller adress', 'Town, stop or address')}
+                  placeholder={t('Hållplats, adress, hotell …', 'Stop, address, hotel …')}
                   style={{ ...textInput(colors.borderStrong), display: 'block', minHeight: '48px', fontSize: '1rem', paddingRight: '48px' }}
                 />
                 {goal ? (
@@ -843,6 +862,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
                     type="button"
                     onClick={() => {
                       setGoal('');
+                      setGoalPlace(null);
+                      setSuggestOpen(false);
                       document.getElementById('vart-ska-du')?.focus();
                     }}
                     aria-label={t('Rensa', 'Clear')}
@@ -863,9 +884,17 @@ export default function App({ initialStop, page, intro }: AppProps) {
                   </button>
                 ) : null}
               </div>
+              {suggestOpen ? (
+                <PlaceSuggest text={goal} nearStopId={hasStop ? selectedStop.id : undefined} onPick={pickGoal} />
+              ) : null}
               <JourneyPlan
                 goal={goal}
-                onClear={() => setGoal('')}
+                place={goalPlace}
+                onPlace={pickGoal}
+                onClear={() => {
+                  setGoal('');
+                  setGoalPlace(null);
+                }}
                 fromId={hasStop ? selectedStop.id : ''}
                 fromName={hasStop ? selectedStop.name : ''}
                 savedKey={planned ? `${planned.trip.depDate} ${planned.trip.dep}` : ''}
@@ -919,6 +948,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
                               track('funktion', 0, 'min_resa');
                             }
                             setGoal('');
+                            setGoalPlace(null);
                           }}
                           style={{
                             minHeight: '44px',
@@ -1172,6 +1202,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
           onGoal={(text) => {
             // Vart ska du? från Hem: till Min resa med målet ifyllt, och sök direkt.
             setGoal(text);
+            setGoalPlace(null);
+            setSuggestOpen(false);
             changeTab('resa');
             window.scrollTo({ top: 0 });
             setTimeout(() => document.getElementById('sok-resa')?.click(), 120);
