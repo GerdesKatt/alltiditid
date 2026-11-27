@@ -1,0 +1,81 @@
+name: Övervakning
+
+# Frågar sajten och hälsokontrollen var 30:e minut. Är något fel öppnas ett
+# ärende med etiketten "larm" (du får det som avisering från GitHub); när allt
+# är bra igen stängs ärendet. Hälsokontrollen gör inga externa anrop och kostar
+# ingen kvot. Kör den för hand under Actions → Övervakning → Run workflow.
+
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+concurrency:
+  group: overvakning
+  cancel-in-progress: false
+
+jobs:
+  kontroll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SITE: https://alltiditid.se
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Fråga sajten och hälsokontrollen
+        id: check
+        run: |
+          problems=""
+          home=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$SITE/" || echo 000)
+          if [ "$home" != "200" ]; then
+            problems="${problems}- Startsidan svarade med status ${home}."$'\n'
+          fi
+          code=$(curl -s -o health.json -w '%{http_code}' --max-time 20 "$SITE/api/trafik?action=health" || echo 000)
+          if [ "$code" != "200" ]; then
+            listed=$(jq -r '.problems[]? | "- " + .' health.json 2>/dev/null || true)
+            if [ -n "$listed" ]; then
+              problems="${problems}${listed}"$'\n'
+            else
+              problems="${problems}- Hälsokontrollen svarade med status ${code}."$'\n'
+            fi
+          fi
+          echo "Startsidan: $home, hälsokontrollen: $code"
+          cat health.json 2>/dev/null || true
+          {
+            echo 'problems<<EOF'
+            printf '%s' "$problems"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Öppna eller uppdatera larmet
+        if: steps.check.outputs.problems != ''
+        env:
+          PROBLEMS: ${{ steps.check.outputs.problems }}
+        run: |
+          gh label create larm --color B60205 --description 'Automatiskt larm från övervakningen' 2>/dev/null || true
+          open=$(gh issue list --label larm --state open --json number --jq '.[0].number')
+          now=$(TZ=Europe/Stockholm date '+%Y-%m-%d %H:%M')
+          body="Övervakningen hittade problem ${now} (svensk tid):"$'\n\n'"${PROBLEMS}"$'\n'"Detaljer: ${SITE}/api/trafik?action=health"$'\n'"Körning: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ -z "$open" ]; then
+            gh issue create --title "Larm: alltiditid behöver tittas på" --label larm --body "$body"
+          else
+            # Kommentera bara när en ny källa fått problem eller en gått över, inte när
+            # bara siffrorna ändrats, så att du inte får ett mejl var 30:e minut.
+            last=$(gh issue view "$open" --json comments,body --jq '(.comments | last | .body) // .body')
+            kallor() { grep '^- ' | cut -d: -f1 | sort; }
+            if [ "$(printf '%s\n' "$last" | kallor || true)" != "$(printf '%s\n' "$PROBLEMS" | kallor || true)" ]; then
+              gh issue comment "$open" --body "$body"
+            fi
+          fi
+          exit 1
+
+      - name: Stäng larmet när allt är bra igen
+        if: steps.check.outputs.problems == ''
+        run: |
+          for n in $(gh issue list --label larm --state open --json number --jq '.[].number'); do
+            gh issue close "$n" --comment "Allt är bra igen ($(TZ=Europe/Stockholm date '+%Y-%m-%d %H:%M'))."
+          done

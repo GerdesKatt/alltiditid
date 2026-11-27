@@ -10,6 +10,7 @@ import { destinationCandidates, mapTrips, pickDestination } from '../../lib/plan
 import { SURE, geoapifyPlaces, photonPlaces, rankPlaces } from '../../lib/places.mjs';
 import { foldPlace } from '../../lib/transferMatch.mjs';
 import { allowedLicense, nearestStation, systemsNear } from '../../lib/mobility.mjs';
+import { evaluateHealth, isFailure, sourceOf } from '../../lib/health.mjs';
 
 function parseTimeToMinutes(timeStr) {
   if (!timeStr || typeof timeStr !== 'string') return null;
@@ -298,7 +299,7 @@ async function fetchTrafikverketStations(trafikverketKey, context) {
 </REQUEST>`;
 
   try {
-    const res = await fetch(TRAFIKVERKET_URL, {
+    const res = await upstreamFetch(TRAFIKVERKET_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/xml; charset=utf-8' },
       body: xmlBody,
@@ -430,7 +431,7 @@ async function fetchTrafikverketStationUpdates(
 </REQUEST>`;
 
   try {
-    const tvRes = await fetch(TRAFIKVERKET_URL, {
+    const tvRes = await upstreamFetch(TRAFIKVERKET_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/xml; charset=utf-8' },
       body: xmlBody,
@@ -508,7 +509,7 @@ async function trafikverketQuery(key, filter, limit = 400) {
     ${TV_INCLUDE}
   </QUERY>
 </REQUEST>`;
-  const res = await fetch(TRAFIKVERKET_URL, {
+  const res = await upstreamFetch(TRAFIKVERKET_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/xml; charset=utf-8' },
     body: xmlBody,
@@ -634,7 +635,7 @@ async function handleStatus(keys, context) {
   const out = { gtfs: { key: Boolean(keys.gtfsRt), keyName: gtfsKeyFrom(context.env).name }, ferries: {} };
   if (keys.gtfsRt) {
     try {
-      const res = await fetch(
+      const res = await upstreamFetch(
         `https://opendata.samtrafiken.se/gtfs-rt-sweden/sl/VehiclePositionsSweden.pb?key=${encodeURIComponent(keys.gtfsRt)}`
       );
       out.gtfs.status = res.status;
@@ -653,7 +654,7 @@ async function handleStatus(keys, context) {
   }
   if (keys.trafikverket) {
     try {
-      const res = await fetch(TRAFIKVERKET_URL, {
+      const res = await upstreamFetch(TRAFIKVERKET_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/xml; charset=utf-8' },
         body: `<REQUEST><LOGIN authenticationkey="${keys.trafikverket}" /><QUERY objecttype="FerryRoute" schemaversion="1.2" limit="200" /></REQUEST>`,
@@ -705,7 +706,7 @@ async function operatorPositions(key, operator, context) {
   const timer = setTimeout(() => controller.abort(), 6000);
   let positions = {};
   try {
-    const res = await fetch(
+    const res = await upstreamFetch(
       `https://opendata.samtrafiken.se/gtfs-rt-sweden/${operator}/VehiclePositionsSweden.pb?key=${encodeURIComponent(key)}`,
       { signal: controller.signal }
     );
@@ -743,7 +744,7 @@ async function handleTrip(url, keys, context) {
 
   let data;
   try {
-    const res = await fetch(
+    const res = await upstreamFetch(
       `${REALTIME_BASE}/trips/${encodeURIComponent(id)}/${date}?key=${encodeURIComponent(keys.realtime)}`
     );
     if (res.status === 404) return jsonResponse({ error: 'Hittade inte turen.' }, 404);
@@ -911,7 +912,7 @@ async function routeStopsAfter(d, station, keys, context) {
   }
   let names = null;
   try {
-    const res = await fetch(
+    const res = await upstreamFetch(
       `${REALTIME_BASE}/trips/${encodeURIComponent(d.tripId)}/${encodeURIComponent(d.tripDate)}?key=${encodeURIComponent(keys.realtime)}`
     );
     if (!res.ok) return null;
@@ -1109,7 +1110,7 @@ async function realtimeBoard(key, stopId, direction, at) {
   const kind = direction === 'arrivals' ? 'arrivals' : 'departures';
   // `at` ('YYYY-MM-DDTHH:MM', svensk tid): tavlan från den tiden i stället för nu.
   const when = at ? `/${encodeURIComponent(at)}` : '';
-  const res = await fetch(
+  const res = await upstreamFetch(
     `${REALTIME_BASE}/${kind}/${encodeURIComponent(stopId)}${when}?key=${encodeURIComponent(key)}`
   );
   if (!res.ok) throw new Error(`Trafiklab Realtime svarade med status ${res.status}`);
@@ -1127,7 +1128,7 @@ async function realtimeBoard(key, stopId, direction, at) {
 }
 
 async function realtimeSearch(key, q) {
-  const res = await fetch(
+  const res = await upstreamFetch(
     `${REALTIME_BASE}/stops/name/${encodeURIComponent(q)}?key=${encodeURIComponent(key)}`
   );
   if (!res.ok) throw new Error(`Trafiklab Realtime sökfel (status ${res.status})`);
@@ -1212,7 +1213,7 @@ async function getVasttrafikToken(key, secret, context, forceNew = false) {
     }
   }
 
-  const res = await fetch(VASTTRAFIK_TOKEN_URL, {
+  const res = await upstreamFetch(VASTTRAFIK_TOKEN_URL, {
     method: 'POST',
     headers: {
       Authorization: `Basic ${btoa(`${key}:${secret}`)}`,
@@ -1341,12 +1342,12 @@ async function fetchVasttrafikUpdates(keys, stopId, names, coords, direction, co
   let renewed = false;
   const auth = {
     async fetch(url) {
-      let res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      let res = await upstreamFetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if ((res.status === 401 || res.status === 403) && !renewed) {
         renewed = true;
         diag.tokenRenewed = true;
         token = await getVasttrafikToken(keys.vasttrafikKey, keys.vasttrafikSecret, context, true);
-        res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        res = await upstreamFetch(url, { headers: { Authorization: `Bearer ${token}` } });
       }
       return res;
     },
@@ -1522,7 +1523,7 @@ function mapResrobotItem(item, direction) {
 
 async function resrobotBoard(key, stopId, direction) {
   const endpoint = direction === 'arrivals' ? 'arrivalBoard' : 'departureBoard';
-  const res = await fetch(
+  const res = await upstreamFetch(
     `${RESROBOT_BASE}/${endpoint}?id=${encodeURIComponent(stopId)}&duration=120&passlist=1&format=json&accessId=${encodeURIComponent(key)}`
   );
   if (!res.ok) throw new Error(`Trafiklab svarade med status ${res.status}`);
@@ -1537,7 +1538,7 @@ async function resrobotBoard(key, stopId, direction) {
 }
 
 async function resrobotSearch(key, q) {
-  const res = await fetch(
+  const res = await upstreamFetch(
     `${RESROBOT_BASE}/location.name?input=${encodeURIComponent(q)}&format=json&accessId=${encodeURIComponent(key)}`
   );
   if (!res.ok) throw new Error(`Trafiklab sökfel (status ${res.status})`);
@@ -1575,7 +1576,7 @@ async function fetchFerryHarbors(trafikverketKey, context) {
   <QUERY objecttype="FerryRoute" schemaversion="1.2" limit="200" />
 </REQUEST>`;
   try {
-    const res = await fetch(TRAFIKVERKET_URL, {
+    const res = await upstreamFetch(TRAFIKVERKET_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/xml; charset=utf-8' },
       body: xmlBody,
@@ -1634,7 +1635,7 @@ async function handleFerryBoard(url, keys) {
 </REQUEST>`;
   let anns;
   try {
-    const res = await fetch(TRAFIKVERKET_URL, {
+    const res = await upstreamFetch(TRAFIKVERKET_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/xml; charset=utf-8' },
       body: xmlBody,
@@ -1737,7 +1738,7 @@ async function lookupPlaces(q, env, context, bias) {
   try {
     if (geoKey) {
       const near = b === 'se' ? '' : `&bias=proximity:${b.split(',')[1]},${b.split(',')[0]}`;
-      const res = await fetch(
+      const res = await upstreamFetch(
         `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(q)}&filter=countrycode:se${near}&lang=sv&limit=8&format=json&apiKey=${encodeURIComponent(geoKey)}`,
         { signal: controller.signal }
       );
@@ -1746,7 +1747,7 @@ async function lookupPlaces(q, env, context, bias) {
     } else {
       const base = String((env && env.PHOTON_URL) || PHOTON_DEFAULT).replace(/\/$/, '');
       const near = b === 'se' ? '' : `&lat=${b.split(',')[0]}&lon=${b.split(',')[1]}`;
-      const res = await fetch(`${base}/api/?q=${encodeURIComponent(q)}&limit=10&bbox=${SWEDEN_BBOX}${near}`, {
+      const res = await upstreamFetch(`${base}/api/?q=${encodeURIComponent(q)}&limit=10&bbox=${SWEDEN_BBOX}${near}`, {
         signal: controller.signal,
         headers: { 'User-Agent': 'alltiditid.se (reseplanerare)' },
       });
@@ -1844,7 +1845,7 @@ async function handlePlan(request, keys, context) {
   }
 
   const rr = (path) =>
-    fetch(`${RESROBOT_BASE}/${path}&format=json&lang=sv&accessId=${encodeURIComponent(keys.resrobot)}`).then((res) => {
+    upstreamFetch(`${RESROBOT_BASE}/${path}&format=json&lang=sv&accessId=${encodeURIComponent(keys.resrobot)}`).then((res) => {
       if (!res.ok) throw new Error(String(res.status));
       return res.json();
     });
@@ -1967,7 +1968,7 @@ async function handleNearby(request, keys, context) {
     }
   }
 
-  const res = await fetch(
+  const res = await upstreamFetch(
     `${RESROBOT_BASE}/location.nearbystops?originCoordLat=${rLat}&originCoordLong=${rLon}` +
       `&r=${wide ? 2000 : 1500}&maxNo=${wide ? 80 : 10}&format=json&accessId=${encodeURIComponent(keys.resrobot)}`
   );
@@ -2116,7 +2117,7 @@ async function fetchSlSites(context) {
       // Hämta om nedan
     }
   }
-  const res = await fetch(`${SL_BASE}/sites`);
+  const res = await upstreamFetch(`${SL_BASE}/sites`);
   if (!res.ok) throw new Error(`SL sites ${res.status}`);
   const data = await res.json();
   const compact = (Array.isArray(data) ? data : [])
@@ -2170,7 +2171,7 @@ async function findSlSite(stopId, name, coords, context) {
 
 /** SL:s avgångar som karta "linje|YYYY-MM-DDTHH:MM" → prognos. */
 async function fetchSlUpdates(site) {
-  const res = await fetch(`${SL_BASE}/sites/${encodeURIComponent(site)}/departures?forecast=${SL_FORECAST_MIN}`);
+  const res = await upstreamFetch(`${SL_BASE}/sites/${encodeURIComponent(site)}/departures?forecast=${SL_FORECAST_MIN}`);
   if (!res.ok) throw new Error(`SL departures ${res.status}`);
   const data = await res.json();
   const updates = new Map();
@@ -2629,11 +2630,101 @@ async function allowCall(env, api, limit) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Övervakning (lib/health.mjs): varje anrop till en extern källa räknas i minnet
+// och skrivs till D1 efter svaret, så att besökaren inte väntar på skrivningen.
+// ---------------------------------------------------------------------------
+
+/** Ej skrivna räknare: källa -> { calls, failures }. */
+const pendingCounts = new Map();
+
+function countUpstream(url, failed) {
+  const source = sourceOf(url);
+  const c = pendingCounts.get(source) || { calls: 0, failures: 0 };
+  c.calls += 1;
+  if (failed) c.failures += 1;
+  pendingCounts.set(source, c);
+}
+
+/** fetch som räknar anrop och fel per källa. */
+async function upstreamFetch(input, init) {
+  const url = typeof input === 'string' ? input : input && input.url;
+  try {
+    const res = await fetch(input, init);
+    countUpstream(url, isFailure(res.status));
+    return res;
+  } catch (err) {
+    countUpstream(url, true);
+    throw err;
+  }
+}
+
+/** Skriver räknarna till D1. Misslyckas det tappas de, sajten påverkas inte. */
+async function flushUpstreamCounts(env) {
+  const db = env && env.HISTORY;
+  if (!db || pendingCounts.size === 0) return;
+  const rows = [...pendingCounts.entries()];
+  pendingCounts.clear();
+  try {
+    const day = new Date().toISOString().slice(0, 10);
+    await db
+      .prepare('CREATE TABLE IF NOT EXISTS upstream_calls (day TEXT NOT NULL, source TEXT NOT NULL, calls INTEGER NOT NULL, failures INTEGER NOT NULL, PRIMARY KEY (day, source))')
+      .run();
+    const stmt = db.prepare(
+      'INSERT INTO upstream_calls (day, source, calls, failures) VALUES (?1, ?2, ?3, ?4) ON CONFLICT (day, source) DO UPDATE SET calls = calls + ?3, failures = failures + ?4'
+    );
+    await db.batch(rows.map(([source, c]) => stmt.bind(day, source, c.calls, c.failures)));
+  } catch {
+    // Räknarna är bara till för övervakningen.
+  }
+}
+
+/** Dygnsgränserna i api_calls, så att hälsokontrollen kan se när en är nådd. */
+const DAILY_LIMITS = {
+  'swedavia-flightinfo': FLIGHT_CALLS_PER_DAY,
+  'swedavia-waittime': WAIT_CALLS_PER_DAY,
+  'resrobot-plan': PLAN_CALLS_PER_DAY,
+  places: PLACES_CALLS_PER_DAY,
+  gtfsrt: GTFS_RT_DAILY_LIMIT,
+};
+
+/**
+ * Hälsokontroll: fel och kvotförbrukning per källa. Gör inga externa anrop och
+ * kostar alltså ingen kvot. Svarar 503 när något behöver åtgärdas.
+ */
+async function handleHealth(env) {
+  const db = env && env.HISTORY;
+  if (!db) return jsonResponse({ ok: false, problems: ['D1-databasen HISTORY saknas, inget räknas.'] }, 503);
+  try {
+    await flushUpstreamCounts(env);
+    const today = new Date().toISOString().slice(0, 10);
+    const from = new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10);
+    let rows = [];
+    let capped = [];
+    try {
+      rows = (await db.prepare('SELECT day, source, calls, failures FROM upstream_calls WHERE day >= ?1').bind(from).all()).results || [];
+    } catch {
+      // Tabellen skapas vid första räknade anropet.
+    }
+    try {
+      capped = (await db.prepare('SELECT day, api, n FROM api_calls WHERE day = ?1').bind(today).all()).results || [];
+    } catch {
+      // Likaså.
+    }
+    const health = evaluateHealth(rows, today, capped, DAILY_LIMITS);
+    return jsonResponse({ ...health, checkedAt: new Date().toISOString() }, health.ok ? 200 : 503, {
+      'Cache-Control': 'no-store',
+    });
+  } catch (err) {
+    return jsonResponse({ ok: false, problems: [`Hälsokontrollen kunde inte läsa D1: ${String(err && err.message ? err.message : err).slice(0, 200)}`] }, 503);
+  }
+}
+
 async function swedaviaGet(path, key) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10_000);
   try {
-    const res = await fetch(`${SWEDAVIA}${path}`, {
+    const res = await upstreamFetch(`${SWEDAVIA}${path}`, {
       headers: { 'Ocp-Apim-Subscription-Key': key, Accept: 'application/json', 'Cache-Control': 'no-cache' },
       signal: controller.signal,
     });
@@ -2796,7 +2887,7 @@ async function gbfsJson(url, ttl, context) {
   const key = new Request(url, { method: 'GET' });
   const hit = await cacheGet(key);
   if (hit) return await hit.json();
-  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  const res = await upstreamFetch(url, { headers: { Accept: 'application/json' } });
   if (!res.ok) throw new Error(`GBFS ${res.status}`);
   const body = await res.json();
   await cachePut(key, new Response(JSON.stringify(body), { headers: { 'Cache-Control': `max-age=${ttl}` } }), context);
@@ -2835,6 +2926,20 @@ async function handleMobility(url, context) {
 }
 
 export async function onRequest(context) {
+  const { env } = context;
+  if (new URL(context.request.url).searchParams.get('action') === 'health') return await handleHealth(env);
+  try {
+    return await route(context);
+  } finally {
+    if (pendingCounts.size > 0) {
+      const flush = flushUpstreamCounts(env);
+      if (context.waitUntil) context.waitUntil(flush);
+      else await flush;
+    }
+  }
+}
+
+async function route(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const action = url.searchParams.get('action') || 'departures';
