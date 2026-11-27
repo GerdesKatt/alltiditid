@@ -7,15 +7,34 @@ import { lineColor } from '../lib/lineFormat';
 import { track } from '../lib/track';
 import type { TransportMode } from '../lib/types';
 import { dayLabel, type PlanLeg, type PlanPoint, type PlanTrip } from '../lib/plannedTrip';
+import { placeDetail, type ChosenPlace } from './PlaceSuggest';
 
 type Point = PlanPoint;
 type Leg = PlanLeg;
 type Trip = PlanTrip;
-type Plan = { to: string; fromHere: boolean; date: string; time: string; arrive: boolean; trips: Trip[] };
+type Plan = {
+  to: string;
+  /** Vad texten tolkades som: hållplats, plats (hotell, arena), adress eller område. */
+  toKind?: ChosenPlace['kind'];
+  toDetail?: string;
+  toType?: string;
+  /** false: inget passade orden säkert, så resultatet visar andra tänkbara mål. */
+  sure?: boolean;
+  alternatives?: ChosenPlace[];
+  fromHere: boolean;
+  date: string;
+  time: string;
+  arrive: boolean;
+  trips: Trip[];
+};
 
 type Props = {
   /** Det man skrev under "Vart ska du?". */
   goal: string;
+  /** Ett valt förslag under fältet: då söks resan dit direkt, utan att gissa. */
+  place?: ChosenPlace | null;
+  /** Välj ett annat mål ("Menade du …?"). */
+  onPlace?: (place: ChosenPlace) => void;
   /** Tavlans hållplats: start om positionen inte går att få. */
   fromId: string;
   fromName: string;
@@ -64,7 +83,7 @@ function position(): Promise<{ lat: number; lon: number } | null> {
  * Hela resan dit man ska, med byten och gång: buss till Fruängen, T-bana till T-Centralen,
  * regionaltåg till Karlstad. Startar där man står (positionen) eller vid tavlans hållplats.
  */
-export default function JourneyPlan({ goal, fromId, fromName, onSave, savedKey, onClear }: Props) {
+export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, onSave, savedKey, onClear }: Props) {
   const { t, lang } = useLang();
   // Tid: nu, eller ett valt datum och klockslag, som avgång eller senaste ankomst.
   const [whenMode, setWhenMode] = useState<'now' | 'later'>('now');
@@ -81,7 +100,8 @@ export default function JourneyPlan({ goal, fromId, fromName, onSave, savedKey, 
   const useStop = fromMode === 'stop' && Boolean(fromId);
 
   const target = goal.trim();
-  const query = `${target}|${whenMode}|${date}|${time}|${arrive}|${useStop ? fromId : 'here'}`;
+  const placeKey = place ? place.id || `${place.lat},${place.lon}` : '';
+  const query = `${target}|${whenMode}|${date}|${time}|${arrive}|${useStop ? fromId : 'here'}|${placeKey}`;
   const stale = plan !== null && asked !== query;
 
   async function find() {
@@ -104,6 +124,7 @@ export default function JourneyPlan({ goal, fromId, fromName, onSave, savedKey, 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: target,
+          ...(place ? { place } : {}),
           ...(pos ? pos : { fromId, fromName }),
           ...(whenMode === 'later' ? { date, time, arrive } : {}),
         }),
@@ -127,6 +148,12 @@ export default function JourneyPlan({ goal, fromId, fromName, onSave, savedKey, 
       setError('');
     }
   }, [target]);
+
+  // Valt ett förslag: sök resan dit direkt.
+  useEffect(() => {
+    if (place && !loading && asked !== query) find();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placeKey]);
 
   // Har man redan sökt och byter tid eller start: sök om av sig själv (samma mål).
   useEffect(() => {
@@ -235,12 +262,23 @@ export default function JourneyPlan({ goal, fromId, fromName, onSave, savedKey, 
         {plan && !stale ? (
           <section aria-label={t(`Resor till ${plan.to}`, `Trips to ${plan.to}`)} style={{ marginTop: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-            <p style={{ ...label, flex: 1 }}>
-              {plan.fromHere ? t('Från din position', 'From your location') : t(`Från ${fromName}`, `From ${fromName}`)} ·{' '}
-              {plan.to}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {/* Vad texten tolkades som, tydligt, så att man ser om det blev fel mål. */}
+              <p style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>
+                <span style={{ fontWeight: 400, color: colors.textDim }}>{t('Till', 'To')} </span>
+                {plan.to}
+              </p>
+              {plan.toKind ? (
+                <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
+                  {placeDetail({ kind: plan.toKind, name: plan.to, detail: plan.toDetail, type: plan.toType || place?.type }, lang)}
+                </p>
+              ) : null}
+            <p style={{ ...label, marginTop: '8px' }}>
+              {plan.fromHere ? t('Från din position', 'From your location') : t(`Från ${fromName}`, `From ${fromName}`)}
               {plan.date ? ` · ${dayLabel(plan.date, Date.now(), lang)}` : ''}
               {plan.time ? ` · ${plan.arrive ? t('framme', 'arrive') : t('efter', 'after')} ${plan.time}` : ''}
             </p>
+            </div>
             {onClear ? (
               <button
                 type="button"
@@ -268,6 +306,29 @@ export default function JourneyPlan({ goal, fromId, fromName, onSave, savedKey, 
               </button>
             ) : null}
             </div>
+            {plan.sure === false ? (
+              <div style={{ margin: '10px 0 4px' }}>
+                <p style={{ margin: '0 0 6px', fontSize: '0.875rem', color: colors.amber }}>
+                  {t(`Hittade inget som heter exakt ”${target}”. Stämmer målet?`, `Found nothing named exactly “${target}”. Is this the right place?`)}
+                </p>
+                {plan.alternatives?.length && onPlace ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '0.8125rem', color: colors.textDim }}>{t('Menade du', 'Did you mean')}</span>
+                    {plan.alternatives.map((a, i) => (
+                      <button
+                        key={`${a.name}-${i}`}
+                        type="button"
+                        onClick={() => onPlace(a)}
+                        title={placeDetail(a, lang)}
+                        style={{ ...chip(false), minHeight: '36px', fontWeight: 600 }}
+                      >
+                        {a.name}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <ol style={{ listStyle: 'none', margin: '6px 0 0', padding: 0 }}>
               {plan.trips.map((trip, i) => {
                 const expanded = open === i;

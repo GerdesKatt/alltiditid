@@ -6,7 +6,9 @@ import { locateOnRoute, vehiclePositions } from '../../lib/gtfsrt.mjs';
 import { FERRY_PREFIX, ferryBoard, ferryHarbors, searchFerryHarbors } from '../../lib/ferries.mjs';
 import { stopsAfter } from '../../lib/transferMatch.mjs';
 import { pickSearchHits } from '../../lib/searchHits.mjs';
-import { mapTrips, pickDestination } from '../../lib/plan.mjs';
+import { destinationCandidates, mapTrips, pickDestination } from '../../lib/plan.mjs';
+import { SURE, geoapifyPlaces, photonPlaces, rankPlaces } from '../../lib/places.mjs';
+import { foldPlace } from '../../lib/transferMatch.mjs';
 import { allowedLicense, nearestStation, systemsNear } from '../../lib/mobility.mjs';
 
 function parseTimeToMinutes(timeStr) {
@@ -1666,12 +1668,105 @@ const PLAN_CALLS_PER_DAY = 700;
 const inSweden = (lat, lon) =>
   Number.isFinite(lat) && Number.isFinite(lon) && lat >= 55 && lat <= 69.2 && lon >= 10.5 && lon <= 24.3;
 
+// ---------------------------------------------------------------------------
+// Platser: hotell, arenor, sjukhus och adresser (inte bara hållplatser)
+// ---------------------------------------------------------------------------
+
+/** Högst så många platsuppslag om dygnet (Geoapify Free ger 3 000; Photon ber om måttlig användning). */
+const PLACES_CALLS_PER_DAY = 2500;
+const PHOTON_DEFAULT = 'https://photon.komoot.io';
+const SWEDEN_BBOX = '10.5,55,24.3,69.2';
+
+/**
+ * Namngivna platser och adresser för det man skrev, från OpenStreetMap.
+ * Geoapify om GEOAPIFY_KEY finns (Free-planen tillåter kommersiell användning med
+ * attribution), annars Photon (PHOTON_URL, standard photon.komoot.io).
+ * Svaret cachas en vecka per sökning, så att samma ord inte kostar fler anrop.
+ * bias: en ungefärlig punkt (en decimal, cirka 10 km) som träffar nära vinner på.
+ */
+async function lookupPlaces(q, env, context, bias) {
+  const folded = foldPlace(q);
+  if (folded.length < 3) return { places: [], source: '' };
+  const geoKey = env && env.GEOAPIFY_KEY;
+  const source = geoKey ? 'geoapify' : 'osm';
+  const b = bias && Number.isFinite(bias.lat) && Number.isFinite(bias.lon) ? `${bias.lat.toFixed(1)},${bias.lon.toFixed(1)}` : 'se';
+  const cacheKey = new Request(`https://cache.alltiditid.se/places-v1/${source}/${b}/${encodeURIComponent(folded)}`);
+  const cached = await cacheGet(cacheKey);
+  if (cached) {
+    try {
+      return await cached.json();
+    } catch {
+      // Hämta på nytt nedan
+    }
+  }
+  if (!(await allowCall(env, 'places', PLACES_CALLS_PER_DAY))) return { places: [], source };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4000);
+  let places = [];
+  try {
+    if (geoKey) {
+      const near = b === 'se' ? '' : `&bias=proximity:${b.split(',')[1]},${b.split(',')[0]}`;
+      const res = await fetch(
+        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(q)}&filter=countrycode:se${near}&lang=sv&limit=8&format=json&apiKey=${encodeURIComponent(geoKey)}`,
+        { signal: controller.signal }
+      );
+      if (!res.ok) throw new Error(String(res.status));
+      places = geoapifyPlaces(await res.json());
+    } else {
+      const base = String((env && env.PHOTON_URL) || PHOTON_DEFAULT).replace(/\/$/, '');
+      const near = b === 'se' ? '' : `&lat=${b.split(',')[0]}&lon=${b.split(',')[1]}`;
+      const res = await fetch(`${base}/api/?q=${encodeURIComponent(q)}&limit=10&bbox=${SWEDEN_BBOX}${near}`, {
+        signal: controller.signal,
+        headers: { 'User-Agent': 'alltiditid.se (reseplanerare)' },
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      places = photonPlaces(await res.json());
+    }
+  } catch {
+    return { places: [], source };
+  } finally {
+    clearTimeout(timer);
+  }
+  const data = { places: places.slice(0, 8), source };
+  await cachePut(cacheKey, jsonResponse(data, 200, { 'Cache-Control': 'public, max-age=604800' }), context);
+  return data;
+}
+
+/** GET action=places&q=…[&lat=&lon=]: platser och adresser till förslagen under "Vart ska du?". */
+async function handlePlaces(url, env, context) {
+  const q = (url.searchParams.get('q') || '').trim().slice(0, 80);
+  const lat = Number(url.searchParams.get('lat'));
+  const lon = Number(url.searchParams.get('lon'));
+  const bias = inSweden(lat, lon) ? { lat, lon } : null;
+  const data = await lookupPlaces(q, env, context, bias);
+  return jsonResponse({ places: rankPlaces(q, data.places).slice(0, 5), source: data.source }, 200, {
+    'Cache-Control': 'public, max-age=3600',
+  });
+}
+
 /**
  * POST action=plan med { to, fromId?, fromName?, lat?, lon? }.
  * Hela resan från där man står (eller från en hållplats) till vad som helst man skrev:
  * en hållplats, en adress eller en plats. Gång till första hållplatsen räknas in.
  * Positionen skickas i innehållet, inte i adressen, och sparas inte.
  */
+/** Ett valt förslag från klienten: { kind: 'stop', id, name } eller { kind: 'poi'|'address'|'area', lat, lon, name }. */
+function parseChosenPlace(p) {
+  if (!p || typeof p !== 'object') return null;
+  const name = String(p.name || '').trim().slice(0, 100);
+  if (!name) return null;
+  const detail = String(p.detail || '').trim().slice(0, 100);
+  if (p.kind === 'stop' && /^\d{6,12}$/.test(String(p.id || '').split(',')[0])) {
+    return { kind: 'stop', id: String(p.id).split(',')[0], name, detail };
+  }
+  const pLat = Number(p.lat);
+  const pLon = Number(p.lon);
+  if (!inSweden(pLat, pLon)) return null;
+  const placeKind = ['poi', 'address', 'area'].includes(p.kind) ? p.kind : 'address';
+  const type = /^[a-z_]{1,30}$/.test(String(p.type || '')) ? String(p.type) : '';
+  return { kind: 'coord', lat: pLat, lon: pLon, name, detail, placeKind, type };
+}
+
 async function handlePlan(request, keys, context) {
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Använd POST.' }, 405, { Allow: 'POST' });
@@ -1698,9 +1793,12 @@ async function handlePlan(request, keys, context) {
   if (!keys.resrobot) return jsonResponse({ error: 'Reseplaneraren är inte konfigurerad.' }, 501);
 
   const env = context && context.env;
+  // Ett valt förslag: hållplatsens id eller platsens koordinater. Då behövs ingen sökning.
+  const chosen = parseChosenPlace(body && body.place);
   const origin = fromCoord ? `c${lat.toFixed(3)},${lon.toFixed(3)}` : `s${fromId}`;
+  const target = chosen ? (chosen.kind === 'stop' ? `id${chosen.id}` : `c${chosen.lat.toFixed(4)},${chosen.lon.toFixed(4)}`) : to.toLowerCase();
   const cacheKey = new Request(
-    `https://cache.alltiditid.se/plan-v2/${origin}/${encodeURIComponent(to.toLowerCase())}/${date || 'idag'}/${time || 'nu'}/${arrive ? 'framme' : 'avgang'}`
+    `https://cache.alltiditid.se/plan-v3/${origin}/${encodeURIComponent(target)}/${date || 'idag'}/${time || 'nu'}/${arrive ? 'framme' : 'avgang'}`
   );
   const cached = await cacheGet(cacheKey);
   if (cached) {
@@ -1720,21 +1818,45 @@ async function handlePlan(request, keys, context) {
       return res.json();
     });
 
-  // Gatuadress (har en siffra): leta bland adresser först. Annars hållplatser och orter först,
-  // och adresser om det inte gav något. type=A är HAFAS sätt att be om adresser.
-  const lookups = /\d/.test(to) ? ['&type=A', ''] : ['', '&type=A'];
-  let dest = null;
-  let failed = false;
-  for (const type of lookups) {
-    try {
-      dest = pickDestination(await rr(`location.name?input=${encodeURIComponent(to)}&maxNo=5${type}`));
-    } catch {
-      failed = true;
+  let dest = chosen;
+  let sure = Boolean(chosen);
+  let alternatives = [];
+  if (!dest) {
+    // Hållplatser och adresser från ResRobot, och namngivna platser (hotell, arenor) från
+    // OpenStreetMap, jämförda med det man skrev. Den som passar bäst vinner, inte bara
+    // ResRobots första träff: "Clarion sign" ska bli Clarion Hotel Sign, inte Sigtuna busstation.
+    // Gatuadress (har en siffra): leta bland adresser först. type=A är HAFAS sätt att be om adresser.
+    const lookups = /\d/.test(to) ? ['&type=A', ''] : ['', '&type=A'];
+    // Positionen skickas inte vidare till platssökningen.
+    const placesP = lookupPlaces(to, env, context, null).catch(() => ({ places: [] }));
+    const fromRr = [];
+    let failed = false;
+    for (const type of lookups) {
+      try {
+        fromRr.push(...destinationCandidates(await rr(`location.name?input=${encodeURIComponent(to)}&maxNo=5${type}`)));
+      } catch {
+        failed = true;
+      }
+      if (rankPlaces(to, fromRr)[0]?.score >= SURE) break;
     }
-    if (dest) break;
+    const ranked = rankPlaces(to, [...fromRr, ...(await placesP).places]);
+    if (ranked[0] && ranked[0].score >= SURE) {
+      dest = ranked[0];
+      sure = true;
+    } else if (ranked[0]) {
+      dest = ranked[0];
+    } else if (fromRr[0]) {
+      // Inget passar orden: ta ResRobots egen gissning, men säg det.
+      dest = fromRr[0];
+    }
+    if (!dest && failed) return jsonResponse({ error: 'Kunde inte söka just nu.' }, 502);
+    if (!dest) return jsonResponse({ error: `Hittade ingen plats som heter ${to}.` }, 404);
+    alternatives = ranked
+      .filter((p) => p !== dest)
+      .slice(0, 3)
+      .map(({ kind, id, name, detail, type, lat: pLat, lon: pLon }) => ({ kind, id, name, detail, type, lat: pLat, lon: pLon }));
+    if (dest.kind !== 'stop') dest = { ...dest, kind: 'coord', placeKind: dest.kind };
   }
-  if (!dest && failed) return jsonResponse({ error: 'Kunde inte söka just nu.' }, 502);
-  if (!dest) return jsonResponse({ error: `Hittade ingen plats som heter ${to}.` }, 404);
 
   const destPart = dest.kind === 'stop' ? `destId=${dest.id}` : `destCoordLat=${dest.lat}&destCoordLong=${dest.lon}`;
   const originPart = (id) =>
@@ -1758,7 +1880,20 @@ async function handlePlan(request, keys, context) {
   }
   if (trips.length === 0) return jsonResponse({ error: `Hittade ingen resa till ${dest.name}.`, to: dest.name }, 404);
 
-  const data = { to: cleanPlaceName(dest.name) || dest.name, fromHere: fromCoord, date, time, arrive, trips };
+  const data = {
+    to: cleanPlaceName(dest.name) || dest.name,
+    // Vad texten tolkades som, så att man ser det innan man åker: hållplats, plats eller adress.
+    toKind: dest.kind === 'stop' ? 'stop' : dest.placeKind || 'address',
+    toDetail: dest.detail || '',
+    toType: dest.type || '',
+    sure,
+    ...(alternatives.length ? { alternatives } : {}),
+    fromHere: fromCoord,
+    date,
+    time,
+    arrive,
+    trips,
+  };
   await cachePut(cacheKey, jsonResponse(data, 200, { 'Cache-Control': 'public, max-age=60' }), context);
   return jsonResponse(data, 200, { 'Cache-Control': 'no-store' });
 }
@@ -2675,6 +2810,8 @@ export async function onRequest(context) {
   try {
     if (action === 'flights') return await handleFlights(url, env, context);
     if (action === 'waittimes') return await handleWaitTimes(url, env, context);
+    // Platser (OpenStreetMap) kräver ingen Trafiklab-nyckel, så förslagen fungerar även i förhandsversioner.
+    if (action === 'places') return await handlePlaces(url, env, context);
     if (action === 'mobility') return await handleMobility(url, context);
   } catch {
     return jsonResponse({ error: 'Ett fel uppstod vid hämtning av flygdata.' }, 500);
