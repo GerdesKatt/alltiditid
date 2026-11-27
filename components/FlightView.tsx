@@ -420,6 +420,32 @@ function FlightRow({
       : t('Har lyft', 'Departed')
     : flightStatus(f.gateText, lang) || statusText || (plan ? `${t('Boarding ca', 'Boarding ~')} ${plan.boarding}` : left);
 
+  // Status och anmärkningar utan upprepning ("Startat" och "Startat 17:40" blir en rad).
+  const notes = [...(statusText && statusText !== statusLine ? [statusText] : []), ...(f.remarks || [])].filter(
+    (n, i, all) => all.indexOf(n) === i && !all.some((o) => o !== n && o.startsWith(n))
+  );
+  // Säkerhetskontrollen per terminal: "Terminal 5F: 5 min · FastTrack 0 min".
+  const queueText = [...new Set(queues.map((q) => q.name))]
+    .map((name) => {
+      const regular = queues.find((q) => q.name === name && !q.fastTrack);
+      const fast = queues.find((q) => q.name === name && q.fastTrack);
+      return `${name}: ${[regular ? `${regular.minutes} min` : '', fast ? `FastTrack ${fast.minutes} min` : '']
+        .filter(Boolean)
+        .join(' · ')}`;
+    })
+    .join(', ');
+  const details: [string, string][] = [];
+  if (plan) {
+    details.push([t('Boarding', 'Boarding'), `${t('ca', '~')} ${plan.boarding}`]);
+    details.push([t('Gaten stänger', 'Gate closes'), `${t('ca', '~')} ${plan.gateCloses}`]);
+  }
+  if (f.via?.length) details.push([t('Via', 'Via'), f.via.join(', ')]);
+  if (notes.length) details.push([t('Status', 'Status'), notes.join(' · ')]);
+  if (left && statusLine !== left) details.push([arrivals ? t('Landar', 'Lands') : t('Avgår', 'Departs'), left]);
+  if (!arrivals && f.checkIn) details.push([t('Incheckning', 'Check-in'), `${t('Disk', 'Desk')} ${f.checkIn}`]);
+  if (!arrivals && queueText) details.push([t('Säkerhet nu', 'Security now'), queueText]);
+  if (f.codeshare?.length) details.push([t('Även som', 'Also as'), f.codeshare.join(', ')]);
+
   return (
     <li>
       <button
@@ -533,44 +559,46 @@ function FlightRow({
       </button>
 
       {open ? (
-        <div
-          style={{
-            margin: '4px 0 0',
-            padding: '12px 14px',
-            borderRadius: 'var(--radius-control)',
-            backgroundColor: colors.surfaceRaised,
-            fontSize: '0.875rem',
-            lineHeight: 1.6,
-            color: colors.text,
-          }}
-        >
+        // Detaljerna under raden, i linje med målet och utan eget kort: först svaret (när du ska vara vid
+        // säkerheten), sedan fakta som etikett och värde, sist knappen. Samma sak sägs bara en gång.
+        <div style={{ padding: '0 14px 14px 88px', borderBottom: `1px solid ${colors.border}`, fontSize: '0.8125rem', lineHeight: 1.45 }}>
           {plan ? (
-            <div style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: `1px solid ${colors.border}` }}>
-              <div style={{ fontWeight: 700 }}>
-                {t('Var vid säkerhetskontrollen senast', 'Be at security by')} {plan.atSecurity}
+            <div style={{ marginBottom: '10px' }}>
+              <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: colors.text }}>
+                {t('Var vid säkerheten senast', 'Be at security by')} {plan.atSecurity}
               </div>
-              <div>
-                {f.terminal ? `Terminal ${f.terminal} · ` : ''}
-                {t('Boarding ca', 'Boarding ~')} {plan.boarding} · {t('gaten stänger ca', 'gate closes ~')} {plan.gateCloses}
-              </div>
-              <div style={{ color: colors.textDim, fontSize: '0.8125rem' }}>
+              <div style={{ color: colors.textDim, marginTop: '2px' }}>
                 {plan.queue !== null
                   ? t(
-                      `Räknat med kön nu (${plan.queue} min) och ${plan.walkMin}–${plan.walkMax} min promenad till gaten. Uppskattat, följ skyltarna och flygbolaget.`,
-                      `Counting the queue now (${plan.queue} min) and a ${plan.walkMin}–${plan.walkMax} min walk to the gate. Estimated; follow the signs and your airline.`
+                      `Med kön nu (${plan.queue} min) och ${plan.walkMin}–${plan.walkMax} min till gaten. Uppskattat.`,
+                      `With the queue now (${plan.queue} min) and ${plan.walkMin}–${plan.walkMax} min to the gate. Estimated.`
                     )
                   : t(
-                      `Räknat med ${plan.walkMin}–${plan.walkMax} min promenad till gaten, men inte kön: lägg till den (se Brukar vara). Uppskattat.`,
-                      `Counting a ${plan.walkMin}–${plan.walkMax} min walk to the gate but not the queue: add it (see Usually). Estimated.`
+                      `Med ${plan.walkMin}–${plan.walkMax} min till gaten, utan kön (se Brukar vara). Uppskattat.`,
+                      `With ${plan.walkMin}–${plan.walkMax} min to the gate, without the queue (see Usually). Estimated.`
                     )}
               </div>
+            </div>
+          ) : null}
+          {details.length ? (
+            <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: '14px', rowGap: '4px', margin: 0 }}>
+              {details.map(([label, value]) => (
+                <React.Fragment key={label}>
+                  <dt style={{ color: colors.textDim }}>{label}</dt>
+                  <dd style={{ margin: 0, color: colors.text }}>{value}</dd>
+                </React.Fragment>
+              ))}
+            </dl>
+          ) : null}
+          {plan ? (
+            <>
               <button
                 type="button"
                 aria-pressed={saved}
                 onClick={() => storeMyFlight(saved ? null : { airport, flightId: f.flightId, scheduledAt: f.scheduledAt })}
                 style={{
-                  marginTop: '8px',
-                  minHeight: '40px',
+                  marginTop: '12px',
+                  minHeight: '44px',
                   padding: '0 14px',
                   borderRadius: 'var(--radius-control)',
                   border: `1px solid ${colors.borderStrong}`,
@@ -584,37 +612,11 @@ function FlightRow({
                 {saved ? t('✓ Mitt flyg (ta bort)', '✓ My flight (remove)') : t('Spara som mitt flyg', 'Save as my flight')}
               </button>
               {saved ? (
-                <div style={{ fontSize: '0.8125rem', color: colors.textDim, marginTop: '4px' }}>
+                <div style={{ color: colors.textDim, marginTop: '4px' }}>
                   {t('Syns under Min resa tills planet lyft.', 'Shown under My trip until the plane has left.')}
                 </div>
               ) : null}
-            </div>
-          ) : null}
-          {f.via?.length ? <div>Via {f.via.join(', ')}</div> : null}
-          {f.codeshare?.length ? (
-            <div>
-              {t('Även', 'Also')} {f.codeshare.join(', ')}
-            </div>
-          ) : null}
-          {!arrivals && f.checkIn ? (
-            <div>
-              {t('Incheckning disk', 'Check-in desk')} {f.checkIn}
-            </div>
-          ) : null}
-          {statusText && statusText !== statusLine ? <div>{statusText}</div> : null}
-          {f.remarks?.map((r) => (
-            <div key={r}>{r}</div>
-          ))}
-          {left && statusLine !== left ? (
-            <div>
-              {t('Avgår', 'Departs')} {left}
-            </div>
-          ) : null}
-          {!arrivals && queues.length ? (
-            <div style={{ marginTop: '6px' }}>
-              {t('Säkerhetskontroll', 'Security check')}:{' '}
-              {queues.map((q) => `${q.name}${q.fastTrack ? ' FastTrack' : ''} ${q.minutes} min`).join(' · ')}
-            </div>
+            </>
           ) : null}
         </div>
       ) : null}
