@@ -8,6 +8,7 @@ import { stopsAfter } from '../../lib/transferMatch.mjs';
 import { pickSearchHits } from '../../lib/searchHits.mjs';
 import { destinationCandidates, mapTrips, pickDestination } from '../../lib/plan.mjs';
 import { SURE, geoapifyPlaces, photonPlaces, rankPlaces } from '../../lib/places.mjs';
+import { trafficForCounty } from '../../lib/countyTraffic.mjs';
 import { foldPlace } from '../../lib/transferMatch.mjs';
 import { allowedLicense, nearestStation, systemsNear } from '../../lib/mobility.mjs';
 import { evaluateHealth, isFailure, sourceOf } from '../../lib/health.mjs';
@@ -1716,6 +1717,77 @@ const SWEDEN_BBOX = '10.5,55,24.3,69.2';
  * Svaret cachas en vecka per sökning, så att samma ord inte kostar fler anrop.
  * bias: en ungefärlig punkt (en decimal, cirka 10 km) som träffar nära vinner på.
  */
+/**
+ * Län och ort för en position: för tips när man är strandad (länets trafikbolag och närtrafik,
+ * taxi på orten). POST så att positionen inte hamnar i loggar; avrundad till cirka 1 km.
+ */
+async function handleArea(request, context) {
+  if (request.method !== 'POST') return jsonResponse({ error: 'Använd POST med { lat, lon }.' }, 405, { Allow: 'POST' });
+  let body = null;
+  try {
+    body = await request.json();
+  } catch {
+    body = null;
+  }
+  const lat = Number(body && body.lat);
+  const lon = Number(body && body.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < 55 || lat > 69.2 || lon < 10.5 || lon > 24.3) {
+    return jsonResponse({ error: 'Positionen ligger utanför Sverige.' }, 400);
+  }
+  const env = context && context.env;
+  const rLat = lat.toFixed(2);
+  const rLon = lon.toFixed(2);
+  const cacheKey = new Request(`https://cache.alltiditid.se/area-v1/${rLat},${rLon}`);
+  const cached = await cacheGet(cacheKey);
+  if (cached) {
+    try {
+      return jsonResponse(await cached.json(), 200, { 'Cache-Control': 'no-store' });
+    } catch {
+      // Hämta på nytt nedan
+    }
+  }
+  if (!(await allowCall(env, 'places', PLACES_CALLS_PER_DAY))) return jsonResponse({ county: '', town: '', traffic: null }, 200);
+  let county = '';
+  let town = '';
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4000);
+  try {
+    const geoKey = env && env.GEOAPIFY_KEY;
+    if (geoKey) {
+      const res = await upstreamFetch(
+        `https://api.geoapify.com/v1/geocode/reverse?lat=${rLat}&lon=${rLon}&lang=sv&format=json&apiKey=${encodeURIComponent(geoKey)}`,
+        { signal: controller.signal }
+      );
+      if (res.ok) {
+        const p = ((await res.json()).results || [])[0] || {};
+        county = p.state || p.county || '';
+        town = p.city || p.town || p.village || p.suburb || '';
+      }
+    } else {
+      const base = String((env && env.PHOTON_URL) || PHOTON_DEFAULT).replace(/\/$/, '');
+      const res = await upstreamFetch(`${base}/reverse?lat=${rLat}&lon=${rLon}&lang=default`, {
+        signal: controller.signal,
+        headers: { 'User-Agent': 'alltiditid.se (reseplanerare)' },
+      });
+      if (res.ok) {
+        const p = (((await res.json()).features || [])[0] || {}).properties || {};
+        county = p.state || p.county || '';
+        town = p.city || p.town || p.village || p.locality || p.district || '';
+      }
+    }
+  } catch {
+    // Utan län blir tipsen allmänna
+  } finally {
+    clearTimeout(timer);
+  }
+  const traffic = trafficForCounty(county);
+  const data = { county, town, traffic: traffic ? { name: traffic.name, url: traffic.url } : null };
+  if (county) {
+    await cachePut(cacheKey, jsonResponse(data, 200, { 'Cache-Control': 'max-age=2592000' }), context);
+  }
+  return jsonResponse(data, 200, { 'Cache-Control': 'no-store' });
+}
+
 async function lookupPlaces(q, env, context, bias) {
   const folded = foldPlace(q);
   if (folded.length < 3) return { places: [], source: '' };
@@ -3070,6 +3142,9 @@ async function route(context) {
     }
     if (action === 'plan') {
       return await handlePlan(request, keys, context);
+    }
+    if (action === 'area') {
+      return await handleArea(request, context);
     }
 
     // Avgångstavlor cachas kort i Cloudflare så att automatisk uppdatering
