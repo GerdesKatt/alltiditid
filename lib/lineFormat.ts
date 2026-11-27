@@ -1,13 +1,12 @@
 import type { Departure } from './types';
+import { parseStockholm } from './sweTime.mjs';
 
 /** Längre fram än så här visas klockslag i stället för "N min". */
 export const COUNTDOWN_MAX_MIN = 60;
 
-/** 'YYYY-MM-DDTHH:MM' i lokal tid → millisekunder, eller null. */
+/** 'YYYY-MM-DDTHH:MM' i svensk tid → millisekunder, eller null. Oberoende av telefonens tidszon. */
 export function parseLocal(value?: string): number | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value || '');
-  if (!m) return null;
-  return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime();
+  return parseStockholm(value);
 }
 
 /** Kort linjebeteckning för märket: "17", "160", "41"; annars första ordet ("Tåg"). */

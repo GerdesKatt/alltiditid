@@ -73,6 +73,12 @@ function fromStorage(): SavedState | null {
  * Adressen vinner (en delad länk). På en hållplatssida (/gullmarsplan) gäller sedan
  * sidans hållplats, annars senast använda hållplats.
  */
+/** Hållplatsen i en delad länk (/?h=…&n=…), eller null om adressen inte har någon. */
+export function loadLinkedState(): SavedState | null {
+  if (typeof window === 'undefined') return null;
+  return fromUrl();
+}
+
 export function loadSavedState(pageStop?: StopOption): SavedState | null {
   if (typeof window === 'undefined') return null;
   const fromLink = fromUrl();

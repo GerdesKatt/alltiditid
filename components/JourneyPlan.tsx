@@ -8,6 +8,7 @@ import { track } from '../lib/track';
 import type { TransportMode } from '../lib/types';
 import { dayLabel, type PlanLeg, type PlanPoint, type PlanTrip } from '../lib/plannedTrip';
 import { placeDetail, type ChosenPlace } from './PlaceSuggest';
+import { stockholmDay } from '../lib/sweTime.mjs';
 
 type Point = PlanPoint;
 type Leg = PlanLeg;
@@ -61,8 +62,8 @@ export function rideLabel(leg: Leg): string {
   return `${leg.agency} ${leg.line.charAt(0).toLowerCase()}${leg.line.slice(1)}`;
 }
 
-const pad = (n: number) => String(n).padStart(2, '0');
-const isoDay = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+/** Datumet i svensk tid, så att "i dag" och "i morgon" stämmer även på en telefon i en annan tidszon. */
+const isoDay = (d: Date) => stockholmDay(d.getTime());
 
 const duration = (min: number) =>
   min >= 60 ? `${Math.floor(min / 60)} h ${min % 60 ? `${min % 60} min` : ''}`.trim() : `${min} min`;

@@ -5,6 +5,8 @@
 /** `off` är stationen man kliver av på, om det inte är slutstationen. */
 export type MyTrain = { number: string; date: string; off?: string };
 
+import { stockholmHour } from './sweTime.mjs';
+
 const KEY = 'alltiditid:mitt-tag';
 
 function today(): string {
@@ -20,7 +22,7 @@ export function loadMyTrain(): MyTrain | null {
     // Ett tåg från i går gäller bara om det fortfarande kan vara på väg (efter midnatt).
     const d = String(t.date || '');
     const yesterday = new Date(Date.parse(`${today()}T00:00:00Z`) - 86400000).toISOString().slice(0, 10);
-    if (d !== today() && !(d === yesterday && new Date().getHours() < 4)) return null;
+    if (d !== today() && !(d === yesterday && stockholmHour(Date.now()) < 4)) return null;
     return { number: String(t.number), date: d, ...(typeof t.off === 'string' && t.off ? { off: t.off } : {}) };
   } catch {
     return null;
