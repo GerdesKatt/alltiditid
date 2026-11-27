@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import type { Flight, SecurityQueue } from '../lib/types';
 import type { MyFlight } from '../lib/myFlight';
 import { airportByIata } from '../lib/flights.mjs';
-import { gatePlan } from '../lib/gateTime.mjs';
+import { gatePlan, queueNowFor, typicalQueueFor } from '../lib/gateTime.mjs';
 import { flightStatus, useLang } from '../lib/i18n';
 import { parseLocal } from '../lib/lineFormat';
 import { colors, fonts } from './styles';
@@ -52,9 +52,26 @@ export default function MyFlightCard({ saved, now, onRemove }: { saved: MyFlight
   const f = flight;
   const departsAt = f ? parseLocal(f.expectedAt) : null;
   const soon = departsAt !== null && departsAt - now < 3 * 3600_000;
-  const regular = queues.filter((q) => !q.fastTrack && (!f?.terminal || !q.terminal || q.terminal === f.terminal));
-  const queueNow = soon && regular.length ? Math.max(...regular.map((q) => q.minutes)) : null;
-  const plan = f ? gatePlan(f, saved.airport, queueNow) : null;
+  const queueNow = f && soon ? queueNowFor(queues, f.terminal) : null;
+  // Längre fram: den typiska kötiden ("Brukar vara") för terminalen timmen före avgång.
+  const [typical, setTypical] = useState<number | null>(null);
+  const day = saved.scheduledAt.slice(0, 10);
+  const needTypical = Boolean(f) && !soon && Boolean(airport?.waitTimes);
+  const terminal = f?.terminal;
+  useEffect(() => {
+    if (!needTypical || !f) return;
+    let active = true;
+    fetch(`/api/trafik?action=queueforecast&airport=${saved.airport}&date=${day}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((d) => active && setTypical(typicalQueueFor(d, f)))
+      .catch(() => active && setTypical(null));
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needTypical, saved.airport, day, terminal]);
+  const usingTypical = queueNow === null && !soon && typical !== null;
+  const plan = f ? gatePlan(f, saved.airport, queueNow ?? (usingTypical ? typical : null)) : null;
   const gateStatus = f ? flightStatus(f.gateText, lang) : '';
 
   return (
@@ -118,16 +135,18 @@ export default function MyFlightCard({ saved, now, onRemove }: { saved: MyFlight
                 </div>
               ) : null}
               <div style={{ fontWeight: 700, marginTop: '6px' }}>
-                {t('Var vid säkerhetskontrollen senast', 'Be at security by')} {plan.atSecurity}
+                {t('Var vid security senast', 'Be at security by')} {plan.atSecurity}
               </div>
               <div>
                 {gateStatus ? <strong style={{ color: colors.amber }}>{gateStatus} · </strong> : null}
                 {t('Boarding ca', 'Boarding ~')} {plan.boarding} · {t('gaten stänger ca', 'gate closes ~')} {plan.gateCloses}
               </div>
               <div style={{ color: colors.textDim, fontSize: '0.8125rem' }}>
-                {plan.queue !== null
-                  ? t(`Med kön nu (${plan.queue} min) och ${plan.walkMin}–${plan.walkMax} min till gaten. Uppskattat.`, `With the queue now (${plan.queue} min) and ${plan.walkMin}–${plan.walkMax} min to the gate. Estimated.`)
-                  : t(`Med ${plan.walkMin}–${plan.walkMax} min till gaten; kön räknas in närmare avgång. Uppskattat.`, `With ${plan.walkMin}–${plan.walkMax} min to the gate; the queue is added closer to departure. Estimated.`)}
+                {plan.queue !== null && usingTypical
+                  ? t(`Med ${plan.queue} min kötid, som det brukar vara då, och ${plan.walkMin}–${plan.walkMax} min till gaten. Uppskattat.`, `With ${plan.queue} min at security, as it usually is then, and ${plan.walkMin}–${plan.walkMax} min to the gate. Estimated.`)
+                  : plan.queue !== null
+                  ? t(`Med ${plan.queue} min kötid just nu och ${plan.walkMin}–${plan.walkMax} min till gaten. Uppskattat.`, `With the queue now (${plan.queue} min) and ${plan.walkMin}–${plan.walkMax} min to the gate. Estimated.`)
+                  : t(`Med ${plan.walkMin}–${plan.walkMax} min till gaten; kötiden räknas in närmare avgång. Uppskattat.`, `With ${plan.walkMin}–${plan.walkMax} min to the gate; the queue is added closer to departure. Estimated.`)}
               </div>
             </>
           ) : null}
