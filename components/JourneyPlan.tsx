@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import Icon from './Icon';
+import StrandedTips from './StrandedTips';
 import { colors, fonts } from './styles';
 import { useLang } from '../lib/i18n';
 import { lineColor } from '../lib/lineFormat';
@@ -100,6 +101,10 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(0);
   const [asked, setAsked] = useState('');
+  // Var sökningen startade (position eller inskriven plats), för tipsen när man är strandad.
+  // Ingen resa alls från platsen (inte fel mål): då visas tipsen för den som är strandad.
+  const [noTrip, setNoTrip] = useState(false);
+  const [lastPos, setLastPos] = useState<{ lat: number; lon: number } | null>(null);
   // Start: där man står (positionen) eller tavlans hållplats.
   const [fromMode, setFromMode] = useState<'here' | 'stop'>('here');
   const useStop = fromMode === 'stop' && Boolean(fromId);
@@ -115,10 +120,12 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
     if (target.length < 2) return;
     setLoading(true);
     setError('');
+    setNoTrip(false);
     setPlan(null);
     setOpen(0);
     setAsked(query);
     const pos = fromPosition ? (startAt ? { lat: startAt.lat, lon: startAt.lon } : await position()) : null;
+    setLastPos(pos ? { lat: pos.lat, lon: pos.lon } : null);
     if (fromPosition && !pos && !fromId) {
       setLoading(false);
       setError(
@@ -141,7 +148,10 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '');
+      if (!res.ok) {
+        setNoTrip(res.status === 404 && Boolean(data.to));
+        throw new Error(data.error || '');
+      }
       setPlan(data as Plan);
       track('funktion', 0, 'reseplan');
     } catch (e) {
@@ -272,7 +282,8 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
       ) : null}
 
       <div aria-live="polite">
-        {error ? <p style={{ margin: '12px 0 0', fontSize: '0.9375rem', color: colors.amber }}>{error}</p> : null}
+        {error ? <p style={{ margin: '12px 0 0', fontSize: '0.9375rem', color: colors.textSoft }}>{error}</p> : null}
+        {error && noTrip && lastPos ? <StrandedTips lat={lastPos.lat} lon={lastPos.lon} /> : null}
 
         {plan && !stale ? (
           <section aria-label={t(`Resor till ${plan.to}`, `Trips to ${plan.to}`)} style={{ marginTop: '16px' }}>
@@ -324,11 +335,12 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
             {plan.farStart ? (
               <p style={{ margin: '10px 0 4px', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 }}>
                 {t(
-                  `Närmaste hållplats med en resa dit är ${plan.farStart.name}, ${(plan.farStart.meters / 1000).toFixed(1).replace('.', ',')} km bort. Resorna nedan går därifrån. Ta dig dit till fots, med cykel eller bil.`,
-                  `The nearest stop with a trip there is ${plan.farStart.name}, ${(plan.farStart.meters / 1000).toFixed(1)} km away. The trips below start there. Get there on foot, by bike or by car.`
+                  `Inget går precis här, men från ${plan.farStart.name}, ${(plan.farStart.meters / 1000).toFixed(1).replace('.', ',')} km bort, kommer du hela vägen. Resorna nedan går därifrån.`,
+                  `Nothing leaves right here, but from ${plan.farStart.name}, ${(plan.farStart.meters / 1000).toFixed(1)} km away, you can go all the way. The trips below start there.`
                 )}
               </p>
             ) : null}
+            {plan.farStart && lastPos ? <StrandedTips lat={lastPos.lat} lon={lastPos.lon} /> : null}
             {plan.sure === false ? (
               <div style={{ margin: '10px 0 4px' }}>
                 <p style={{ margin: '0 0 6px', fontSize: '0.875rem', color: colors.amber }}>

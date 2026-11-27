@@ -8,6 +8,7 @@ import { boardUrl } from '../lib/prefetch';
 import { positionAllowed, rememberPositionAllowed } from '../lib/visits';
 import InstallApp from './InstallApp';
 import SmartSearch from './SmartSearch';
+import StrandedTips from './StrandedTips';
 import { track } from '../lib/track';
 
 type Nearby = StopOption & { distance: number; modes?: string[] };
@@ -48,6 +49,8 @@ export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirpor
   const [manualPlace, setManualPlace] = useState('');
   // Positionen är avstängd (nekad i inställningarna): då visas fältet Var är du?
   const [denied, setDenied] = useState(false);
+  // Var man är (avrundat), för tipsen när man är strandad. Sparas inte.
+  const [here, setHere] = useState<{ lat: number; lon: number } | null>(null);
   const [whereText, setWhereText] = useState('');
 
   function fromPlace(q: string) {
@@ -69,6 +72,7 @@ export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirpor
         setNearby(data.stops as Nearby[]);
         setManualPlace(String(data.place.name || text));
         if (Number.isFinite(data.place.lat) && Number.isFinite(data.place.lon)) {
+          setHere({ lat: data.place.lat, lon: data.place.lon });
           onStartAt?.({ name: String(data.place.name || text), lat: data.place.lat, lon: data.place.lon });
         }
         setPosError('');
@@ -90,6 +94,7 @@ export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirpor
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         rememberPositionAllowed(true);
+        setHere({ lat: Number(pos.coords.latitude.toFixed(3)), lon: Number(pos.coords.longitude.toFixed(3)) });
         fetch('/api/trafik?action=nearby', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -177,19 +182,22 @@ export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirpor
         </button>
       ) : others.length === 0 ? (
         fresh ? (
-          <WayForward
-            text={t(
-              'Ingen hållplats inom 10 km. Skriv vart du ska, så letar vi upp första möjliga resa, även om första biten är lång.',
-              'No stop within 10 km. Type where you are going and we will find the first possible trip, even if the first leg is long.'
-            )}
-          />
+          <>
+            <WayForward
+              text={t(
+                'Ganska ödsligt här, ingen hållplats inom 10 km. Men skriv vart du ska, så hittar vi en väg.',
+                'Pretty remote here, no stop within 10 km. But type where you are going and we will find a way.'
+              )}
+            />
+            {here ? <StrandedTips lat={here.lat} lon={here.lon} /> : null}
+          </>
         ) : (
           <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textDim }}>
             {t('Dina hållplatser är de närmaste.', 'Your stops are the nearest ones.')}
           </p>
         )
       ) : (
-        <NearbyLines stops={others} now={now} onOpenStop={onOpenStop} exclude={new Set(Object.values(covered).flat())} />
+        <NearbyLines stops={others} now={now} onOpenStop={onOpenStop} exclude={new Set(Object.values(covered).flat())} here={here} />
       )}
       {posError ? <p style={{ margin: '8px 0 0', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 }}>{posError}</p> : null}
       {denied && !manualPlace ? (
@@ -266,11 +274,14 @@ function NearbyLines({
   now,
   onOpenStop,
   exclude,
+  here,
 }: {
   stops: Nearby[];
   now: number;
   onOpenStop: (s: StopOption) => void;
   exclude: Set<string>;
+  /** Var man är: för tipsen när inget går. */
+  here: { lat: number; lon: number } | null;
 }) {
   const { t, lang } = useLang();
   const [boards, setBoards] = useState<Record<string, Departure[]>>({});
@@ -327,7 +338,7 @@ function NearbyLines({
     return (
       <>
         <p style={{ margin: '0 0 6px', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 }}>
-          {t('Inget går härifrån den närmaste stunden. Se när nästa går:', 'Nothing leaves nearby in the next while. See when the next one goes:')}
+          {t('Lugnt läge just nu, inget går den närmaste stunden. Här ser du när nästa går:', 'Quiet right now, nothing leaves in the next while. See when the next one goes:')}
         </p>
         <ul style={list}>
           {[...stops]
@@ -345,8 +356,9 @@ function NearbyLines({
             ))}
         </ul>
         <WayForward
-          text={t('Eller skriv vart du ska, så får du första möjliga resa.', 'Or type where you are going to get the first possible trip.')}
+          text={t('Eller skriv vart du ska, så letar vi upp första bästa resa.', 'Or type where you are going and we will find the first good trip.')}
         />
+        {here ? <StrandedTips lat={here.lat} lon={here.lon} /> : null}
       </>
     );
 

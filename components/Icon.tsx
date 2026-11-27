@@ -19,6 +19,14 @@ const PATHS = {
       <circle cx="15" cy="13.5" r="0.6" />
     </>
   ),
+  bus: (
+    <>
+      <rect x="5" y="3.5" width="14" height="14" rx="2" />
+      <path d="M5 11h14M8.5 20.5v-3M15.5 20.5v-3" />
+      <circle cx="8.5" cy="14.3" r="0.6" />
+      <circle cx="15.5" cy="14.3" r="0.6" />
+    </>
+  ),
   car: (
     <>
       <path d="M4 16v-4l2.5-5h11L20 12v4z" />

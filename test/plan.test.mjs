@@ -171,3 +171,14 @@ test('byte (TRSF): bytestiden, inte en gångtid', () => {
   assert.equal(change.minutes, 20);
   assert.equal(trip.legs[0].kind, 'ride');
 });
+
+import { trafficForCounty } from '../lib/countyTraffic.mjs';
+test('länets trafikbolag från länsnamn', () => {
+  assert.equal(trafficForCounty('Dalarnas län')?.name, 'Dalatrafik');
+  assert.equal(trafficForCounty('Västra Götalands län')?.name, 'Västtrafik');
+  assert.equal(trafficForCounty('Västmanlands län')?.name, 'VL');
+  assert.equal(trafficForCounty('Västernorrlands län')?.name, 'Din Tur');
+  assert.equal(trafficForCounty('Stockholms län')?.name, 'SL');
+  assert.equal(trafficForCounty('Örebro län')?.name, 'Länstrafiken Örebro');
+  assert.equal(trafficForCounty(''), null);
+});
