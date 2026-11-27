@@ -9,7 +9,7 @@ import { FERRY_PREFIX, ferryBoard, ferryHarbors, searchFerryHarbors } from '../.
 import { stopsAfter } from '../../lib/transferMatch.mjs';
 import { pickSearchHits, rankSearchHits } from '../../lib/searchHits.mjs';
 import { destinationCandidates, mapTrips, pickDestination } from '../../lib/plan.mjs';
-import { SURE, geoapifyPlaces, photonPlaces, rankPlaces, splitAddress } from '../../lib/places.mjs';
+import { SURE, geoapifyPlaces, kmBetween, photonPlaces, placeScore, rankPlaces, splitAddress } from '../../lib/places.mjs';
 import { trafficForCounty } from '../../lib/countyTraffic.mjs';
 import { foldPlace } from '../../lib/transferMatch.mjs';
 import { allowedLicense, nearestStation, systemsNear } from '../../lib/mobility.mjs';
@@ -1804,13 +1804,17 @@ async function handleArea(request, context) {
   return jsonResponse(data, 200, { 'Cache-Control': 'no-store' });
 }
 
-async function lookupPlaces(q, env, context, bias) {
+/**
+ * box: valfri ruta [västra, södra, östra, norra] som bara träffar inom den räknas, t.ex. kring en ort.
+ */
+async function lookupPlaces(q, env, context, bias, box = null) {
   const folded = foldPlace(q);
   if (folded.length < 3) return { places: [], source: '' };
   const geoKey = env && env.GEOAPIFY_KEY;
   const source = geoKey ? 'geoapify' : 'osm';
   const b = bias && Number.isFinite(bias.lat) && Number.isFinite(bias.lon) ? `${bias.lat.toFixed(1)},${bias.lon.toFixed(1)}` : 'se';
-  const cacheKey = new Request(`https://cache.alltiditid.se/places-v2/${source}/${b}/${encodeURIComponent(folded)}`);
+  const boxKey = box ? box.map((x) => x.toFixed(2)).join(',') : '';
+  const cacheKey = new Request(`https://cache.alltiditid.se/places-v2/${source}/${b}${boxKey ? `/box${boxKey}` : ''}/${encodeURIComponent(folded)}`);
   const cached = await cacheGet(cacheKey);
   if (cached) {
     try {
@@ -1827,7 +1831,7 @@ async function lookupPlaces(q, env, context, bias) {
     if (geoKey) {
       const near = b === 'se' ? '' : `&bias=proximity:${b.split(',')[1]},${b.split(',')[0]}`;
       const res = await upstreamFetch(
-        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(q)}&filter=countrycode:se${near}&lang=sv&limit=8&format=json&apiKey=${encodeURIComponent(geoKey)}`,
+        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(q)}&filter=${box ? `rect:${boxKey}` : 'countrycode:se'}${near}&lang=sv&limit=8&format=json&apiKey=${encodeURIComponent(geoKey)}`,
         { signal: controller.signal }
       );
       if (!res.ok) throw new Error(String(res.status));
@@ -1835,7 +1839,7 @@ async function lookupPlaces(q, env, context, bias) {
     } else {
       const base = String((env && env.PHOTON_URL) || PHOTON_DEFAULT).replace(/\/$/, '');
       const near = b === 'se' ? '' : `&lat=${b.split(',')[0]}&lon=${b.split(',')[1]}`;
-      const res = await upstreamFetch(`${base}/api/?q=${encodeURIComponent(q)}&limit=10&bbox=${SWEDEN_BBOX}${near}`, {
+      const res = await upstreamFetch(`${base}/api/?q=${encodeURIComponent(q)}&limit=10&bbox=${box ? boxKey : SWEDEN_BBOX}${near}`, {
         signal: controller.signal,
         headers: { 'User-Agent': 'alltiditid.se (reseplanerare)' },
       });
@@ -1893,14 +1897,16 @@ async function addressInTown(addr, env, context, rr) {
   const town = await townPoint(addr.town, env, context, rr);
   if (!town) return { town: null, places: [] };
   const street = `${addr.street} ${addr.number}`;
-  const bare = addr.number.replace(/[a-zA-Z]$/, '');
-  // Kartan har ofta "4" men inte "4A", eller bara gatan: sök också så, nära orten.
-  const osmQueries = [street, ...(bare !== addr.number ? [`${addr.street} ${bare}`] : []), addr.street];
-  const [fromRr, ...osm] = await Promise.all([
-    rr ? rr(`location.name?input=${encodeURIComponent(street)}&maxNo=10&type=A`).then(destinationCandidates).catch(() => []) : [],
-    ...osmQueries.map((oq) => lookupPlaces(oq, env, context, town).catch(() => ({ places: [] }))),
-  ]);
-  return { town, places: [...fromRr, ...osm.flatMap((o) => o.places)] };
+  // Bara träffar kring orten (cirka 8 km åt varje håll), så att Skogås aldrig kommer med
+  // när man skrev Älvsjö. Först huset, och bara om det saknas gatan (kartan har ofta inga
+  // husnummer, t.ex. Blåklintsvägen i Herrängen). Ett anrop i taget, för att inte bli strypt.
+  const box = [town.lon - 0.14, town.lat - 0.07, town.lon + 0.14, town.lat + 0.07];
+  const fromRrP = rr ? rr(`location.name?input=${encodeURIComponent(street)}&maxNo=10&type=A`).then(destinationCandidates).catch(() => []) : Promise.resolve([]);
+  const places = (await lookupPlaces(street, env, context, town, box).catch(() => ({ places: [] }))).places;
+  if (!places.some((p) => kmBetween(p, town) <= 5 && placeScore(street, p.name, p.detail) >= SURE)) {
+    places.push(...(await lookupPlaces(addr.street, env, context, town, box).catch(() => ({ places: [] }))).places);
+  }
+  return { town, places: [...(await fromRrP), ...places] };
 }
 
 /** GET action=places&q=…[&lat=&lon=]: platser och adresser till förslagen under "Vart ska du?". */
@@ -1972,7 +1978,15 @@ async function findPlace(to, { rr, env, context, near = null }) {
   const addr = splitAddress(to);
   if (addr && addr.town && !(ranked[0] && ranked[0].score >= SURE)) {
     const more = await addressInTown(addr, env, context, rr);
-    if (more.town) ranked = rankPlaces(to, [...all, ...more.places], { town: more.town });
+    if (more.town) {
+      ranked = rankPlaces(to, [...all, ...more.places], { town: more.town });
+      // Man skrev en ort: välj aldrig en adress i en annan ort utan att fråga.
+      const inTown = ranked.filter((p) => kmBetween(p, more.town) <= 5);
+      if (inTown.length === 0) {
+        return { best: null, sure: false, ranked, failed, townMiss: { street: `${addr.street} ${addr.number}`, town: addr.town } };
+      }
+      ranked = [...inTown, ...ranked.filter((p) => !inTown.includes(p))];
+    }
   }
   // Inget passar orden: ta ResRobots egen gissning, men säg det.
   const best = ranked[0] || fromRr[0] || null;
@@ -2061,6 +2075,10 @@ async function handlePlan(request, keys, context) {
     const { ranked, failed } = found;
     dest = found.best;
     sure = found.sure;
+    if (found.townMiss) {
+      const town = found.townMiss.town.charAt(0).toUpperCase() + found.townMiss.town.slice(1);
+      return jsonResponse({ error: `Hittade inte ${found.townMiss.street} i ${town}. Prova bara gatan, eller välj ett förslag under fältet.`, townMiss: true }, 404);
+    }
     if (!dest && failed) return jsonResponse({ error: 'Kunde inte söka just nu.' }, 502);
     if (!dest) return jsonResponse({ error: `Hittade ingen plats som heter ${to}.` }, 404);
     alternatives = ranked

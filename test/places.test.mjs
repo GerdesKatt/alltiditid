@@ -376,7 +376,7 @@ test('placeScore: 4A och 4 är olika hus (bara en osäker gissning), "4 A" är 4
   assert.equal(placeScore('Blåklintsvägen 4A', 'Blåklintsvägen 4B'), 0);
 });
 
-test('action=plan: "Blåklintsvägen 4A Älvsjö" finns inte på kartan: grannhuset i Älvsjö som osäker gissning, inte 4a i Skogås', async () => {
+test('action=plan: "Blåklintsvägen 4A Älvsjö" finns inte på kartan: gatan i Herrängen som osäker gissning, inte 4a i Skogås', async () => {
   const urls = [];
   globalThis.fetch = skogasFetch(urls);
   const res = await onRequest({
@@ -386,9 +386,9 @@ test('action=plan: "Blåklintsvägen 4A Älvsjö" finns inte på kartan: grannhu
   });
   const body = await res.json();
   assert.equal(res.status, 200);
-  assert.equal(body.to, 'Blåklintsvägen 4');
-  assert.equal(body.toDetail, 'Herrängen, Stockholm');
-  assert.equal(body.sure, false, 'fel hus: appen frågar "Stämmer målet?"');
+  assert.equal(body.to, 'Blåklintsvägen');
+  assert.equal(body.toDetail, 'Stockholm');
+  assert.equal(body.sure, false, 'huset saknas: appen frågar "Stämmer målet?"');
   assert.ok(!body.alternatives?.some((a) => a.detail?.includes('Skogås') && a.score >= 0.7));
   assert.ok(urls.findLast((u) => u.includes('/trip?')).includes(`destCoordLat=${HOME.lat}`));
 });
@@ -440,6 +440,28 @@ test('action=plan: sitter man redan på adressen säger appen det', async () => 
   assert.equal(res.status, 409);
   const body = await res.json();
   assert.equal(body.samePlace, true);
-  assert.match(body.error, /Du är redan framme: Blåklintsvägen 4 ligger mindre än 200 m bort/);
+  assert.match(body.error, /Du är redan framme: Blåklintsvägen ligger mindre än 200 m bort/);
   assert.ok(!urls.some((u) => u.includes('/trip?')), 'ingen resa söks');
+});
+
+test('action=plan: inget i orten man skrev: fråga i stället för att välja en annan ort', async () => {
+  globalThis.fetch = async (url) => {
+    const u = decodeURIComponent(String(url));
+    if (u.includes('photon')) {
+      const q = /[?&]q=([^&]*)/.exec(u)[1];
+      if (/^älvsjö$/i.test(q)) return new Response(JSON.stringify({ features: [{ geometry: { coordinates: [18.0017, 59.2758] }, properties: { name: 'Älvsjö', osm_key: 'place', osm_value: 'suburb', type: 'district', city: 'Stockholms kommun', countrycode: 'SE' } }] }));
+      return new Response(JSON.stringify({ features: [{ geometry: { coordinates: [SKOGAS.lon, SKOGAS.lat] }, properties: { street: 'Blåklintsvägen', housenumber: '4a', city: 'Drevviksstrand', district: 'Skogås', countrycode: 'SE', type: 'house', osm_key: 'place', osm_value: 'house' } }] }));
+    }
+    if (u.includes('/location.name?')) return new Response(JSON.stringify({ stopLocationOrCoordLocation: [] }));
+    return new Response('{}', { status: 404 });
+  };
+  const res = await onRequest({
+    request: new Request('https://alltiditid.se/api/trafik?action=plan', { method: 'POST', body: JSON.stringify({ to: 'Blåklintsvägen 4A Älvsjö', fromId: '740021705' }) }),
+    env: { TRAFIKLAB_RESROBOT_KEY: 'rr' },
+    waitUntil() {},
+  });
+  assert.equal(res.status, 404);
+  const body = await res.json();
+  assert.equal(body.townMiss, true);
+  assert.match(body.error, /Hittade inte Blåklintsvägen 4A i Älvsjö/);
 });
