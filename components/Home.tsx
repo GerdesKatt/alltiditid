@@ -21,6 +21,8 @@ type Props = {
   onOpenAirport: (iata: string) => void;
   /** Vart ska du? från Hem: öppnar Min resa och söker resan. */
   onGoal: (text: string) => void;
+  /** Platsen man skrev in när positionen är avstängd (null när den tas bort); blir start för resor. */
+  onStartAt?: (start: { name: string; lat: number; lon: number } | null) => void;
 };
 
 const label: React.CSSProperties = {
@@ -37,7 +39,7 @@ const label: React.CSSProperties = {
  * och sök. Positionen sorterar dina hållplatser (närmast först) och visar andra nära dig;
  * den frågas om först när man trycker, och sparas aldrig.
  */
-export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirport, onGoal }: Props) {
+export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirport, onGoal, onStartAt }: Props) {
   const { t } = useLang();
   const [nearby, setNearby] = useState<Nearby[] | null>(null);
   const [locating, setLocating] = useState(false);
@@ -66,6 +68,9 @@ export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirpor
         track('funktion', 0, 'nara_plats');
         setNearby(data.stops as Nearby[]);
         setManualPlace(String(data.place.name || text));
+        if (Number.isFinite(data.place.lat) && Number.isFinite(data.place.lon)) {
+          onStartAt?.({ name: String(data.place.name || text), lat: data.place.lat, lon: data.place.lon });
+        }
         setPosError('');
       })
       .catch(() => setPosError(t('Kunde inte hämta hållplatser just nu.', 'Could not load stops right now.')))
@@ -157,6 +162,7 @@ export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirpor
             onClick={() => {
               setManualPlace('');
               setNearby(null);
+              onStartAt?.(null);
               setPosError('');
             }}
             style={{ flexShrink: 0, border: 'none', background: 'none', padding: 0, color: colors.text, font: 'inherit', textDecoration: 'underline', cursor: 'pointer' }}

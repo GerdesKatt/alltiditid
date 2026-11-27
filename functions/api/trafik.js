@@ -1964,7 +1964,7 @@ async function handleNearby(request, keys, context) {
     if (!best) return jsonResponse({ stops: [], error: `Hittade ingen plats som heter ”${q}”.` }, 404);
     lat = best.lat;
     lon = best.lon;
-    place = { name: best.name };
+    place = { name: best.name, lat: Number(lat.toFixed(4)), lon: Number(lon.toFixed(4)) };
   }
   // Ungefär Sveriges utbredning; allt annat är fel eller utanför trafikdatan.
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < 55 || lat > 69.2 || lon < 10.5 || lon > 24.3) {

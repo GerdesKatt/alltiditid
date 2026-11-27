@@ -685,6 +685,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
   }, [restored, hasStop, direction, selectedStop.id, myTrip, departures]);
 
   // Min resa utan något sparat: "Vart ska du?" bland avgångarna från tavlans hållplats.
+  // Var man är, inskrivet på Hem när positionen är avstängd. Sparas inte.
+  const [startAt, setStartAt] = useState<{ name: string; lat: number; lon: number } | null>(null);
   const [goal, setGoal] = useState('');
   // Ett valt förslag (hållplats, plats eller adress), och om förslagen visas just nu.
   const [goalPlace, setGoalPlace] = useState<ChosenPlace | null>(null);
@@ -903,6 +905,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
                 }}
                 fromId={hasStop ? selectedStop.id : ''}
                 fromName={hasStop ? selectedStop.name : ''}
+                startAt={startAt}
                 savedKey={planned ? `${planned.trip.depDate} ${planned.trip.dep}` : ''}
                 onSave={(to, from, trip) => {
                   const next = { to, from, trip, savedAt: Date.now() };
@@ -1205,6 +1208,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
             setFlightAirport(iata);
             changeTab('flyg');
           }}
+          onStartAt={setStartAt}
           onGoal={(text) => {
             // Vart ska du? från Hem: till Min resa med målet ifyllt, och sök direkt.
             setGoal(text);

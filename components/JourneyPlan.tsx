@@ -39,6 +39,8 @@ type Props = {
   /** Tavlans hållplats: start om positionen inte går att få. */
   fromId: string;
   fromName: string;
+  /** Platsen man skrev in under Nu när positionen är avstängd: används i stället för positionen. */
+  startAt?: { name: string; lat: number; lon: number } | null;
   /** Spara en resa som Min resa. */
   onSave: (to: string, from: string, trip: Trip) => void;
   /** Rensa: tömmer Vart ska du? och resultaten. */
@@ -84,7 +86,7 @@ function position(): Promise<{ lat: number; lon: number } | null> {
  * Hela resan dit man ska, med byten och gång: buss till Fruängen, T-bana till T-Centralen,
  * regionaltåg till Karlstad. Startar där man står (positionen) eller vid tavlans hållplats.
  */
-export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, onSave, savedKey, onClear }: Props) {
+export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, startAt, onSave, savedKey, onClear }: Props) {
   const { t, lang } = useLang();
   // Tid: nu, eller ett valt datum och klockslag, som avgång eller senaste ankomst.
   const [whenMode, setWhenMode] = useState<'now' | 'later'>('now');
@@ -102,7 +104,8 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, on
 
   const target = goal.trim();
   const placeKey = place ? place.id || `${place.lat},${place.lon}` : '';
-  const query = `${target}|${whenMode}|${date}|${time}|${arrive}|${useStop ? fromId : 'here'}|${placeKey}`;
+  const query = `${target}|${whenMode}|${date}|${time}|${arrive}|${useStop ? fromId : startAt ? `${startAt.lat},${startAt.lon}` : 'here'}|${placeKey}`;
+  const hereName = startAt ? startAt.name : '';
   const stale = plan !== null && asked !== query;
 
   async function find() {
@@ -113,10 +116,15 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, on
     setPlan(null);
     setOpen(0);
     setAsked(query);
-    const pos = fromPosition ? await position() : null;
+    const pos = fromPosition ? (startAt ? { lat: startAt.lat, lon: startAt.lon } : await position()) : null;
     if (fromPosition && !pos && !fromId) {
       setLoading(false);
-      setError(t('Kunde inte få din position. Välj en hållplats under Nu.', 'Could not get your location. Choose a stop under Now.'));
+      setError(
+        t(
+          'Kunde inte få din position. Skriv var du är under Nu (Linjer nära dig), eller öppna en hållplats där.',
+          'Could not get your location. Type where you are under Now (Lines near you), or open a stop there.'
+        )
+      );
       return;
     }
     try {
@@ -226,16 +234,18 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, on
           </div>
         ) : null}
       </fieldset>
-      {fromId ? (
+      {fromId || startAt ? (
         <fieldset style={{ border: 'none', margin: '0 0 14px', padding: 0 }}>
           <legend style={{ ...label, marginBottom: '6px' }}>{t('Från', 'From')}</legend>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
             <button type="button" aria-pressed={!useStop} onClick={() => setFromMode('here')} style={chip(!useStop)}>
-              {t('Där jag är', 'Where I am')}
+              {hereName || t('Där jag är', 'Where I am')}
             </button>
-            <button type="button" aria-pressed={useStop} onClick={() => setFromMode('stop')} style={chip(useStop)}>
-              {fromName}
-            </button>
+            {fromId && fromName !== hereName ? (
+              <button type="button" aria-pressed={useStop} onClick={() => setFromMode('stop')} style={chip(useStop)}>
+                {fromName}
+              </button>
+            ) : null}
           </div>
         </fieldset>
       ) : null}
@@ -250,10 +260,12 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, on
       </button>
       {!useStop ? (
         <p style={{ margin: '6px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
-          {t(
-            'Startar där du står. Positionen används bara för sökningen och sparas inte.',
-            'Starts where you are. Your location is only used for the search and is not stored.'
-          )}
+          {hereName
+            ? t(`Startar vid ${hereName}, som du skrev under Nu.`, `Starts at ${hereName}, as you typed under Now.`)
+            : t(
+                'Startar där du står. Positionen används bara för sökningen och sparas inte.',
+                'Starts where you are. Your location is only used for the search and is not stored.'
+              )}
         </p>
       ) : null}
 
@@ -275,7 +287,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, on
                 </p>
               ) : null}
             <p style={{ ...label, marginTop: '8px' }}>
-              {plan.fromHere ? t('Från din position', 'From your location') : t(`Från ${fromName}`, `From ${fromName}`)}
+              {plan.fromHere ? (hereName ? t(`Från ${hereName}`, `From ${hereName}`) : t('Från din position', 'From your location')) : t(`Från ${fromName}`, `From ${fromName}`)}
               {plan.date ? ` · ${dayLabel(plan.date, Date.now(), lang)}` : ''}
               {plan.time ? ` · ${plan.arrive ? t('framme', 'arrive') : t('efter', 'after')} ${plan.time}` : ''}
             </p>
@@ -386,7 +398,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, on
                             <button
                               type="button"
                               onClick={() => {
-                                onSave(plan.to, plan.fromHere ? t('din position', 'your location') : fromName, trip);
+                                onSave(plan.to, plan.fromHere ? hereName || t('din position', 'your location') : fromName, trip);
                                 track('funktion', 0, 'reseplan_spara');
                               }}
                               style={primary}
