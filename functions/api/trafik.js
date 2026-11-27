@@ -3106,7 +3106,7 @@ async function handleWaitTimes(url, env, context) {
 }
 
 /** Händelserna som tas emot, och etiketterna som får följa med "funktion". */
-const EVENT_NAMES = ['forsta_avgang', 'aterkommande', 'tittade_och_gick', 'byte_snabbt', 'sokavhopp', 'funktion', 'bevakning', 'flygflik', 'aktiva_dagar'];
+const EVENT_NAMES = ['forsta_avgang', 'aterkommande', 'tittade_och_gick', 'byte_snabbt', 'sokavhopp', 'funktion', 'bevakning', 'flygflik', 'aktiva_dagar', 'kalla'];
 const EVENT_LABELS = /^[a-z0-9_-]{0,32}$/;
 /** Ett tak per dygn, så att ett fel i appen eller en robot inte fyller databasen. */
 const EVENT_DAILY_LIMIT = 50000;

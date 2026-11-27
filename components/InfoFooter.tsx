@@ -96,7 +96,8 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
               as how fast the first departure appears and whether a search is abandoned. No cookies, no IP address
               and nothing that identifies you is stored: only a day, an event name and a tally. Once a day we
               also count on how many different days in the past week you looked at a board (a number from 1 to
-              7), based on the stops already saved for Home.
+              7), based on the stops already saved for Home. We also count where the visit came from, as the
+              name of the site you followed a link from (such as reddit or google), never the full address.
             </li>
             <li style={privacyItem}>
               <strong>Suggestions and filters.</strong> Which lines you open and which mode you picked at a stop
@@ -126,12 +127,12 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
           <p style={privacyPara}>
             <strong>Legal basis.</strong> Most of the site handles no personal data at all. Your IP address at
             Cloudflare, the location you choose to use and what you type in the place search are handled on the basis
-            of legitimate interest: delivering and protecting the site and giving you what you asked for. Google
-            Analytics is based on your consent, which you can withdraw at any time.
+            of legitimate interest: delivering and protecting the site and giving you what you asked for. We use no
+            analytics cookies and no Google Analytics.
           </p>
           <p style={privacyPara}>
             <strong>Your rights.</strong> You can ask what data we hold about you, and have it corrected or deleted.
-            You can object to processing and withdraw consent. Email kontakt@alltiditid.se. You also have the right
+            You can object to processing. Email kontakt@alltiditid.se. You also have the right
             to complain to the Swedish Authority for Privacy Protection (IMY), imy.se.
           </p>
           <p style={privacyPara}>Last updated 27 November 2026.</p>
@@ -225,7 +226,9 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
               per dag, till exempel hur snabbt första avgången syns och om en sökning avbryts. Inga
               kakor, ingen IP-adress och inget som pekar ut dig sparas: bara dag, händelse och antal.
               En gång per dag räknar vi också hur många olika dagar den senaste veckan du tittat på en
-              tavla (ett tal mellan 1 och 7), utifrån hållplatserna som redan sparas för Hem.
+              tavla (ett tal mellan 1 och 7), utifrån hållplatserna som redan sparas för Hem. Vi räknar
+              också varifrån besöket kom, som namnet på sajten du följde en länk från (till exempel
+              reddit eller google), aldrig hela adressen.
             </li>
             <li style={privacyItem}>
               <strong>Förslag och filter.</strong> Vilka linjer du öppnar och vilket trafikslag du valt
@@ -269,12 +272,12 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
           <p style={privacyPara}>
             <strong>Rättslig grund.</strong> Det mesta på sajten hanterar inga personuppgifter alls. Din IP-adress hos
             Cloudflare, positionen du själv väljer att använda och det du skriver i platssökningen hanteras med stöd
-            av berättigat intresse: att leverera och skydda sajten och ge dig det du bett om. Google Analytics bygger
-            på ditt samtycke, som du kan återkalla när du vill.
+            av berättigat intresse: att leverera och skydda sajten och ge dig det du bett om. Vi använder inga
+            analyskakor och inte Google Analytics.
           </p>
           <p style={privacyPara}>
             <strong>Dina rättigheter.</strong> Du kan begära att få veta vilka uppgifter vi har om dig och få dem
-            rättade eller raderade. Du kan också invända mot behandlingen och återkalla ett samtycke. Mejla
+            rättade eller raderade. Du kan också invända mot behandlingen. Mejla
             kontakt@alltiditid.se. Du har rätt att klaga hos Integritetsskyddsmyndigheten (IMY), imy.se.
           </p>
           <p style={privacyPara}>Senast uppdaterad 27 november 2026.</p>

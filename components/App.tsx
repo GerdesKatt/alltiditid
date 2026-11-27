@@ -20,6 +20,7 @@ import SheetBackdrop from './SheetBackdrop';
 import { colors, textInput } from './styles';
 import ModeTabs, { type AppTab, type MenuKey } from './ModeTabs';
 import { loadModeFor, storeModeFor } from '../lib/modeMemory';
+import { sourceLabel } from '../lib/source.mjs';
 import { habitFor, recordOpen } from '../lib/habits';
 import { useWalk } from '../lib/useWalk';
 import Home from './Home';
@@ -212,6 +213,15 @@ export default function App({ initialStop, page, intro }: AppProps) {
   // så att standardhållplatsen inte hinner visas och hämtas i onödan.
   // Statistik (Google Analytics) laddas bara efter samtycke, och bara om ett mätnings-id finns.
   const [consentAsked, setConsentAsked] = useState(false);
+  // Varifrån besöket kom (reddit, google, direkt), en gång per sidvisning och aldrig hela adressen.
+  useEffect(() => {
+    try {
+      const label = sourceLabel(document.referrer, window.location.search, window.location.hostname);
+      if (label) track('kalla', 0, label);
+    } catch {
+      // Mätningen får aldrig störa appen.
+    }
+  }, []);
   useEffect(() => {
     if (!ANALYTICS_ENABLED) {
       // Google Analytics är avstängt: städa bort kakor och samtycke från tidigare besök.
