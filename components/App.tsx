@@ -161,6 +161,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [source, setSource] = useState<BoardSource>('');
   const [disruptions, setDisruptions] = useState<Disruption[]>([]);
+  /** Hållplatsens läge enligt tavlans svar (saknas när tavlan är tom). */
+  const [stopCoords, setStopCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [activeInfoTab, setActiveInfoTab] = useState<InfoTab>('about');
 
@@ -463,6 +465,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
     setErrorMsg(null);
     setUpdatedAt(null);
     setDisruptions([]);
+    setStopCoords(null);
 
     const url = boardUrl(selectedStop.id, selectedStop.name, direction);
     function load() {
@@ -489,6 +492,9 @@ export default function App({ initialStop, page, intro }: AppProps) {
           setNow(Date.now());
           setSource(data.source === 'resrobot' ? 'resrobot' : 'trafiklab-realtime');
           setDisruptions(Array.isArray(data.disruptions) ? data.disruptions : []);
+          if (data.stop && Number.isFinite(data.stop.lat) && Number.isFinite(data.stop.lon)) {
+            setStopCoords({ lat: data.stop.lat, lon: data.stop.lon });
+          }
 
           setOnBoardTrip((prev) => {
             if (!prev) return null;
@@ -1280,6 +1286,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
         offline={offline}
         view={viewChosen ? view : 'list'}
         walk={walk}
+        stopCoords={stopCoords}
         onRowOpen={(item) => {
           if (direction === 'departures') recordOpen(selectedStop.id, item);
         }}

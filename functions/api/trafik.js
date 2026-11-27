@@ -9,6 +9,7 @@ import { pickSearchHits } from '../../lib/searchHits.mjs';
 import { destinationCandidates, mapTrips, pickDestination } from '../../lib/plan.mjs';
 import { SURE, geoapifyPlaces, photonPlaces, rankPlaces } from '../../lib/places.mjs';
 import { foldPlace } from '../../lib/transferMatch.mjs';
+import { allowedLicense, nearestStation, systemsNear } from '../../lib/mobility.mjs';
 
 function parseTimeToMinutes(timeStr) {
   if (!timeStr || typeof timeStr !== 'string') return null;
@@ -2538,10 +2539,13 @@ async function handleBoard(url, keys, context) {
     );
 
   const grouped = groupDisruptions(departures, stopDisruptions);
+  // Hållplatsens läge, för "Annat sätt härifrån" (Uber-upphämtning och lånecyklar).
+  const coords = timed.find((d) => d._coords)?._coords || null;
 
   return jsonResponse(
     {
       departures: grouped.departures,
+      ...(coords ? { stop: { lat: Math.round(coords.lat * 1e5) / 1e5, lon: Math.round(coords.lon * 1e5) / 1e5 } } : {}),
       ...(grouped.disruptions.length ? { disruptions: grouped.disruptions } : {}),
       source: boards[0].source,
       updatedAt: new Date().toISOString(),
@@ -2746,6 +2750,54 @@ async function handleEvent(request, env) {
   return ok();
 }
 
+// ---- Lånecyklar nära en hållplats (action=mobility) ----
+
+/** Stationslistan ändras sällan; antalet cyklar ofta. */
+const GBFS_INFO_TTL_S = 6 * 60 * 60;
+const GBFS_STATUS_TTL_S = 60;
+
+async function gbfsJson(url, ttl, context) {
+  const key = new Request(url, { method: 'GET' });
+  const hit = await cacheGet(key);
+  if (hit) return await hit.json();
+  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!res.ok) throw new Error(`GBFS ${res.status}`);
+  const body = await res.json();
+  await cachePut(key, new Response(JSON.stringify(body), { headers: { 'Cache-Control': `max-age=${ttl}` } }), context);
+  return body;
+}
+
+/**
+ * GET ?action=mobility&lat=..&lon=.. → { bikes: [{ system, name, station, meters, bikes, app }] }
+ * Koordinaterna är hållplatsens, inte resenärens. Ett system som inte svarar hoppas över.
+ */
+async function handleMobility(url, context) {
+  const lat = Number(url.searchParams.get('lat') || NaN);
+  const lon = Number(url.searchParams.get('lon') || NaN);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+    return jsonResponse({ error: 'lat och lon krävs' }, 400);
+  }
+  const systems = systemsNear(lat, lon);
+  const results = await Promise.all(
+    systems.map(async (s) => {
+      try {
+        const [info, stations, status] = await Promise.all([
+          gbfsJson(`${s.base}system_information.json`, GBFS_INFO_TTL_S, context),
+          gbfsJson(`${s.base}station_information.json`, GBFS_INFO_TTL_S, context),
+          gbfsJson(`${s.base}station_status.json`, GBFS_STATUS_TTL_S, context),
+        ]);
+        if (!allowedLicense(info)) return null;
+        const near = nearestStation(lat, lon, stations, status);
+        return near ? { system: s.id, name: s.name, app: s.app, ...near } : null;
+      } catch {
+        return null;
+      }
+    })
+  );
+  const bikes = results.filter(Boolean).sort((a, b) => a.meters - b.meters);
+  return jsonResponse({ bikes }, 200, { 'Cache-Control': `public, max-age=${GBFS_STATUS_TTL_S}` });
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -2754,12 +2806,13 @@ export async function onRequest(context) {
   // Egna mätpunkter (lib/track.ts): inga kakor, inget id, bara namn och tal per dygn.
   if (action === 'event') return await handleEvent(request, env);
 
-  // Flyg och kötider kräver inga Trafiklab-nycklar.
+  // Flyg, kötider och lånecyklar kräver inga Trafiklab-nycklar.
   try {
     if (action === 'flights') return await handleFlights(url, env, context);
     if (action === 'waittimes') return await handleWaitTimes(url, env, context);
     // Platser (OpenStreetMap) kräver ingen Trafiklab-nyckel, så förslagen fungerar även i förhandsversioner.
     if (action === 'places') return await handlePlaces(url, env, context);
+    if (action === 'mobility') return await handleMobility(url, context);
   } catch {
     return jsonResponse({ error: 'Ett fel uppstod vid hämtning av flygdata.' }, 500);
   }
