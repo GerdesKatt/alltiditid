@@ -58,6 +58,7 @@ export default function FlightView({ initialAirport }: Props) {
   const [direction, setDirection] = useState<BoardDirection>('departures');
   const [flights, setFlights] = useState<Flight[]>([]);
   const [queues, setQueues] = useState<SecurityQueue[]>([]);
+  const [securityOpen, setSecurityOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
@@ -247,8 +248,42 @@ export default function FlightView({ initialAirport }: Props) {
             border: `1px solid ${colors.border}`,
           }}
         >
+          {/* Hopfälld som standard: tavlan är det man oftast är ute efter. Raden visar väntetiden nu. */}
+          <button
+            type="button"
+            aria-expanded={securityOpen}
+            onClick={() => setSecurityOpen(!securityOpen)}
+            style={{
+              display: 'flex',
+              width: '100%',
+              alignItems: 'center',
+              gap: '8px',
+              padding: 0,
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+              color: colors.text,
+              fontSize: '0.875rem',
+              textAlign: 'left',
+            }}
+          >
+            <span style={{ fontWeight: 600, color: colors.textDim, whiteSpace: 'nowrap' }}>{t('Säkerhetskontroll', 'Security')}</span>
+            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {queues
+                .filter((q) => !q.fastTrack)
+                .map((q) => (
+                  <span key={q.name} style={{ marginRight: '12px' }}>
+                    {q.name.replace(/^Terminal\s*/i, 'T')}{' '}
+                    <strong style={{ fontFamily: fonts.display, color: q.minutes >= 20 ? colors.amber : colors.text }}>{q.minutes} min</strong>
+                  </span>
+                ))}
+            </span>
+            <span aria-hidden="true" style={{ color: colors.textDim, transform: securityOpen ? 'rotate(180deg)' : 'none' }}>▾</span>
+          </button>
+          {securityOpen ? (
+          <div style={{ marginTop: '10px' }}>
           <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim, marginBottom: '8px' }}>
-            {t('Säkerhetskontroll, väntetid nu', 'Security check, current wait')}
+            {t('Väntetid nu', 'Current wait')}
           </div>
           {/* En rad per terminal: vanlig kö och FastTrack bredvid varandra, så att samma terminal inte syns två gånger. */}
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
@@ -293,6 +328,8 @@ export default function FlightView({ initialAirport }: Props) {
             </tbody>
           </table>
           <QueueForecast airport={airport} />
+          </div>
+          ) : null}
         </div>
       ) : null}
 
