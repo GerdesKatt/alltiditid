@@ -155,7 +155,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
       setPlan(data as Plan);
       track('funktion', 0, 'reseplan');
     } catch (e) {
-      setError((e as Error).message || t('Kunde inte hitta en resa just nu.', 'Could not find a trip right now.'));
+      setError((e as Error).message || t('Hittade ingen resa just nu. Prova en annan tid eller ett mål i närheten.', 'No trip found right now. Try another time or a destination nearby.'));
     } finally {
       setLoading(false);
     }
@@ -335,8 +335,8 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
             {plan.farStart ? (
               <p style={{ margin: '10px 0 4px', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 }}>
                 {t(
-                  `Inget går precis här, men från ${plan.farStart.name}, ${(plan.farStart.meters / 1000).toFixed(1).replace('.', ',')} km bort, kommer du hela vägen. Resorna nedan går därifrån.`,
-                  `Nothing leaves right here, but from ${plan.farStart.name}, ${(plan.farStart.meters / 1000).toFixed(1)} km away, you can go all the way. The trips below start there.`
+                  `Härifrån går inget. Från ${plan.farStart.name}, ${(plan.farStart.meters / 1000).toFixed(1).replace('.', ',')} km bort, kommer du hela vägen. Resorna nedan går därifrån.`,
+                  `Nothing leaves from here. From ${plan.farStart.name}, ${(plan.farStart.meters / 1000).toFixed(1)} km away, you can go all the way. The trips below start there.`
                 )}
               </p>
             ) : null}
