@@ -239,19 +239,48 @@ export default function FlightView({ initialAirport }: Props) {
           <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim, marginBottom: '8px' }}>
             {t('Säkerhetskontroll, väntetid nu', 'Security check, current wait')}
           </div>
-          <ul style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))', gap: '6px 14px', listStyle: 'none', margin: 0, padding: 0 }}>
-            {queues.map((q) => (
-              <li key={`${q.name}|${q.fastTrack}`} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', fontSize: '0.875rem' }}>
-                <span style={{ color: colors.text }}>
-                  {q.name}
-                  {q.fastTrack ? <span style={{ color: colors.textDim }}> FastTrack</span> : null}
-                </span>
-                <strong style={{ fontFamily: fonts.display, whiteSpace: 'nowrap', color: q.minutes >= 20 ? colors.amber : colors.text }}>
-                  {q.minutes} min
-                </strong>
-              </li>
-            ))}
-          </ul>
+          {/* En rad per terminal: vanlig kö och FastTrack bredvid varandra, så att samma terminal inte syns två gånger. */}
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+            {queues.some((q) => q.fastTrack) ? (
+              <thead>
+                <tr style={{ color: colors.textDim, fontSize: '0.75rem' }}>
+                  <th scope="col" style={{ textAlign: 'left', fontWeight: 600, padding: '0 0 4px' }}>
+                    <span className="sr-only">{t('Terminal', 'Terminal')}</span>
+                  </th>
+                  <th scope="col" style={{ textAlign: 'right', fontWeight: 600, padding: '0 0 4px' }}>
+                    {t('Vanlig', 'Regular')}
+                  </th>
+                  <th scope="col" style={{ textAlign: 'right', fontWeight: 600, padding: '0 0 4px 16px' }}>
+                    FastTrack
+                  </th>
+                </tr>
+              </thead>
+            ) : null}
+            <tbody>
+              {[...new Set(queues.map((q) => q.name))].map((name) => {
+                const regular = queues.find((q) => q.name === name && !q.fastTrack);
+                const fast = queues.find((q) => q.name === name && q.fastTrack);
+                const cell = (q: typeof regular, pad: string) => (
+                  <td style={{ textAlign: 'right', padding: pad, whiteSpace: 'nowrap' }}>
+                    {q ? (
+                      <strong style={{ fontFamily: fonts.display, color: q.minutes >= 20 ? colors.amber : colors.text }}>{q.minutes} min</strong>
+                    ) : (
+                      <span style={{ color: colors.textDim }}>–</span>
+                    )}
+                  </td>
+                );
+                return (
+                  <tr key={name} style={{ borderTop: `1px solid ${colors.border}` }}>
+                    <th scope="row" style={{ textAlign: 'left', fontWeight: 400, padding: '6px 0', color: colors.text }}>
+                      {name}
+                    </th>
+                    {cell(regular, '6px 0')}
+                    {queues.some((q) => q.fastTrack) ? cell(fast, '6px 0 6px 16px') : null}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       ) : null}
 
