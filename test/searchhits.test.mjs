@@ -28,3 +28,24 @@ test('färre träffar än gränsen lämnas orörda', () => {
   const few = [stop('X', ['BUS']), stop('Y brygga', ['BOAT'])];
   assert.deepEqual(pickSearchHits(few, 8), few);
 });
+
+import { rankSearchHits, matchRank } from '../lib/searchHits.mjs';
+
+test('ortnamn: ortens knutpunkt före tättrafikerade hållplatser som bara innehåller ordet', () => {
+  const g = (name, n) => ({ id: name, name, average_daily_stop_times: n });
+  const hjo = rankSearchHits([g('Bror Hjorths Hus (Uppsala)', 900), g('Hjortstigen', 400), g('Hjo busstation', 120)], 'Hjo');
+  assert.equal(hjo[0].name, 'Hjo busstation');
+  const kiruna = rankSearchHits(
+    [g('Kiruna Församlingshemmet', 300), g('Kiruna sjukhus', 250), g('Kiruna busstation', 200), g('Kiruna station', 40)],
+    'kiruna'
+  ).map((x) => x.name);
+  assert.deepEqual(kiruna.slice(0, 2), ['Kiruna busstation', 'Kiruna station']);
+});
+
+test('ortnamn: rangordningen', () => {
+  assert.equal(matchRank('Slussen', 'slussen'), 0);
+  assert.equal(matchRank('Malmö C', 'Malmo'), 0);
+  assert.equal(matchRank('Kiruna sjukhus', 'Kiruna'), 1);
+  assert.equal(matchRank('Hjortstigen', 'Hjo'), 2);
+  assert.equal(matchRank('Bror Hjorths Hus', 'Hjo'), 3);
+});
