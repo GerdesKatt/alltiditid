@@ -10,7 +10,7 @@ export default function AboutSection() {
     // Ihopfälld: texten finns kvar för den som vill läsa (och för sökmotorer) men tar ingen plats från tavlan.
     <details id="om-tjansten" className="om-tjansten" style={{ borderTop: `1px solid ${colors.border}`, margin: '8px 0 26px' }}>
       <summary style={{ minHeight: '48px', display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: colors.textDim }}>
-        {lang === 'en' ? 'About alltid i tid' : 'Om alltid i tid'}
+        {lang === 'en' ? 'How alltid i tid works' : 'Så funkar alltid i tid'}
       </summary>
       <div style={{ padding: '4px 0 8px' }}>
       {lang === 'en' ? (

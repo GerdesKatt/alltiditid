@@ -29,9 +29,10 @@ export default function ThemeButton() {
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: '40px',
-        height: '40px',
-        marginRight: '-4px',
+        // 44 × 44: Apples minsta tryckyta.
+        width: '44px',
+        height: '44px',
+        marginRight: '-6px',
         border: 'none',
         background: 'none',
         color: colors.text,
