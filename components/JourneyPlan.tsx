@@ -23,6 +23,8 @@ type Plan = {
   sure?: boolean;
   alternatives?: ChosenPlace[];
   fromHere: boolean;
+  /** Ingen hållplats inom gångavstånd: resan går från närmaste hållplats, så här långt bort. */
+  farStart?: { name: string; meters: number };
   date: string;
   time: string;
   arrive: boolean;
@@ -319,6 +321,14 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
               </button>
             ) : null}
             </div>
+            {plan.farStart ? (
+              <p style={{ margin: '10px 0 4px', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 }}>
+                {t(
+                  `Närmaste hållplats med en resa dit är ${plan.farStart.name}, ${(plan.farStart.meters / 1000).toFixed(1).replace('.', ',')} km bort. Resorna nedan går därifrån. Ta dig dit till fots, med cykel eller bil.`,
+                  `The nearest stop with a trip there is ${plan.farStart.name}, ${(plan.farStart.meters / 1000).toFixed(1)} km away. The trips below start there. Get there on foot, by bike or by car.`
+                )}
+              </p>
+            ) : null}
             {plan.sure === false ? (
               <div style={{ margin: '10px 0 4px' }}>
                 <p style={{ margin: '0 0 6px', fontSize: '0.875rem', color: colors.amber }}>

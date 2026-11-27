@@ -176,11 +176,18 @@ export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirpor
           {locating ? t('Söker din position…', 'Finding your location…') : t('Visa hållplatser nära mig', 'Show stops near me')}
         </button>
       ) : others.length === 0 ? (
-        <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textDim }}>
-          {fresh
-            ? t('Hittade ingen hållplats nära dig.', 'No stop found near you.')
-            : t('Dina hållplatser är de närmaste.', 'Your stops are the nearest ones.')}
-        </p>
+        fresh ? (
+          <WayForward
+            text={t(
+              'Ingen hållplats inom 10 km. Skriv vart du ska, så letar vi upp första möjliga resa, även om första biten är lång.',
+              'No stop within 10 km. Type where you are going and we will find the first possible trip, even if the first leg is long.'
+            )}
+          />
+        ) : (
+          <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textDim }}>
+            {t('Dina hållplatser är de närmaste.', 'Your stops are the nearest ones.')}
+          </p>
+        )
       ) : (
         <NearbyLines stops={others} now={now} onOpenStop={onOpenStop} exclude={new Set(Object.values(covered).flat())} />
       )}
@@ -314,8 +321,34 @@ function NearbyLines({
   const nu = (x: string) => (x === 'Nu' ? t('Nu', 'Now') : x);
 
   if (!loaded) return <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textDim }}>{t('Hämtar…', 'Loading…')}</p>;
+  // Inga avgångar snart (landet, natten): visa ändå de närmaste hållplatserna, så att man kan se
+  // när nästa går, och erbjud att planera resan. Appen ska alltid föreslå en väg framåt.
   if (rows.length === 0)
-    return <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textDim }}>{t('Inga avgångar nära dig just nu.', 'No departures near you right now.')}</p>;
+    return (
+      <>
+        <p style={{ margin: '0 0 6px', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 }}>
+          {t('Inget går härifrån den närmaste stunden. Se när nästa går:', 'Nothing leaves nearby in the next while. See when the next one goes:')}
+        </p>
+        <ul style={list}>
+          {[...stops]
+            .sort((a, b) => a.distance - b.distance)
+            .slice(0, 3)
+            .map((s) => (
+              <li key={s.id} style={rowItem}>
+                <button type="button" onClick={() => onOpenStop(s)} style={{ ...rowButton, padding: '12px 0' }}>
+                  <span style={{ flex: 1, minWidth: 0, fontWeight: 700 }}>{s.name}</span>
+                  <span style={{ flexShrink: 0, fontSize: '0.875rem', color: colors.textDim }}>
+                    {formatDistance(s.distance)} →
+                  </span>
+                </button>
+              </li>
+            ))}
+        </ul>
+        <WayForward
+          text={t('Eller skriv vart du ska, så får du första möjliga resa.', 'Or type where you are going to get the first possible trip.')}
+        />
+      </>
+    );
 
   return (
     <>
@@ -351,7 +384,7 @@ function NearbyLines({
                     {d.destination}
                   </span>
                   <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim }}>
-                    {stop.name} · {stop.distance >= 1000 ? `${(stop.distance / 1000).toFixed(1).replace('.', ',')} km` : `${Math.round(stop.distance)} m`}
+                    {stop.name} · {formatDistance(stop.distance)}
                   </span>
                 </span>
                 <span style={{ fontFamily: fonts.display, fontWeight: 800, whiteSpace: 'nowrap', color: late ? colors.amber : colors.text }}>
@@ -540,3 +573,29 @@ const textLink: React.CSSProperties = {
 };
 
 export { StopRow };
+
+/** Aldrig en återvändsgränd: en förklaring och en knapp som tar en till sökfältet. */
+function WayForward({ text }: { text: string }) {
+  const { t } = useLang();
+  return (
+    <div style={{ marginTop: '10px' }}>
+      <p style={{ margin: '0 0 10px', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 }}>{text}</p>
+      <button
+        type="button"
+        onClick={() => {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          document.getElementById('sok-allt')?.focus();
+        }}
+        style={{ minHeight: '44px', padding: '0 16px', border: `1px solid ${colors.text}`, borderRadius: 0, background: 'transparent', color: colors.text, fontWeight: 700, fontSize: '0.9375rem', cursor: 'pointer' }}
+      >
+        {t('Planera en resa', 'Plan a trip')}
+      </button>
+    </div>
+  );
+}
+
+/** 180 m, 1,2 km, 6 km. */
+function formatDistance(m: number): string {
+  if (m < 1000) return `${Math.round(m)} m`;
+  return m < 10_000 ? `${(m / 1000).toFixed(1).replace('.', ',')} km` : `${Math.round(m / 1000)} km`;
+}
