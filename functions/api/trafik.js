@@ -1941,8 +1941,31 @@ async function handleNearby(request, keys, context) {
   } catch {
     body = null;
   }
-  const lat = Number(body && body.lat);
-  const lon = Number(body && body.lon);
+  let lat = Number(body && body.lat);
+  let lon = Number(body && body.lon);
+  // Utan position: man skriver var man är (hållplats eller adress), och den platsen används i stället.
+  let place = null;
+  const q = typeof body?.q === 'string' ? body.q.trim().slice(0, 80) : '';
+  if (q.length >= 2) {
+    if (!keys.resrobot) return jsonResponse({ stops: [], error: 'Sök nära mig är inte konfigurerat.' }, 501);
+    const found = [];
+    for (const type of /\d/.test(q) ? ['&type=A', ''] : ['', '&type=A']) {
+      try {
+        const r = await fetch(
+          `${RESROBOT_BASE}/location.name?input=${encodeURIComponent(q)}&maxNo=5${type}&format=json&accessId=${encodeURIComponent(keys.resrobot)}`
+        );
+        if (r.ok) found.push(...destinationCandidates(await r.json()).filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lon)));
+      } catch {
+        // Prova nästa sorts träff
+      }
+      if (rankPlaces(q, found)[0]?.score >= SURE) break;
+    }
+    const best = rankPlaces(q, found)[0] || found[0];
+    if (!best) return jsonResponse({ stops: [], error: `Hittade ingen plats som heter ”${q}”.` }, 404);
+    lat = best.lat;
+    lon = best.lon;
+    place = { name: best.name, lat: Number(lat.toFixed(4)), lon: Number(lon.toFixed(4)) };
+  }
   // Ungefär Sveriges utbredning; allt annat är fel eller utanför trafikdatan.
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < 55 || lat > 69.2 || lon < 10.5 || lon > 24.3) {
     return jsonResponse({ stops: [], error: 'Positionen ligger utanför Sverige.' }, 400);
@@ -1961,7 +1984,7 @@ async function handleNearby(request, keys, context) {
   if (cached) {
     try {
       const data = await cached.json();
-      return jsonResponse(data, 200, { 'Cache-Control': 'no-store' });
+      return jsonResponse(place ? { ...data, place } : data, 200, { 'Cache-Control': 'no-store' });
     } catch {
       // Hämta på nytt nedan
     }
@@ -2002,7 +2025,7 @@ async function handleNearby(request, keys, context) {
     jsonResponse({ stops }, 200, { 'Cache-Control': 'max-age=300' }),
     context
   );
-  return jsonResponse({ stops }, 200, { 'Cache-Control': 'no-store' });
+  return jsonResponse(place ? { stops, place } : { stops }, 200, { 'Cache-Control': 'no-store' });
 }
 
 /** ResRobots produktmask (products, eller cls i productAtStop) → trafikslag vid hållplatsen. */
