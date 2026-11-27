@@ -72,6 +72,11 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
               Trafikverket, SL and Västtrafik. Only the stop&apos;s id and name are sent, nothing about you.
             </li>
             <li style={privacyItem}>
+              <strong>Did you know?</strong> The facts about a place come from Wikipedia. Our server asks Wikipedia
+              for articles near the stop, sending only the stop&apos;s name and location, nothing about you. The text
+              is licensed under CC BY-SA and the article is always linked.
+            </li>
+            <li style={privacyItem}>
               <strong>I&apos;m on board.</strong> The status message is created on your phone and shared using the
               phone&apos;s own share feature. We do not receive or store the message.
             </li>
@@ -175,6 +180,11 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
               <strong>Avgångstavlor.</strong> När du visar en tavla hämtar vår server avgångar från
               Trafiklab, Trafikverket, SL och Västtrafik. Där skickas bara hållplatsens id och namn,
               inget om dig.
+            </li>
+            <li style={privacyItem}>
+              <strong>Visste du?</strong> Kuriosan om platsen kommer från Wikipedia. Vår server frågar Wikipedia
+              efter artiklar nära hållplatsen, och skickar bara hållplatsens namn och läge, inget om dig. Texten
+              har licensen CC BY-SA och artikeln länkas alltid.
             </li>
             <li style={privacyItem}>
               <strong>Jag är ombord.</strong> Statusmeddelandet skapas i din telefon och delas via

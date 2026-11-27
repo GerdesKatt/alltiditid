@@ -5,6 +5,8 @@ import { modesText } from '../lib/stopText';
 import { distanceKm } from '../lib/stopList.mjs';
 import { colors, fonts } from './styles';
 import { decimal, modesSentence, useLang, type Lang } from '../lib/i18n';
+import { useTrivia } from '../lib/useTrivia';
+import StopTrivia from './StopTrivia';
 
 type Props = {
   stop: StopOption;
@@ -12,6 +14,8 @@ type Props = {
   page: StopPage | undefined;
   /** Grannarna, upplösta från page.near. */
   neighbours: StopPage[];
+  /** Hållplatsens läge (från tavlan eller sidan), för kuriosan om platsen. */
+  coords: { lat: number; lon: number } | null;
   onSelectStop: (stop: StopOption) => void;
   onClose: () => void;
 };
@@ -36,8 +40,10 @@ export function shareUrlFor(stop: StopOption, page: StopPage | undefined): strin
  * webbläsaren och i den installerade webbappen, där det inte finns någon adressrad.
  * Spårkartan får sin plats överst här när den finns.
  */
-export default function StationSheet({ stop, page, neighbours, onSelectStop, onClose }: Props) {
+export default function StationSheet({ stop, page, neighbours, coords, onSelectStop, onClose }: Props) {
   const { lang, t } = useLang();
+  // Hämtas när bladet öppnas och cachas per hållplats, så att det räcker för alla hållplatser i landet.
+  const trivia = useTrivia(stop.name, coords, lang);
   const sheetRef = useRef<HTMLElement>(null);
   const [shared, setShared] = useState<'' | 'copied' | 'failed'>('');
 
@@ -120,6 +126,8 @@ export default function StationSheet({ stop, page, neighbours, onSelectStop, onC
 
       {/* Plats för spårkartan (OpenStreetMap), när den finns för stationen. */}
 
+      {/* Utan egen sida men med kuriosa räcker kuriosan; "ingen sida än" behövs inte då. */}
+      {page || trivia === null ? (
       <p style={{ margin: '12px 0 0', fontSize: '0.9375rem', lineHeight: 1.55, color: colors.textDim }}>
         {page
           ? lang === 'en'
@@ -134,6 +142,13 @@ export default function StationSheet({ stop, page, neighbours, onSelectStop, onC
               `We don't have a page for ${stop.name} yet. The board works as usual, and you can share it.`
             )}
       </p>
+      ) : null}
+
+      {trivia ? (
+        <div style={page ? undefined : { marginTop: '-2px' }}>
+          <StopTrivia trivia={trivia} stopName={stop.name} />
+        </div>
+      ) : null}
 
       {neighbours.length ? (
         <>

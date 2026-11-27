@@ -11,6 +11,7 @@ import { SURE, geoapifyPlaces, photonPlaces, rankPlaces } from '../../lib/places
 import { trafficForCounty } from '../../lib/countyTraffic.mjs';
 import { foldPlace } from '../../lib/transferMatch.mjs';
 import { allowedLicense, nearestStation, systemsNear } from '../../lib/mobility.mjs';
+import { pickTrivia, wikiQueryUrl } from '../../lib/trivia.mjs';
 import { evaluateHealth, isFailure, sourceOf } from '../../lib/health.mjs';
 
 function parseTimeToMinutes(timeStr) {
@@ -3106,6 +3107,71 @@ async function handleMobility(url, context) {
   return jsonResponse({ bikes }, 200, { 'Cache-Control': `public, max-age=${GBFS_STATUS_TTL_S}` });
 }
 
+// ---- Kuriosa om en hållplats (action=trivia) ----
+
+/** Wikipedia ändras sällan: en vecka i Cloudflares cache, ett dygn i webbläsaren. */
+const TRIVIA_CACHE_S = 7 * 24 * 60 * 60;
+const TRIVIA_BROWSER_S = 24 * 60 * 60;
+
+async function wikiPages(params) {
+  const res = await upstreamFetch(wikiQueryUrl(params), {
+    headers: { Accept: 'application/json', 'User-Agent': 'alltiditid.se (reseplanerare; https://alltiditid.se)' },
+  });
+  if (!res.ok) throw new Error(`Wikipedia ${res.status}`);
+  const body = await res.json();
+  return (body && body.query && body.query.pages) || [];
+}
+
+/**
+ * GET ?action=trivia&name=..&lat=..&lon=..&lang=sv|en → { trivia: { kind, title, text, url, meters, lang } | null }
+ * Hämtas först när någon öppnar rutan, och cachas per hållplats, så att det fungerar för
+ * alla hållplatser i landet utan att bygget eller sidorna växer. Bara hållplatsens namn och
+ * läge skickas till Wikipedia, inget om besökaren.
+ */
+export async function handleTrivia(url, context) {
+  const name = (url.searchParams.get('name') || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  const lang = url.searchParams.get('lang') === 'en' ? 'en' : 'sv';
+  let lat = Number(url.searchParams.get('lat') || NaN);
+  let lon = Number(url.searchParams.get('lon') || NaN);
+  if (!(lat >= 55 && lat <= 69.2 && lon >= 10.5 && lon <= 24.3)) {
+    lat = NaN;
+    lon = NaN;
+  } else {
+    lat = Math.round(lat * 1000) / 1000;
+    lon = Math.round(lon * 1000) / 1000;
+  }
+  if (name.length < 2 && !Number.isFinite(lat)) return jsonResponse({ error: 'name eller lat och lon krävs' }, 400);
+
+  const where = Number.isFinite(lat) ? `${lat},${lon}` : '-';
+  const key = new Request(`https://cache.alltiditid.se/trivia-v1/${lang}/${encodeURIComponent(name.toLowerCase())}/${where}`);
+  const hit = await cacheGet(key);
+  if (hit) return hit;
+
+  let trivia = null;
+  try {
+    trivia = pickTrivia(await wikiPages({ name, lat, lon, lang }), name, lang);
+    if (trivia) trivia.lang = lang;
+    // Engelska Wikipedia saknar ofta små svenska platser: ta den svenska texten då.
+    if (!trivia && lang === 'en') {
+      trivia = pickTrivia(await wikiPages({ name, lat, lon, lang: 'sv' }), name, 'sv');
+      if (trivia) trivia.lang = 'sv';
+    }
+  } catch {
+    // Inget svar från Wikipedia: ingen ruta, och inget som cachas.
+    return jsonResponse({ trivia: null }, 200, { 'Cache-Control': 'no-store' });
+  }
+
+  const fresh = jsonResponse({ trivia }, 200, { 'Cache-Control': `public, max-age=${TRIVIA_BROWSER_S}` });
+  await cachePut(
+    key,
+    new Response(JSON.stringify({ trivia }), {
+      headers: { ...JSON_HEADERS, 'Cache-Control': `public, max-age=${TRIVIA_CACHE_S}` },
+    }),
+    context
+  );
+  return fresh;
+}
+
 export async function onRequest(context) {
   const { env } = context;
   if (new URL(context.request.url).searchParams.get('action') === 'health') return await handleHealth(env);
@@ -3136,6 +3202,7 @@ async function route(context) {
     // Platser (OpenStreetMap) kräver ingen Trafiklab-nyckel, så förslagen fungerar även i förhandsversioner.
     if (action === 'places') return await handlePlaces(url, env, context);
     if (action === 'mobility') return await handleMobility(url, context);
+    if (action === 'trivia') return await handleTrivia(url, context);
   } catch {
     return jsonResponse({ error: 'Ett fel uppstod vid hämtning av flygdata.' }, 500);
   }

@@ -58,6 +58,8 @@ public/
 
 `GET /api/trafik?action=mobility&lat=57.70&lon=11.95` returnerar `{ bikes: [{ system, name, station, meters, bikes, app }] }`: närmaste station med lediga lånecyklar inom 500 m, en per system. Bara system med öppna GBFS-flöden och öppen licens (Styr & Ställ, Lundahoj, Donkey Republic). Koordinaterna är hållplatsens. Visas i raden "Annat sätt härifrån" när nästa avgång dröjer mer än 20 minuter, tillsammans med en Uber-länk (och Taxi Stockholm i Stockholms län).
 
+`GET /api/trafik?action=trivia&name=Gullmarsplan&lat=59.299&lon=18.081&lang=sv` returnerar `{ trivia: { kind, title, text, url, meters, lang } | null }`: kuriosa från Wikipedia (CC BY-SA, artikeln länkas alltid) för "Visste du?" i Om stationen och raden "När du väntar" (nästa avgång om mer än 15 min). Hämtas när rutan behövs och cachas en vecka per hållplats, så det fungerar för alla hållplatser utan att bygget växer. Ordning: stationens egen artikel, annars stadsdelen eller orten (samma text för alla hållplatser där), annars något inom 600 m. Bara namn och avrundat läge skickas till Wikipedia.
+
 `GET /api/trafik?action=departures&stopId=<id>&stopName=<namn>&mode=all&direction=departures|arrivals` returnerar `{ departures: [...] }`.
 
 ## Miljövariabler
