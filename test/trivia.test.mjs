@@ -163,6 +163,7 @@ test('hållplatsen som heter efter platsen hittar platsen, och grannarna runt h�
     page('Långbro sjukhus', 782, 'Långbro sjukhus var ett psykiatriskt sjukhus i Långbro i södra Stockholm.', { description: 'f.d psykiatriskt sjukhus' }),
     page('Herrängen', 246, 'Herrängen är en stadsdel i Söderort inom Stockholms kommun med villor.', { description: 'stadsdel i Stockholm' }),
     page('Segeltorp (kommundel)', 757, 'Segeltorp är en kommundel i Huddinge kommun, söder om Stockholm.', { description: 'kommundel i Huddinge kommun' }),
+    page('Johanneshovsvägen', 217, 'Johanneshovsvägen är en gata i södra Stockholm som fick sitt namn 1930.', { description: 'en gata i södra Stockholm' }),
     page('Delicato', 894, 'Delicato är ett svenskt företag som bakar bakverk, bland annat Delicatobollen.', { description: 'svenskt företag' }),
   ];
   const t = pickTrivia(pages, 'Herrängsplan');
