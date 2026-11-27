@@ -357,7 +357,7 @@ export default function DepartureRow({
                 {early ? <span style={{ color: colors.okText }}>{`${clock} · ${early} ${t('min tidig', 'min early')}`}</span> : ''}
                 {early && countdown ? ' · ' : ''}
                 {isDelayed ? '' : countdown}
-                {onlySchedule ? `${countdown ? ' · ' : ''}${t('ingen realtid', 'no real-time')}` : ''}
+                {onlySchedule ? `${countdown ? ' · ' : ''}${t('tidtabell', 'timetable')}` : ''}
               </>
             ) : isDelayed ? (
               <>
