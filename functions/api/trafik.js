@@ -5,7 +5,7 @@ import { applyGps, tripJourney, uniqueAlerts } from '../../lib/trips.mjs';
 import { locateOnRoute, vehiclePositions } from '../../lib/gtfsrt.mjs';
 import { FERRY_PREFIX, ferryBoard, ferryHarbors, searchFerryHarbors } from '../../lib/ferries.mjs';
 import { stopsAfter } from '../../lib/transferMatch.mjs';
-import { pickSearchHits } from '../../lib/searchHits.mjs';
+import { pickSearchHits, rankSearchHits } from '../../lib/searchHits.mjs';
 import { destinationCandidates, mapTrips, pickDestination } from '../../lib/plan.mjs';
 import { SURE, geoapifyPlaces, photonPlaces, rankPlaces } from '../../lib/places.mjs';
 import { trafficForCounty } from '../../lib/countyTraffic.mjs';
@@ -1144,9 +1144,10 @@ async function realtimeSearch(key, q) {
   if (!res.ok) throw new Error(`Trafiklab Realtime sökfel (status ${res.status})`);
   const data = await res.json();
   const groups = Array.isArray(data.stop_groups) ? data.stop_groups : [];
-  const sorted = groups
-    .filter((g) => g && g.id && (!Array.isArray(g.transport_modes) || g.transport_modes.length > 0))
-    .sort((a, b) => (Number(b.average_daily_stop_times) || 0) - (Number(a.average_daily_stop_times) || 0));
+  const sorted = rankSearchHits(
+    groups.filter((g) => g && g.id && (!Array.isArray(g.transport_modes) || g.transport_modes.length > 0)),
+    q
+  );
   return pickSearchHits(sorted, 8)
     .map((g) => {
       const out = { id: String(g.id), name: cleanPlaceName(String(g.name)) };
