@@ -570,11 +570,11 @@ function FlightRow({
               <div style={{ color: colors.textDim, marginTop: '2px' }}>
                 {plan.queue !== null
                   ? t(
-                      `Med kön nu (${plan.queue} min) och ${plan.walkMin}–${plan.walkMax} min till gaten. Uppskattat.`,
+                      `Med ${plan.queue} min väntetid i säkerheten just nu och ${plan.walkMin}–${plan.walkMax} min till gaten. Uppskattat.`,
                       `With the queue now (${plan.queue} min) and ${plan.walkMin}–${plan.walkMax} min to the gate. Estimated.`
                     )
                   : t(
-                      `Med ${plan.walkMin}–${plan.walkMax} min till gaten, utan kön (se Brukar vara). Uppskattat.`,
+                      `Med ${plan.walkMin}–${plan.walkMax} min till gaten, utan väntetid i säkerheten (se Brukar vara). Uppskattat.`,
                       `With ${plan.walkMin}–${plan.walkMax} min to the gate, without the queue (see Usually). Estimated.`
                     )}
               </div>
