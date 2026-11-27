@@ -5,6 +5,7 @@ import type { BoardDirection, Flight, SecurityQueue } from '../lib/types';
 import { AIRPORTS, airportByIata, flightMatches } from '../lib/flights.mjs';
 import { parseLocal } from '../lib/lineFormat';
 import DirectionToggle from './DirectionToggle';
+import QueueForecast from './QueueForecast';
 import { flightStatus, translator, useLang, type Lang } from '../lib/i18n';
 import { colors, emptyState, fonts } from './styles';
 
@@ -281,6 +282,7 @@ export default function FlightView({ initialAirport }: Props) {
               })}
             </tbody>
           </table>
+          <QueueForecast airport={airport} />
         </div>
       ) : null}
 

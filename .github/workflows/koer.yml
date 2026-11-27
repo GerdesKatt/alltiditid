@@ -1,0 +1,30 @@
+name: Kötider
+
+# Hämtar kötiderna i säkerhetskontrollen var 30:e minut, så att köhistoriken
+# (prognosen "brukar vara") får mätningar även när ingen har appen öppen.
+# Varje hämtning går via sajten, som cachar i 5 minuter och räknar anropen mot
+# dygnsgränsen, så det här kan aldrig dra mer än Swedavias kvot tillåter:
+# 3 flygplatser × 36 körningar = 108 anrop per dygn. Tiderna är UTC (04–22 svensk vintertid).
+
+on:
+  schedule:
+    - cron: '15,45 3-20 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: koer
+  cancel-in-progress: true
+
+jobs:
+  hamta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Hämta kötiderna
+        run: |
+          for a in ARN GOT BMA; do
+            curl -s --max-time 20 "https://alltiditid.se/api/trafik?action=waittimes&airport=$a" | head -c 300 || true
+            echo
+          done

@@ -1,5 +1,7 @@
 import { historyRows, saveHistory } from '../../lib/history.mjs';
-import { airportByIata, datesToFetch, flightBoard, waitTimes } from '../../lib/flights.mjs';
+import { airportByIata, datesToFetch, flightBoard, normalizeFlight, pick as pickField, waitTimes } from '../../lib/flights.mjs';
+import { countDepartures, departuresByHour, typicalDay } from '../../lib/queueForecast.mjs';
+import { departureRows, latestQueues, logDepartures, logQueues, queueRows } from '../../lib/queueLog.mjs';
 import { missingTrains, trainJourney } from '../../lib/trains.mjs';
 import { applyGps, tripJourney, uniqueAlerts } from '../../lib/trips.mjs';
 import { locateOnRoute, vehiclePositions } from '../../lib/gtfsrt.mjs';
@@ -2799,7 +2801,8 @@ async function handleBoard(url, keys, context) {
 // fungerar API:t inte resten av månaden (apideveloper.swedavia.se/faq). Det är oklart
 // om gränsen gäller per API eller för FlightInfo och WaitTime tillsammans, så de två
 // dygnsgränserna nedan räknas så att även summan håller sig under:
-// (150 + 150) × 31 = 9 300 anrop per månad.
+// (150 + 150 + 20) × 31 = 9 920 anrop per månad. De 20 är FlightInfo för kommande
+// dagar, så att prognosen över kötiderna kan räkna avgångarna per timme.
 //
 // Ett anrop ger hela dagen för en flygplats och riktning, svaret cachas i 10 minuter
 // (kötiderna i 5) och delas av alla besökare, och anropen räknas per dygn i D1.
@@ -2811,6 +2814,11 @@ const FLIGHT_STALE_SECONDS = 86400;
 const FLIGHT_CALLS_PER_DAY = 150;
 const WAIT_CACHE_SECONDS = 300;
 const WAIT_CALLS_PER_DAY = 150;
+const FLIGHTCOUNT_CALLS_PER_DAY = 20;
+/** Prognosen räknas om högst så här ofta per flygplats och datum. */
+const FORECAST_CACHE_SECONDS = 1800;
+/** När dygnets anrop är slut visas de senast sparade kötiderna, om de är så här färska. */
+const WAIT_FALLBACK_MINUTES = 45;
 const SWEDAVIA = 'https://api.swedavia.se';
 
 /** Räknar ett anrop och svarar om det ryms i dygnets gräns. Utan D1 tillåts det. */
@@ -2933,6 +2941,7 @@ async function flushUpstreamCounts(env) {
 const DAILY_LIMITS = {
   'swedavia-flightinfo': FLIGHT_CALLS_PER_DAY,
   'swedavia-waittime': WAIT_CALLS_PER_DAY,
+  'swedavia-flightcount': FLIGHTCOUNT_CALLS_PER_DAY,
   'resrobot-plan': PLAN_CALLS_PER_DAY,
   'resrobot-tidtabell': TIMETABLE_FALLBACK_PER_DAY,
   places: PLACES_CALLS_PER_DAY,
@@ -3053,6 +3062,14 @@ async function handleFlights(url, env, context) {
     return staleOr(staleKey, { error: 'Kunde inte hämta flygen från Swedavia just nu.' }, 502);
   }
 
+  if (direction === 'departures' && airport.waitTimes && env && env.HISTORY) {
+    const all = bodies.flatMap((b) => pickField(b, 'Flights') || []).map((f) => normalizeFlight(f, direction)).filter(Boolean);
+    const today = swedishDateTime(new Date().toISOString()).slice(0, 10);
+    const log = logDepartures(env.HISTORY, airport.iata, today, countDepartures(all, today));
+    if (context && context.waitUntil) context.waitUntil(log);
+    else await log;
+  }
+
   const body = {
     airport: airport.iata,
     airportName: airport.name,
@@ -3081,7 +3098,14 @@ async function handleWaitTimes(url, env, context) {
   const fresh = await cacheGet(freshKey);
   if (fresh) return fresh;
   if (!(await allowCall(env, 'swedavia-waittime', WAIT_CALLS_PER_DAY))) {
-    return jsonResponse({ queues: [] }, 200, { 'Cache-Control': 'public, max-age=300' });
+    // Dygnets anrop är slut: visa senaste sparade mätningen om den är färsk nog.
+    const since = swedishDateTime(new Date(Date.now() - WAIT_FALLBACK_MINUTES * 60000).toISOString());
+    const saved = await latestQueues(env && env.HISTORY, airport.iata, since);
+    return jsonResponse(
+      saved.length ? { airport: airport.iata, queues: saved, updatedAt: `${saved[0].at}`, saved: true } : { queues: [] },
+      200,
+      { 'Cache-Control': 'public, max-age=300' }
+    );
   }
   let queues = [];
   let raw;
@@ -3097,12 +3121,76 @@ async function handleWaitTimes(url, env, context) {
     const shape = Array.isArray(raw) ? `lista med ${raw.length}` : Object.keys(raw || {}).slice(0, 8).join(',');
     return jsonResponse({ queues: [], note: `tomt (${shape})` }, 200, { 'Cache-Control': 'public, max-age=60' });
   }
+  const nowLocal = swedishDateTime(new Date().toISOString());
+  const at = queues.map((q) => q.at).filter(Boolean).sort().pop() || nowLocal;
+  const log = logQueues(env && env.HISTORY, airport.iata, queues, at);
+  if (context && context.waitUntil) context.waitUntil(log);
+  else await log;
   const response = jsonResponse(
     { airport: airport.iata, queues, updatedAt: new Date().toISOString() },
     200,
     { 'Cache-Control': `public, max-age=${WAIT_CACHE_SECONDS}` }
   );
   await cachePut(freshKey, response.clone(), context);
+  return response;
+}
+
+const DAY_MS = 86400000;
+const addDays = (day, n) => new Date(Date.parse(`${day}T00:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10);
+
+/**
+ * Typiska kötider per timme för ett datum (i dag och upp till sex dagar framåt), från
+ * vår egen köhistorik, plus avgångar per timme den dagen jämfört med samma veckodag.
+ */
+async function handleQueueForecast(url, env, context) {
+  const airport = airportByIata(url.searchParams.get('airport'));
+  if (!airport || !airport.waitTimes) return jsonResponse({ error: 'Ingen köprognos för den flygplatsen.' }, 400);
+  const today = swedishDateTime(new Date().toISOString()).slice(0, 10);
+  const asked = String(url.searchParams.get('date') || '');
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(asked) && asked >= today && asked <= addDays(today, 6) ? asked : today;
+
+  const cacheKey = cacheKeyFor('koprognos-v1', airport.iata, date);
+  const cached = await cacheGet(cacheKey);
+  if (cached) return cached;
+
+  const db = env && env.HISTORY;
+  const [rows, depRowsBefore] = await Promise.all([
+    queueRows(db, airport.iata, addDays(date, -365)),
+    departureRows(db, airport.iata, addDays(date, -56), date),
+  ]);
+  let depRows = depRowsBefore;
+
+  // Avgångarna en kommande dag finns inte i tavlan: hämta den dagen en gång.
+  const key = env && env.SWEDAVIA_FLIGHTINFO_KEY;
+  if (date > today && key && db && !depRows.some((r) => r.day === date)) {
+    if (await allowCall(env, 'swedavia-flightcount', FLIGHTCOUNT_CALLS_PER_DAY)) {
+      try {
+        // FlightInfo tar datum i UTC; dagen före behövs för flyg strax efter midnatt.
+        const bodies = await Promise.all(
+          [addDays(date, -1), date].map((d) => swedaviaGet(`/flightinfo/v2/${airport.iata}/departures/${d}`, key))
+        );
+        const all = bodies.flatMap((b) => pickField(b, 'Flights') || []).map((f) => normalizeFlight(f, 'departures')).filter(Boolean);
+        const counts = countDepartures(all, date);
+        await logDepartures(db, airport.iata, date, counts);
+        depRows = depRows.concat(counts.map((c) => ({ day: date, ...c })));
+      } catch {
+        // Utan avgångar visas bara köhistoriken.
+      }
+    }
+  }
+
+  const forecast = typicalDay(rows, date);
+  const response = jsonResponse(
+    {
+      airport: airport.iata,
+      ...forecast,
+      departures: departuresByHour(depRows, date),
+      historyDays: new Set(rows.map((r) => r.day)).size,
+    },
+    200,
+    { 'Cache-Control': `public, max-age=${FORECAST_CACHE_SECONDS}` }
+  );
+  await cachePut(cacheKey, response.clone(), context);
   return response;
 }
 
@@ -3360,6 +3448,7 @@ async function route(context) {
   try {
     if (action === 'flights') return await handleFlights(url, env, context);
     if (action === 'waittimes') return await handleWaitTimes(url, env, context);
+    if (action === 'queueforecast') return await handleQueueForecast(url, env, context);
     // Platser (OpenStreetMap) kräver ingen Trafiklab-nyckel, så förslagen fungerar även i förhandsversioner.
     if (action === 'places') return await handlePlaces(url, env, context);
     if (action === 'mobility') return await handleMobility(url, context);
