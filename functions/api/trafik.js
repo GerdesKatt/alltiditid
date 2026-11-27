@@ -1123,8 +1123,15 @@ async function realtimeBoard(key, stopId, direction, at) {
     calls.find((c) => c && c.stop && c.stop.name)?.stop.name ||
     data.stops?.[0]?.name ||
     '';
+  // Hållplatsens läge, så att taxi- och cykelraden kan visas även när tavlan är tom.
+  const stop = data.stops?.find((s) => String(s.id) === String(stopId)) || data.stops?.[0];
+  const coords =
+    stop && Number.isFinite(Number(stop.lat)) && Number.isFinite(Number(stop.lon)) && stop.lat != null && stop.lon != null
+      ? { lat: Number(stop.lat), lon: Number(stop.lon) }
+      : null;
   return {
     stopName,
+    coords,
     departures: calls.map((call) => mapRealtimeCall(call, direction)),
   };
 }
@@ -1518,15 +1525,19 @@ function mapResrobotItem(item, direction) {
     directionType: direction,
     transportMode: itemMode,
     _trainCandidates: [trainNumber],
+    _coords:
+      item.lat != null && item.lon != null && Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lon))
+        ? { lat: Number(item.lat), lon: Number(item.lon) }
+        : null,
     _scheduledLocal: `${item.date || ''}T${scheduledTime}`,
     _offsetMin: !isCancelled && rawDiff !== null ? rawDiff : 0,
   };
 }
 
-async function resrobotBoard(key, stopId, direction) {
+async function resrobotBoard(key, stopId, direction, duration = 120) {
   const endpoint = direction === 'arrivals' ? 'arrivalBoard' : 'departureBoard';
   const res = await upstreamFetch(
-    `${RESROBOT_BASE}/${endpoint}?id=${encodeURIComponent(stopId)}&duration=120&passlist=1&format=json&accessId=${encodeURIComponent(key)}`
+    `${RESROBOT_BASE}/${endpoint}?id=${encodeURIComponent(stopId)}&duration=${duration}&passlist=1&format=json&accessId=${encodeURIComponent(key)}`
   );
   if (!res.ok) throw new Error(`Trafiklab svarade med status ${res.status}`);
   const data = await res.json();
@@ -2184,12 +2195,44 @@ function shortStopLabel(name) {
     .trim();
 }
 
+/**
+ * Tidtabell när realtiden är tom: Trafiklab Realtime visar bara en kort stund framåt, så
+ * på landsbygden (Vilhelmina, Arjeplog) blev tavlan tom fast bussen går om två timmar.
+ * Då frågas ResRobot med ett längre fönster. Högst så här många gånger per dygn, eftersom
+ * ResRobot-nyckeln har en mindre kvot.
+ */
+const TIMETABLE_FALLBACK_MINUTES = 360;
+const TIMETABLE_FALLBACK_PER_DAY = 300;
+/** En tom eller tidtabellsbaserad tavla ändras sällan: cacha den längre (sekunder). */
+const TIMETABLE_CACHE_SECONDS = 120;
+
 /** Hämtar en hållplats tavla: Trafiklab Realtime först, ResRobot som reserv. */
-async function fetchOneBoard(keys, stopId, direction, at) {
+async function fetchOneBoard(keys, stopId, direction, at, context) {
   let lastError = null;
   if (keys.realtime) {
     try {
       const board = await realtimeBoard(keys.realtime, stopId, direction, at);
+      if (board.departures.length === 0 && keys.resrobot && !at) {
+        const env = context && context.env;
+        if (await allowCall(env, 'resrobot-tidtabell', TIMETABLE_FALLBACK_PER_DAY)) {
+          try {
+            const timetable = await resrobotBoard(keys.resrobot, stopId, direction, TIMETABLE_FALLBACK_MINUTES);
+            if (timetable.departures.length > 0) {
+              return {
+                ...timetable,
+                stopName: board.stopName,
+                coords: board.coords,
+                stopId,
+                source: 'resrobot',
+                timetable: true,
+              };
+            }
+          } catch {
+            // Tidtabellen gick inte att hämta: visa den tomma realtidstavlan.
+          }
+        }
+        return { ...board, stopId, source: 'trafiklab-realtime', timetable: true };
+      }
       return { ...board, stopId, source: 'trafiklab-realtime' };
     } catch (err) {
       lastError = err;
@@ -2584,7 +2627,7 @@ async function handleBoard(url, keys, context) {
 
   const atParam = url.searchParams.get('time') || '';
   const at = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(atParam) ? atParam : '';
-  const results = await Promise.all(stopIds.map((id) => fetchOneBoard(keys, id, direction, at)));
+  const results = await Promise.all(stopIds.map((id) => fetchOneBoard(keys, id, direction, at, context)));
   const boards = results.filter((b) => !b.error);
   if (boards.length === 0) {
     const err = results[0] && results[0].error;
@@ -2703,7 +2746,9 @@ async function handleBoard(url, keys, context) {
 
   const grouped = groupDisruptions(departures, stopDisruptions);
   // Hållplatsens läge, för "Annat sätt härifrån" (Uber-upphämtning och lånecyklar).
-  const coords = timed.find((d) => d._coords)?._coords || null;
+  const coords = timed.find((d) => d._coords)?._coords || boards.find((b) => b.coords)?.coords || null;
+  // Tom realtid eller bara tidtabell överallt: ändras sällan, cacha längre.
+  const timetableOnly = boards.every((b) => b.timetable);
 
   return jsonResponse(
     {
@@ -2717,7 +2762,7 @@ async function handleBoard(url, keys, context) {
         : {}),
     },
     200,
-    { 'Cache-Control': `public, max-age=${BOARD_CACHE_SECONDS}` }
+    { 'Cache-Control': `public, max-age=${timetableOnly ? TIMETABLE_CACHE_SECONDS : BOARD_CACHE_SECONDS}` }
   );
 }
 
@@ -2815,6 +2860,7 @@ const DAILY_LIMITS = {
   'swedavia-flightinfo': FLIGHT_CALLS_PER_DAY,
   'swedavia-waittime': WAIT_CALLS_PER_DAY,
   'resrobot-plan': PLAN_CALLS_PER_DAY,
+  'resrobot-tidtabell': TIMETABLE_FALLBACK_PER_DAY,
   places: PLACES_CALLS_PER_DAY,
   gtfsrt: GTFS_RT_DAILY_LIMIT,
 };
