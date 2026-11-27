@@ -262,7 +262,7 @@ export default function DepartureBoard({
 
 
   const updatedLabel = updatedAt
-    ? updatedAt.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
+    ? updatedAt.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Stockholm' })
     : '';
   // Data äldre än så här räknas som inaktuell och visas som en varning.
   const stale = updatedAt ? now - updatedAt.getTime() > STALE_AFTER_MS : false;

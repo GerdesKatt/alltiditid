@@ -1,5 +1,6 @@
 import type { Departure } from './types';
 import { groupKey } from './lineFormat';
+import { stockholmHour } from './sweTime.mjs';
 
 /**
  * "Brukar du ta …?": vilka avgångar man öppnar, per hållplats och timme på dygnet.
@@ -33,7 +34,7 @@ function write(key: string, value: unknown) {
 export function recordOpen(stopId: string, item: Departure, now = Date.now()): void {
   if (typeof window === 'undefined' || !stopId) return;
   const list = read<Entry[]>(KEY, []);
-  const hour = new Date(now).getHours();
+  const hour = stockholmHour(now);
   const key = groupKey(item);
   // Samma rad öppnad flera gånger inom en kvart räknas en gång.
   if (list.some((e) => e.s === stopId && e.k === key && now - e.t < 15 * 60_000)) return;
@@ -46,7 +47,7 @@ export type Habit = { key: string; line: string; destination: string; count: num
 /** Linjen man brukar ta härifrån den här tiden (± en timme), om den öppnats minst tre gånger. */
 export function habitFor(stopId: string, now = Date.now()): Habit | null {
   if (typeof window === 'undefined' || !stopId) return null;
-  const hour = new Date(now).getHours();
+  const hour = stockholmHour(now);
   const near = (h: number) => Math.min(Math.abs(h - hour), 24 - Math.abs(h - hour)) <= 1;
   const declined = read<string[]>(DISMISS_KEY, []);
   const counts = new Map<string, Habit>();

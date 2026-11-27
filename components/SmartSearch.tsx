@@ -32,22 +32,29 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
   const [q, setQ] = useState('');
   const [stops, setStops] = useState<StopOption[]>([]);
   const [active, setActive] = useState(-1);
+  // Sant när hållplatssöket svarade fel, så att "inga träffar" inte visas när det är servern som felar.
+  const [failed, setFailed] = useState(false);
   const text = q.trim();
 
   useEffect(() => {
     if (text.length < 2 || TRAIN.test(text)) {
       setStops([]);
+      setFailed(false);
       return;
     }
     let alive = true;
     const timer = setTimeout(() => {
       fetch(`/api/trafik?action=search&q=${encodeURIComponent(text)}`)
-        .then((r) => r.json())
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
         .then((d) => {
-          if (alive) setStops((mergeStops(d.stops || []) as StopOption[]).slice(0, 4));
+          if (!alive) return;
+          setStops((mergeStops(d.stops || []) as StopOption[]).slice(0, 4));
+          setFailed(false);
         })
         .catch(() => {
-          if (alive) setStops([]);
+          if (!alive) return;
+          setStops([]);
+          setFailed(true);
         });
     }, 250);
     return () => {
@@ -226,6 +233,14 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
             </li>
           ))}
         </ul>
+      ) : null}
+      {failed ? (
+        <p role="status" style={{ margin: '8px 0 0', fontSize: '0.875rem', color: colors.textDim }}>
+          {t(
+            'Hållplatssöket fungerar inte just nu. Försök igen om en stund, eller välj en sparad hållplats.',
+            'Stop search is not working right now. Try again in a moment, or pick a saved stop.'
+          )}
+        </p>
       ) : null}
     </section>
   );

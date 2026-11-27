@@ -129,10 +129,41 @@ const BOARD_CACHE_SECONDS = 20;
 /** Hur länge Trafikverkets stationslista cachas (sekunder). */
 const STATION_LIST_CACHE_SECONDS = 24 * 60 * 60;
 
+// Inget Access-Control-Allow-Origin: API:t är bara till för alltiditid.se själv. Andra
+// webbplatser ska inte kunna bygga på det och förbruka kvoterna hos Trafiklab och Swedavia.
 const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
-  'Access-Control-Allow-Origin': '*',
 };
+
+/** Hur länge ett svar på hållplatssök sparas i Cloudflare (sekunder). Hållplatser byter sällan namn. */
+const SEARCH_CACHE_SECONDS = 60 * 60;
+
+const BOARD_MODES = new Set(['all', 'subway', 'commuter', 'tram', 'bus', 'train', 'ferry']);
+
+/**
+ * Tavlans adress med bara de parametrar som påverkar svaret, i fast ordning. Används både
+ * som cachenyckel och för hämtningen, så att extra eller omkastade parametrar inte ger
+ * nya anrop till Trafiklab.
+ */
+export function boardRequestUrl(url) {
+  const p = url.searchParams;
+  const out = new URL('https://alltiditid.se/api/trafik');
+  out.searchParams.set('action', 'departures');
+  out.searchParams.set('stopId', (p.get('stopId') || '740000001').trim());
+  out.searchParams.set('stopName', (p.get('stopName') || '').trim().slice(0, 80));
+  const mode = p.get('mode') || 'all';
+  out.searchParams.set('mode', BOARD_MODES.has(mode) ? mode : 'all');
+  out.searchParams.set('direction', p.get('direction') === 'arrivals' ? 'arrivals' : 'departures');
+  const time = p.get('time') || '';
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(time)) out.searchParams.set('time', time);
+  return out;
+}
+
+/** Cachenyckel för hållplatssök: samma sökord oavsett stora och små bokstäver eller mellanslag. */
+export function searchCacheKey(url) {
+  const q = (url.searchParams.get('q') || '').trim().replace(/\s+/g, ' ').toLowerCase().slice(0, 80);
+  return new Request(`https://cache.alltiditid.se/search-v1/${encodeURIComponent(q)}`);
+}
 
 function jsonResponse(body, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
@@ -2844,7 +2875,20 @@ export async function onRequest(context) {
 
   try {
     if (action === 'search') {
-      return await handleSearch(url, keys, context);
+      const searchKey = searchCacheKey(url);
+      const cachedSearch = await cacheGet(searchKey);
+      if (cachedSearch) return cachedSearch;
+      const found = await handleSearch(url, keys, context);
+      if (found.status === 200) {
+        const body = await found.text();
+        const fresh = new Response(body, {
+          status: 200,
+          headers: { ...JSON_HEADERS, 'Cache-Control': `public, max-age=${SEARCH_CACHE_SECONDS}` },
+        });
+        await cachePut(searchKey, fresh.clone(), context);
+        return fresh;
+      }
+      return found;
     }
     if (action === 'train') {
       return await handleTrain(url, keys, context);
@@ -2867,11 +2911,12 @@ export async function onRequest(context) {
 
     // Avgångstavlor cachas kort i Cloudflare så att automatisk uppdatering
     // från många besökare inte äter upp API-kvoten.
-    const cacheKey = new Request(url.toString(), { method: 'GET' });
+    const boardUrl = boardRequestUrl(url);
+    const cacheKey = new Request(boardUrl.toString(), { method: 'GET' });
     const cached = await cacheGet(cacheKey);
     if (cached) return cached;
 
-    const response = await handleBoard(url, keys, context);
+    const response = await handleBoard(boardUrl, keys, context);
     if (response.status === 200) {
       await cachePut(cacheKey, response.clone(), context);
     }

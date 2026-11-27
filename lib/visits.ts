@@ -1,4 +1,5 @@
 import type { StopOption } from './types';
+import { stockholmHour } from './sweTime.mjs';
 
 /**
  * Vilka hållplatser man tittar på och när på dygnet, för Hem: "dina hållplatser".
@@ -24,7 +25,7 @@ export function recordVisit(stop: StopOption, now = Date.now()): void {
   if (typeof window === 'undefined' || !stop.id) return;
   const list = read();
   if (list.some((v) => v.id === stop.id && now - v.t < 10 * 60_000)) return;
-  list.push({ id: stop.id, n: stop.name.slice(0, 80), h: new Date(now).getHours(), t: now });
+  list.push({ id: stop.id, n: stop.name.slice(0, 80), h: stockholmHour(now), t: now });
   try {
     window.localStorage.setItem(KEY, JSON.stringify(list.slice(-MAX)));
   } catch {
@@ -38,7 +39,7 @@ export function recordVisit(stop: StopOption, now = Date.now()): void {
  * Stjärnmärkta finns alltid med.
  */
 export function homeStops(favorites: StopOption[], now = Date.now(), max = 3): StopOption[] {
-  const hour = new Date(now).getHours();
+  const hour = stockholmHour(now);
   const near = (h: number) => Math.min(Math.abs(h - hour), 24 - Math.abs(h - hour)) <= 2;
   const score = new Map<string, { stop: StopOption; points: number }>();
   for (const v of typeof window === 'undefined' ? [] : read()) {

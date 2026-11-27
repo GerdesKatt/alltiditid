@@ -28,7 +28,7 @@ import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { track } from '../lib/track';
 import { alternativeFor } from '../lib/alternative.mjs';
 import { matchConnection } from '../lib/transferMatch.mjs';
-import { groupKey } from '../lib/lineFormat';
+import { groupKey, parseLocal } from '../lib/lineFormat';
 import JourneyPlan from './JourneyPlan';
 import PlaceSuggest, { type ChosenPlace } from './PlaceSuggest';
 import PlannedTripCard from './PlannedTripCard';
@@ -39,7 +39,7 @@ import StopAbout from './StopAbout';
 import type { StopPage } from '../lib/stops';
 import { groupedStop, mergeStops, sameStation } from '../lib/stationGroups.mjs';
 import { REGIONS } from '../lib/regions';
-import { loadSavedState, regionForStop, saveState } from '../lib/savedStop';
+import { loadLinkedState, loadSavedState, regionForStop, saveState } from '../lib/savedStop';
 import { loadFavorites, MAX_FAVORITES, storeFavorites, toggleFavorite } from '../lib/favorites';
 import FavoritesBar from './FavoritesBar';
 import MyTripCard from './MyTripCard';
@@ -81,12 +81,6 @@ const CLOCK_TICK_MS = 15_000;
 /** Avgångar vars förväntade tid passerats med mer än så här döljs (ms). */
 const DEPARTED_GRACE_MS = 60_000;
 
-/** 'YYYY-MM-DDTHH:MM' i lokal tid → millisekunder, eller null. */
-function parseLocal(value?: string): number | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value || '');
-  if (!m) return null;
-  return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime();
-}
 
 let firstBoardMarked = false;
 
@@ -302,14 +296,20 @@ export default function App({ initialStop, page, intro }: AppProps) {
       });
     }
     const saved = loadSavedState(initialStop);
+    const linked = loadLinkedState();
     // Återkommande besökare: bara om en hållplats redan var sparad (ingen ny lagring för mätningen).
     track('aterkommande', 0, saved ? 'ja' : 'nej');
-    // Sidan öppnas alltid på Hem (utom hållplatssidor, som öppnar sin tavla).
+    // Sidan öppnas på Hem (utom hållplatssidor, som öppnar sin tavla). En delad länk
+    // (/?h=…&n=…) öppnar däremot den delade tavlan, med den riktning länken anger.
     if (saved) {
       setRegion(saved.region);
       setSelectedStop(saved.stop);
-      // Ankomster är ett sällanval (hämta någon): sidan öppnas alltid med avgångar.
+      // Ankomster är ett sällanval (hämta någon): sidan öppnas annars alltid med avgångar.
       setControlsOpen(false);
+    }
+    if (linked) {
+      setDirection(linked.direction);
+      setScreen('board');
     }
     setRestored(true);
   }, []);
