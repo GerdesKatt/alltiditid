@@ -56,6 +56,8 @@ public/
 
 `POST /api/trafik?action=nearby` med JSON-kroppen `{ "lat": 59.299, "lon": 18.081 }` returnerar `{ stops: [{ id, name, distance }] }`, de närmaste hållplatserna inom 1,5 km (ResRobot Nearby stops). Positionen skickas i kroppen och inte i adressen, så att den inte hamnar i loggar. Den avrundas till tre decimaler (cirka 100 m) och sparas inte.
 
+`GET /api/trafik?action=mobility&lat=57.70&lon=11.95` returnerar `{ bikes: [{ system, name, station, meters, bikes, app }] }`: närmaste station med lediga lånecyklar inom 500 m, en per system. Bara system med öppna GBFS-flöden och öppen licens (Styr & Ställ, Lundahoj, Donkey Republic). Koordinaterna är hållplatsens. Visas i raden "Annat sätt härifrån" när nästa avgång dröjer mer än 20 minuter, tillsammans med en Uber-länk (och Taxi Stockholm i Stockholms län).
+
 `GET /api/trafik?action=departures&stopId=<id>&stopName=<namn>&mode=all&direction=departures|arrivals` returnerar `{ departures: [...] }`.
 
 ## Miljövariabler
