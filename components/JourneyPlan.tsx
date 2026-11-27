@@ -462,6 +462,7 @@ export function LegRow({ leg }: { leg: Leg }) {
           ) : (
             <>
               {t('Gå', 'Walk')} {leg.minutes} min{leg.meters ? ` (${leg.meters} m)` : ''} {t('till', 'to')} {leg.to.name}
+              {leg.wait ? `, ${t('sedan', 'then')} ${leg.wait} min ${t('till avgång', 'until departure')}` : ''}
             </>
           )}
         </span>

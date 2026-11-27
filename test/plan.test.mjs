@@ -182,3 +182,26 @@ test('länets trafikbolag från länsnamn', () => {
   assert.equal(trafficForCounty('Örebro län')?.name, 'Länstrafiken Örebro');
   assert.equal(trafficForCounty(''), null);
 });
+
+test('mapTrips: väntan i gångsträckan visas som väntan, inte gångtid', () => {
+  const [trip] = mapTrips({
+    Trip: [
+      {
+        duration: 'PT40M',
+        LegList: {
+          Leg: [
+            leg('JNY', 'Liseberg', '15:00', 'Korsvägen', '15:02', { catCode: 6, catOutL: 'Spårvagn', displayNumber: '5', operator: 'Västtrafik' }, { duration: 'PT2M' }),
+            leg('WALK', 'Korsvägen', '15:02', 'Korsvägen läge B', '15:17', null, { duration: 'PT15M', dist: 112 }),
+            leg('JNY', 'Korsvägen läge B', '15:17', 'Mölndal', '15:30', { catCode: 7, catOutL: 'Buss', displayNumber: '752', operator: 'Västtrafik' }, { duration: 'PT13M' }),
+            leg('WALK', 'Mölndal', '15:30', 'Hem', '15:40', null, { duration: 'PT10M', dist: 100 }),
+          ],
+        },
+      },
+    ],
+  });
+  const walks = trip.legs.filter((l) => l.kind === 'walk');
+  assert.equal(walks[0].minutes, 2);
+  assert.equal(walks[0].wait, 13);
+  // Sista sträckan: ingen avgång att vänta på.
+  assert.equal(walks[1].wait, undefined);
+});
