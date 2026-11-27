@@ -312,12 +312,17 @@ function NearbyLines({
 
   type Row = { d: Departure; stop: Nearby };
   const best = new Map<string, Row>();
+  // Avgångar som redan syns under Dina hållplatser: då är det inte "lugnt läge", bara redan visat.
+  let alreadyShown = 0;
   for (const stop of [...stops].sort((a, b) => a.distance - b.distance)) {
     for (const d of boards[stop.id] || []) {
       const at = parseLocal(d.expectedAt);
       if (d.status === 'cancelled' || (at !== null && at < now + 60_000)) continue;
       const k = groupKey(d);
-      if (exclude.has(k)) continue;
+      if (exclude.has(k)) {
+        alreadyShown++;
+        continue;
+      }
       const had = best.get(k);
       // Närmaste hållplatsen vinner; på samma hållplats den första avgången.
       if (!had || (had.stop.id === stop.id && (parseLocal(had.d.expectedAt) ?? 0) > (at ?? 0))) best.set(k, { d, stop });
@@ -334,6 +339,14 @@ function NearbyLines({
   if (!loaded) return <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textDim }}>{t('Hämtar…', 'Loading…')}</p>;
   // Inga avgångar snart (landet, natten): visa ändå de närmaste hållplatserna, så att man kan se
   // när nästa går, och erbjud att planera resan. Appen ska alltid föreslå en väg framåt.
+  if (rows.length === 0 && alreadyShown > 0)
+    return (
+      <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textDim }}>
+        {t('Linjerna här nära syns redan under dina hållplatser ovan.', 'The lines nearby are already shown under your stops above.')}
+      </p>
+    );
+  // Strandad på riktigt först när närmaste hållplats ligger en bit bort; i stan räcker listan.
+  const nearest = Math.min(...stops.map((s) => s.distance));
   if (rows.length === 0)
     return (
       <>
@@ -358,7 +371,7 @@ function NearbyLines({
         <WayForward
           text={t('Eller skriv vart du ska, så letar vi upp första bästa resa.', 'Or type where you are going and we will find the first good trip.')}
         />
-        {here ? <StrandedTips lat={here.lat} lon={here.lon} /> : null}
+        {here && nearest >= 800 ? <StrandedTips lat={here.lat} lon={here.lon} /> : null}
       </>
     );
 
