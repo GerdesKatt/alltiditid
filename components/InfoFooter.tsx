@@ -320,7 +320,8 @@ export default function InfoFooter({ activeTab, onTabChange, onChangeAnalyticsCh
         fontSize: '0.8125rem',
       }}
     >
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
+      {/* Sidfoten väger lätt: samma understrukna flikar som tavlans filter, inga inramade knappar. */}
+      <div style={{ display: 'flex', columnGap: '18px', marginBottom: '14px', flexWrap: 'wrap' }}>
         {TABS.map((tab) => (
           <button
             key={tab.key}
@@ -328,11 +329,13 @@ export default function InfoFooter({ activeTab, onTabChange, onChangeAnalyticsCh
             aria-pressed={activeTab === tab.key}
             onClick={() => onTabChange(tab.key)}
             style={{
-              padding: '6px 12px',
+              minHeight: '44px',
+              padding: '0 2px',
+              border: 'none',
+              borderBottom: `2px solid ${activeTab === tab.key ? colors.text : 'transparent'}`,
               borderRadius: 0,
-              border: `1px solid ${colors.borderStrong}`,
-              backgroundColor: activeTab === tab.key ? colors.surfaceRaised : 'transparent',
-              color: colors.text,
+              backgroundColor: 'transparent',
+              color: activeTab === tab.key ? colors.text : colors.textDim,
               cursor: 'pointer',
               fontSize: '0.8125rem',
               fontWeight: 600,
@@ -357,7 +360,10 @@ export default function InfoFooter({ activeTab, onTabChange, onChangeAnalyticsCh
         }}
       >
         <span>{t('2026 alltid i tid (alltiditid.se) – Alla rättigheter förbehållna.', '2026 alltid i tid (alltiditid.se) – All rights reserved.')}</span>
-        <a href="mailto:kontakt@alltiditid.se" style={{ color: colors.textDim, textDecoration: 'none' }}>
+        <a
+          href="mailto:kontakt@alltiditid.se"
+          style={{ color: colors.textDim, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', minHeight: '44px' }}
+        >
           kontakt@alltiditid.se
         </a>
       </div>
