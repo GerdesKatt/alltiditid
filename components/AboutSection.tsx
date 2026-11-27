@@ -19,7 +19,7 @@ export default function AboutSection() {
             Departures, trips and flights in one place
           </h2>
           <p style={{ ...paragraph, margin: '0 0 12px 0' }}>
-            <strong style={{ color: colors.textSoft }}>alltiditid.se</strong> shows real-time departures for buses,
+            <strong style={{ color: colors.textSoft }}>alltid i tid</strong> shows real-time departures for buses,
             metro, commuter trains, trams, trains and boats all over Sweden: when the next one leaves, whether it is on
             time and which track or stand applies.
           </p>
@@ -34,7 +34,7 @@ export default function AboutSection() {
             you a message saying which bus or train you are on and whether it is on time.
           </p>
           <p style={{ ...paragraph, margin: 0 }}>
-            Add alltiditid.se to your home screen and it opens like an app. On iPhone: tap <strong>Share</strong> and
+            Add alltid i tid to your home screen and it opens like an app. On iPhone: tap <strong>Share</strong> and
             choose <strong>Add to Home Screen</strong>. On Android: open the Chrome menu and choose{' '}
             <strong>Install app</strong>.
           </p>
@@ -45,7 +45,7 @@ export default function AboutSection() {
             Avgångar, resor och flyg på ett ställe
           </h2>
           <p style={{ ...paragraph, margin: '0 0 12px 0' }}>
-            <strong style={{ color: colors.textSoft }}>alltiditid.se</strong> visar avgångar i realtid för bussar,
+            <strong style={{ color: colors.textSoft }}>alltid i tid</strong> visar avgångar i realtid för bussar,
             tunnelbana, pendeltåg, spårvagnar, tåg och båtar i hela Sverige: när nästa går, om den är i tid och vilket
             spår eller läge som gäller.
           </p>
@@ -60,7 +60,7 @@ export default function AboutSection() {
             till den som möter dig om vilken buss eller vilket tåg du sitter på och om den är i tid.
           </p>
           <p style={{ ...paragraph, margin: 0 }}>
-            Lägg alltiditid.se på hemskärmen så öppnas den som en app. På iPhone: tryck på <strong>Dela</strong> och
+            Lägg alltid i tid på hemskärmen så öppnas den som en app. På iPhone: tryck på <strong>Dela</strong> och
             välj <strong>Lägg till på hemskärmen</strong>. På Android: öppna menyn i Chrome och välj{' '}
             <strong>Installera app</strong>.
           </p>

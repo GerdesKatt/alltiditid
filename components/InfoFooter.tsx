@@ -11,7 +11,7 @@ type Props = {
 };
 
 const TABS: { key: InfoTab; label: string; labelEn: string }[] = [
-  { key: 'about', label: 'Om alltiditid.se', labelEn: 'About alltiditid.se' },
+  { key: 'about', label: 'Om alltid i tid', labelEn: 'About alltid i tid' },
   { key: 'privacy', label: 'Integritet', labelEn: 'Privacy' },
   { key: 'terms', label: 'Ansvarsfriskrivning', labelEn: 'Disclaimer' },
   { key: 'contact', label: 'Kontakt', labelEn: 'Contact' },
@@ -36,7 +36,7 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
     case 'about':
       return (
         <p style={tabText}>
-          alltiditid.se is an independent information service showing current departure times, arrivals and delay
+          alltid i tid is an independent information service showing current departure times, arrivals and delay
           data based on open traffic data.
         </p>
       );
@@ -44,7 +44,7 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
       return (
         <div style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
           <p style={privacyPara}>
-            alltiditid.se has no accounts and shows no ads. Cookies are only used for statistics, and only if you have
+            alltid i tid has no accounts and shows no ads. Cookies are only used for statistics, and only if you have
             agreed to it. This is how the little that is needed is handled:
           </p>
           <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
@@ -144,7 +144,7 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
     case 'about':
       return (
         <p style={tabText}>
-          alltiditid.se är en oberoende informationstjänst som visar aktuella avgångstider,
+          alltid i tid är en oberoende informationstjänst som visar aktuella avgångstider,
           ankomster och förseningsdata baserat på öppna trafikdata.
         </p>
       );
@@ -152,7 +152,7 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
       return (
         <div style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
           <p style={privacyPara}>
-            alltiditid.se har inga konton och visar inga annonser. Kakor används bara för statistik,
+            alltid i tid har inga konton och visar inga annonser. Kakor används bara för statistik,
             och bara om du har godkänt det. Så här hanteras det lilla som behövs:
           </p>
           <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
@@ -320,7 +320,7 @@ export default function InfoFooter({ activeTab, onTabChange, onChangeAnalyticsCh
           color: colors.textFaint,
         }}
       >
-        <span>{t('2026 alltiditid.se – Alla rättigheter förbehållna.', '2026 alltiditid.se – All rights reserved.')}</span>
+        <span>{t('2026 alltid i tid (alltiditid.se) – Alla rättigheter förbehållna.', '2026 alltid i tid (alltiditid.se) – All rights reserved.')}</span>
         <a href="mailto:kontakt@alltiditid.se" style={{ color: colors.textDim, textDecoration: 'none' }}>
           kontakt@alltiditid.se
         </a>
