@@ -19,6 +19,21 @@ const PATHS = {
       <circle cx="15" cy="13.5" r="0.6" />
     </>
   ),
+  car: (
+    <>
+      <path d="M4 16v-4l2.5-5h11L20 12v4z" />
+      <path d="M4 12h16M7 16v2.5M17 16v2.5" />
+      <circle cx="7.5" cy="13.8" r="0.6" />
+      <circle cx="16.5" cy="13.8" r="0.6" />
+    </>
+  ),
+  bike: (
+    <>
+      <circle cx="6" cy="16" r="3.5" />
+      <circle cx="18" cy="16" r="3.5" />
+      <path d="M6 16l4-7h6l2 7M10 9l3 7h-7M9 6h3" />
+    </>
+  ),
   alert: (
     <>
       <path d="M12 3l10 18H2z" />

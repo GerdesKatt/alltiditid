@@ -5,6 +5,8 @@ import LineGroupRow from './LineGroupRow';
 import DisruptionBox from './DisruptionBox';
 import WalkBar from './WalkBar';
 import FindTrip from './FindTrip';
+import FallbackRow from './FallbackRow';
+import { sparseBoard } from '../lib/mobility.mjs';
 import type { Walk } from '../lib/useWalk';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { parseLocal } from '../lib/lineFormat';
@@ -55,6 +57,8 @@ type Props = {
   onRowOpen?: (item: Departure) => void;
   /** Gångtiden till hållplatsen (App äger den, så att Din avgång också kan säga Gå nu). */
   walk: Walk;
+  /** Hållplatsens läge från tavlans svar, för raden "Annat sätt härifrån". */
+  stopCoords: { lat: number; lon: number } | null;
 };
 
 export type BoardView = 'list' | 'lines';
@@ -172,6 +176,7 @@ export default function DepartureBoard({
   onViewChange,
   onRowOpen,
   walk,
+  stopCoords,
 }: Props) {
   const { lang, t } = useLang();
   const walkMin = direction === 'departures' && walk.state.kind === 'ready' ? walk.state.minutes : null;
@@ -255,6 +260,7 @@ export default function DepartureBoard({
   }, [departures, errorMsg, offline, loading, updatedAt, stopName, lang]);
   const hidden = Math.max(0, total - limit);
 
+
   const updatedLabel = updatedAt
     ? updatedAt.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
     : '';
@@ -263,6 +269,14 @@ export default function DepartureBoard({
   // Hur gammal den visade tavlan är, i hela minuter (minst 1).
   const ageMin = updatedAt ? Math.max(1, Math.floor((now - updatedAt.getTime()) / 60000)) : 0;
   const limited = source === 'resrobot';
+
+  // Glest just nu (nästa avgång om mer än 20 min, eller inga alls): visa taxi och lånecykel.
+  // Bara för avgångar, utan filter och när tavlan är färsk, så att vanliga tavlor står lugna.
+  const sparse =
+    direction === 'departures' && !loading && !errorMsg && !stale && !offline && updatedAt && !filterText.trim()
+      ? sparseBoard(departures, now, parseLocal)
+      : null;
+  const fallback = sparse ? <FallbackRow stopId={stopId} stopName={stopName} coords={stopCoords} sparse={sparse} /> : null;
 
   return (
     <section id="avgangstavla" style={{ marginBottom: '36px', scrollMarginTop: '12px' }}>
@@ -645,6 +659,7 @@ export default function DepartureBoard({
               ))}
             </div>
           )}
+          {fallback}
           {hidden > 0 ? (
             <button
               type="button"
@@ -668,6 +683,7 @@ export default function DepartureBoard({
           ) : null}
         </>
       )}
+      {departures.length === 0 && mode === 'all' ? fallback : null}
 
       <p style={{ fontSize: '0.8125rem', color: colors.textFaint, margin: '12px 0 0 0' }}>
         {t('Trafikdata från', 'Traffic data from')}{' '}
