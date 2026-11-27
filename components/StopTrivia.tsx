@@ -11,14 +11,15 @@ import { track } from '../lib/track';
 export default function StopTrivia({ trivia, stopName }: { trivia: Trivia; stopName: string }) {
   const { lang, t } = useLang();
   const lead =
-    trivia.kind === 'area'
-      ? t(`Om området runt ${stopName}: ${trivia.title}`, `About the area around ${stopName}: ${trivia.title}`)
+    trivia.kind === 'area' || trivia.kind === 'namesake'
+      ? t(`Om ${trivia.title}`, `About ${trivia.title}`)
       : trivia.kind === 'nearby'
       ? t(
-          `Nära hållplatsen${trivia.meters ? `, ${trivia.meters} m bort` : ''}: ${trivia.title}`,
-          `Near the stop${trivia.meters ? `, ${trivia.meters} m away` : ''}: ${trivia.title}`
+          `${trivia.title}${trivia.meters ? `, ${trivia.meters} m härifrån` : ''}`,
+          `${trivia.title}${trivia.meters ? `, ${trivia.meters} m from here` : ''}`
         )
       : '';
+  const around = (trivia.around || []).slice(0, 3);
   const otherLang = trivia.lang && trivia.lang !== lang;
 
   return (
@@ -55,6 +56,43 @@ export default function StopTrivia({ trivia, stopName }: { trivia: Trivia; stopN
         </a>
         {otherLang ? ` · ${t('på engelska', 'in Swedish')}` : ''}
       </p>
+
+      {around.length ? (
+        <>
+          <h4 style={{ fontSize: '0.8125rem', fontWeight: 700, margin: '14px 0 4px', color: colors.text }}>
+            {t('Runt hörnet', 'Around the corner')}
+          </h4>
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+            {around.map((a) => (
+              <li key={a.title} style={{ borderTop: `1px solid ${colors.border}` }}>
+                <a
+                  href={a.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => track('funktion', 0, 'kuriosa_runt_horn')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    minHeight: '44px',
+                    padding: '6px 0',
+                    color: colors.text,
+                    textDecoration: 'none',
+                  }}
+                >
+                  <span style={{ flex: '1 1 auto', minWidth: 0 }}>
+                    <strong style={{ display: 'block', fontSize: '0.875rem' }}>{a.title}</strong>
+                    <span lang={trivia.lang} style={{ fontSize: '0.8125rem', color: colors.textDim }}>
+                      {a.description}
+                    </span>
+                  </span>
+                  <span style={{ flexShrink: 0, fontSize: '0.8125rem', color: colors.textDim }}>{a.meters} m ↗</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
     </section>
   );
 }

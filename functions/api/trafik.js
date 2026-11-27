@@ -11,7 +11,7 @@ import { SURE, geoapifyPlaces, photonPlaces, rankPlaces } from '../../lib/places
 import { trafficForCounty } from '../../lib/countyTraffic.mjs';
 import { foldPlace } from '../../lib/transferMatch.mjs';
 import { allowedLicense, nearestStation, systemsNear } from '../../lib/mobility.mjs';
-import { pickTrivia, wikiQueryUrl } from '../../lib/trivia.mjs';
+import { funFact, pickTrivia, wikiArticleUrl, wikiQueryUrl } from '../../lib/trivia.mjs';
 import { evaluateHealth, isFailure, sourceOf } from '../../lib/health.mjs';
 
 function parseTimeToMinutes(timeStr) {
@@ -3114,7 +3114,11 @@ const TRIVIA_CACHE_S = 7 * 24 * 60 * 60;
 const TRIVIA_BROWSER_S = 24 * 60 * 60;
 
 async function wikiPages(params) {
-  const res = await upstreamFetch(wikiQueryUrl(params), {
+  return await wikiGet(wikiQueryUrl(params));
+}
+
+async function wikiGet(apiUrl) {
+  const res = await upstreamFetch(apiUrl, {
     headers: { Accept: 'application/json', 'User-Agent': 'alltiditid.se (reseplanerare; https://alltiditid.se)' },
   });
   if (!res.ok) throw new Error(`Wikipedia ${res.status}`);
@@ -3143,7 +3147,7 @@ export async function handleTrivia(url, context) {
   if (name.length < 2 && !Number.isFinite(lat)) return jsonResponse({ error: 'name eller lat och lon krävs' }, 400);
 
   const where = Number.isFinite(lat) ? `${lat},${lon}` : '-';
-  const key = new Request(`https://cache.alltiditid.se/trivia-v1/${lang}/${encodeURIComponent(name.toLowerCase())}/${where}`);
+  const key = new Request(`https://cache.alltiditid.se/trivia-v2/${lang}/${encodeURIComponent(name.toLowerCase())}/${where}`);
   const hit = await cacheGet(key);
   if (hit) return hit;
 
@@ -3155,6 +3159,17 @@ export async function handleTrivia(url, context) {
     if (!trivia && lang === 'en') {
       trivia = pickTrivia(await wikiPages({ name, lat, lon, lang: 'sv' }), name, 'sv');
       if (trivia) trivia.lang = 'sv';
+    }
+    if (trivia) {
+      // Det roliga står sällan i ingressen: läs hela artikeln och ta den bästa meningen.
+      try {
+        const pages = await wikiGet(wikiArticleUrl(trivia.title, trivia.lang));
+        const full = Array.isArray(pages) && pages[0] ? pages[0].extract : '';
+        if (full) trivia.text = funFact(full, trivia.intro, trivia.lang);
+      } catch {
+        // Ingressen duger.
+      }
+      delete trivia.intro;
     }
   } catch {
     // Inget svar från Wikipedia: ingen ruta, och inget som cachas.
