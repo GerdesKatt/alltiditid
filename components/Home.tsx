@@ -16,6 +16,8 @@ type Nearby = StopOption & { distance: number; modes?: string[] };
 type Props = {
   /** Dina hållplatser (vanligaste + stjärnmärkta), högst tre. */
   stops: StopOption[];
+  /** Webbläsarens sparade hållplatser är inlästa: först då vet vi om besökaren är ny. */
+  ready?: boolean;
   now: number;
   onOpenStop: (stop: StopOption) => void;
   onOpenTrain: (number: string) => void;
@@ -40,7 +42,7 @@ const label: React.CSSProperties = {
  * och sök. Positionen sorterar dina hållplatser (närmast först) och visar andra nära dig;
  * den frågas om först när man trycker, och sparas aldrig.
  */
-export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirport, onGoal, onStartAt }: Props) {
+export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain, onOpenAirport, onGoal, onStartAt }: Props) {
   const { t } = useLang();
   const [nearby, setNearby] = useState<Nearby[] | null>(null);
   const [locating, setLocating] = useState(false);
@@ -235,6 +237,22 @@ export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirpor
 
   return (
     <div>
+      {ready && fresh ? (
+        <section aria-label={t('Om appen', 'About the app')} style={{ margin: '0 0 16px' }}>
+          <p style={{ margin: 0, fontWeight: 700, fontSize: '1.1875rem', lineHeight: 1.25, color: colors.text }}>
+            {t(
+              'Nästa avgång, förseningar och om du hinner bytet.',
+              'Your next departure, delays and whether you make the connection.'
+            )}
+          </p>
+          <p style={{ margin: '6px 0 0', fontSize: '0.875rem', lineHeight: 1.5, color: colors.textDim }}>
+            {t(
+              'Hela Sveriges kollektivtrafik i realtid, utan konto och utan reklam. Hållplatser du tittar på hamnar här, så att de syns direkt nästa gång.',
+              "All of Sweden's public transport in real time, no account and no ads. Stops you look at appear here, so they show right away next time."
+            )}
+          </p>
+        </section>
+      ) : null}
       <SmartSearch onOpenStop={onOpenStop} onGoal={onGoal} onOpenTrain={onOpenTrain} onOpenAirport={onOpenAirport} />
       {fresh ? nearSection : null}
 

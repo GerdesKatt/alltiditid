@@ -1203,6 +1203,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
       {tab === 'trafik' && screen === 'home' ? (
         <Home
           stops={homeList}
+          ready={restored}
           now={now}
           onOpenStop={openStopFromHome}
           onOpenTrain={(n) => {
