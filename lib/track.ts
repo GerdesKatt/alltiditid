@@ -10,7 +10,8 @@ export type TrackName =
   | 'tittade_och_gick'
   | 'byte_snabbt'
   | 'sokavhopp'
-  | 'funktion';
+  | 'funktion'
+  | 'bevakning';
 
 const sent = new Set<string>();
 
