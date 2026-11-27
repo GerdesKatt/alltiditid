@@ -11,7 +11,9 @@ export type TrackName =
   | 'byte_snabbt'
   | 'sokavhopp'
   | 'funktion'
-  | 'bevakning';
+  | 'bevakning'
+  /** Flyg visades minst en gång under besöket (räknas en gång per sidvisning, hur man än kom dit). */
+  | 'flygflik';
 
 const sent = new Set<string>();
 

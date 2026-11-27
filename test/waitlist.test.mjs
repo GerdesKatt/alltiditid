@@ -69,3 +69,18 @@ test('händelsen bevakning räknas', async () => {
   const row = db.raw.prepare("SELECT n FROM events WHERE name = 'bevakning' AND label = 'oppnad'").get();
   assert.equal(row.n, 1);
 });
+
+test('händelsen flygflik räknas', async () => {
+  const db = d1();
+  const res = await onRequest({
+    request: new Request('https://alltiditid.se/api/trafik?action=event', {
+      method: 'POST',
+      body: JSON.stringify({ n: 'flygflik', v: 0, l: '' }),
+    }),
+    env: { HISTORY: db },
+    waitUntil() {},
+  });
+  assert.equal(res.status, 204);
+  const row = db.raw.prepare("SELECT n FROM events WHERE name = 'flygflik'").get();
+  assert.equal(row.n, 1);
+});
