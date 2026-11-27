@@ -9,7 +9,7 @@ import { FERRY_PREFIX, ferryBoard, ferryHarbors, searchFerryHarbors } from '../.
 import { stopsAfter } from '../../lib/transferMatch.mjs';
 import { pickSearchHits, rankSearchHits } from '../../lib/searchHits.mjs';
 import { destinationCandidates, mapTrips, pickDestination } from '../../lib/plan.mjs';
-import { SURE, geoapifyPlaces, photonPlaces, rankPlaces } from '../../lib/places.mjs';
+import { SURE, geoapifyPlaces, photonPlaces, rankPlaces, splitAddress } from '../../lib/places.mjs';
 import { trafficForCounty } from '../../lib/countyTraffic.mjs';
 import { foldPlace } from '../../lib/transferMatch.mjs';
 import { allowedLicense, nearestStation, systemsNear } from '../../lib/mobility.mjs';
@@ -1810,7 +1810,7 @@ async function lookupPlaces(q, env, context, bias) {
   const geoKey = env && env.GEOAPIFY_KEY;
   const source = geoKey ? 'geoapify' : 'osm';
   const b = bias && Number.isFinite(bias.lat) && Number.isFinite(bias.lon) ? `${bias.lat.toFixed(1)},${bias.lon.toFixed(1)}` : 'se';
-  const cacheKey = new Request(`https://cache.alltiditid.se/places-v1/${source}/${b}/${encodeURIComponent(folded)}`);
+  const cacheKey = new Request(`https://cache.alltiditid.se/places-v2/${source}/${b}/${encodeURIComponent(folded)}`);
   const cached = await cacheGet(cacheKey);
   if (cached) {
     try {
@@ -1852,6 +1852,54 @@ async function lookupPlaces(q, env, context, bias) {
   return data;
 }
 
+/**
+ * Var en ort ligger ("älvsjö", "lund"), för "gata nr ort". Först OpenStreetMap (gratis),
+ * sedan ResRobots hållplats med samma namn om rr finns. Sparas 30 dagar.
+ * @returns {Promise<{ lat: number, lon: number } | null>}
+ */
+async function townPoint(town, env, context, rr) {
+  const folded = foldPlace(town);
+  if (folded.length < 2) return null;
+  const cacheKey = new Request(`https://cache.alltiditid.se/town-v1/${encodeURIComponent(folded)}`);
+  const cached = await cacheGet(cacheKey);
+  if (cached) {
+    try {
+      return (await cached.json()).point;
+    } catch {
+      // Leta på nytt nedan
+    }
+  }
+  let point = null;
+  const osm = rankPlaces(town, (await lookupPlaces(town, env, context, null).catch(() => ({ places: [] }))).places);
+  if (osm[0] && osm[0].score >= SURE) point = { lat: osm[0].lat, lon: osm[0].lon };
+  if (!point && rr) {
+    try {
+      const stops = rankPlaces(town, destinationCandidates(await rr(`location.name?input=${encodeURIComponent(town)}&maxNo=3`)).filter((c) => c.kind === 'stop'));
+      if (stops[0] && stops[0].score >= SURE && Number.isFinite(stops[0].lat)) point = { lat: stops[0].lat, lon: stops[0].lon };
+    } catch {
+      point = null;
+    }
+  }
+  if (point) await cachePut(cacheKey, jsonResponse({ point }, 200, { 'Cache-Control': 'public, max-age=2592000' }), context);
+  return point;
+}
+
+/**
+ * "Blåklintsvägen 4 älvsjö": sök gatan och numret nära orten, eftersom geokodarna inte
+ * alltid förstår orten (stadsdelar som Älvsjö ligger i Stockholm). Bara när orten inte
+ * redan gav en säker träff. Ger fler kandidater och ortens punkt att rangordna mot.
+ */
+async function addressInTown(addr, env, context, rr) {
+  const town = await townPoint(addr.town, env, context, rr);
+  if (!town) return { town: null, places: [] };
+  const street = `${addr.street} ${addr.number}`;
+  const [osm, fromRr] = await Promise.all([
+    lookupPlaces(street, env, context, town).catch(() => ({ places: [] })),
+    rr ? rr(`location.name?input=${encodeURIComponent(street)}&maxNo=10&type=A`).then(destinationCandidates).catch(() => []) : [],
+  ]);
+  return { town, places: [...fromRr, ...osm.places] };
+}
+
 /** GET action=places&q=…[&lat=&lon=]: platser och adresser till förslagen under "Vart ska du?". */
 async function handlePlaces(url, env, context) {
   const q = (url.searchParams.get('q') || '').trim().slice(0, 80);
@@ -1859,7 +1907,13 @@ async function handlePlaces(url, env, context) {
   const lon = Number(url.searchParams.get('lon'));
   const bias = inSweden(lat, lon) ? { lat, lon } : null;
   const data = await lookupPlaces(q, env, context, bias);
-  return jsonResponse({ places: rankPlaces(q, data.places).slice(0, 5), source: data.source }, 200, {
+  let ranked = rankPlaces(q, data.places, { near: bias });
+  const addr = splitAddress(q);
+  if (addr && addr.town && !(ranked[0] && ranked[0].score >= SURE)) {
+    const more = await addressInTown(addr, env, context, null);
+    if (more.town) ranked = rankPlaces(q, [...data.places, ...more.places], { town: more.town });
+  }
+  return jsonResponse({ places: ranked.slice(0, 5), source: data.source }, 200, {
     'Cache-Control': 'public, max-age=3600',
   });
 }
@@ -1959,7 +2013,17 @@ async function handlePlan(request, keys, context) {
       }
       if (rankPlaces(to, fromRr)[0]?.score >= SURE) break;
     }
-    const ranked = rankPlaces(to, [...fromRr, ...(await placesP).places]);
+    // Där man står används bara här, för att välja den närmaste av lika bra träffar.
+    // Den skickas inte till platssökningen.
+    const near = fromCoord ? { lat, lon } : null;
+    const found = [...fromRr, ...(await placesP).places];
+    let ranked = rankPlaces(to, found, { near });
+    // "Blåklintsvägen 4 älvsjö": om orten inte gav en säker träff, sök gatan nära orten.
+    const addr = splitAddress(to);
+    if (addr && addr.town && !(ranked[0] && ranked[0].score >= SURE)) {
+      const more = await addressInTown(addr, env, context, rr);
+      if (more.town) ranked = rankPlaces(to, [...found, ...more.places], { town: more.town });
+    }
     if (ranked[0] && ranked[0].score >= SURE) {
       dest = ranked[0];
       sure = true;
