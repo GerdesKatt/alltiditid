@@ -1,7 +1,7 @@
 // Hinna till gaten: boarding, gate stänger, gångtid och senaste tid vid säkerhetskontrollen.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clockMinus, gatePlan, gateRules, walkMinutes } from '../lib/gateTime.mjs';
+import { clockMinus, gatePlan, gateRules, queueNowFor, typicalQueueFor, walkMinutes } from '../lib/gateTime.mjs';
 
 const flight = (extra = {}) => ({ scheduledAt: '2026-11-30T09:55', expectedAt: '2026-11-30T09:55', status: 'on-time', airlineIata: 'SK', terminal: '5', ...extra });
 
@@ -35,4 +35,32 @@ test('försening flyttar tiderna, inställt och avgånget ger ingen plan', () =>
   assert.equal(gatePlan(flight({ expectedAt: '2026-11-30T10:25', status: 'delayed' }), 'ARN').boarding, '09:50');
   assert.equal(gatePlan(flight({ status: 'cancelled' }), 'ARN'), null);
   assert.equal(gatePlan(flight({ done: true }), 'ARN'), null);
+});
+
+test('kön för flygets terminal, med alla köer som reserv', () => {
+  const queues = [
+    { name: 'Terminal 5F', terminal: '5', minutes: 5 },
+    { name: 'Terminal 5F', terminal: '5', minutes: 0, fastTrack: true },
+    { name: 'Terminal 2', terminal: '2', minutes: 14 },
+  ];
+  assert.equal(queueNowFor(queues, '5'), 5);
+  assert.equal(queueNowFor(queues, '2'), 14);
+  assert.equal(queueNowFor(queues, '4'), 14);
+  assert.equal(queueNowFor(queues, ''), 14);
+  assert.equal(queueNowFor([{ name: 'Terminal 5F', minutes: 7 }], '5'), 7);
+  assert.equal(queueNowFor([], '5'), null);
+});
+
+test('typisk kötid timmen före avgång i rätt terminal', () => {
+  const forecast = {
+    date: '2026-11-30',
+    queues: [
+      { name: 'Terminal 5F', fastTrack: false, hours: [{ hour: 8, typical: 18 }, { hour: 9, typical: 25 }] },
+      { name: 'Terminal 2', fastTrack: false, hours: [{ hour: 8, typical: 4 }] },
+    ],
+  };
+  assert.equal(typicalQueueFor(forecast, flight({ terminal: '5' })), 18);
+  assert.equal(typicalQueueFor(forecast, flight({ terminal: '2' })), 4);
+  assert.equal(typicalQueueFor({ ...forecast, date: '2026-12-01' }, flight()), null);
+  assert.equal(typicalQueueFor(null, flight()), null);
 });

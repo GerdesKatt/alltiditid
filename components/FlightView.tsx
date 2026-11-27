@@ -6,7 +6,7 @@ import { AIRPORTS, airportByIata, flightMatches } from '../lib/flights.mjs';
 import { parseLocal } from '../lib/lineFormat';
 import DirectionToggle from './DirectionToggle';
 import QueueForecast from './QueueForecast';
-import { gatePlan } from '../lib/gateTime.mjs';
+import { gatePlan, queueNowFor, typicalQueueFor } from '../lib/gateTime.mjs';
 import { isMyFlight, loadMyFlight, MY_FLIGHT_EVENT, storeMyFlight, type MyFlight } from '../lib/myFlight';
 import { flightStatus, translator, useLang, type Lang } from '../lib/i18n';
 import { colors, emptyState, fonts } from './styles';
@@ -399,9 +399,25 @@ function FlightRow({
   // Kötiden nu gäller bara om flyget går inom tre timmar; senare säger "Brukar vara" mer.
   const departsAt = parseLocal(f.expectedAt);
   const soon = departsAt !== null && departsAt - now < 3 * 3600_000;
-  const regular = queues.filter((q) => !q.fastTrack);
-  const queueNow = soon && regular.length ? Math.max(...regular.map((q) => q.minutes)) : null;
-  const plan = arrivals ? null : gatePlan(f, airport, queueNow);
+  const queueNow = soon ? queueNowFor(queues, f.terminal) : null;
+  // Längre fram: den typiska kötiden ("Brukar vara") för terminalen timmen före avgång.
+  const [typical, setTypical] = useState<number | null>(null);
+  const day = (f.expectedAt || f.scheduledAt || '').slice(0, 10);
+  const needTypical = open && !arrivals && !soon && queues.length > 0 && Boolean(day);
+  useEffect(() => {
+    if (!needTypical) return;
+    let active = true;
+    fetch(`/api/trafik?action=queueforecast&airport=${airport}&date=${day}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((d) => active && setTypical(typicalQueueFor(d, f)))
+      .catch(() => active && setTypical(null));
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needTypical, airport, day, f.terminal]);
+  const usingTypical = queueNow === null && !soon && typical !== null;
+  const plan = arrivals ? null : gatePlan(f, airport, queueNow ?? (usingTypical ? typical : null));
   const [mine, setMine] = useState<MyFlight | null>(null);
   useEffect(() => {
     const sync = () => setMine(loadMyFlight());
@@ -570,7 +586,12 @@ function FlightRow({
                 {plan.atSecurity}
               </div>
               <div style={{ color: colors.textDim, marginTop: '4px', fontSize: '0.8125rem' }}>
-                {plan.queue !== null
+                {plan.queue !== null && usingTypical
+                  ? t(
+                      `Med ${plan.queue} min kötid, som det brukar vara då, och ${plan.walkMin}–${plan.walkMax} min till gaten. Uppskattat.`,
+                      `With ${plan.queue} min at security, as it usually is then, and ${plan.walkMin}–${plan.walkMax} min to the gate. Estimated.`
+                    )
+                  : plan.queue !== null
                   ? t(
                       `Med ${plan.queue} min kötid just nu och ${plan.walkMin}–${plan.walkMax} min till gaten. Uppskattat.`,
                       `With ${plan.queue} min at security now and ${plan.walkMin}–${plan.walkMax} min to the gate. Estimated.`
