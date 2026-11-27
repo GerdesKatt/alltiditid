@@ -5,7 +5,6 @@ import { clockFor, countdownFor, lineBadge, lineColor, lineName, parseLocal } fr
 import { colors, fonts } from './styles';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { lineLabel, useLang } from '../lib/i18n';
-import WatchOffer from './WatchOffer';
 
 type Props = {
   trip: MyTrip;
@@ -249,8 +248,6 @@ export default function MyTripCard({
         </span>
       </div>
 
-      {/* Bara på en sparad resa: det är pendlarna som Bevakning är till för. */}
-      {!auto ? <WatchOffer /> : null}
     </section>
   );
 }

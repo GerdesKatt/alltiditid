@@ -91,9 +91,9 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
               and nothing that identifies you is stored: only a day, an event name and a tally.
             </li>
             <li style={privacyItem}>
-              <strong>Watch waiting list.</strong> If you join the list for Watch, we store your email address,
-              the price you picked and your language, with Cloudflare. We only use them to tell you when Watch can
-              be tried, and never share them. Email kontakt@alltiditid.se and we delete them.
+              <strong>Watch waiting list.</strong> The offer has ended. If you joined the list, we still keep your
+              email address, the price you picked and your language, with Cloudflare. We don't use them for anything
+              else and never share them. Email kontakt@alltiditid.se and we delete them.
             </li>
             <li style={privacyItem}>
               <strong>Suggestions and filters.</strong> Which lines you open and which mode you picked at a stop
@@ -202,10 +202,10 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
               kakor, ingen IP-adress och inget som pekar ut dig sparas: bara dag, händelse och antal.
             </li>
             <li style={privacyItem}>
-              <strong>Väntelistan för Bevakning.</strong> Om du ställer dig i kön för Bevakning
-              sparar vi din e-postadress, vilket pris du valde och språket, hos Cloudflare.
-              Vi använder dem bara för att höra av oss när Bevakning kan provas, och delar dem
-              inte med någon. Mejla kontakt@alltiditid.se så raderar vi dem.
+              <strong>Väntelistan för Bevakning.</strong> Erbjudandet är avslutat. Om du ställde dig i kön
+              har vi kvar din e-postadress, vilket pris du valde och språket, hos Cloudflare.
+              Vi använder dem inte till något annat och delar dem inte med någon. Mejla
+              kontakt@alltiditid.se så raderar vi dem.
             </li>
             <li style={privacyItem}>
               <strong>Förslag och filter.</strong> Vilka linjer du öppnar och vilket trafikslag du valt
