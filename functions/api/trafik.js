@@ -13,6 +13,7 @@ import { foldPlace } from '../../lib/transferMatch.mjs';
 import { allowedLicense, nearestStation, systemsNear } from '../../lib/mobility.mjs';
 import { funFact, pickTrivia, wikiArticleUrl, wikiQueryUrl } from '../../lib/trivia.mjs';
 import { evaluateHealth, isFailure, sourceOf } from '../../lib/health.mjs';
+import { shortLineName, trackText } from '../../lib/lineNames.mjs';
 
 function parseTimeToMinutes(timeStr) {
   if (!timeStr || typeof timeStr !== 'string') return null;
@@ -267,10 +268,7 @@ function minutesBetweenLocal(fromLocal, toLocal) {
 
 /** "Spår 4" för spårtrafik, "Läge J" för buss, spårvagn och båt – som på skyltarna. */
 function trackLabelFor(value, mode) {
-  const v = String(value || '').trim();
-  if (!v) return '';
-  const rail = mode === 'train' || mode === 'commuter' || mode === 'subway';
-  return `${rail ? 'Spår' : 'Läge'} ${v}`;
+  return trackText(value, mode);
 }
 
 // ---------------------------------------------------------------------------
@@ -1029,7 +1027,8 @@ function classifyRealtimeMode(route, agency) {
 
 function buildLineName(route, itemMode) {
   // "SL 43" säger inget; "Pendeltåg 43" gör det.
-  const rawName = String(route?.name || '').trim();
+  // Skåne och Danmark: "Malmö - Veberöd - Sjöbo 8" blir "Buss 8", "Ø Kalmar - … - København 803" "Öresundståg 803".
+  const rawName = shortLineName(String(route?.name || '').trim(), REALTIME_MODE_LABELS[itemMode]);
   const name = /^sl$/i.test(rawName) && REALTIME_MODE_LABELS[itemMode] ? REALTIME_MODE_LABELS[itemMode] : rawName;
   const designation = String(route?.designation || '').trim();
   if (name && designation) {
@@ -2555,7 +2554,8 @@ function finalizeTiming(d) {
 }
 
 /** Avvikelser som hör till en enda tur och stannar på raden. */
-const ROW_ONLY_DEVIATION = /^(går inte hela vägen|inställd)/i;
+// Spårändrat, preliminär tid och liknande är upplysningar om en tur, inte störningar.
+const ROW_ONLY_DEVIATION = /^(går inte hela vägen|inställd|spårändrat|ändrat spår|prel\.? tid|preliminär tid|ny tid saknas|inväntar avgång)/i;
 const MAX_DISRUPTIONS = 4;
 
 /**
@@ -2767,7 +2767,7 @@ async function handleBoard(url, keys, context) {
   const departures = timed
     .map(
       ({ _trainCandidates, _scheduledLocal, _agency, _designation, _coords, _tvStation, _offsetMin, ...rest }) =>
-        compactDeparture(rest)
+        compactDeparture(rest.track ? { ...rest, track: trackText(rest.track, rest.transportMode) } : rest)
     );
 
   const grouped = groupDisruptions(departures, stopDisruptions);
