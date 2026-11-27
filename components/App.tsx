@@ -16,6 +16,7 @@ import {
   storeConsent,
 } from '../lib/analytics';
 import { loadMyTrain, myTrainFor, storeMyTrain, type MyTrain } from '../lib/myTrain';
+import { loadMyFlight, MY_FLIGHT_EVENT, storeMyFlight, type MyFlight } from '../lib/myFlight';
 import SheetBackdrop from './SheetBackdrop';
 import { colors, textInput } from './styles';
 import ModeTabs, { type AppTab, type MenuKey } from './ModeTabs';
@@ -57,6 +58,7 @@ const TrainSheet = dynamic(() => import('./TrainSheet'), { ssr: false });
 const StationSheet = dynamic(() => import('./StationSheet'), { ssr: false });
 const OnBoardPanel = dynamic(() => import('./OnBoardPanel'), { ssr: false });
 const MyTrainCard = dynamic(() => import('./MyTrainCard'), { ssr: false });
+const MyFlightCard = dynamic(() => import('./MyFlightCard'), { ssr: false });
 
 /** Lista eller per linje, sparat i webbläsaren. */
 const VIEW_KEY = 'alltiditid:vy';
@@ -171,6 +173,14 @@ export default function App({ initialStop, page, intro }: AppProps) {
   const [myTrain, setMyTrain] = useState<MyTrain | null>(null);
   useEffect(() => {
     setMyTrain(loadMyTrain());
+  }, []);
+  // Mitt flyg sparas från fliken Flyg; händelsen håller Min resa i takt.
+  const [myFlight, setMyFlight] = useState<MyFlight | null>(null);
+  useEffect(() => {
+    const sync = () => setMyFlight(loadMyFlight());
+    sync();
+    window.addEventListener(MY_FLIGHT_EVENT, sync);
+    return () => window.removeEventListener(MY_FLIGHT_EVENT, sync);
   }, []);
   // Kollektivtrafik eller flyg, och flygplatsen som sökningen pekade på.
   const [tab, setTab] = useState<AppTab>('trafik');
@@ -733,6 +743,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
           }}
         />
       ) : null}
+      {myFlight ? <MyFlightCard saved={myFlight} now={now} onRemove={() => storeMyFlight(null)} /> : null}
       {myTrain ? (
         <MyTrainCard
           train={myTrain}
@@ -840,7 +851,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
       }}
     />
   ) : null;
-  cardShownRef.current = Boolean(myTrain || myTrip || planned || autoTrip);
+  cardShownRef.current = Boolean(myFlight || myTrain || myTrip || planned || autoTrip);
 
   return (
     <div id="alltiditid-app" className="app-shell" style={{ maxWidth: '860px', margin: '0 auto' }}>
@@ -852,7 +863,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
       <ModeTabs
         active={tab === 'resa' ? 'resa' : tab === 'flyg' ? 'flyg' : 'trafik'}
         onChange={onMenu}
-        hasJourney={Boolean(myTrain || myTrip || planned)}
+        hasJourney={Boolean(myFlight || myTrain || myTrip || planned)}
       />
       {tab === 'flyg' ? <FlightView initialAirport={flightAirport} /> : null}
       {tab === 'resa' ? (
