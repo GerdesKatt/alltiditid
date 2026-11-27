@@ -2769,11 +2769,27 @@ async function allowCall(env, api, limit) {
 /** Ej skrivna räknare: källa -> { calls, failures }. */
 const pendingCounts = new Map();
 
-function countUpstream(url, failed) {
+/** Ej skrivna fel: "källa|orsak|sökväg" -> antal, så att man ser varför en källa fallerar. */
+const pendingErrors = new Map();
+
+/** Sökvägen utan id:n och nycklar, t.ex. /v1/sites/:n/departures. */
+export function errorPath(url) {
+  try {
+    return new URL(String(url)).pathname.replace(/\d+/g, ':n').slice(0, 80);
+  } catch {
+    return '';
+  }
+}
+
+function countUpstream(url, failed, reason = '') {
   const source = sourceOf(url);
   const c = pendingCounts.get(source) || { calls: 0, failures: 0 };
   c.calls += 1;
-  if (failed) c.failures += 1;
+  if (failed) {
+    c.failures += 1;
+    const key = `${source}|${reason}|${errorPath(url)}`;
+    pendingErrors.set(key, (pendingErrors.get(key) || 0) + 1);
+  }
   pendingCounts.set(source, c);
 }
 
@@ -2782,10 +2798,10 @@ async function upstreamFetch(input, init) {
   const url = typeof input === 'string' ? input : input && input.url;
   try {
     const res = await fetch(input, init);
-    countUpstream(url, isFailure(res.status));
+    countUpstream(url, isFailure(res.status), String(res.status));
     return res;
   } catch (err) {
-    countUpstream(url, true);
+    countUpstream(url, true, err && err.name === 'AbortError' ? 'timeout' : 'nätfel');
     throw err;
   }
 }
@@ -2796,6 +2812,8 @@ async function flushUpstreamCounts(env) {
   if (!db || pendingCounts.size === 0) return;
   const rows = [...pendingCounts.entries()];
   pendingCounts.clear();
+  const errors = [...pendingErrors.entries()];
+  pendingErrors.clear();
   try {
     const day = new Date().toISOString().slice(0, 10);
     await db
@@ -2805,6 +2823,20 @@ async function flushUpstreamCounts(env) {
       'INSERT INTO upstream_calls (day, source, calls, failures) VALUES (?1, ?2, ?3, ?4) ON CONFLICT (day, source) DO UPDATE SET calls = calls + ?3, failures = failures + ?4'
     );
     await db.batch(rows.map(([source, c]) => stmt.bind(day, source, c.calls, c.failures)));
+    if (errors.length) {
+      await db
+        .prepare('CREATE TABLE IF NOT EXISTS upstream_errors (day TEXT NOT NULL, source TEXT NOT NULL, reason TEXT NOT NULL, path TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (day, source, reason, path))')
+        .run();
+      const errStmt = db.prepare(
+        'INSERT INTO upstream_errors (day, source, reason, path, n) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT (day, source, reason, path) DO UPDATE SET n = n + ?5'
+      );
+      await db.batch(
+        errors.map(([key, n]) => {
+          const [source, reason, path] = key.split('|');
+          return errStmt.bind(day, source, reason, path, n);
+        })
+      );
+    }
   } catch {
     // Räknarna är bara till för övervakningen.
   }
@@ -2818,6 +2850,24 @@ const DAILY_LIMITS = {
   places: PLACES_CALLS_PER_DAY,
   gtfsrt: GTFS_RT_DAILY_LIMIT,
 };
+
+/**
+ * Lägger dagens vanligaste felorsak per källa till larmtexten, t.ex.
+ * "sl: 14 av 57 anrop i dag misslyckades. Vanligast: 503 på /v1/sites/:n/departures (9 st)."
+ */
+export function withErrorCauses(health, errorRows) {
+  const top = new Map();
+  for (const r of errorRows) {
+    const prev = top.get(r.source);
+    if (!prev || Number(r.n) > Number(prev.n)) top.set(r.source, r);
+  }
+  const problems = (health.problems || []).map((p) => {
+    const source = p.split(':')[0];
+    const r = top.get(source);
+    return r ? `${p.replace(/\.$/, '')}. Vanligast: ${r.reason} på ${r.path} (${r.n} st).` : p;
+  });
+  return { ...health, problems, errorsToday: errorRows };
+}
 
 /**
  * Hälsokontroll: fel och kvotförbrukning per källa. Gör inga externa anrop och
@@ -2842,7 +2892,15 @@ async function handleHealth(env) {
     } catch {
       // Likaså.
     }
-    const health = evaluateHealth(rows, today, capped, DAILY_LIMITS);
+    let errorRows = [];
+    try {
+      errorRows =
+        (await db.prepare('SELECT source, reason, path, n FROM upstream_errors WHERE day = ?1 ORDER BY n DESC LIMIT 20').bind(today).all())
+          .results || [];
+    } catch {
+      // Skapas vid första felet.
+    }
+    const health = withErrorCauses(evaluateHealth(rows, today, capped, DAILY_LIMITS), errorRows);
     return jsonResponse({ ...health, checkedAt: new Date().toISOString() }, health.ok ? 200 : 503, {
       'Cache-Control': 'no-store',
     });

@@ -109,3 +109,14 @@ test('externa anrop räknas i D1 och syns i hälsokontrollen', async (t) => {
   assert.equal(body.sources['trafiklab-realtime'].today.calls, rt.calls);
   assert.equal(res.status, body.ok ? 200 : 503);
 });
+
+test('larmtexten får dagens vanligaste felorsak', async () => {
+  const { withErrorCauses, errorPath } = await import('../functions/api/trafik.js');
+  assert.equal(errorPath('https://transport.integration.sl.se/v1/sites/9192/departures?forecast=60'), '/v:n/sites/:n/departures');
+  const h = withErrorCauses({ ok: false, problems: ['sl: 14 av 57 anrop i dag misslyckades.'] }, [
+    { source: 'sl', reason: '503', path: '/v:n/sites/:n/departures', n: 9 },
+    { source: 'sl', reason: 'timeout', path: '/v:n/sites', n: 5 },
+  ]);
+  assert.equal(h.problems[0], 'sl: 14 av 57 anrop i dag misslyckades. Vanligast: 503 på /v:n/sites/:n/departures (9 st).');
+  assert.equal(h.errorsToday.length, 2);
+});
