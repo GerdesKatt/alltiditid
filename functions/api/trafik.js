@@ -6,7 +6,6 @@ import { locateOnRoute, vehiclePositions } from '../../lib/gtfsrt.mjs';
 import { FERRY_PREFIX, ferryBoard, ferryHarbors, searchFerryHarbors } from '../../lib/ferries.mjs';
 import { stopsAfter } from '../../lib/transferMatch.mjs';
 import { pickSearchHits } from '../../lib/searchHits.mjs';
-import { shortLineName, trackText } from '../../lib/lineNames.mjs';
 import { destinationCandidates, mapTrips, pickDestination } from '../../lib/plan.mjs';
 import { SURE, geoapifyPlaces, photonPlaces, rankPlaces } from '../../lib/places.mjs';
 import { trafficForCounty } from '../../lib/countyTraffic.mjs';
@@ -14,6 +13,7 @@ import { foldPlace } from '../../lib/transferMatch.mjs';
 import { allowedLicense, nearestStation, systemsNear } from '../../lib/mobility.mjs';
 import { funFact, pickTrivia, wikiArticleUrl, wikiQueryUrl } from '../../lib/trivia.mjs';
 import { evaluateHealth, isFailure, sourceOf } from '../../lib/health.mjs';
+import { shortLineName, trackText } from '../../lib/lineNames.mjs';
 
 function parseTimeToMinutes(timeStr) {
   if (!timeStr || typeof timeStr !== 'string') return null;
