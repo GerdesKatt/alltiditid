@@ -133,9 +133,8 @@ export default function DepartureRow({
     ? colors.textDim
     : colors.text;
 
-  // Knappens namn är det som syns på raden (så att röststyrning hittar den, WCAG 2.5.3),
-  // följt av en dold förklaring för skärmläsare, t.ex. "Buss 160, ordinarie 14:05".
-  const spokenExtra = `${line}, ${
+  // Status för skärmläsare, t.ex. "ordinarie 14:05" eller "försenad 5 min, ny tid 14:10, ordinarie 14:05".
+  const spokenStatus = `${
     isCancelled
       ? `${t('inställd, ordinarie tid', 'cancelled, scheduled time')} ${item.scheduledTime}`
       : isDelayed
@@ -151,6 +150,21 @@ export default function DepartureRow({
           early ? `, ${early} ${t('min tidig, väntas', 'min early, expected')} ${clock}` : ''
         }${onlySchedule ? t(', enligt tidtabell', ', according to timetable') : ''}`
   }`;
+  // Knappens namn: ett kort namn som börjar med det som syns först på raden (linjemärke och mål,
+  // så att röststyrning hittar den, WCAG 2.5.3) och läses en gång, utan den synliga texten två gånger.
+  const badgeText = lineLabel(badge, lang);
+  const spokenTime = isCancelled ? '' : String(shownBig || '').replace(/^~/, t('cirka ', 'about '));
+  const ariaLabel = [
+    `${badgeText} ${towards}`,
+    line && line !== badgeText ? line : '',
+    spokenTime,
+    spokenStatus,
+    details,
+    item.deviation && !(isCancelled && item.deviation === 'Inställd') ? item.deviation : '',
+    walkText ? `${t('gångtid', 'walking')}: ${walkText}` : '',
+  ]
+    .filter(Boolean)
+    .join(', ');
 
   return (
     <div
@@ -164,6 +178,7 @@ export default function DepartureRow({
       <button
         type="button"
         aria-expanded={open}
+        aria-label={ariaLabel}
         onClick={() => {
           if (!open) onOpen?.(item);
           setOpen((v) => !v);
@@ -344,10 +359,6 @@ export default function DepartureRow({
               </>
             )}
           </span>
-        </span>
-        <span className="sr-only">
-          , {spokenExtra}
-          {walkText ? `, ${t('gångtid', 'walking')}: ${walkText}` : ''}
         </span>
       </button>
       {isCancelled && alternative ? (
