@@ -676,6 +676,7 @@ export default function DepartureBoard({
                   walkMinutes={item.id === walkTargetId ? walkMin : null}
                   alternative={alternatives.get(item.id) || null}
                   onOpen={onRowOpen}
+                  clockFirst={mode === 'train'}
                 />
               ))}
             </div>
@@ -717,8 +718,8 @@ export default function DepartureBoard({
           Trafiklab.se
         </a>
         {t(
-          ', Trafikverket, SL och Västtrafik. Pricken betyder realtid. Tider med ~ och "ingen realtid" kommer från tidtabellen.',
-          ', Trafikverket, SL and Västtrafik. The dot means real-time. Times with ~ and "no real-time" come from the timetable.'
+          ', Trafikverket, SL och Västtrafik. Pricken betyder realtid. Tider med ~ och "tidtabell" är inte i realtid.',
+          ', Trafikverket, SL and Västtrafik. The dot means real-time. Times with ~ and "timetable" are not live.'
         )}
       </p>
     </section>
