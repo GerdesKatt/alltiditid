@@ -1909,9 +1909,34 @@ async function handlePlan(request, keys, context) {
       trips = [];
     }
   }
+  // På landet: ingen hållplats inom gångavstånd från positionen. Planera från närmaste hållplats
+  // inom 10 km och säg hur långt bort den ligger, i stället för "ingen resa".
+  let farStart = null;
+  if (trips.length === 0 && fromCoord) {
+    try {
+      const near = await rr(`location.nearbystops?originCoordLat=${lat.toFixed(4)}&originCoordLong=${lon.toFixed(4)}&r=10000&maxNo=3`);
+      const list = Array.isArray(near.stopLocationOrCoordLocation)
+        ? near.stopLocationOrCoordLocation.map((i) => i && i.StopLocation).filter((x) => x && x.extId)
+        : [];
+      for (const st of list) {
+        const t = mapTrips(await rr(`trip?originId=${st.extId}&${destPart}${when}&numF=4&passlist=0`), { clean: (n) => cleanPlaceName(n) || n });
+        if (t.length) {
+          trips = t;
+          farStart = {
+            name: tidyStopName(st.name),
+            meters: Number.isFinite(Number(st.dist)) ? Math.round(Number(st.dist)) : Math.round(distanceMeters(lat, lon, Number(st.lat), Number(st.lon))),
+          };
+          break;
+        }
+      }
+    } catch {
+      // Då blir det "ingen resa" nedan
+    }
+  }
   if (trips.length === 0) return jsonResponse({ error: `Hittade ingen resa till ${dest.name}.`, to: dest.name }, 404);
 
   const data = {
+    ...(farStart ? { farStart } : {}),
     to: cleanPlaceName(dest.name) || dest.name,
     // Vad texten tolkades som, så att man ser det innan man åker: hållplats, plats eller adress.
     toKind: dest.kind === 'stop' ? 'stop' : dest.placeKind || 'address',
@@ -1990,18 +2015,28 @@ async function handleNearby(request, keys, context) {
     }
   }
 
-  const res = await fetch(
-    `${RESROBOT_BASE}/location.nearbystops?originCoordLat=${rLat}&originCoordLong=${rLon}` +
-      `&r=${wide ? 2000 : 1500}&maxNo=${wide ? 80 : 10}&format=json&accessId=${encodeURIComponent(keys.resrobot)}`
-  );
-  if (!res.ok) return jsonResponse({ stops: [], error: `Trafiklab svarade med status ${res.status}` }, 502);
-  const data = await res.json();
-
-  const raw = Array.isArray(data.stopLocationOrCoordLocation)
-    ? data.stopLocationOrCoordLocation.map((item) => item && item.StopLocation).filter(Boolean)
-    : Array.isArray(data.StopLocation)
-    ? data.StopLocation
-    : [];
+  const fetchStops = async (r, maxNo) => {
+    const res = await fetch(
+      `${RESROBOT_BASE}/location.nearbystops?originCoordLat=${rLat}&originCoordLong=${rLon}` +
+        `&r=${r}&maxNo=${maxNo}&format=json&accessId=${encodeURIComponent(keys.resrobot)}`
+    );
+    if (!res.ok) throw new Error(`Trafiklab svarade med status ${res.status}`);
+    const data = await res.json();
+    return Array.isArray(data.stopLocationOrCoordLocation)
+      ? data.stopLocationOrCoordLocation.map((item) => item && item.StopLocation).filter(Boolean)
+      : Array.isArray(data.StopLocation)
+      ? data.StopLocation
+      : [];
+  };
+  let raw;
+  try {
+    raw = await fetchStops(wide ? 2000 : 1500, wide ? 80 : 10);
+    // På landet: ingen hållplats inom 2 km betyder inte att det saknas en väg. Leta upp till 10 km
+    // (ResRobots max), så att man alltid får den närmaste hållplatsen att gå eller åka till.
+    if (wide && raw.length === 0) raw = await fetchStops(10000, 12);
+  } catch (err) {
+    return jsonResponse({ stops: [], error: err.message }, 502);
+  }
 
   const seen = new Set();
   const all = raw
