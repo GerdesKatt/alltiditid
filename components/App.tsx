@@ -20,6 +20,7 @@ import SheetBackdrop from './SheetBackdrop';
 import { colors, textInput } from './styles';
 import ModeTabs, { type AppTab, type MenuKey } from './ModeTabs';
 import { loadModeFor, storeModeFor } from '../lib/modeMemory';
+import { pickNextDeparture } from '../lib/nextPick.mjs';
 import { habitFor, recordOpen } from '../lib/habits';
 import { useWalk } from '../lib/useWalk';
 import Home from './Home';
@@ -781,7 +782,9 @@ export default function App({ initialStop, page, intro }: AppProps) {
       if (walkMin === null) return at >= now + 60_000;
       return walkVerdict(Math.floor((at - now) / 60000), walkMin, platformMinutes(d.transportMode)).kind !== 'missed';
     });
-    const pick = (habit && upcoming.find((d) => groupKey(d) === habit.key)) || upcoming[0];
+    // Utan vana: hållplatsens huvudtrafikslag, så att Malmö C visar tåget och inte bussen utanför.
+    const pick =
+      (habit && upcoming.find((d) => groupKey(d) === habit.key)) || pickNextDeparture(upcoming, (d) => parseLocal(d.expectedAt));
     if (!pick) return null;
     return { trip: tripFrom(pick, selectedStop.id, selectedStop.name), reason: habit && groupKey(pick) === habit.key ? ('habit' as const) : ('next' as const) };
   }, [restored, hasStop, direction, departures, myTrain, planned, myTrip, selectedStop.id, selectedStop.name, habit, walkMin, now, mode]);
