@@ -80,7 +80,7 @@ export default function StrandedTips({ lat, lon }: { lat: number; lon: number })
   return (
     <section aria-label={t('Så kommer du vidare', 'How to get onward')} style={{ marginTop: '16px' }}>
       <h3 style={{ margin: '0 0 2px', fontFamily: fonts.text, fontSize: '1rem', fontWeight: 800, color: colors.text }}>
-        {t('Lugnt, det finns vägar härifrån', 'Relax, there are ways out of here')}
+        {t('Strandad? Inte länge till.', 'Stranded? Not for long.')}
       </h3>
 
       <div style={block}>
@@ -113,8 +113,8 @@ export default function StrandedTips({ lat, lon }: { lat: number; lon: number })
           <strong style={{ fontSize: '0.9375rem' }}>{t('Taxi', 'Taxi')}</strong>
           <p style={text}>
             {city
-              ? t('Snabbast härifrån, men dyrare. Jämför priset i apparna innan du beställer.', 'Fastest from here, but pricier. Compare fares in the apps before you order.')
-              : t('Snabbast härifrån, men dyrare. Ring en lokal taxi och fråga om priset; Uber kan sakna bilar här ute.', 'Fastest from here, but pricier. Call a local taxi and ask for the fare; Uber may have no cars out here.')}
+              ? t('Snabbast, inte billigast. Jämför i apparna.', 'Fastest, not cheapest. Compare in the apps.')
+              : t('Snabbast, inte billigast. Ring en lokal taxi, Uber har sällan bilar här ute.', 'Fastest, not cheapest. Call a local taxi, Uber rarely has cars out here.')}
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {sthlm ? (

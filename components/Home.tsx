@@ -130,7 +130,7 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
         } else {
           setPosError(
             t(
-              'Positionen hittades inte just nu. Inomhus och under jord är signalen ofta svag. Försök igen, eller sök i fältet ovan.',
+              'Telefonen hittar dig inte just nu. Inomhus och under jord är signalen svag. Försök igen, eller skriv var du är.',
               'Your location could not be found right now. Signal is often weak indoors and underground. Try again, or search above.'
             )
           );
@@ -183,15 +183,15 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
       </h2>
       {nearby === null ? (
         <button type="button" onClick={locate} disabled={locating} style={outlineButton}>
-          {locating ? t('Söker din position…', 'Finding your location…') : t('Visa hållplatser nära mig', 'Show stops near me')}
+          {locating ? t('Letar efter dig…', 'Looking for you…') : t('Visa hållplatser nära mig', 'Show stops near me')}
         </button>
       ) : others.length === 0 ? (
         fresh ? (
           <>
             <WayForward
               text={t(
-                'Ganska ödsligt här, ingen hållplats inom 10 km. Men skriv vart du ska, så hittar vi en väg.',
-                'Pretty remote here, no stop within 10 km. But type where you are going and we will find a way.'
+                'Ingen hållplats inom en mil. Säg vart du ska, så hittar vi vägen.',
+                'No stop within 10 km. Tell us where you are going and we will find the way.'
               )}
             />
             {here ? <StrandedTips lat={here.lat} lon={here.lon} /> : null}
@@ -409,7 +409,7 @@ function NearbyLines({
   if (rows.length === 0 && alreadyShown > 0)
     return (
       <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textDim }}>
-        {t('Linjerna här nära syns redan under dina hållplatser ovan.', 'The lines nearby are already shown under your stops above.')}
+        {t('Allt här i närheten har du redan ovanför.', 'Everything nearby is already above.')}
       </p>
     );
   // Strandad på riktigt först när närmaste hållplats ligger en bit bort; i stan räcker listan.
@@ -418,7 +418,7 @@ function NearbyLines({
     return (
       <>
         <p style={{ margin: '0 0 6px', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 }}>
-          {t('Lugnt läge just nu, inget går den närmaste stunden. Här ser du när nästa går:', 'Quiet right now, nothing leaves in the next while. See when the next one goes:')}
+          {t('Tyst på linjerna en stund. Nästa går härifrån:', 'Quiet on the lines for a while. The next one leaves from here:')}
         </p>
         <ul style={list}>
           {[...stops]
@@ -436,7 +436,7 @@ function NearbyLines({
             ))}
         </ul>
         <WayForward
-          text={t('Eller skriv vart du ska, så letar vi upp första bästa resa.', 'Or type where you are going and we will find the first good trip.')}
+          text={t('Eller säg vart du ska. Vi pusslar ihop resten.', 'Or tell us where you are going. We will piece together the rest.')}
         />
         {here && nearest >= 800 ? <StrandedTips lat={here.lat} lon={here.lon} /> : null}
       </>
@@ -573,7 +573,7 @@ function StopRow({
         {deps === null ? (
           <span style={{ fontSize: '0.875rem', color: colors.textDim }}>{t('Hämtar…', 'Loading…')}</span>
         ) : next.length === 0 ? (
-          <span style={{ fontSize: '0.875rem', color: colors.textDim }}>{t('Inga avgångar just nu', 'No departures right now')}</span>
+          <span style={{ fontSize: '0.875rem', color: colors.textDim }}>{t('Tomt på tavlan just nu.', 'Nothing on the board right now.')}</span>
         ) : (
           <span style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {next.map((d) => {
