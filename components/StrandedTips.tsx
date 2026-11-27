@@ -6,6 +6,9 @@ import { useLang } from '../lib/i18n';
 import { inStockholm, uberLink } from '../lib/mobility.mjs';
 import { track } from '../lib/track';
 
+/** Orter där Bolt kör (bolt.eu/sv-se/cities, november 2026). Bolt har ingen öppen länk med upphämtning ifylld. */
+const BOLT_TOWNS = ['borås', 'enköping', 'eskilstuna', 'göteborg', 'helsingborg', 'kristianstad', 'linköping', 'lund', 'malmö', 'norrköping', 'stockholm', 'södertälje', 'trelleborg', 'uppsala', 'västerås', 'örebro'];
+
 type Area = { county: string; town: string; traffic: { name: string; url: string } | null };
 
 const button: React.CSSProperties = {
@@ -50,7 +53,26 @@ export default function StrandedTips({ lat, lon }: { lat: number; lon: number })
 
   const traffic = area?.traffic;
   const town = area?.town;
-  const sthlm = inStockholm(lat, lon);
+  // Länet avgör när det är känt (rutan runt Stockholm når ända till Uppsala); annars den ungefärliga rutan.
+  const sthlm = area?.county ? /stockholm/i.test(area.county) : inStockholm(lat, lon);
+  // Stad: appar för taxi först. Landet: lokal taxi först, Uber som reserv (bilar kan saknas där).
+  const city = sthlm || (town ? BOLT_TOWNS.includes(town.toLowerCase()) : false);
+  const uber = (
+    <a href={uberLink(lat, lon, t('Här', 'Here'))} target="_blank" rel="noopener noreferrer" onClick={() => track('funktion', 0, 'uber')} style={button}>
+      Uber ↗
+    </a>
+  );
+  const localTaxi = town ? (
+    <a
+      href={`https://www.google.com/search?q=${encodeURIComponent(`taxi ${town}`)}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={() => track('funktion', 0, 'taxi_ort')}
+      style={button}
+    >
+      {t(`Taxi i ${town} ↗`, `Taxi in ${town} ↗`)}
+    </a>
+  ) : null;
 
   const block: React.CSSProperties = { display: 'flex', gap: '12px', padding: '14px 0', borderTop: `1px solid ${colors.border}` };
   const text: React.CSSProperties = { margin: '2px 0 10px', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 };
@@ -89,26 +111,30 @@ export default function StrandedTips({ lat, lon }: { lat: number; lon: number })
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <strong style={{ fontSize: '0.9375rem' }}>{t('Taxi', 'Taxi')}</strong>
-          <p style={text}>{t('Snabbast härifrån, men dyrare. Fråga om priset när du ringer.', 'Fastest from here, but pricier. Ask for the fare when you call.')}</p>
+          <p style={text}>
+            {city
+              ? t('Snabbast härifrån, men dyrare. Jämför priset i apparna innan du beställer.', 'Fastest from here, but pricier. Compare fares in the apps before you order.')
+              : t('Snabbast härifrån, men dyrare. Ring en lokal taxi och fråga om priset; Uber kan sakna bilar här ute.', 'Fastest from here, but pricier. Call a local taxi and ask for the fare; Uber may have no cars out here.')}
+          </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {sthlm ? (
               <a href="tel:+46815000" onClick={() => track('funktion', 0, 'taxi_sthlm')} style={button}>
                 {t('Ring Taxi Stockholm', 'Call Taxi Stockholm')}
               </a>
-            ) : town ? (
-              <a
-                href={`https://www.google.com/search?q=${encodeURIComponent(`taxi ${town}`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => track('funktion', 0, 'taxi_ort')}
-                style={button}
-              >
-                {t(`Taxi i ${town} ↗`, `Taxi in ${town} ↗`)}
-              </a>
             ) : null}
-            <a href={uberLink(lat, lon, t('Här', 'Here'))} target="_blank" rel="noopener noreferrer" onClick={() => track('funktion', 0, 'uber')} style={button}>
-              Uber ↗
-            </a>
+            {city ? (
+              <>
+                {uber}
+                <a href="https://bolt.eu/sv-se/rides/" target="_blank" rel="noopener noreferrer" onClick={() => track('funktion', 0, 'bolt')} style={button}>
+                  Bolt ↗
+                </a>
+              </>
+            ) : (
+              <>
+                {localTaxi}
+                {uber}
+              </>
+            )}
           </div>
         </div>
       </div>
