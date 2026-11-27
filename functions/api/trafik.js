@@ -3147,7 +3147,7 @@ export async function handleTrivia(url, context) {
   if (name.length < 2 && !Number.isFinite(lat)) return jsonResponse({ error: 'name eller lat och lon krävs' }, 400);
 
   const where = Number.isFinite(lat) ? `${lat},${lon}` : '-';
-  const key = new Request(`https://cache.alltiditid.se/trivia-v2/${lang}/${encodeURIComponent(name.toLowerCase())}/${where}`);
+  const key = new Request(`https://cache.alltiditid.se/trivia-v3/${lang}/${encodeURIComponent(name.toLowerCase())}/${where}`);
   const hit = await cacheGet(key);
   if (hit) return hit;
 

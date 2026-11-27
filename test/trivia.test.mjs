@@ -171,3 +171,8 @@ test('hållplatsen som heter efter platsen hittar platsen, och grannarna runt h�
   // Stadsdelar och kommundelar hör inte hemma runt hörnet.
   assert.deepEqual(t.around.map((a) => [a.title, a.meters]), [['Långbro sjukhus', 782], ['Delicato', 894]]);
 });
+
+test('en mening som pekar bakåt får meningen före', () => {
+  const full = 'Gullmarsplan är en station.\n\n== Historia ==\nStationen öppnade 1933 som spårvägshållplats. Den hette då Johanneshov och trafikerades av spårvagnar fram till den 1 oktober 1950, då den blev en del av tunnelbanan.';
+  assert.match(funFact(full, ''), /^Stationen öppnade 1933 som spårvägshållplats\. Den hette då Johanneshov/);
+});
