@@ -8,6 +8,7 @@ import { boardUrl } from '../lib/prefetch';
 import { positionAllowed, rememberPositionAllowed } from '../lib/visits';
 import InstallApp from './InstallApp';
 import SmartSearch from './SmartSearch';
+import { track } from '../lib/track';
 
 type Nearby = StopOption & { distance: number; modes?: string[] };
 
@@ -41,11 +42,41 @@ export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirpor
   const [nearby, setNearby] = useState<Nearby[] | null>(null);
   const [locating, setLocating] = useState(false);
   const [posError, setPosError] = useState('');
+  // Utan position: platsen man själv skrev in, och vad som står i fältet.
+  const [manualPlace, setManualPlace] = useState('');
+  // Positionen är avstängd (nekad i inställningarna): då visas fältet Var är du?
+  const [denied, setDenied] = useState(false);
+  const [whereText, setWhereText] = useState('');
+
+  function fromPlace(q: string) {
+    const text = q.trim();
+    if (text.length < 2) return;
+    setLocating(true);
+    fetch('/api/trafik?action=nearby', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ q: text, wide: true }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!Array.isArray(data.stops) || !data.place) {
+          setPosError(t(`Hittade ingen plats som heter ”${text}”. Prova en hållplats eller en gatuadress.`, `Found no place called "${text}". Try a stop or a street address.`));
+          return;
+        }
+        track('funktion', 0, 'nara_plats');
+        setNearby(data.stops as Nearby[]);
+        setManualPlace(String(data.place.name || text));
+        setPosError('');
+      })
+      .catch(() => setPosError(t('Kunde inte hämta hållplatser just nu.', 'Could not load stops right now.')))
+      .finally(() => setLocating(false));
+  }
   // Linjer och riktningar som redan syns under Dina hållplatser: visas inte igen under Nära dig.
   const [covered, setCovered] = useState<Record<string, string[]>>({});
 
   function locate() {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setDenied(true);
       setPosError(t('Webbläsaren kan inte ge din position.', 'Your browser cannot give your location.'));
       return;
     }
@@ -68,16 +99,17 @@ export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirpor
         setLocating(false);
         if (err.code === err.PERMISSION_DENIED) {
           rememberPositionAllowed(false);
+          setDenied(true);
           const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
           setPosError(
             ios
               ? t(
-                  'Platstjänster är avstängda för sidan. Slå på dem under Inställningar → Integritet och säkerhet → Platstjänster → Safari-webbplatser → Vid användning. Eller sök i fältet ovan.',
-                  'Location is turned off for this site. Turn it on under Settings → Privacy & Security → Location Services → Safari Websites → While Using. Or search above.'
+                  'Platstjänster är avstängda för sidan. Slå på dem under Inställningar → Integritet och säkerhet → Platstjänster → Safari-webbplatser → Vid användning. Eller skriv var du är:',
+                  'Location is turned off for this site. Turn it on under Settings → Privacy & Security → Location Services → Safari Websites → While Using. Or type where you are:'
                 )
               : t(
-                  'Du har inte gett sidan tillgång till din position. Tillåt den i webbläsarens inställningar för webbplatsen, eller sök i fältet ovan.',
-                  'This site is not allowed to use your location. Allow it in the browser settings for the site, or search above.'
+                  'Du har inte gett sidan tillgång till din position. Tillåt den i webbläsarens inställningar för webbplatsen, eller skriv var du är:',
+                  'This site is not allowed to use your location. Allow it in the browser settings for the site, or type where you are:'
                 )
           );
         } else {
@@ -115,7 +147,24 @@ export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirpor
 
   const nearSection = (
     <section aria-label={t('Nära dig', 'Near you')} style={{ marginBottom: '22px' }}>
-      <h2 style={label}>{t('Linjer nära dig', 'Lines near you')}</h2>
+      <h2 style={{ ...label, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px' }}>
+        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {manualPlace ? `${t('Linjer nära', 'Lines near')} ${manualPlace}` : t('Linjer nära dig', 'Lines near you')}
+        </span>
+        {manualPlace ? (
+          <button
+            type="button"
+            onClick={() => {
+              setManualPlace('');
+              setNearby(null);
+              setPosError('');
+            }}
+            style={{ flexShrink: 0, border: 'none', background: 'none', padding: 0, color: colors.text, font: 'inherit', textDecoration: 'underline', cursor: 'pointer' }}
+          >
+            {t('Ändra', 'Change')}
+          </button>
+        ) : null}
+      </h2>
       {nearby === null ? (
         <button type="button" onClick={locate} disabled={locating} style={outlineButton}>
           {locating ? t('Söker din position…', 'Finding your location…') : t('Visa hållplatser nära mig', 'Show stops near me')}
@@ -130,6 +179,36 @@ export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirpor
         <NearbyLines stops={others} now={now} onOpenStop={onOpenStop} exclude={new Set(Object.values(covered).flat())} />
       )}
       {posError ? <p style={{ margin: '8px 0 0', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 }}>{posError}</p> : null}
+      {denied && !manualPlace ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            fromPlace(whereText);
+          }}
+          style={{ display: 'flex', marginTop: '12px' }}
+        >
+          <label htmlFor="var-ar-du" className="sr-only">
+            {t('Var är du? Hållplats eller adress', 'Where are you? Stop or address')}
+          </label>
+          <input
+            id="var-ar-du"
+            type="text"
+            autoComplete="off"
+            enterKeyHint="search"
+            value={whereText}
+            onChange={(e) => setWhereText(e.target.value)}
+            placeholder={t('Var är du? Hållplats eller adress', 'Where are you? Stop or address')}
+            style={{ flex: 1, minWidth: 0, minHeight: '48px', padding: '0 12px', border: `1px solid ${colors.text}`, borderRight: 'none', borderRadius: 0, background: 'transparent', color: colors.text, fontSize: '1rem', fontFamily: 'inherit' }}
+          />
+          <button
+            type="submit"
+            disabled={locating || whereText.trim().length < 2}
+            style={{ minHeight: '48px', padding: '0 16px', border: `1px solid ${colors.text}`, borderRadius: 0, background: colors.text, color: colors.bg, fontWeight: 700, fontSize: '0.9375rem', cursor: 'pointer' }}
+          >
+            {locating ? t('Söker…', 'Searching…') : t('Visa', 'Show')}
+          </button>
+        </form>
+      ) : null}
     </section>
   );
 
