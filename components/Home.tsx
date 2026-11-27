@@ -187,7 +187,7 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
       </h2>
       {nearby === null ? (
         <button type="button" onClick={locate} disabled={locating} style={outlineButton}>
-          {locating ? t('Letar efter dig…', 'Looking for you…') : t('Visa hållplatser nära mig', 'Show stops near me')}
+          {locating ? t('Letar efter dig…', 'Looking for you…') : t('Visa linjer nära mig', 'Show lines near me')}
         </button>
       ) : others.length === 0 ? (
         fresh ? (

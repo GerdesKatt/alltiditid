@@ -167,6 +167,54 @@
   color: var(--bg);
 }
 
+/* Kortet "Nästa avgång" i mörkt läge: ingen stor ljus yta mitt i svart. Mörk yta, linje överst. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .hero-card {
+    --c-bg: var(--surface-2);
+    --c-surface: var(--surface-2);
+    --c-surface-raised: var(--surface-2);
+    --c-border: var(--border);
+    --c-border-strong: #6b6963;
+    --c-text: var(--ink);
+    --c-text-muted: var(--ink);
+    --c-text-dim: var(--muted);
+    --c-text-faint: var(--muted);
+    --c-amber: var(--signal);
+    --c-delayed-text: var(--signal-ink);
+    --c-cancelled-text: var(--signal-ink);
+    --c-accent-strong: var(--ink);
+    --c-on-accent: var(--bg);
+    --c-badge-border: var(--ink);
+    --c-badge-text: var(--ink);
+    --brand: var(--ink);
+    background-color: var(--surface-2);
+    color: var(--ink);
+    border-top: 2px solid var(--ink);
+  }
+}
+:root[data-theme='dark'] .hero-card {
+  --c-bg: var(--surface-2);
+  --c-surface: var(--surface-2);
+  --c-surface-raised: var(--surface-2);
+  --c-border: var(--border);
+  --c-border-strong: #6b6963;
+  --c-text: var(--ink);
+  --c-text-muted: var(--ink);
+  --c-text-dim: var(--muted);
+  --c-text-faint: var(--muted);
+  --c-amber: var(--signal);
+  --c-delayed-text: var(--signal-ink);
+  --c-cancelled-text: var(--signal-ink);
+  --c-accent-strong: var(--ink);
+  --c-on-accent: var(--bg);
+  --c-badge-border: var(--ink);
+  --c-badge-text: var(--ink);
+  --brand: var(--ink);
+  background-color: var(--surface-2);
+  color: var(--ink);
+  border-top: 2px solid var(--ink);
+}
+
 /* "Minska rörelse" i telefonen stänger av animationer. */
 @media (prefers-reduced-motion: reduce) {
   *,
