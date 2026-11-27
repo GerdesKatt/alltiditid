@@ -336,6 +336,9 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
  * Linjer nära dig: varje linje och riktning en gång, vid den hållplats där den är närmast.
  * Fyra busshållplatser med samma buss blir två rader, och T-banan längre bort syns också.
  */
+/** Inom så här många meter räknas en hållplats nära som samma plats som dina hållplatser. */
+const SAME_PLACE_M = 600;
+
 function NearbyLines({
   stops,
   now,
@@ -386,7 +389,9 @@ function NearbyLines({
       const at = parseLocal(d.expectedAt);
       if (d.status === 'cancelled' || (at !== null && at < now + 60_000)) continue;
       const k = groupKey(d);
-      if (exclude.has(k)) {
+      // Samma linje och riktning som dina hållplatser visar: en dubblett om hållplatsen ligger nära,
+      // men längre bort (en bit längs linjen) är det nyttigt att se samma buss där också.
+      if (exclude.has(k) && stop.distance < SAME_PLACE_M) {
         alreadyShown++;
         continue;
       }
