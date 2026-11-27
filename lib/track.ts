@@ -1,8 +1,7 @@
 /**
  * Egna mätpunkter utan kakor och utan id: bara händelsens namn och ett tal, räknade
  * per dygn på servern (functions/api/trafik.js, action=event). Ingenting sparas på
- * enheten för mätningens skull. Körs parallellt med Google Analytics tills siffrorna
- * gått att jämföra.
+ * enheten för mätningens skull. Sedan 27 nov 2026 den enda mätningen (Google Analytics är borttaget).
  */
 export type TrackName =
   | 'forsta_avgang'
@@ -15,7 +14,9 @@ export type TrackName =
   /** Flyg visades minst en gång under besöket (räknas en gång per sidvisning, hur man än kom dit). */
   | 'flygflik'
   /** Dagens första tavla: antal olika dagar med en tavla senaste 7 dygnen (etikett 1–7). */
-  | 'aktiva_dagar';
+  | 'aktiva_dagar'
+  /** Varifrån besöket kom: sajtens namn ur länken (reddit, google), utm_source eller direkt. */
+  | 'kalla';
 
 const sent = new Set<string>();
 
