@@ -173,6 +173,11 @@ export default function App({ initialStop, page, intro }: AppProps) {
   // Kollektivtrafik eller flyg, och flygplatsen som sökningen pekade på.
   const [tab, setTab] = useState<AppTab>('trafik');
   const [journeyQuery, setJourneyQuery] = useState('');
+  // Hur stor del av besöken som öppnar Flyg (planen: flytta Flyg ur menyn om under 5 %).
+  // Räknas en gång per sidvisning, oavsett om man kom dit via menyn, sök eller en sparad flik.
+  useEffect(() => {
+    if (tab === 'flyg') track('flygflik');
+  }, [tab]);
   // Tågets resa öppnad från kortet för att välja byte.
   // En turs hela resa (buss, T-bana, spårvagn, båt).
   const [tripRef, setTripRef] = useState<{ id: string; date: string } | null>(null);
