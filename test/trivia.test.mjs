@@ -36,6 +36,17 @@ test('liten busshållplats utan egen artikel får stadsdelen', () => {
   assert.equal(t.title, 'Johanneshov');
 });
 
+test('ett torg i en stadsdel är inte stadsdelen', () => {
+  const pages = [
+    page('Gubbängstorget', 497, 'Gubbängstorget är ett torg i stadsdelen Gubbängen i Söderort inom Stockholms kommun.'),
+    page('Gubbängen', 900, 'Gubbängen är en stadsdel i Söderort inom Stockholms kommun, med omkring 8 000 invånare.'),
+  ];
+  const t = pickTrivia(pages, 'Pepparvägen');
+  assert.equal(t.kind, 'area');
+  assert.equal(t.title, 'Gubbängen');
+  assert.equal(pickTrivia(pages.slice(0, 1), 'Pepparvägen').kind, 'nearby');
+});
+
 test('annars något alldeles i närheten, men inte långt bort', () => {
   const church = page('Skogskyrkogården', 250, 'Skogskyrkogården är en begravningsplats i Gamla Enskede, ritad av Asplund och Lewerentz.');
   assert.equal(pickTrivia([church], 'Kyrkogårdsvägen').kind, 'nearby');
