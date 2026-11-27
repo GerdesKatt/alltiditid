@@ -42,7 +42,7 @@ type Props = {
   /** Tavlans hållplats: start om positionen inte går att få. */
   fromId: string;
   fromName: string;
-  /** Platsen man skrev in under Nu när positionen är avstängd: används i stället för positionen. */
+  /** Platsen man skrev in under Avgångar när positionen är avstängd: används i stället för positionen. */
   startAt?: { name: string; lat: number; lon: number } | null;
   /** Spara en resa som Min resa. */
   onSave: (to: string, from: string, trip: Trip) => void;
@@ -130,8 +130,8 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
       setLoading(false);
       setError(
         t(
-          'Kunde inte få din position. Skriv var du är under Nu (Linjer nära dig), eller öppna en hållplats där.',
-          'Could not get your location. Type where you are under Now (Lines near you), or open a stop there.'
+          'Kunde inte få din position. Skriv var du är under Avgångar (Linjer nära dig), eller öppna en hållplats där.',
+          'Could not get your location. Type where you are under Departures (Lines near you), or open a stop there.'
         )
       );
       return;
@@ -273,7 +273,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
       {!useStop ? (
         <p style={{ margin: '6px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
           {hereName
-            ? t(`Startar vid ${hereName}, som du skrev under Nu.`, `Starts at ${hereName}, as you typed under Now.`)
+            ? t(`Startar vid ${hereName}, som du skrev under Avgångar.`, `Starts at ${hereName}, as you typed under Departures.`)
             : t(
                 'Startar där du står. Positionen används bara för sökningen och sparas inte.',
                 'Starts where you are. Your location is only used for the search and is not stored.'

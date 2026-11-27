@@ -20,6 +20,8 @@ type Props = {
   /** Inte sparad: ett förslag (den du brukar ta, eller nästa avgång). Visar Spara i stället för Ta bort. */
   auto?: 'habit' | 'next';
   onSave?: () => void;
+  /** Förslaget valdes efter trafikslag och är inte den allra första avgången. */
+  autoMode?: Departure['transportMode'];
   /** Gångtid till hållplatsen i minuter, när "Gångtid" är på. */
   walkMinutes?: number | null;
 };
@@ -38,6 +40,7 @@ export default function MyTripCard({
   onRemove,
   alternative = null,
   auto,
+  autoMode,
   onSave,
   walkMinutes = null,
 }: Props) {
@@ -77,7 +80,7 @@ export default function MyTripCard({
 
   return (
     <section
-      className="invert"
+      className="invert hero-card"
       aria-label={`${auto ? t('Din avgång', 'Your departure') : t('Min resa', 'My trip')}: ${lineLabel(trip.line, lang)} ${t('mot', 'to')} ${trip.destination} ${t(
         'från',
         'from'
@@ -100,7 +103,7 @@ export default function MyTripCard({
           auto === 'habit'
             ? t('Du brukar ta', 'You usually take')
             : auto === 'next'
-            ? t('Nästa avgång', 'Next departure')
+            ? nextLabel(autoMode, t)
             : t('Din avgång', 'Your departure')
         )}
       </div>
@@ -193,10 +196,11 @@ export default function MyTripCard({
             </span>
             {rest.length ? (
               <span style={{ color: colors.textDim }}>
-                {t('sedan', 'then')}{' '}
-                {rest
-                  .map((d) => (d.status === 'cancelled' ? t('inställd', 'cancelled') : nu(countdownFor(d, now))))
-                  .join(', ')}
+                {t('Därefter', 'Then')}{' '}
+                {andList(
+                  rest.map((d) => (d.status === 'cancelled' ? t('inställd', 'cancelled') : nu(countdownFor(d, now)))),
+                  t('och', 'and')
+                )}
               </span>
             ) : null}
           </div>
@@ -264,3 +268,32 @@ const textButton: React.CSSProperties = {
   textUnderlineOffset: '3px',
   cursor: 'pointer',
 };
+
+/** "Nästa tåg" när förslaget valts efter trafikslag, annars "Nästa avgång". */
+function nextLabel(mode: Departure['transportMode'] | undefined, t: (sv: string, en: string) => string): string {
+  switch (mode) {
+    case 'train':
+      return t('Nästa tåg', 'Next train');
+    case 'commuter':
+      return t('Nästa pendeltåg', 'Next commuter train');
+    case 'subway':
+      return t('Nästa tunnelbana', 'Next metro');
+    case 'tram':
+      return t('Nästa spårvagn', 'Next tram');
+    case 'ferry':
+      return t('Nästa båt', 'Next boat');
+    case 'bus':
+      return t('Nästa buss', 'Next bus');
+    default:
+      return t('Nästa avgång', 'Next departure');
+  }
+}
+
+/** "15 och 30 min" i stället för "15 min, 30 min". */
+function andList(items: string[], and: string): string {
+  const unit = (x: string) => /^\d+ min$/.test(x);
+  const all = items.every(unit);
+  const parts = all ? items.map((x) => x.replace(/ min$/, '')) : items;
+  const joined = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} ${and} ${parts[parts.length - 1]}` : parts[0] || '';
+  return all ? `${joined} min` : joined;
+}

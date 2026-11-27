@@ -806,7 +806,10 @@ export default function App({ initialStop, page, intro }: AppProps) {
     const pick =
       (habit && upcoming.find((d) => groupKey(d) === habit.key)) || pickNextDeparture(upcoming, (d) => parseLocal(d.expectedAt));
     if (!pick) return null;
-    return { trip: tripFrom(pick, selectedStop.id, selectedStop.name), reason: habit && groupKey(pick) === habit.key ? ('habit' as const) : ('next' as const) };
+    const reason = habit && groupKey(pick) === habit.key ? ('habit' as const) : ('next' as const);
+    // Valt efter trafikslag (tåget, fast bussen går före): kortet ska säga "Nästa tåg", inte "Nästa avgång".
+    const byMode = reason === 'next' && pick !== upcoming[0] ? pick.transportMode : undefined;
+    return { trip: tripFrom(pick, selectedStop.id, selectedStop.name), reason, byMode };
   }, [restored, hasStop, direction, departures, myTrain, planned, myTrip, selectedStop.id, selectedStop.name, habit, walkMin, now, mode]);
   // Samma regel som valet: de avgångar som går om minst en minut (gångtid av).
   const autoNext = autoTrip
@@ -828,6 +831,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
       onShowStop={() => {}}
       onRemove={() => {}}
       auto={autoTrip.reason}
+      autoMode={autoTrip.byMode}
       walkMinutes={walkMin}
       onSave={() => {
         setMyTrip(autoTrip.trip);
