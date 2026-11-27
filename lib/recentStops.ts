@@ -31,3 +31,14 @@ export function rememberStop(list: StopOption[], stop: StopOption): StopOption[]
   }
   return next;
 }
+
+/** Tar bort en hållplats (eller alla, utan id) ur senast sökta och returnerar den nya listan. */
+export function forgetRecent(list: StopOption[], id?: string): StopOption[] {
+  const next = id ? list.filter((s) => s.id !== id) : [];
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // Ingen lagring.
+  }
+  return next;
+}

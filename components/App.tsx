@@ -23,7 +23,7 @@ import { loadModeFor, storeModeFor } from '../lib/modeMemory';
 import { habitFor, recordOpen } from '../lib/habits';
 import { useWalk } from '../lib/useWalk';
 import Home from './Home';
-import { homeStops, markBoardShown, recordVisit } from '../lib/visits';
+import { homeStops, markBoardShown, recordVisit, forgetStop, forgetAllVisits } from '../lib/visits';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { track } from '../lib/track';
 import { alternativeFor } from '../lib/alternative.mjs';
@@ -43,7 +43,7 @@ import { loadLinkedState, loadSavedState, regionForStop, saveState } from '../li
 import { loadFavorites, MAX_FAVORITES, storeFavorites, toggleFavorite } from '../lib/favorites';
 import FavoritesBar from './FavoritesBar';
 import MyTripCard from './MyTripCard';
-import { loadRecentStops, rememberStop } from '../lib/recentStops';
+import { forgetRecent, loadRecentStops, rememberStop } from '../lib/recentStops';
 import { loadMyTrip, nextForTrip, storeMyTrip, tripFrom, type MyTrip } from '../lib/myTrip';
 import { boardUrl, takePrefetch } from '../lib/prefetch';
 import type { BoardView } from './DepartureBoard';
@@ -1203,6 +1203,18 @@ export default function App({ initialStop, page, intro }: AppProps) {
       {tab === 'trafik' && screen === 'home' ? (
         <Home
           stops={homeList}
+          onForget={(id) => {
+            // Ta bort helt: besöken, stjärnan och senast sökta, så att Hem inte skvallrar.
+            if (id) forgetStop(id);
+            else forgetAllVisits();
+            setRecentStops((list) => forgetRecent(list, id || undefined));
+            const next = id ? favorites.filter((f) => f.id !== id) : favorites;
+            if (next.length !== favorites.length) {
+              setFavorites(next);
+              storeFavorites(next);
+            }
+            setHomeList(homeStops(next, Date.now()));
+          }}
           now={now}
           onOpenStop={openStopFromHome}
           onOpenTrain={(n) => {

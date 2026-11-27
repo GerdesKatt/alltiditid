@@ -23,6 +23,8 @@ type Props = {
   /** Vart ska du? från Hem: öppnar Min resa och söker resan. */
   onGoal: (text: string) => void;
   /** Platsen man skrev in när positionen är avstängd (null när den tas bort); blir start för resor. */
+  /** Ta bort en hållplats från Hem (id), eller glöm alla besök (null). */
+  onForget?: (id: string | null) => void;
   onStartAt?: (start: { name: string; lat: number; lon: number } | null) => void;
 };
 
@@ -40,7 +42,8 @@ const label: React.CSSProperties = {
  * och sök. Positionen sorterar dina hållplatser (närmast först) och visar andra nära dig;
  * den frågas om först när man trycker, och sparas aldrig.
  */
-export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirport, onGoal, onStartAt }: Props) {
+export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirport, onGoal, onStartAt, onForget }: Props) {
+  const [editing, setEditing] = useState(false);
   const { t } = useLang();
   const [nearby, setNearby] = useState<Nearby[] | null>(null);
   const [locating, setLocating] = useState(false);
@@ -240,7 +243,52 @@ export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirpor
 
       {!fresh ? (
         <section aria-label={t('Dina hållplatser', 'Your stops')} style={{ marginBottom: '22px' }}>
-          <h2 style={label}>{t('Dina hållplatser', 'Your stops')}</h2>
+          <h2 style={{ ...label, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <span>{t('Dina hållplatser', 'Your stops')}</span>
+            {onForget ? (
+              <button
+                type="button"
+                onClick={() => setEditing((e) => !e)}
+                aria-pressed={editing}
+                style={{ border: 'none', background: 'none', padding: 0, color: colors.text, font: 'inherit', textDecoration: 'underline', cursor: 'pointer' }}
+              >
+                {editing ? t('Klar', 'Done') : t('Ändra', 'Edit')}
+              </button>
+            ) : null}
+          </h2>
+          {editing ? (
+            <>
+              <ul style={list}>
+                {mine.map((s) => (
+                  <li key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', minHeight: '56px', borderBottom: `1px solid ${colors.border}` }}>
+                    <span style={{ flex: 1, minWidth: 0, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => onForget?.(s.id)}
+                      aria-label={t(`Ta bort ${s.name}`, `Remove ${s.name}`)}
+                      style={{ minHeight: '40px', padding: '0 14px', border: `1px solid ${colors.text}`, borderRadius: 0, background: 'transparent', color: colors.text, fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer' }}
+                    >
+                      {t('Ta bort', 'Remove')}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <p style={{ margin: '10px 0 0', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 }}>
+                {t('Borttagna hållplatser glöms helt, även stjärnan och sökningarna. ', 'Removed stops are forgotten completely, including the star and searches. ')}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onForget?.(null);
+                    setEditing(false);
+                  }}
+                  style={{ border: 'none', background: 'none', padding: 0, color: colors.text, font: 'inherit', textDecoration: 'underline', cursor: 'pointer' }}
+                >
+                  {t('Glöm alla besök', 'Forget all visits')}
+                </button>
+                {t(' (stjärnmärkta ligger kvar).', ' (starred stops stay).')}
+              </p>
+            </>
+          ) : (
           <ul style={list}>
             {mine.map((s) => (
               <StopRow
@@ -253,6 +301,7 @@ export default function Home({ stops, now, onOpenStop, onOpenTrain, onOpenAirpor
               />
             ))}
           </ul>
+          )}
         </section>
       ) : null}
 
