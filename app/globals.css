@@ -486,9 +486,6 @@ input[type='search']::-webkit-search-decoration {
 .app-tab-icon {
   flex-shrink: 0;
 }
-.app-tab-dot {
-  background-color: var(--on-brand);
-}
 .app-tab {
   position: relative;
 }
@@ -496,17 +493,6 @@ input[type='search']::-webkit-search-decoration {
 .app-tab-sym {
   position: relative;
   display: inline-flex;
-}
-/* Pricken (något är sparat) sitter i symbolens hörn utan att flytta något. */
-.app-tab-dot {
-  position: absolute;
-  top: -2px;
-  right: -4px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background-color: var(--c-text);
-  box-shadow: 0 0 0 2px var(--c-bg);
 }
 @media (max-width: 767px) {
   .app-tabs {
