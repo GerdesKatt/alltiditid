@@ -19,6 +19,19 @@ export function lineBadge(line: string): string {
   return parts[0] || trimmed;
 }
 
+/**
+ * Vissa trafikbolag lägger produktnamnet först i destinationen ("SkåneExpressen Sjöbo").
+ * Delar upp det, så att målet står som mål och produkten bredvid linjen.
+ */
+const PRODUCT_PREFIXES = ['SkåneExpressen'];
+export function splitProduct(destination: string): { product: string; place: string } {
+  const d = String(destination || '').trim();
+  for (const p of PRODUCT_PREFIXES) {
+    if (d.startsWith(`${p} `) && d.length > p.length + 1) return { product: p, place: d.slice(p.length + 1).trim() };
+  }
+  return { product: '', place: d };
+}
+
 /** Linjens namn utan beteckningen, t.ex. "Gröna linjen", "Buss", "Arlanda Express". */
 export function lineName(line: string, badge: string): string {
   const trimmed = line.trim();

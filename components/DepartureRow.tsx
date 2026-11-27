@@ -4,7 +4,7 @@ import { COMPENSATION_DELAY_MIN } from '../lib/byte';
 import { compensationLink } from '../lib/compensation';
 import Icon from './Icon';
 import { colors, fonts } from './styles';
-import { COUNTDOWN_MAX_MIN, lineBadge, lineColor, lineName, parseLocal } from '../lib/lineFormat';
+import { COUNTDOWN_MAX_MIN, lineBadge, lineColor, lineName, parseLocal, splitProduct } from '../lib/lineFormat';
 import { lineLabel, trackLabel, useLang } from '../lib/i18n';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 
@@ -29,6 +29,8 @@ type Props = {
   alternative?: Departure | null;
   /** Raden fälldes ut. */
   onOpen?: (item: Departure) => void;
+  /** Filtret Tåg: fjärr- och regionaltåg med klockslaget stort, som på biljetten. */
+  clockFirst?: boolean;
 };
 
 /** Beskedet visas bara för avgångar inom den här tiden; längre fram spelar gångtiden ingen roll än. */
@@ -54,6 +56,7 @@ export default function DepartureRow({
   walkMinutes = null,
   alternative = null,
   onOpen,
+  clockFirst = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const { lang, t } = useLang();
@@ -77,9 +80,9 @@ export default function DepartureRow({
     : minutesLeft <= 0
     ? t('Nu', 'Now')
     : `${minutesLeft} min`;
-  // Bokade tåg (fjärr- och regionaltåg) visas som på stationsskylten och biljetten:
-  // ordinarie avgångstid stort, nedräkningen smått. Lokaltrafik tvärtom.
-  const booked = item.transportMode === 'train';
+  // En enhet i tidskolumnen: minuter kvar för alla trafikslag. Bara i filtret Tåg visas bokade tåg
+  // (fjärr- och regionaltåg) som på stationsskylten och biljetten: ordinarie tid stort, nedräkningen smått.
+  const booked = clockFirst && item.transportMode === 'train';
   const countdown =
     minutesLeft === null || minutesLeft >= COUNTDOWN_MAX_MIN
       ? ''
@@ -109,8 +112,9 @@ export default function DepartureRow({
   const showsTrip = Boolean(!showsTrain && onShowTrip && item.tripId && item.tripDate);
   const badge = lineBadge(item.line);
   const tint = lineColor(item);
-  const name = lineLabel(lineName(item.line, badge), lang);
-  const towards = direction === 'arrivals' ? `${t('Från', 'From')} ${item.destination}` : item.destination;
+  const { product, place } = splitProduct(item.destination);
+  const name = product || lineLabel(lineName(item.line, badge), lang);
+  const towards = direction === 'arrivals' ? `${t('Från', 'From')} ${place}` : place;
   const details = [item.stopLabel, trackLabel(item.track, lang)].filter(Boolean).join(' · ');
   const compensation =
     isCancelled || (isDelayed && (item.delayMinutes || 0) >= COMPENSATION_DELAY_MIN);
@@ -204,12 +208,13 @@ export default function DepartureRow({
         <span
           style={{
             flexShrink: 0,
-            minWidth: '44px',
+            // Samma bredd för upp till fyra siffror, så att målen bildar en rak kolumn.
+            minWidth: '52px',
             padding: '4px 6px',
             boxSizing: 'border-box',
             borderRadius: 'var(--radius-badge)',
-            // Kontur i bläck; inställda är grå. Bokade tåg har streckad kontur.
-            border: `1.5px ${booked ? 'dashed' : 'solid'} ${isCancelled ? colors.borderStrong : colors.badgeBorder}`,
+            // Kontur i bläck; inställda är grå.
+            border: `1.5px solid ${isCancelled ? colors.borderStrong : colors.badgeBorder}`,
             // Linjens färg (tunnelbana, pendeltåg) som en kant i brickan, för igenkänningen.
             boxShadow: tint && !isCancelled ? `inset 5px 0 0 ${tint}` : 'none',
             paddingLeft: tint && !isCancelled ? '10px' : '6px',
@@ -230,14 +235,17 @@ export default function DepartureRow({
         <span style={{ flex: '1 1 clamp(5rem, (1rem - 16px) * 1000, 7rem)', minWidth: 0 }}>
           <span
             style={{
-              display: 'block',
               fontSize: '1rem',
               fontWeight: 700,
               color: isCancelled ? colors.textDim : colors.text,
               textDecoration: isCancelled ? 'line-through' : 'none',
+              // Målet är andra frågan efter tiden: två rader hellre än "Västra hamnen vi…".
               overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflowWrap: 'anywhere',
+              lineHeight: 1.25,
             }}
           >
             {towards}
@@ -272,13 +280,25 @@ export default function DepartureRow({
               </span>
             ) : null}
             {[name, details].filter(Boolean).join(' · ')}
-            {item.deviation && !(isCancelled && item.deviation === 'Inställd') ? (
-              <span style={{ color: colors.amber, fontWeight: 600 }}>
-                {name || details ? ' · ' : ''}
-                {item.deviation}
-              </span>
-            ) : null}
           </span>
+          {item.deviation && !(isCancelled && item.deviation === 'Inställd') ? (
+            // Avvikelsen är skälet att titta: egen rad, högst två, aldrig avklippt efter ett ord.
+            <span
+              style={{
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                marginTop: '2px',
+                fontSize: '0.8125rem',
+                lineHeight: 1.3,
+                color: colors.amber,
+                fontWeight: 600,
+              }}
+            >
+              {item.deviation}
+            </span>
+          ) : null}
         </span>
 
         {/* Tid: minuter kvar störst */}
@@ -350,12 +370,12 @@ export default function DepartureRow({
               </span>
             ) : bigTime === clock ? (
               // Långt fram står klockslaget redan stort.
-              onlySchedule ? t('ingen realtid', 'no real-time') : null
+              onlySchedule ? t('tidtabell', 'timetable') : null
             ) : (
               <>
                 {item.scheduledTime}
                 {shifted ? ` → ${clock}` : ''}
-                {onlySchedule ? ` · ${t('ingen realtid', 'no real-time')}` : ''}
+                {onlySchedule ? ` · ${t('tidtabell', 'timetable')}` : ''}
               </>
             )}
           </span>

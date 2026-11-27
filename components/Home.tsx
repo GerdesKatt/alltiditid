@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import type { Departure, StopOption } from '../lib/types';
 import { colors, fonts } from './styles';
 import { lineLabel, useLang } from '../lib/i18n';
-import { countdownFor, groupKey, lineBadge, lineColor, parseLocal } from '../lib/lineFormat';
+import { countdownFor, groupKey, lineBadge, lineColor, parseLocal, splitProduct } from '../lib/lineFormat';
 import { boardUrl } from '../lib/prefetch';
 import { positionAllowed, rememberPositionAllowed } from '../lib/visits';
 import InstallApp from './InstallApp';
@@ -482,7 +482,7 @@ function NearbyLines({
                   <span style={{ display: 'block', fontSize: '0.9375rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     <span className="sr-only">{lineLabel(d.line, lang)} </span>
                     <span style={{ color: colors.textDim }}>{t('mot', 'to')} </span>
-                    {d.destination}
+                    {splitProduct(d.destination).place}
                   </span>
                   <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim }}>
                     {stop.name} · {formatDistance(stop.distance)}
@@ -611,7 +611,7 @@ function StopRow({
                   <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     <span className="sr-only">{lineLabel(d.line, lang)} </span>
                     <span style={{ color: colors.textDim }}>{t('mot', 'to')} </span>
-                    {d.destination}
+                    {splitProduct(d.destination).place}
                   </span>
                   <span
                     style={{

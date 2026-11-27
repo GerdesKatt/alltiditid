@@ -676,6 +676,7 @@ export default function DepartureBoard({
                   walkMinutes={item.id === walkTargetId ? walkMin : null}
                   alternative={alternatives.get(item.id) || null}
                   onOpen={onRowOpen}
+                  clockFirst={mode === 'train'}
                 />
               ))}
             </div>
