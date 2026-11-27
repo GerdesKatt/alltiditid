@@ -195,7 +195,7 @@ export default function FlightView({ initialAirport }: Props) {
         {airportObj.name}
       </h1>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', marginBottom: '10px' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 8px', alignItems: 'center', marginBottom: '10px' }}>
         <DirectionToggle direction={direction} onChange={setDirection} />
         <input
           type="search"
@@ -216,11 +216,21 @@ export default function FlightView({ initialAirport }: Props) {
         />
       </div>
 
-      <p style={{ margin: '0 0 12px', fontSize: '0.8125rem', color: stale ? colors.amber : colors.textDim }}>
+      {/* Samma statusrad som tavlan: små versaler, en rad. Ingen prick: flygtiderna är inte realtid. */}
+      <p
+        style={{
+          margin: '0 0 12px',
+          fontSize: '0.6875rem',
+          fontWeight: 600,
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          color: stale ? colors.amber : colors.textDim,
+        }}
+      >
         {updatedAt
           ? `${stale ? t('Senast hämtad', 'Last fetched') : t('Uppdaterad', 'Updated')} ${clock(updatedAt)} · ${t(
-              'flygtiderna uppdateras var 10:e minut',
-              'flight times update every 10 minutes'
+              'var 10:e min',
+              'every 10 min'
             )}`
           : ''}
       </p>
@@ -295,7 +305,8 @@ export default function FlightView({ initialAirport }: Props) {
           {filter ? t('Inga flyg matchar filtret.', 'No flights match the filter.') : t('Inga fler flyg i dag.', 'No more flights today.')}
         </div>
       ) : (
-        <ul style={{ display: 'flex', flexDirection: 'column', gap: '6px', listStyle: 'none', margin: 0, padding: 0 }}>
+        // Samma radmönster som tavlan: tunna linjer mellan raderna, inga kort.
+        <ul style={{ display: 'flex', flexDirection: 'column', listStyle: 'none', margin: 0, padding: 0, borderTop: `1px solid ${colors.text}` }}>
           {shown.map((f) => (
             <FlightRow
               key={f.id}
@@ -364,9 +375,11 @@ function FlightRow({
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
-          padding: '12px',
-          borderRadius: 'var(--radius-card)',
-          border: `1px solid ${colors.border}`,
+          padding: '12px 14px',
+          minHeight: '64px',
+          border: 'none',
+          borderBottom: `1px solid ${colors.border}`,
+          borderRadius: 0,
           backgroundColor: colors.surface,
           color: colors.text,
           textAlign: 'left',
@@ -382,8 +395,10 @@ function FlightRow({
             padding: '4px 6px',
             boxSizing: 'border-box',
             borderRadius: 'var(--radius-badge)',
-            border: `1.5px solid ${cancelled ? colors.borderStrong : colors.badgeBg}`,
-            color: cancelled ? colors.textDim : colors.text,
+            // Samma bricka som linjen på tavlan: kontur i bläck, grå och grå yta när flyget är inställt.
+            border: `1.5px solid ${cancelled ? colors.borderStrong : colors.badgeBorder}`,
+            backgroundColor: cancelled ? colors.surfaceRaised : colors.badgeBg,
+            color: cancelled ? colors.textDim : colors.badgeText,
             fontFamily: fonts.display,
             fontWeight: 800,
             fontSize: '0.8125rem',
@@ -410,7 +425,7 @@ function FlightRow({
             {f.place || f.flightId}
           </span>
           <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim, marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {[f.airline, where].filter(Boolean).join(' · ')}
+            {[shortAirline(f.airline), where].filter(Boolean).join(' · ')}
           </span>
         </span>
         <span style={{ flexShrink: 0, textAlign: 'right' }}>
@@ -485,4 +500,23 @@ function FlightRow({
       ) : null}
     </li>
   );
+}
+
+/** Kända långa bolagsnamn i kort form, och bolagsformen bort: "Ryanair Ltd" → "Ryanair". */
+const AIRLINE_SHORT: Record<string, string> = {
+  'sas scandinavian airlines': 'SAS',
+  'scandinavian airlines': 'SAS',
+  'scandinavian airlines system': 'SAS',
+  'norwegian air shuttle': 'Norwegian',
+  'norwegian air sweden': 'Norwegian',
+  'norwegian air international': 'Norwegian',
+};
+function shortAirline(name: string | undefined): string {
+  const raw = String(name || '').trim();
+  const low = raw.toLowerCase();
+  const known = AIRLINE_SHORT[low];
+  if (known) return known;
+  if (low.startsWith('sas ')) return 'SAS';
+  if (low.startsWith('norwegian ')) return 'Norwegian';
+  return raw.replace(/\s+(ltd|limited|ab|asa|as|inc|plc|s\.?a\.?|gmbh)\.?$/i, '').trim();
 }

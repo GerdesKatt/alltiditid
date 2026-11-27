@@ -8,16 +8,23 @@ type Props = {
   onChange: (direction: BoardDirection) => void;
 };
 
-const OPTIONS: { key: BoardDirection; label: string; labelEn: string; activeBorder: string; activeBg: string }[] = [
-  { key: 'departures', label: 'Avgångar', labelEn: 'Departures', activeBorder: colors.accentStrong, activeBg: colors.accentStrong },
-  { key: 'arrivals', label: 'Ankomster', labelEn: 'Arrivals', activeBorder: colors.arrivalsBg, activeBg: colors.arrivalsBg },
+const OPTIONS: { key: BoardDirection; label: string; labelEn: string }[] = [
+  { key: 'departures', label: 'Avgångar', labelEn: 'Departures' },
+  { key: 'arrivals', label: 'Ankomster', labelEn: 'Arrivals' },
 ];
 
-/** Avgångar/Ankomster, direkt vid tavlan så att man inte behöver öppna inställningarna. */
+/**
+ * Avgångar/Ankomster: samma understrukna flikar som tavlans filter (Alla/Tåg/Buss),
+ * så att ett vyval ser likadant ut i hela appen.
+ */
 export default function DirectionToggle({ direction, onChange }: Props) {
   const { t } = useLang();
   return (
-    <div role="group" aria-label={t('Visa', 'Show')} style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
+    <div
+      role="group"
+      aria-label={t('Visa', 'Show')}
+      style={{ flexBasis: '100%', display: 'flex', flexWrap: 'wrap', columnGap: '18px', borderBottom: `1px solid ${colors.border}` }}
+    >
       {OPTIONS.map((opt) => {
         const active = direction === opt.key;
         return (
@@ -27,15 +34,18 @@ export default function DirectionToggle({ direction, onChange }: Props) {
             aria-pressed={active}
             onClick={() => onChange(opt.key)}
             style={{
+              flexShrink: 0,
               minHeight: '44px',
-              padding: '0 16px',
+              padding: '0 2px',
+              border: 'none',
+              borderBottom: `2px solid ${active ? colors.text : 'transparent'}`,
               borderRadius: 0,
-              border: active ? `1px solid ${opt.activeBorder}` : `1px solid ${colors.borderMuted}`,
-              backgroundColor: active ? opt.activeBg : colors.surface,
-              color: active ? colors.onAccent : colors.text,
-              fontWeight: 800,
+              backgroundColor: 'transparent',
+              color: active ? colors.text : colors.textDim,
+              fontWeight: active ? 700 : 600,
               fontSize: '0.875rem',
               cursor: 'pointer',
+              whiteSpace: 'nowrap',
             }}
           >
             {t(opt.label, opt.labelEn)}
