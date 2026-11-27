@@ -7,6 +7,7 @@ import { parseLocal } from '../lib/lineFormat';
 import DirectionToggle from './DirectionToggle';
 import QueueForecast from './QueueForecast';
 import { gatePlan } from '../lib/gateTime.mjs';
+import { isMyFlight, loadMyFlight, MY_FLIGHT_EVENT, storeMyFlight, type MyFlight } from '../lib/myFlight';
 import { flightStatus, translator, useLang, type Lang } from '../lib/i18n';
 import { colors, emptyState, fonts } from './styles';
 
@@ -401,6 +402,14 @@ function FlightRow({
   const regular = queues.filter((q) => !q.fastTrack);
   const queueNow = soon && regular.length ? Math.max(...regular.map((q) => q.minutes)) : null;
   const plan = arrivals ? null : gatePlan(f, airport, queueNow);
+  const [mine, setMine] = useState<MyFlight | null>(null);
+  useEffect(() => {
+    const sync = () => setMine(loadMyFlight());
+    sync();
+    window.addEventListener(MY_FLIGHT_EVENT, sync);
+    return () => window.removeEventListener(MY_FLIGHT_EVENT, sync);
+  }, []);
+  const saved = isMyFlight(mine, airport, f.flightId, f.scheduledAt);
   const statusLine = cancelled
     ? t('Inställt', 'Cancelled')
     : delayed
@@ -555,6 +564,30 @@ function FlightRow({
                       `Counting a ${plan.walkMin}–${plan.walkMax} min walk to the gate but not the queue: add it (see Usually). Estimated.`
                     )}
               </div>
+              <button
+                type="button"
+                aria-pressed={saved}
+                onClick={() => storeMyFlight(saved ? null : { airport, flightId: f.flightId, scheduledAt: f.scheduledAt })}
+                style={{
+                  marginTop: '8px',
+                  minHeight: '40px',
+                  padding: '0 14px',
+                  borderRadius: 'var(--radius-control)',
+                  border: `1px solid ${colors.borderStrong}`,
+                  backgroundColor: saved ? colors.accentTint : colors.surface,
+                  color: colors.text,
+                  fontSize: '0.875rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                {saved ? t('✓ Mitt flyg (ta bort)', '✓ My flight (remove)') : t('Spara som mitt flyg', 'Save as my flight')}
+              </button>
+              {saved ? (
+                <div style={{ fontSize: '0.8125rem', color: colors.textDim, marginTop: '4px' }}>
+                  {t('Syns under Min resa tills planet lyft.', 'Shown under My trip until the plane has left.')}
+                </div>
+              ) : null}
             </div>
           ) : null}
           {f.via?.length ? <div>Via {f.via.join(', ')}</div> : null}
