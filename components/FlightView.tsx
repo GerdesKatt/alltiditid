@@ -443,11 +443,12 @@ function FlightRow({
   if (notes.length) details.push([t('Status', 'Status'), notes.join(' · ')]);
   if (left && statusLine !== left) details.push([arrivals ? t('Landar', 'Lands') : t('Avgår', 'Departs'), left]);
   if (!arrivals && f.checkIn) details.push([t('Incheckning', 'Check-in'), `${t('Disk', 'Desk')} ${f.checkIn}`]);
-  if (!arrivals && queueText) details.push([t('Säkerhet nu', 'Security now'), queueText]);
+  // Kötiden i säkerheten visas i raden ovanför tavlan och i förklaringen, inte en tredje gång här.
+  if (!arrivals && queueText && !plan) details.push([t('Säkerhet nu', 'Security now'), queueText]);
   if (f.codeshare?.length) details.push([t('Även som', 'Also as'), f.codeshare.join(', ')]);
 
   return (
-    <li>
+    <li style={open ? { backgroundColor: colors.accentTint } : undefined}>
       <button
         type="button"
         aria-expanded={open}
@@ -460,9 +461,9 @@ function FlightRow({
           padding: '12px 14px',
           minHeight: '64px',
           border: 'none',
-          borderBottom: `1px solid ${colors.border}`,
+          borderBottom: open ? 'none' : `1px solid ${colors.border}`,
           borderRadius: 0,
-          backgroundColor: colors.surface,
+          backgroundColor: open ? 'transparent' : colors.surface,
           color: colors.text,
           textAlign: 'left',
           cursor: 'pointer',
@@ -559,19 +560,20 @@ function FlightRow({
       </button>
 
       {open ? (
-        // Detaljerna under raden, i linje med målet och utan eget kort: först svaret (när du ska vara vid
-        // säkerheten), sedan fakta som etikett och värde, sist knappen. Samma sak sägs bara en gång.
-        <div style={{ padding: '0 14px 14px 88px', borderBottom: `1px solid ${colors.border}`, fontSize: '0.8125rem', lineHeight: 1.45 }}>
+        // Utfälld rad blir ett eget kort (samma tonade bakgrund som raden): först svaret, när du ska
+        // vara vid säkerheten, sedan fakta som etikett och värde, sist knappen över hela bredden.
+        <div style={{ padding: '0 14px 16px', borderBottom: `1px solid ${colors.border}`, fontSize: '0.875rem', lineHeight: 1.45 }}>
           {plan ? (
-            <div style={{ marginBottom: '10px' }}>
-              <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: colors.text }}>
-                {t('Var vid säkerheten senast', 'Be at security by')} {plan.atSecurity}
+            <div style={{ padding: '12px 0 14px', borderTop: `1px solid ${colors.border}` }}>
+              <div style={{ color: colors.textDim, fontSize: '0.8125rem' }}>{t('Var vid säkerheten senast', 'Be at security by')}</div>
+              <div style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1.1, fontVariantNumeric: 'tabular-nums', color: colors.text }}>
+                {plan.atSecurity}
               </div>
-              <div style={{ color: colors.textDim, marginTop: '2px' }}>
+              <div style={{ color: colors.textDim, marginTop: '4px', fontSize: '0.8125rem' }}>
                 {plan.queue !== null
                   ? t(
                       `Med ${plan.queue} min kötid i säkerheten just nu och ${plan.walkMin}–${plan.walkMax} min till gaten. Uppskattat.`,
-                      `With the queue now (${plan.queue} min) and ${plan.walkMin}–${plan.walkMax} min to the gate. Estimated.`
+                      `With ${plan.queue} min at security now and ${plan.walkMin}–${plan.walkMax} min to the gate. Estimated.`
                     )
                   : t(
                       `Med ${plan.walkMin}–${plan.walkMax} min till gaten, utan kötid (se Brukar vara). Uppskattat.`,
@@ -581,11 +583,21 @@ function FlightRow({
             </div>
           ) : null}
           {details.length ? (
-            <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: '14px', rowGap: '4px', margin: 0 }}>
+            <dl
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'auto 1fr',
+                columnGap: '16px',
+                rowGap: '6px',
+                margin: 0,
+                padding: '12px 0 0',
+                borderTop: `1px solid ${colors.border}`,
+              }}
+            >
               {details.map(([label, value]) => (
                 <React.Fragment key={label}>
                   <dt style={{ color: colors.textDim }}>{label}</dt>
-                  <dd style={{ margin: 0, color: colors.text }}>{value}</dd>
+                  <dd style={{ margin: 0, color: colors.text, fontWeight: 600 }}>{value}</dd>
                 </React.Fragment>
               ))}
             </dl>
@@ -597,25 +609,26 @@ function FlightRow({
                 aria-pressed={saved}
                 onClick={() => storeMyFlight(saved ? null : { airport, flightId: f.flightId, scheduledAt: f.scheduledAt })}
                 style={{
-                  marginTop: '12px',
-                  minHeight: '44px',
+                  marginTop: '16px',
+                  width: '100%',
+                  minHeight: '48px',
                   padding: '0 14px',
                   borderRadius: 'var(--radius-control)',
-                  border: `1px solid ${colors.borderStrong}`,
-                  backgroundColor: saved ? colors.accentTint : colors.surface,
-                  color: colors.text,
-                  fontSize: '0.875rem',
+                  border: `1px solid ${colors.text}`,
+                  backgroundColor: saved ? 'transparent' : colors.text,
+                  color: saved ? colors.text : colors.bg,
+                  fontSize: '0.9375rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                 }}
               >
-                {saved ? t('✓ Mitt flyg (ta bort)', '✓ My flight (remove)') : t('Spara som mitt flyg', 'Save as my flight')}
+                {saved ? t('✓ Sparat under Min resa', '✓ Saved under My trip') : t('Spara som mitt flyg', 'Save as my flight')}
               </button>
-              {saved ? (
-                <div style={{ color: colors.textDim, marginTop: '4px' }}>
-                  {t('Syns under Min resa tills planet lyft.', 'Shown under My trip until the plane has left.')}
-                </div>
-              ) : null}
+              <div style={{ color: colors.textDim, marginTop: '6px', fontSize: '0.8125rem', textAlign: 'center' }}>
+                {saved
+                  ? t('Tryck igen för att ta bort. Ligger kvar tills planet lyft.', 'Tap again to remove. Stays until the plane has left.')
+                  : t('Hamnar under Min resa med gate och tider.', 'Goes under My trip with gate and times.')}
+              </div>
             </>
           ) : null}
         </div>
