@@ -298,3 +298,42 @@ test('action=places: "gata nr ort" letar gatan nära orten', async () => {
   assert.equal(body.places[0].detail, 'Stockholm');
   assert.ok(urls.some((u) => u.includes('q=Blåklintsvägen 4&') && u.includes('lat=59.3')), 'gatan söks nära Älvsjö');
 });
+
+test('action=plan: en inskriven start ("from") söks upp som målet', async () => {
+  const urls = [];
+  globalThis.fetch = async (url) => {
+    const u = decodeURIComponent(String(url));
+    urls.push(u);
+    if (u.includes('/location.name?')) {
+      const input = /input=([^&]*)/.exec(u)[1];
+      if (/fruängen/i.test(input)) return new Response(JSON.stringify({ stopLocationOrCoordLocation: [{ StopLocation: { extId: '740021705', name: 'Fruängen T-bana', lat: 59.2856, lon: 17.9649 } }] }));
+      return alvsjoFetch([])(url);
+    }
+    if (u.includes('photon')) return new Response(JSON.stringify({ features: [] }));
+    if (u.includes('/trip?')) return new Response(JSON.stringify({ Trip: [trip] }));
+    return new Response('{}', { status: 404 });
+  };
+  const plan = async (body) => {
+    const res = await onRequest({
+      request: new Request('https://alltiditid.se/api/trafik?action=plan', { method: 'POST', body: JSON.stringify(body) }),
+      env: { TRAFIKLAB_RESROBOT_KEY: 'rr' },
+      waitUntil() {},
+    });
+    return { status: res.status, body: await res.json() };
+  };
+  // En adress som start blir koordinater.
+  const a = await plan({ to: 'Fruängen', from: 'Blåklintsvägen 4 älvsjö' });
+  assert.equal(a.status, 200);
+  assert.equal(a.body.from, 'Blåklintsvägen 4, Stockholm');
+  assert.equal(a.body.fromHere, false);
+  assert.ok(urls.findLast((u) => u.includes('/trip?')).includes('originCoordLat=59.27710'));
+  // En hållplats som start blir dess id.
+  const b = await plan({ to: 'Blåklintsvägen 4 älvsjö', from: 'fruängen' });
+  assert.equal(b.status, 200);
+  assert.equal(b.body.from, 'Fruängen T-bana');
+  assert.ok(urls.findLast((u) => u.includes('/trip?')).includes('originId=740021705'));
+  // Utan start alls: be om den.
+  const c = await plan({ to: 'Fruängen' });
+  assert.equal(c.status, 400);
+  assert.equal(c.body.error, 'Skriv var du startar.');
+});

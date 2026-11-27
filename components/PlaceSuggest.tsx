@@ -23,6 +23,8 @@ type Props = {
   /** Tavlans hållplats: träffar nära den kommer först (bara ungefär, cirka 10 km). */
   nearStopId?: string;
   onPick: (place: ChosenPlace) => void;
+  /** Listans id, så att fältet kan peka på den (aria-controls). */
+  listId?: string;
 };
 
 /** Beskrivningen under namnet: "Hotell · Stockholm", "Hållplats · T-bana, Buss". */
@@ -44,7 +46,7 @@ export function placeDetail(p: ChosenPlace, lang: string): string {
  * sjukhus) och adresser i en lista, bäst passande först. Felstavningar och saknade
  * prickar går bra: "clarion sign", "sodersjukhuset", "gulmarsplan".
  */
-export default function PlaceSuggest({ text, nearStopId, onPick }: Props) {
+export default function PlaceSuggest({ text, nearStopId, onPick, listId = 'vart-ska-du-lista' }: Props) {
   const { t, lang } = useLang();
   const [rows, setRows] = useState<ChosenPlace[]>([]);
   const [source, setSource] = useState('');
@@ -111,7 +113,7 @@ export default function PlaceSuggest({ text, nearStopId, onPick }: Props) {
   return (
     <div>
       <ul
-        id="vart-ska-du-lista"
+        id={listId}
         role="listbox"
         aria-label={t('Förslag', 'Suggestions')}
         style={{ listStyle: 'none', margin: 0, padding: 0, border: `1px solid ${colors.borderStrong}`, borderTop: 'none' }}

@@ -1941,6 +1941,41 @@ function parseChosenPlace(p) {
   return { kind: 'coord', lat: pLat, lon: pLon, name, detail, placeKind, type };
 }
 
+/**
+ * Det man skrev ("Clarion sign", "Blåklintsvägen 4 älvsjö", "fruangen") till en plats:
+ * hållplatser och adresser från ResRobot och namngivna platser (hotell, arenor) från
+ * OpenStreetMap, jämförda med det man skrev. Den som passar bäst vinner, inte bara
+ * ResRobots första träff. Används för både målet och en inskriven start.
+ * near (där man står) används bara för att välja den närmaste av lika bra träffar
+ * och skickas inte till platssökningen.
+ */
+async function findPlace(to, { rr, env, context, near = null }) {
+  // Gatuadress (har en siffra): leta bland adresser först. type=A är HAFAS sätt att be om adresser.
+  const lookups = /\d/.test(to) ? ['&type=A', ''] : ['', '&type=A'];
+  const placesP = lookupPlaces(to, env, context, null).catch(() => ({ places: [] }));
+  const fromRr = [];
+  let failed = false;
+  for (const type of lookups) {
+    try {
+      fromRr.push(...destinationCandidates(await rr(`location.name?input=${encodeURIComponent(to)}&maxNo=5${type}`)));
+    } catch {
+      failed = true;
+    }
+    if (rankPlaces(to, fromRr)[0]?.score >= SURE) break;
+  }
+  const all = [...fromRr, ...(await placesP).places];
+  let ranked = rankPlaces(to, all, { near });
+  // "Blåklintsvägen 4 älvsjö": om orten inte gav en säker träff, sök gatan nära orten.
+  const addr = splitAddress(to);
+  if (addr && addr.town && !(ranked[0] && ranked[0].score >= SURE)) {
+    const more = await addressInTown(addr, env, context, rr);
+    if (more.town) ranked = rankPlaces(to, [...all, ...more.places], { town: more.town });
+  }
+  // Inget passar orden: ta ResRobots egen gissning, men säg det.
+  const best = ranked[0] || fromRr[0] || null;
+  return { best, sure: Boolean(ranked[0] && ranked[0].score >= SURE), ranked, failed };
+}
+
 async function handlePlan(request, keys, context) {
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Använd POST.' }, 405, { Allow: 'POST' });
@@ -1952,27 +1987,30 @@ async function handlePlan(request, keys, context) {
     body = null;
   }
   const to = String((body && body.to) || '').trim().slice(0, 100);
-  const lat = Number(body && body.lat);
-  const lon = Number(body && body.lon);
-  const fromId = String((body && body.fromId) || '').split(',')[0].trim();
-  const fromName = String((body && body.fromName) || '').trim().slice(0, 80);
-  const fromCoord = inSweden(lat, lon);
+  let lat = Number(body && body.lat);
+  let lon = Number(body && body.lon);
+  let fromId = String((body && body.fromId) || '').split(',')[0].trim();
+  let fromName = String((body && body.fromName) || '').trim().slice(0, 80);
+  let fromCoord = inSweden(lat, lon);
+  // Utan position: var man startar, som text ("Blåklintsvägen 4 älvsjö", "fruängen").
+  // Söks upp på samma sätt som målet. Ett valt förslag kommer i stället som fromId eller lat/lon.
+  const typedFrom = !fromCoord && !/^\d{6,12}$/.test(fromId) ? String((body && body.from) || '').trim().slice(0, 100) : '';
   // Valfri tid: ett datum och en tid, och om tiden gäller avgång eller senaste ankomst.
   const date = /^\d{4}-\d{2}-\d{2}$/.test(String(body && body.date)) ? String(body.date) : '';
   const time = /^\d{2}:\d{2}$/.test(String(body && body.time)) ? String(body.time) : '';
   const arrive = Boolean(body && body.arrive) && Boolean(time);
   const when = `${date ? `&date=${date}` : ''}${time ? `&time=${time}` : ''}${arrive ? '&searchForArrival=1' : ''}`;
   if (to.length < 2) return jsonResponse({ error: 'Skriv vart du ska.' }, 400);
-  if (!fromCoord && !/^\d{6,12}$/.test(fromId)) return jsonResponse({ error: 'Välj var du startar.' }, 400);
+  if (!fromCoord && !/^\d{6,12}$/.test(fromId) && typedFrom.length < 2) return jsonResponse({ error: 'Skriv var du startar.' }, 400);
   if (!keys.resrobot) return jsonResponse({ error: 'Reseplaneraren är inte konfigurerad.' }, 501);
 
   const env = context && context.env;
   // Ett valt förslag: hållplatsens id eller platsens koordinater. Då behövs ingen sökning.
   const chosen = parseChosenPlace(body && body.place);
-  const origin = fromCoord ? `c${lat.toFixed(3)},${lon.toFixed(3)}` : `s${fromId}`;
+  const origin = typedFrom ? `t${encodeURIComponent(foldPlace(typedFrom))}` : fromCoord ? `c${lat.toFixed(3)},${lon.toFixed(3)}` : `s${fromId}`;
   const target = chosen ? (chosen.kind === 'stop' ? `id${chosen.id}` : `c${chosen.lat.toFixed(4)},${chosen.lon.toFixed(4)}`) : to.toLowerCase();
   const cacheKey = new Request(
-    `https://cache.alltiditid.se/plan-v3/${origin}/${encodeURIComponent(target)}/${date || 'idag'}/${time || 'nu'}/${arrive ? 'framme' : 'avgang'}`
+    `https://cache.alltiditid.se/plan-v4/${origin}/${encodeURIComponent(target)}/${date || 'idag'}/${time || 'nu'}/${arrive ? 'framme' : 'avgang'}`
   );
   const cached = await cacheGet(cacheKey);
   if (cached) {
@@ -1992,47 +2030,34 @@ async function handlePlan(request, keys, context) {
       return res.json();
     });
 
+  // Inskriven start: en hållplats blir fromId, en adress eller plats blir koordinater.
+  let fromLabel = '';
+  // Där resan börjar, för att välja det närmaste av lika bra mål.
+  let startPoint = fromCoord ? { lat, lon } : null;
+  if (typedFrom) {
+    const start = await findPlace(typedFrom, { rr, env, context });
+    if (!start.best && start.failed) return jsonResponse({ error: 'Kunde inte söka just nu.' }, 502);
+    if (!start.best) return jsonResponse({ error: `Hittade ingen plats som heter ${typedFrom}.`, fromNotFound: true }, 404);
+    fromLabel = cleanPlaceName(start.best.name) || start.best.name;
+    if (Number.isFinite(start.best.lat) && Number.isFinite(start.best.lon)) startPoint = { lat: start.best.lat, lon: start.best.lon };
+    if (start.best.kind === 'stop') {
+      fromId = start.best.id;
+      fromName = start.best.name;
+    } else {
+      lat = start.best.lat;
+      lon = start.best.lon;
+      fromCoord = true;
+    }
+  }
+
   let dest = chosen;
   let sure = Boolean(chosen);
   let alternatives = [];
   if (!dest) {
-    // Hållplatser och adresser från ResRobot, och namngivna platser (hotell, arenor) från
-    // OpenStreetMap, jämförda med det man skrev. Den som passar bäst vinner, inte bara
-    // ResRobots första träff: "Clarion sign" ska bli Clarion Hotel Sign, inte Sigtuna busstation.
-    // Gatuadress (har en siffra): leta bland adresser först. type=A är HAFAS sätt att be om adresser.
-    const lookups = /\d/.test(to) ? ['&type=A', ''] : ['', '&type=A'];
-    // Positionen skickas inte vidare till platssökningen.
-    const placesP = lookupPlaces(to, env, context, null).catch(() => ({ places: [] }));
-    const fromRr = [];
-    let failed = false;
-    for (const type of lookups) {
-      try {
-        fromRr.push(...destinationCandidates(await rr(`location.name?input=${encodeURIComponent(to)}&maxNo=5${type}`)));
-      } catch {
-        failed = true;
-      }
-      if (rankPlaces(to, fromRr)[0]?.score >= SURE) break;
-    }
-    // Där man står används bara här, för att välja den närmaste av lika bra träffar.
-    // Den skickas inte till platssökningen.
-    const near = fromCoord ? { lat, lon } : null;
-    const found = [...fromRr, ...(await placesP).places];
-    let ranked = rankPlaces(to, found, { near });
-    // "Blåklintsvägen 4 älvsjö": om orten inte gav en säker träff, sök gatan nära orten.
-    const addr = splitAddress(to);
-    if (addr && addr.town && !(ranked[0] && ranked[0].score >= SURE)) {
-      const more = await addressInTown(addr, env, context, rr);
-      if (more.town) ranked = rankPlaces(to, [...found, ...more.places], { town: more.town });
-    }
-    if (ranked[0] && ranked[0].score >= SURE) {
-      dest = ranked[0];
-      sure = true;
-    } else if (ranked[0]) {
-      dest = ranked[0];
-    } else if (fromRr[0]) {
-      // Inget passar orden: ta ResRobots egen gissning, men säg det.
-      dest = fromRr[0];
-    }
+    const found = await findPlace(to, { rr, env, context, near: startPoint });
+    const { ranked, failed } = found;
+    dest = found.best;
+    sure = found.sure;
     if (!dest && failed) return jsonResponse({ error: 'Kunde inte söka just nu.' }, 502);
     if (!dest) return jsonResponse({ error: `Hittade ingen plats som heter ${to}.` }, 404);
     alternatives = ranked
@@ -2097,7 +2122,8 @@ async function handlePlan(request, keys, context) {
     toType: dest.type || '',
     sure,
     ...(alternatives.length ? { alternatives } : {}),
-    fromHere: fromCoord,
+    fromHere: fromCoord && !typedFrom,
+    ...(fromLabel ? { from: fromLabel } : {}),
     date,
     time,
     arrive,
