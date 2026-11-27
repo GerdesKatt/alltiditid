@@ -3,7 +3,7 @@ import React from 'react';
 import Header from '../../components/Header';
 import Tr from '../../components/Tr';
 import { colors } from '../../components/styles';
-import { cityBySlug, placeSlug, STOP_PAGES } from '../../lib/stops';
+import { CITY_PAGES, cityBySlug, placeSlug, STOP_PAGES } from '../../lib/stops';
 
 export const metadata: Metadata = {
   title: 'Alla hållplatser – avgångar i realtid | alltid i tid',
@@ -52,6 +52,22 @@ export default function AllStopsPage() {
             }
           />
         </p>
+        {CITY_PAGES.length ? (
+          <section style={{ marginBottom: '18px' }}>
+            <h2 style={{ fontSize: '1.125rem', fontWeight: 800, margin: '0 0 8px' }}>
+              <Tr sv="Städer" en="Cities" />
+            </h2>
+            <ul style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', listStyle: 'none', margin: 0, padding: 0 }}>
+              {CITY_PAGES.map((c) => (
+                <li key={c.slug}>
+                  <a href={`/avgangar/${c.slug}`} style={{ color: colors.text, fontSize: '0.9375rem' }}>
+                    {c.place}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
         {places.map((place) => (
           <section key={place} style={{ marginBottom: '18px' }}>
             <h2 style={{ fontSize: '1.125rem', fontWeight: 800, margin: '0 0 8px' }}>
