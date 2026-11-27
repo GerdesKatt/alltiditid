@@ -4,6 +4,8 @@ import { arrivalAt, BYTE_EVENT, COMPENSATION_DELAY_MIN, loadByte, storeByte, ver
 import type { Connection, SavedByte } from '../lib/byte';
 import { colors, fonts } from './styles';
 import { compensationLink } from '../lib/compensation';
+import { buildArrivalMessage } from '../lib/arrivalMessage.mjs';
+import { track } from '../lib/track';
 import { lineLabel, trackLabel, trainPosition, useLang } from '../lib/i18n';
 
 type Part = { scheduled: string; estimated?: string; actual?: string; delay: number };
@@ -44,6 +46,7 @@ export default function MyTrainCard({
   const [connections, setConnections] = useState<Connection[] | null>(null);
   const [transfer, setTransfer] = useState(4);
   const [notFound, setNotFound] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -121,6 +124,43 @@ export default function MyTrainCard({
   const compensation = lateBy >= COMPENSATION_DELAY_MIN;
   // Bolagets egen ansökan, när vi vet vilket bolag som kör tåget.
   const claim = compensationLink(journey?.operator, journey?.product);
+
+  // Dela ankomst: till den som hämtar, med stationen man kliver av på (inte bytet).
+  const home = offStop || last;
+  const homeArr = home?.arrival;
+  const homeArrived = Boolean(homeArr?.actual) || Boolean(home?.passed);
+  const shareText =
+    journey && home && homeArr && !homeArrived
+      ? buildArrivalMessage(
+          {
+            train: `${journey.product} ${journey.number}`,
+            stop: home.name,
+            scheduled: homeArr.scheduled,
+            expected: homeArr.estimated,
+            delay: homeArr.delay,
+          },
+          lang
+        )
+      : '';
+  async function shareArrival() {
+    track('funktion', 0, 'dela_ankomst');
+    try {
+      if (navigator.share) {
+        await navigator.share({ text: shareText });
+        return;
+      }
+    } catch (err) {
+      // Avbruten delning: gör inget mer.
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+    }
+    try {
+      await navigator.clipboard.writeText(shareText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    } catch {
+      // Varken delning eller urklipp: inget att göra.
+    }
+  }
 
   return (
     <section
@@ -259,6 +299,16 @@ export default function MyTrainCard({
             {byte ? t('Ändra byte', 'Change connection') : t('Kolla ett byte', 'Check a connection')}
           </button>
         )}
+        {shareText ? (
+          <button type="button" onClick={shareArrival} style={smallButton} aria-describedby={copied ? 'dela-ankomst-kopierat' : undefined}>
+            {t('Dela ankomst', 'Share arrival')}
+          </button>
+        ) : null}
+        {copied ? (
+          <span id="dela-ankomst-kopierat" role="status" style={{ alignSelf: 'center', fontSize: '0.875rem', color: colors.okText, fontWeight: 600 }}>
+            {t('Kopierat, klistra in i ett meddelande', 'Copied, paste it into a message')}
+          </span>
+        ) : null}
       </div>
     </section>
   );
