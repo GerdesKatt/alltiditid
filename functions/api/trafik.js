@@ -1710,8 +1710,9 @@ function tidyStopName(name) {
  * vidare eller används som cachenyckel, och sparas inte.
  */
 /** Reseplaneraren får högst så här många ResRobot-anrop per dygn (sökning + resa räknas var för sig). */
-// Brons-nyckeln ger 30 000 anrop i månaden och delas med Nära mig; 700 om dagen lämnar plats åt den.
-const PLAN_CALLS_PER_DAY = 700;
+// Silver-nyckeln (sedan 2026-11-27) ger 200 000 anrop i månaden, cirka 6 600 om dagen, och delas med
+// Nära mig, sökreserven och tidtabellsreserven: 3 500 här lämnar plats åt dem.
+const PLAN_CALLS_PER_DAY = 3500;
 
 const inSweden = (lat, lon) =>
   Number.isFinite(lat) && Number.isFinite(lon) && lat >= 55 && lat <= 69.2 && lon >= 10.5 && lon <= 24.3;
@@ -2205,7 +2206,7 @@ function shortStopLabel(name) {
  * ResRobot-nyckeln har en mindre kvot.
  */
 const TIMETABLE_FALLBACK_MINUTES = 360;
-const TIMETABLE_FALLBACK_PER_DAY = 300;
+const TIMETABLE_FALLBACK_PER_DAY = 1500;
 /** En tom eller tidtabellsbaserad tavla ändras sällan: cacha den längre (sekunder). */
 const TIMETABLE_CACHE_SECONDS = 120;
 
