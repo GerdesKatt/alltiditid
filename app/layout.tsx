@@ -3,6 +3,7 @@ import React from 'react';
 import '@fontsource-variable/inter/wght.css';
 import '@fontsource-variable/schibsted-grotesk/wght.css';
 import './globals.css';
+import { THEME_SCRIPT } from '../lib/theme';
 import { PREFETCH_SCRIPT } from '../lib/prefetch';
 
 export const metadata: Metadata = {
@@ -48,9 +49,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="sv">
+    <html lang="sv" suppressHydrationWarning>
       <head>
         {/* Startar hämtningen av tavlan innan React har laddat (lib/prefetch.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: PREFETCH_SCRIPT }} />
         <meta name="theme-color" content="#0e0e0e" media="(prefers-color-scheme: dark)" />
         <meta name="theme-color" content="#f4f2ec" media="(prefers-color-scheme: light)" />

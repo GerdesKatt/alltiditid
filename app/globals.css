@@ -96,9 +96,9 @@
   --inv-border: #3a3936;
 }
 
-/* Natt: papper på svart. */
+/* Natt: papper på svart. Följer telefonen, om man inte valt Ljus eller Mörk själv (data-theme). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     color-scheme: dark;
     --bg: #0e0e0e;
     --surface: #0e0e0e;
@@ -119,6 +119,27 @@
     --inv-signal: #b34d00;
     --inv-border: #d9d6ce;
   }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0e0e0e;
+  --surface: #0e0e0e;
+  --surface-2: #1a1a19;
+  --border: #2a2927;
+  --ink: #f4f2ec;
+  --muted: #8e8b84; /* Sten: 5,7:1 */
+  --signal: #ff8a1f; /* 8,2:1 */
+  --signal-bg: #231609;
+  --signal-ink: #ff8a1f;
+
+  --c-border-strong: #6b6963; /* 3,5:1 */
+  --c-border-muted: #6b6963;
+  --c-text-muted: #d6d3cb;
+  --c-scheduled-border: #6b6963;
+  --c-shadow: rgba(0, 0, 0, 0.6);
+  --inv-muted: #5c5a55;
+  --inv-signal: #b34d00;
+  --inv-border: #d9d6ce;
 }
 
 /* Byter färgerna inne i ett block: allt som läser --c-* blir inverterat. */

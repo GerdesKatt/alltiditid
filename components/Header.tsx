@@ -1,4 +1,5 @@
 'use client';
+import ThemeButton from './ThemeButton';
 
 import React from 'react';
 import { colors, fonts } from './styles';
@@ -102,7 +103,8 @@ export default function Header({ onContactClick, onHome, linkBase = '' }: Props)
             {t('Kontakt', 'Contact')}
           </a>
         </nav>
-        {/* Språkväljaren syns även på mobilen, där menyn är dold. */}
+        {/* Skärmläge och språk syns även på mobilen, där menyn är dold. */}
+        <ThemeButton />
         <button
           type="button"
           onClick={() => setLang(lang === 'en' ? 'sv' : 'en')}
