@@ -6,7 +6,7 @@ import './globals.css';
 import { PREFETCH_SCRIPT } from '../lib/prefetch';
 
 export const metadata: Metadata = {
-  title: 'alltiditid.se – Avgångar och ankomster i realtid',
+  title: 'alltid i tid – avgångar och ankomster i realtid',
   description: 'Koll på avgångar, ankomster och förseningar i realtid.',
   icons: {
     icon: [
@@ -22,17 +22,17 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'sv_SE',
-    siteName: 'alltiditid',
+    siteName: 'alltid i tid',
     url: 'https://alltiditid.se/',
-    title: 'alltiditid – nästa avgång, i realtid',
+    title: 'alltid i tid – nästa avgång, i realtid',
     description: 'Avgångar, ankomster och förseningar i realtid för hela Sverige. Utan reklam, utan konto.',
-    images: [{ url: '/og.png', width: 1200, height: 630, alt: 'alltiditid: nästa avgång, i realtid' }],
+    images: [{ url: '/og-v2.png', width: 1200, height: 630, alt: 'alltid i tid: nästa avgång, i realtid' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'alltiditid – nästa avgång, i realtid',
+    title: 'alltid i tid – nästa avgång, i realtid',
     description: 'Avgångar, ankomster och förseningar i realtid för hela Sverige.',
-    images: ['/og.png'],
+    images: ['/og-v2.png'],
   },
   appleWebApp: {
     capable: true,

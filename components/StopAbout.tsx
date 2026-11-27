@@ -105,14 +105,14 @@ export default function StopAbout({ stop, pages }: { stop: StopPage; pages: Stop
             <>
               Åker du härifrån ofta? Spara hållplatsen med stjärnan, eller tryck på en avgång och välj{' '}
               <strong style={{ color: colors.text }}>Spara som min resa</strong>, så syns de tre nästa avgångarna
-              direkt när du öppnar alltiditid.se.
+              direkt när du öppnar alltid i tid.
             </>
           }
           en={
             <>
               Travel from here often? Save the stop with the star, or tap a departure and choose{' '}
               <strong style={{ color: colors.text }}>Save as my trip</strong>, and the next three departures show up
-              as soon as you open alltiditid.se.
+              as soon as you open alltid i tid.
             </>
           }
         />
