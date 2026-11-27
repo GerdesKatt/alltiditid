@@ -167,7 +167,7 @@ export function boardRequestUrl(url) {
 /** Cachenyckel för hållplatssök: samma sökord oavsett stora och små bokstäver eller mellanslag. */
 export function searchCacheKey(url) {
   const q = (url.searchParams.get('q') || '').trim().replace(/\s+/g, ' ').toLowerCase().slice(0, 80);
-  return new Request(`https://cache.alltiditid.se/search-v1/${encodeURIComponent(q)}`);
+  return new Request(`https://cache.alltiditid.se/search-v2/${encodeURIComponent(q)}`);
 }
 
 function jsonResponse(body, status = 200, extraHeaders = {}) {
