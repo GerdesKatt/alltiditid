@@ -1,5 +1,6 @@
 import { historyRows, saveHistory } from '../../lib/history.mjs';
 import { airportByIata, datesToFetch, flightBoard, normalizeFlight, pick as pickField, waitTimes } from '../../lib/flights.mjs';
+import { AVINOR_AIRLINE_NAMES, AVINOR_AIRPORT_NAMES, AVINOR_FLIGHTS, avinorBoard, parseNames } from '../../lib/avinor.mjs';
 import { countDepartures, departuresByHour, typicalDay } from '../../lib/queueForecast.mjs';
 import { departureRows, latestQueues, logDepartures, logQueues, queueRows } from '../../lib/queueLog.mjs';
 import { missingTrains, trainJourney } from '../../lib/trains.mjs';
@@ -3160,6 +3161,7 @@ async function handleFlights(url, env, context) {
   const airport = airportByIata(url.searchParams.get('airport'));
   if (!airport) return jsonResponse({ error: 'Okänd flygplats.' }, 400);
   const direction = url.searchParams.get('direction') === 'arrivals' ? 'arrivals' : 'departures';
+  if (airport.source === 'avinor') return handleAvinorFlights(airport, direction, context);
   const key = env && env.SWEDAVIA_FLIGHTINFO_KEY;
   if (!key) return jsonResponse({ error: 'Flyg är inte påslaget (nyckel saknas i Cloudflare).' }, 503);
 
@@ -3207,6 +3209,83 @@ async function handleFlights(url, env, context) {
     jsonResponse(body, 200, { 'Cache-Control': `public, max-age=${FLIGHT_STALE_SECONDS}` }),
     context
   );
+  return response;
+}
+
+// Avinor: ingen nyckel och ingen kvot, men villkoren ber om högst ett anrop var 3:e
+// minut och att vi cachar, så att besökarna aldrig frågar Avinor direkt.
+const AVINOR_CACHE_SECONDS = 180;
+const AVINOR_NAMES_SECONDS = 24 * 3600;
+
+async function avinorText(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const res = await upstreamFetch(url, { headers: { Accept: 'application/xml' }, signal: controller.signal });
+    if (!res.ok) throw new Error(`Avinor ${res.status}`);
+    // Flödet är ofta iso-8859-1 (æ, ø, å); läs teckenkodningen från svaret eller XML-huvudet.
+    const buf = await res.arrayBuffer();
+    const head = new TextDecoder('latin1').decode(buf.slice(0, 200));
+    const declared = /charset=([\w-]+)/i.exec(res.headers.get('content-type') || '') || /encoding="([\w-]+)"/i.exec(head);
+    const enc = declared ? declared[1].toLowerCase() : 'utf-8';
+    try {
+      return new TextDecoder(enc).decode(buf);
+    } catch {
+      return new TextDecoder('utf-8').decode(buf);
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Flygplats- och flygbolagsnamn från Avinor, cachade ett dygn. */
+async function avinorNames(context) {
+  const key = cacheKeyFor('avinor-namn-v1');
+  const cached = await cacheGet(key);
+  if (cached) {
+    try {
+      return await cached.json();
+    } catch {
+      // Läs om.
+    }
+  }
+  const [airportsXml, airlinesXml] = await Promise.all([
+    avinorText(`${AVINOR_AIRPORT_NAMES}?shortname=Y`).catch(() => ''),
+    avinorText(AVINOR_AIRLINE_NAMES).catch(() => ''),
+  ]);
+  const names = { airports: parseNames(airportsXml, 'airportName'), airlines: parseNames(airlinesXml, 'airlineName') };
+  if (Object.keys(names.airports).length) {
+    await cachePut(key, new Response(JSON.stringify(names), { headers: { 'Cache-Control': `max-age=${AVINOR_NAMES_SECONDS}` } }), context);
+  }
+  return names;
+}
+
+async function handleAvinorFlights(airport, direction, context) {
+  const freshKey = cacheKeyFor('flyg', airport.iata, direction);
+  const staleKey = cacheKeyFor('flyg-sparad', airport.iata, direction);
+  const fresh = await cacheGet(freshKey);
+  if (fresh) return fresh;
+  let xml;
+  let names;
+  try {
+    [xml, names] = await Promise.all([
+      avinorText(`${AVINOR_FLIGHTS}?airport=${airport.iata}&direction=${direction === 'arrivals' ? 'A' : 'D'}&TimeFrom=1&TimeTo=24`),
+      avinorNames(context),
+    ]);
+  } catch {
+    return staleOr(staleKey, { error: 'Kunde inte hämta flygen från Avinor just nu.' }, 502);
+  }
+  const body = {
+    airport: airport.iata,
+    airportName: airport.name,
+    direction,
+    flights: avinorBoard(xml, direction, swedishDateTime(new Date().toISOString()), names),
+    source: 'avinor',
+    updatedAt: new Date().toISOString(),
+  };
+  const response = jsonResponse(body, 200, { 'Cache-Control': `public, max-age=${AVINOR_CACHE_SECONDS}` });
+  await cachePut(freshKey, response.clone(), context);
+  await cachePut(staleKey, jsonResponse(body, 200, { 'Cache-Control': `public, max-age=${FLIGHT_STALE_SECONDS}` }), context);
   return response;
 }
 
