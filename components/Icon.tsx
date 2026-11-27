@@ -42,6 +42,12 @@ const PATHS = {
       <path d="M6 16l4-7h6l2 7M10 9l3 7h-7M9 6h3" />
     </>
   ),
+  book: (
+    <>
+      <path d="M3 5h6a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H3z" />
+      <path d="M21 5h-6a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h7z" />
+    </>
+  ),
   alert: (
     <>
       <path d="M12 3l10 18H2z" />

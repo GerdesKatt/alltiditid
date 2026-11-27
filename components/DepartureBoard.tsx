@@ -6,6 +6,7 @@ import DisruptionBox from './DisruptionBox';
 import WalkBar from './WalkBar';
 import FindTrip from './FindTrip';
 import FallbackRow from './FallbackRow';
+import WaitTrivia from './WaitTrivia';
 import { sparseBoard } from '../lib/mobility.mjs';
 import type { Walk } from '../lib/useWalk';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
@@ -67,6 +68,8 @@ export type BoardView = 'list' | 'lines';
 const PAGE_SIZE = 20;
 
 const STALE_AFTER_MS = 2 * 60_000;
+/** "När du väntar" visas när nästa avgång dröjer mer än så här många minuter. */
+const WAIT_TRIVIA_AFTER_MIN = 15;
 /** Platshållare medan tavlan hämtas, ungefär en skärm. */
 const SKELETON_ROWS = 8;
 
@@ -276,7 +279,20 @@ export default function DepartureBoard({
     direction === 'departures' && !loading && !errorMsg && !stale && !offline && updatedAt && !filterText.trim()
       ? sparseBoard(departures, now, parseLocal)
       : null;
-  const fallback = sparse ? <FallbackRow stopId={stopId} stopName={stopName} coords={stopCoords} sparse={sparse} /> : null;
+  // Glest men under taxigränsen, eller över den: "När du väntar" efter 15 minuter.
+  const waiting =
+    direction === 'departures' && !loading && !errorMsg && !stale && !offline && updatedAt && !filterText.trim()
+      ? sparseBoard(departures, now, parseLocal, WAIT_TRIVIA_AFTER_MIN)
+      : null;
+  const fallback =
+    sparse || waiting?.kind === 'wait' ? (
+      <>
+        {sparse ? <FallbackRow stopId={stopId} stopName={stopName} coords={stopCoords} sparse={sparse} /> : null}
+        {waiting?.kind === 'wait' ? (
+          <WaitTrivia stopName={stopName} coords={stopCoords} onOpen={onOpenStation} first={!sparse} />
+        ) : null}
+      </>
+    ) : null;
 
   return (
     <section id="avgangstavla" style={{ marginBottom: '36px', scrollMarginTop: '12px' }}>

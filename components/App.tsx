@@ -1113,6 +1113,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
               .map((id) => stopIndex?.byId.get(id))
               .filter((n): n is NonNullable<typeof n> => Boolean(n) && !sameStation(n.id, selectedStop.id))
           )}
+          coords={stopCoords || (stationPage ? { lat: stationPage.lat, lon: stationPage.lon } : null)}
           onSelectStop={selectStopFromSheet}
           onClose={() => setStationOpen(false)}
         />
