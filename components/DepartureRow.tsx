@@ -151,7 +151,21 @@ export default function DepartureRow({
   // ("Spår 3 · Röda linjen · T-Centralen", UX-revisionen, fynd 4).
   // Delhållplatsen bara när den är en annan plats än tavlan ("City", inte "T-Centralen" på Stockholm C).
   const ownLabel = item.stopLabel && !sameAsBoard(item.stopLabel, boardName) ? item.stopLabel : '';
-  const subline = [trackLabel(trackText(item.track, item.transportMode), lang), name, ownLabel].filter(Boolean).join(' · ');
+  const trackShown = trackLabel(trackText(item.track, item.transportMode), lang);
+  // Spårbytet syns: det gamla spåret struket och det nya i fet stil, i tio minuter (del 2, idé 3).
+  const trackBefore = item.previousTrack && trackShown ? trackLabel(trackText(item.previousTrack, item.transportMode), lang) : '';
+  const sublineRest = [name, ownLabel].filter(Boolean).join(' · ');
+  const subline = trackBefore ? (
+    <>
+      <span className="track-changed">
+        {trackShown.replace(/\s.*$/, '')} <s className="track-old">{trackBefore.replace(/^\S+\s/, '')}</s>{' '}
+        <span aria-hidden="true">→</span> <strong className="track-new">{trackShown.replace(/^\S+\s/, '')}</strong>
+      </span>
+      {sublineRest ? ` · ${sublineRest}` : ''}
+    </>
+  ) : (
+    [trackShown, sublineRest].filter(Boolean).join(' · ')
+  );
   // Utfälld rad: linjen med det namn raden redan använder ("SJ 574", inte "Tåg 574 · SJ AB"),
   // och bolaget bara om det inte redan står där ("Arlanda Express 7934", en gång).
   const fullLine = name && badge && !line.toLowerCase().includes(name.toLowerCase()) ? `${name} ${badge}` : line;
@@ -211,6 +225,7 @@ export default function DepartureRow({
     spokenTime,
     spokenStatus,
     details,
+    trackBefore ? `${t('nytt spår, var', 'new track, was')} ${trackBefore}` : '',
     deviation,
     walkText ? `${t('gångtid', 'walking')}: ${walkText}` : unreachable ? t('hinner inte med gångtiden', 'too soon with your walk') : '',
     transferNote ? `${t('ditt byte', 'your connection')}: ${transferNote.text}` : '',
