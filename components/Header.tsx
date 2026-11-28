@@ -36,7 +36,7 @@ export default function Header({ onContactClick, onHome, linkBase = '' }: Props)
         padding: '14px 0 12px',
         marginBottom: '20px',
         backgroundColor: colors.headerBg,
-        borderBottom: `1px solid ${colors.text}`,
+        borderBottom: `1px solid ${colors.border}`,
         flexWrap: 'wrap',
         gap: '12px',
       }}
@@ -56,14 +56,17 @@ export default function Header({ onContactClick, onHome, linkBase = '' }: Props)
           maxWidth: '100%',
         }}
       >
-        {/* Ordmärket: gemener, inget märke. Domänen är fortfarande alltiditid.se. */}
-        <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        {/* Ordmärket: alltid i tid i gemener, Archivo 800, under strecket (över hela skärmen, se .site-header), sloganen under. */}
+        <span
+          className="wordmark"
+          style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}
+        >
           <span
             style={{
               fontFamily: fonts.display,
               fontSize: '1.375rem',
               fontWeight: 800,
-              letterSpacing: '-0.04em',
+              letterSpacing: '-0.035em',
               lineHeight: 1,
               color: colors.text,
             }}
@@ -74,12 +77,10 @@ export default function Header({ onContactClick, onHome, linkBase = '' }: Props)
             className="site-tagline"
             style={{
               overflowWrap: 'anywhere',
-              fontSize: '0.6875rem',
-              fontWeight: 600,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
+              fontSize: '0.75rem',
+              fontWeight: 400,
               color: colors.textDim,
-              marginTop: '6px',
+              marginTop: '5px',
             }}
           >
             {t('För oss som inte kommer sent', 'For those of us who are never late')}

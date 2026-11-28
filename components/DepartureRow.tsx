@@ -3,8 +3,8 @@ import type { BoardDirection, Departure } from '../lib/types';
 import { COMPENSATION_DELAY_MIN } from '../lib/byte';
 import { compensationLink } from '../lib/compensation';
 import Icon from './Icon';
-import { colors, fonts } from './styles';
-import { COUNTDOWN_MAX_MIN, lineBadge, lineColor, lineName, parseLocal, splitProduct } from '../lib/lineFormat';
+import { badgeLook, colors, fonts } from './styles';
+import { COUNTDOWN_MAX_MIN, lineBadge, lineName, parseLocal, splitProduct } from '../lib/lineFormat';
 import { lineLabel, trackLabel, useLang } from '../lib/i18n';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 
@@ -111,7 +111,6 @@ export default function DepartureRow({
   );
   const showsTrip = Boolean(!showsTrain && onShowTrip && item.tripId && item.tripDate);
   const badge = lineBadge(item.line);
-  const tint = lineColor(item);
   const { product, place } = splitProduct(item.destination);
   const name = product || lineLabel(lineName(item.line, badge), lang);
   const towards = direction === 'arrivals' ? `${t('Från', 'From')} ${place}` : place;
@@ -213,13 +212,9 @@ export default function DepartureRow({
             padding: '4px 6px',
             boxSizing: 'border-box',
             borderRadius: 'var(--radius-badge)',
-            // Kontur i bläck; inställda är grå.
-            border: `1.5px solid ${isCancelled ? colors.borderStrong : colors.badgeBorder}`,
-            // Linjens färg (tunnelbana, pendeltåg) som en kant i brickan, för igenkänningen.
-            boxShadow: tint && !isCancelled ? `inset 5px 0 0 ${tint}` : 'none',
-            paddingLeft: tint && !isCancelled ? '10px' : '6px',
-            backgroundColor: isCancelled ? colors.surfaceRaised : colors.badgeBg,
-            color: isCancelled ? colors.textDim : colors.badgeText,
+            // Linjens färg fyller brickan (tunnelbana, pendeltåg, spårvagn i Göteborg); annan spårtrafik
+            // fylld med natt, buss och båt med kontur. Inställda är grå.
+            ...badgeLook(item, { cancelled: isCancelled }),
             fontFamily: fonts.display,
             fontWeight: 800,
             fontSize: '0.875rem',
@@ -308,7 +303,7 @@ export default function DepartureRow({
               fontFamily: fonts.display,
               fontSize: '1.375rem',
               fontWeight: 800,
-              letterSpacing: '-0.02em',
+              letterSpacing: '-0.015em',
               fontVariantNumeric: 'tabular-nums',
               color: timeColor,
               textDecoration: isCancelled ? 'line-through' : 'none',

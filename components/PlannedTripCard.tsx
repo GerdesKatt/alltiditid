@@ -251,7 +251,7 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
           // Proportionella siffror: fast bredd ger luft runt kolonet i den här storleken.
           fontVariantNumeric: 'proportional-nums',
           lineHeight: 1,
-          letterSpacing: '-0.04em',
+          letterSpacing: '-0.015em',
         }}
       >
         {big}
@@ -428,9 +428,11 @@ const chip = (on: boolean): React.CSSProperties => ({
 });
 
 const label: React.CSSProperties = {
+  fontFamily: 'var(--font-display)',
+  fontStretch: 'var(--stretch-wide)',
   fontSize: '0.6875rem',
   fontWeight: 600,
-  letterSpacing: '0.16em',
+  letterSpacing: '0.06em',
   textTransform: 'uppercase',
   color: colors.textDim,
   whiteSpace: 'nowrap',

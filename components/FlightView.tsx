@@ -224,10 +224,8 @@ export default function FlightView({ initialAirport }: Props) {
       <p
         style={{
           margin: '0 0 12px',
-          fontSize: '0.6875rem',
-          fontWeight: 600,
-          letterSpacing: '0.14em',
-          textTransform: 'uppercase',
+          fontSize: '0.8125rem',
+          fontWeight: 500,
           color: stale ? colors.amber : colors.textDim,
         }}
       >
@@ -565,7 +563,7 @@ function FlightRow({
               fontFamily: fonts.display,
               fontSize: '1.375rem',
               fontWeight: 800,
-              letterSpacing: '-0.02em',
+              letterSpacing: '-0.015em',
               color: cancelled ? colors.textDim : colors.text,
               textDecoration: cancelled ? 'line-through' : 'none',
             }}

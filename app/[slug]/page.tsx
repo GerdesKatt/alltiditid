@@ -37,9 +37,9 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       url,
       title,
       description: description(stop),
-      images: [{ url: '/og-v2.png', width: 1200, height: 630, alt: 'alltid i tid: nästa avgång, i realtid' }],
+      images: [{ url: '/og-v3.png', width: 1200, height: 630, alt: 'alltid i tid: nästa avgång, i realtid' }],
     },
-    twitter: { card: 'summary_large_image', title, description: description(stop), images: ['/og-v2.png'] },
+    twitter: { card: 'summary_large_image', title, description: description(stop), images: ['/og-v3.png'] },
   };
 }
 

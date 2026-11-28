@@ -89,9 +89,11 @@ const DEPARTED_GRACE_MS = 60_000;
 /** Små versaler över delarna i Min resa: Sparad, Ny resa. */
 const sectionLabel: React.CSSProperties = {
   margin: '0 0 8px',
+  fontFamily: 'var(--font-display)',
+  fontStretch: 'var(--stretch-wide)',
   fontSize: '0.6875rem',
   fontWeight: 600,
-  letterSpacing: '0.16em',
+  letterSpacing: '0.06em',
   textTransform: 'uppercase',
   color: colors.textDim,
 };
@@ -1021,9 +1023,11 @@ export default function App({ initialStop, page, intro }: AppProps) {
                 <p
                   style={{
                     margin: '18px 0 0',
+                    fontFamily: 'var(--font-display)',
+                    fontStretch: 'var(--stretch-wide)',
                     fontSize: '0.6875rem',
                     fontWeight: 600,
-                    letterSpacing: '0.14em',
+                    letterSpacing: '0.06em',
                     textTransform: 'uppercase',
                     color: colors.textDim,
                   }}

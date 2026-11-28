@@ -1,4 +1,6 @@
 import type { CSSProperties } from 'react';
+import { isRailMode, lineSwatch } from '../lib/lineFormat';
+import type { Departure } from '../lib/types';
 
 /**
  * Färgpalett. Varje färg är en CSS-variabel (app/globals.css) med ett mörkt och ett
@@ -95,11 +97,54 @@ export const colors = {
   brand: 'var(--brand)',
 } as const;
 
-/** Typsnitt (brand guiden, avsnitt Typografi). */
+/** Typsnitt: Archivo i tre bredder. */
 export const fonts = {
   display: 'var(--font-display)',
   text: 'var(--font-text)',
 } as const;
+
+/** Breddaxeln i Archivo: bred för namn och etiketter, rubrik, smal för täta rader. */
+export const stretch = {
+  wide: 'var(--stretch-wide)',
+  head: 'var(--stretch-head)',
+  tight: 'var(--stretch-tight)',
+} as const;
+
+/** Liten etikett: bred versal med lite luft. Används sparsamt, bara där den skiljer två saker åt. */
+export const labelStyle: CSSProperties = {
+  fontFamily: 'var(--font-display)',
+  fontStretch: 'var(--stretch-wide)',
+  fontSize: '0.6875rem',
+  fontWeight: 600,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+  color: 'var(--c-text-dim)',
+};
+
+/**
+ * Linjebrickans färger. Linjer med egen färg (tunnelbana, pendeltåg, Göteborgs spårvagnar)
+ * fylls med den. Övrig spårtrafik fylls med natt, buss och båt får kontur. Inställda är grå.
+ */
+export function badgeLook(
+  item: Pick<Departure, 'line' | 'transportMode'> & { operator?: string },
+  opts: { cancelled?: boolean; mine?: boolean } = {}
+): CSSProperties {
+  if (opts.cancelled) {
+    return { backgroundColor: colors.surfaceRaised, color: colors.textDim, border: `1.5px solid ${colors.borderStrong}` };
+  }
+  const swatch = lineSwatch(item);
+  if (swatch) {
+    // Vit och svart bricka (Göteborgs linje 1 och 11) får en kant i textfärgen, så att de syns mot både ljus och mörk yta.
+    const neutral = ['#ffffff', '#111111'].includes(swatch.bg.toLowerCase());
+    const edge = neutral ? colors.badgeBorder : swatch.bg;
+    return { backgroundColor: swatch.bg, color: swatch.fg, border: `1.5px solid ${edge}` };
+  }
+  if (opts.mine) return { backgroundColor: 'var(--rose)', color: 'var(--rose-ink)', border: '1.5px solid var(--rose)' };
+  if (isRailMode(item.transportMode)) {
+    return { backgroundColor: colors.badgeBorder, color: colors.bg, border: `1.5px solid ${colors.badgeBorder}` };
+  }
+  return { backgroundColor: colors.badgeBg, color: colors.badgeText, border: `1.5px solid ${colors.badgeBorder}` };
+}
 
 /** Textfält (stationssök, filter). */
 export function textInput(borderColor: string): CSSProperties {
