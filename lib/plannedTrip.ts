@@ -2,6 +2,8 @@
  * En planerad resa från reseplaneraren, sparad som Min resa. Bara i den egna webbläsaren.
  * Resan tas bort av sig själv när den är framme sedan en timme.
  */
+import type { Anchor } from './ticket.mjs';
+
 export type PlanPoint = { name: string; time: string; rtTime: string; track: string; date?: string };
 export type PlanLeg =
   | { kind: 'walk'; from: PlanPoint; to: PlanPoint; minutes: number; meters: number; transfer?: boolean; wait?: number }
@@ -17,6 +19,8 @@ export type PlanLeg =
       to: PlanPoint;
       minutes: number;
       cancelled: boolean;
+      /** Den bokade biljetten (tåg eller flyg) som resten av resan byggs runt. */
+      anchor?: boolean;
     };
 export type PlanTrip = {
   dep: string;
@@ -27,7 +31,17 @@ export type PlanTrip = {
   changes: number;
   legs: PlanLeg[];
 };
-export type PlannedTrip = { to: string; from: string; trip: PlanTrip; savedAt: number };
+/** Reserven om man missar första linjen: "Missar du den här, ta 07:58". */
+export type TicketBackup = { dep: string; line: string; from: string; leg?: PlanLeg };
+export type PlannedTrip = {
+  to: string;
+  from: string;
+  trip: PlanTrip;
+  savedAt: number;
+  /** Resan byggd runt en bokad biljett. */
+  anchor?: Anchor;
+  backup?: TicketBackup | null;
+};
 
 const KEY = 'alltiditid:planerad-resa';
 

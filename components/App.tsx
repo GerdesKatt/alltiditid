@@ -946,8 +946,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
                 fromName={hasStop ? selectedStop.name : ''}
                 startAt={startAt}
                 savedKey={planned ? `${planned.trip.depDate} ${planned.trip.dep}` : ''}
-                onSave={(to, from, trip) => {
-                  const next = { to, from, trip, savedAt: Date.now() };
+                onSave={(to, from, trip, ticket) => {
+                  const next = { to, from, trip, savedAt: Date.now(), ...(ticket ? { anchor: ticket.anchor, backup: ticket.backup } : {}) };
                   setPlanned(next);
                   storePlannedTrip(next);
                 }}
