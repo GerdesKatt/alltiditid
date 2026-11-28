@@ -746,7 +746,11 @@ export default function App({ initialStop, page, intro }: AppProps) {
     if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
   }
 
-  function openStopFromHome(stop: StopOption) {
+  // Hållplatsen öppnades från sökfältet: tavlan säger "härifrån" och erbjuder "Resa hit".
+  const [searchedStopId, setSearchedStopId] = useState<string | null>(null);
+
+  function openStopFromHome(stop: StopOption, fromSearch = false) {
+    setSearchedStopId(fromSearch ? stop.id : null);
     setSelectedStop(stop);
     const stopRegion = regionForStop(stop.id);
     if (stopRegion !== 'all') setRegion(stopRegion);
@@ -1424,10 +1428,10 @@ export default function App({ initialStop, page, intro }: AppProps) {
             changeTab('flyg');
           }}
           onStartAt={setStartAt}
-          onGoal={(text) => {
+          onGoal={(text, place) => {
             // Vart ska du? från Hem: till Min resa med målet ifyllt, och sök direkt.
             setGoal(text);
-            setGoalPlace(null);
+            setGoalPlace(place || null);
             setSuggestOpen(false);
             changeTab('resa');
             window.scrollTo({ top: 0 });
@@ -1478,6 +1482,20 @@ export default function App({ initialStop, page, intro }: AppProps) {
           storeFavorites(next);
         }}
         stopName={selectedStop.name}
+        onTripHere={
+          tab === 'trafik' && searchedStopId === selectedStop.id
+            ? () => {
+                // Samma väg som "Resa hit" i sökförslagen: Min resa med hållplatsen som mål.
+                track('funktion', 0, 'tavla_resa_hit');
+                setGoal(selectedStop.name);
+                setGoalPlace({ kind: 'stop', name: selectedStop.name, id: selectedStop.id });
+                setSuggestOpen(false);
+                changeTab('resa');
+                window.scrollTo({ top: 0 });
+                setTimeout(() => document.getElementById('sok-resa')?.click(), 120);
+              }
+            : undefined
+        }
         onShowTrain={(n) => {
           setStationOpen(false);
           setTripRef(null);

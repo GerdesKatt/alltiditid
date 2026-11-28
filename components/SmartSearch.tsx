@@ -8,10 +8,11 @@ import { AIRPORTS } from '../lib/flights.mjs';
 import { track } from '../lib/track';
 import { loadStopIndex } from '../lib/stopIndex';
 import { fuzzyStops } from '../lib/fuzzyStops.mjs';
+import type { ChosenPlace } from './PlaceSuggest';
 
 type Props = {
   onOpenStop: (stop: StopOption) => void;
-  onGoal: (text: string) => void;
+  onGoal: (text: string, place?: ChosenPlace) => void;
   onOpenTrain: (number: string) => void;
   onOpenAirport: (iata: string) => void;
 };
@@ -114,6 +115,15 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
     else onGoal(r.text);
   }
 
+  /** "Resa hit": hållplatsen som mål i Min resa, i stället för tavlan därifrån. */
+  function tripTo(stop: StopOption) {
+    track('funktion', 0, 'sok_resa_hit');
+    setQ('');
+    setStops([]);
+    setGuesses([]);
+    onGoal(stop.name, { kind: 'stop', name: stop.name, id: stop.id });
+  }
+
   const rowStyle = (on: boolean): React.CSSProperties => ({
     display: 'flex',
     alignItems: 'center',
@@ -143,7 +153,7 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
         style={{ position: 'relative' }}
       >
         <label htmlFor="sok-allt" className="sr-only">
-          {t('Vart ska du, eller vilken hållplats?', 'Where to, or which stop?')}
+          {t('Varifrån vill du åka? Hållplats, adress eller tågnummer', 'Where are you leaving from? Stop, address or train number')}
         </label>
         <svg
           width="18"
@@ -184,7 +194,8 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
             }
           }}
           // Kort nog för 375 px (förut klipptes "…eller tå"). Frågan "Vart ska du?" står i etiketten.
-          placeholder={t('Hållplats, adress eller tåg', 'Stop, address or train')}
+          // Speglar Min resas "Vart ska du?": här väljer man varifrån, och får avgångarna därifrån (Nils, 28 nov).
+          placeholder={t('Varifrån vill du åka?', 'Where are you leaving from?')}
           style={{
             width: '100%',
             boxSizing: 'border-box',
@@ -213,8 +224,8 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
       {rows.length > 0 ? (
         <ul id="sok-allt-lista" role="listbox" style={{ listStyle: 'none', margin: 0, padding: 0, border: `1px solid ${colors.text}`, borderTop: 'none' }}>
           {rows.map((r, i) => (
-            <li key={i} id={`sok-allt-${i}`} role="option" aria-selected={i === active}>
-              <button type="button" onClick={() => choose(r)} style={rowStyle(i === active || (active < 0 && r === best))}>
+            <li key={i} id={`sok-allt-${i}`} role="option" aria-selected={i === active} style={{ display: 'flex', borderBottom: `1px solid ${colors.border}` }}>
+              <button type="button" onClick={() => choose(r)} style={{ ...rowStyle(i === active || (active < 0 && r === best)), borderBottom: 'none', flex: 1, minWidth: 0 }}>
                 {r.kind === 'train' ? (
                   <>
                     <span style={{ flex: 1, fontWeight: 700 }}>
@@ -253,6 +264,17 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
                   </>
                 )}
               </button>
+              {r.kind === 'stop' ? (
+                // Söker man en plats vill man ofta dit, inte därifrån. Ett eget val bredvid tavlan.
+                <button
+                  type="button"
+                  onClick={() => tripTo(r.stop)}
+                  aria-label={t(`Resa till ${r.stop.name}`, `Trip to ${r.stop.name}`)}
+                  style={{ flexShrink: 0, minHeight: '52px', padding: '8px 12px', border: 'none', borderLeft: `1px solid ${colors.border}`, background: 'transparent', color: colors.text, fontSize: 'var(--fs-2)', fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer' }}
+                >
+                  {t('Resa hit →', 'Go here →')}
+                </button>
+              ) : null}
             </li>
           ))}
         </ul>

@@ -63,6 +63,8 @@ type Props = {
   onToggleFavorite: () => void;
   /** Öppnar bladet "Om stationen". */
   onOpenStation: () => void;
+  /** Satt när tavlan öppnades från sökfältet: säger "Avgångar härifrån" och erbjuder resan dit. */
+  onTripHere?: () => void;
   /** Öppnar ett tågs hela resa. */
   onShowTrain: (trainNumber: string) => void;
   onShowTrip: (trip: { id: string; date: string }) => void;
@@ -192,6 +194,7 @@ export default function DepartureBoard({
   favoritesFull,
   onToggleFavorite,
   onOpenStation,
+  onTripHere,
   onShowTrain,
   onShowTrip,
   filterText,
@@ -446,6 +449,20 @@ export default function DepartureBoard({
                 </React.Fragment>
               ))}
             </h1>
+            {onTripHere && direction === 'departures' ? (
+              // Den som sökte en plats kan ha velat dit. Säg vad tavlan är, och ge vägen dit.
+              <p style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '0 12px', margin: '8px 0 0', fontSize: 'var(--fs-2)', color: colors.textDim }}>
+                <span>{t('Avgångar härifrån.', 'Departures from here.')}</span>
+                <button
+                  type="button"
+                  className="tap-44"
+                  onClick={onTripHere}
+                  style={{ border: 'none', background: 'none', padding: 0, color: colors.text, fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: '3px', cursor: 'pointer', font: 'inherit' }}
+                >
+                  {t('Ska du hit? Resa hit →', 'Going here? Plan a trip →')}
+                </button>
+              </p>
+            ) : null}
           </div>
           <button
             type="button"
