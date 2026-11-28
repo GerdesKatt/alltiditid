@@ -83,14 +83,15 @@ export default function FallbackRow({ stopId, stopName, coords, sparse }: Props)
   if (!stop) return null;
 
   // Minuterna står redan på tavlan; raden säger bara varför den syns och vad man kan göra.
+  // På natten säger rutan ovanför redan att avgångarna är slut; här står bara vad man kan göra (N9).
   const heading =
     sparse.kind === 'wait'
       ? t('Lång väntan? Ta en taxi.', 'Long wait? Take a taxi.')
-      : t('Inga fler avgångar på tavlan.', 'No more departures on the board.');
+      : t('Ta en taxi i stället.', 'Take a taxi instead.');
   const sub =
     sparse.kind === 'wait'
       ? t(`Hämtas vid ${stopName}.`, `Pick-up at ${stopName}.`)
-      : t(`Ta en taxi från ${stopName} i stället.`, `Take a taxi from ${stopName} instead.`);
+      : t(`Hämtas vid ${stopName}.`, `Pick-up at ${stopName}.`);
 
   return (
     <aside

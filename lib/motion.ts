@@ -8,7 +8,7 @@ import { flushSync } from 'react-dom';
  */
 export function withTransition(update: () => void, opts: { onlyNearTop?: boolean; kind?: 'gone' } = {}) {
   if (typeof document === 'undefined' || typeof window === 'undefined') return update();
-  const doc = document as Document & { startViewTransition?: (cb: () => void) => { finished?: Promise<unknown> } };
+  const doc = document as Document & { startViewTransition?: (cb: () => void) => { finished?: Promise<unknown>; ready?: Promise<unknown>; updateCallbackDone?: Promise<unknown> } };
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // Mitt i en skroll långt ner fryser en övergång sidan i ett ögonblick: hoppa över den då.
   const farDown = opts.onlyNearTop && window.scrollY > window.innerHeight;
@@ -19,6 +19,10 @@ export function withTransition(update: () => void, opts: { onlyNearTop?: boolean
   try {
     const vt = doc.startViewTransition(() => flushSync(update));
     const done = () => root.removeAttribute('data-vt');
+    // En övergång som avbryts av nästa ("Transition was skipped") är normalt, inte ett fel (N15).
+    const ignore = () => {};
+    vt?.ready?.catch(ignore);
+    vt?.updateCallbackDone?.catch(ignore);
     if (vt && vt.finished) vt.finished.then(done, done);
     else done();
   } catch {

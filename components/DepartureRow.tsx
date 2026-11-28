@@ -30,6 +30,8 @@ type Props = {
   stale?: boolean;
   /** Gångtid till hållplatsen i minuter när "Hinner jag dit?" är på, annars null. */
   walkMinutes?: number | null;
+  /** Med gångtid: den här hinner man inte till. Raden tonas ned. */
+  unreachable?: boolean;
   /** Inställd: nästa avgång som tar en dit i stället. */
   alternative?: Departure | null;
   /** Raden fälldes ut. */
@@ -79,6 +81,7 @@ export default function DepartureRow({
   onShowTrip,
   stale = false,
   walkMinutes = null,
+  unreachable = false,
   alternative = null,
   onOpen,
   clockFirst = false,
@@ -159,7 +162,7 @@ export default function DepartureRow({
   // och bolaget bara om det inte redan står där ("Arlanda Express 7934", en gång).
   const fullLine = name && badge && !line.toLowerCase().includes(name.toLowerCase()) ? `${name} ${badge}` : line;
   const company = operatorShort(item.operator);
-  const openInfo = [fullLine, company && !fullLine.toLowerCase().includes(company.toLowerCase()) ? item.operator : '']
+  const openInfo = [fullLine, company && !fullLine.toLowerCase().includes(company.toLowerCase()) ? company : '']
     .filter(Boolean)
     .join(' · ');
   // "Ny tid saknas" betyder bara något för ett tåg som står kvar, och där säger tidskolumnen det redan.
@@ -215,7 +218,7 @@ export default function DepartureRow({
     spokenStatus,
     details,
     deviation,
-    walkText ? `${t('gångtid', 'walking')}: ${walkText}` : '',
+    walkText ? `${t('gångtid', 'walking')}: ${walkText}` : unreachable ? t('hinner inte med gångtiden', 'too soon with your walk') : '',
     transferNote ? `${t('ditt byte', 'your connection')}: ${transferNote.text}` : '',
     usuallyLate,
   ]
@@ -233,6 +236,7 @@ export default function DepartureRow({
         backgroundColor: isSelectedTrip ? colors.selectedRowBg : colors.surface,
         borderBottom: `1px solid ${colors.border}`,
         boxShadow: isSelectedTrip ? `inset 4px 0 0 ${colors.accent}` : 'none',
+        opacity: unreachable && !open ? 0.5 : 1,
       }}
     >
       <button
@@ -297,7 +301,9 @@ export default function DepartureRow({
               display: '-webkit-box',
               WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
-              overflowWrap: 'anywhere',
+              // Långa ord bryts med bindestreck vid stavelsegräns ("Kungsträd-gården"), inte mitt i (N2).
+              overflowWrap: 'break-word',
+              hyphens: 'auto',
               lineHeight: 1.25,
             }}
           >

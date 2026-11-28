@@ -63,7 +63,7 @@ export default function WalkBar({ stopName, state, pace, onTurnOn, onTurnOff, on
         }}
       >
         <Icon name="walk" />
-        {t('Gångtid', 'Walking time')}
+        <span className="tool-text">{t('Gångtid', 'Walking time')}</span>
       </button>
     );
   }
@@ -75,22 +75,27 @@ export default function WalkBar({ stopName, state, pace, onTurnOn, onTurnOff, on
         <Icon name="walk" />
         <span role="status" style={{ fontWeight: 700 }}>
           {state.kind === 'ready'
-            ? t(`${state.minutes} min gång`, `${state.minutes} min walk`)
+            ? (
+                <>
+                  {state.minutes} min<span className="tool-text-xs"> {t('gång', 'walk')}</span>
+                </>
+              )
             : t('Letar…', 'Locating…')}
         </span>
         <label>
           <span className="sr-only">{t('Gångtakt', 'Walking pace')}</span>
           <select
             value={pace}
-            onChange={(e) => onPace(e.target.value as typeof pace)}
+            onChange={(e) => (e.target.value === 'off' ? onTurnOff() : onPace(e.target.value as typeof pace))}
             style={{
-              minHeight: '36px',
-              padding: '0 6px',
-              border: `1px solid ${colors.borderStrong}`,
+              // Takten är ett tillval: en liten understruken väljare, inte en ruta som tar en rad.
+              minHeight: '44px',
+              padding: '0 2px',
+              border: 'none',
               borderRadius: 0,
               background: 'transparent',
-              color: colors.text,
-              fontSize: 'var(--fs-2)',
+              color: colors.textDim,
+              fontSize: 'var(--fs-1)',
               fontFamily: 'inherit',
             }}
           >
@@ -99,16 +104,10 @@ export default function WalkBar({ stopName, state, pace, onTurnOn, onTurnOff, on
                 {t(p.sv, p.en)}
               </option>
             ))}
+            {/* Av ligger i samma väljare, så att raden får plats bredvid störningarna (N1). */}
+            <option value="off">{t('Stäng av', 'Turn off')}</option>
           </select>
         </label>
-        <button
-          type="button"
-          onClick={onTurnOff}
-          aria-label={t('Stäng av gångtid', 'Turn off walking time')}
-          style={{ minWidth: '32px', minHeight: '44px', padding: 0, border: 'none', background: 'none', color: colors.textDim, fontSize: 'var(--fs-3)', cursor: 'pointer' }}
-        >
-          ×
-        </button>
       </span>
     );
   }

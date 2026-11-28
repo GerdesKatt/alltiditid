@@ -42,10 +42,26 @@ export function usePunctuality(stopId: string, now: number, enabled: boolean, la
   const daySv = ['söndagar', 'måndagar', 'tisdagar', 'onsdagar', 'torsdagar', 'fredagar', 'lördagar'][weekday];
   const dayEn = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'][weekday];
   const h = String(Number(hour));
-  return (line: string, destination: string): string => {
+  /**
+   * Historiken säger något bara där realtiden ännu inte gör det: avgångar utan realtid, eller
+   * långt fram (mer än 20 min) innan förseningen hunnit synas. Annars säger raden emot sig själv (N4).
+   * Texten är en marginal att räkna med, inte en andra tid: "Brukar bli 3 min sen. Räkna med 11:16."
+   */
+  return (line: string, destination: string, opts: { realtime: boolean; minutesLeft: number | null; clock: string }): string => {
     const hit = lines[punctualityKey(line, destination)];
     if (!hit) return '';
-    if (lang === 'en') return `Usually ${hit.late} min late ${hit.weekday ? `${dayEn} ` : ''}around ${h}:00.`;
-    return `Brukar gå ${hit.late} min sent ${hit.weekday ? `${daySv} ` : ''}kl. ${h}.`;
+    if (opts.realtime && (opts.minutesLeft === null || opts.minutesLeft <= LOOKAHEAD_MIN)) return '';
+    const m = /^(\d{1,2}):(\d{2})$/.exec(opts.clock);
+    const expect = m ? (() => {
+      const total = (Number(m[1]) * 60 + Number(m[2]) + hit.late) % (24 * 60);
+      return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+    })() : '';
+    const when = hit.weekday ? daySv : `kl. ${h}`;
+    const whenEn = hit.weekday ? dayEn : `around ${h}:00`;
+    if (lang === 'en') return `Usually ${hit.late} min late ${whenEn}.${expect ? ` Count on ${expect}.` : ''}`;
+    return `Brukar bli ${hit.late} min sen ${when}.${expect ? ` Räkna med ${expect}.` : ''}`;
   };
 }
+
+/** Så långt fram (minuter) visar realtiden ofta ännu inte förseningen. */
+export const LOOKAHEAD_MIN = 20;

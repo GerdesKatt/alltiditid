@@ -14,6 +14,7 @@ import { flyStar } from '../lib/flyStar';
 import { BYTE_MARGIN_EVENT, byteRowText, currentByteMargin, type ByteMargin } from '../lib/byte';
 import { sameAsBoard } from '../lib/nextPick.mjs';
 import { usePunctuality } from '../lib/usePunctuality';
+import { clockFor, isAlarmDelay } from '../lib/lineFormat';
 import ModeFilter from './ModeFilter';
 import { sparseBoard } from '../lib/mobility.mjs';
 import type { Walk } from '../lib/useWalk';
@@ -29,6 +30,8 @@ type Props = {
   stopName: string;
   /** Nästa-kortet står ovanför: mindre rubrik, så att tavlan börjar högre upp. */
   compactTitle?: boolean;
+  /** Avgången som Nästa-kortet visar: gångbeskedet på tavlan gäller samma avgång. */
+  focusId?: string | null;
   direction: BoardDirection;
   onDirectionChange: (direction: BoardDirection) => void;
   /** Trafikslagen som går från hållplatsen (svenska etiketter), och det valda. */
@@ -164,6 +167,7 @@ const emptyButton = {
 export default function DepartureBoard({
   stopName,
   compactTitle = false,
+  focusId = null,
   direction,
   onDirectionChange,
   modes,
@@ -200,17 +204,26 @@ export default function DepartureBoard({
 }: Props) {
   const { lang, t } = useLang();
   const walkMin = direction === 'departures' && walk.state.kind === 'ready' ? walk.state.minutes : null;
-  // Gångbeskedet visas bara på den första avgången man hinner till, så att tavlan inte blir rörig.
+  // Vilka avgångar man inte hinner till med gångtiden: de tonas ned, så att gränsen syns (N3).
+  const unreachable = useMemo(() => {
+    const set = new Set<string>();
+    if (walkMin === null) return set;
+    for (const d of departures) {
+      const expected = parseLocal(d.expectedAt);
+      if (d.status === 'cancelled' || d.pending || expected === null) continue;
+      const minutesLeft = Math.floor((expected - now) / 60000);
+      if (walkVerdict(minutesLeft, walkMin, platformMinutes(d.transportMode)).kind === 'missed') set.add(d.id);
+    }
+    return set;
+  }, [departures, walkMin, now]);
+  // Gångbeskedet visas på en enda rad: den avgång Nästa-kortet visar, så att "Gå nu" aldrig gäller
+  // två avgångar samtidigt (N3). Utan kort: den första avgången man hinner till.
   const walkTargetId = useMemo(() => {
     if (walkMin === null) return null;
-    const hit = departures.find((d) => {
-      const expected = parseLocal(d.expectedAt);
-      if (d.status === 'cancelled' || d.pending || expected === null) return false;
-      const minutesLeft = Math.floor((expected - now) / 60000);
-      return walkVerdict(minutesLeft, walkMin, platformMinutes(d.transportMode)).kind !== 'missed';
-    });
+    if (focusId) return departures.some((d) => d.id === focusId) ? focusId : null;
+    const hit = departures.find((d) => !unreachable.has(d.id) && d.status !== 'cancelled' && !d.pending && parseLocal(d.expectedAt) !== null);
     return hit ? hit.id : null;
-  }, [departures, walkMin, now]);
+  }, [departures, walkMin, unreachable, focusId]);
   const [limit, setLimit] = useState(PAGE_SIZE);
   // Menyn med det man gör ibland: ankomster, per linje, stationen.
   const [menuOpen, setMenuOpen] = useState(false);
@@ -265,7 +278,8 @@ export default function DepartureBoard({
     if (errorMsg) summary = `${t('Fel', 'Error')}: ${errorMsg}`;
     else if (offline) summary = t('Ingen uppkoppling. Visar senast sparade tavla.', 'No connection. Showing the last saved board.');
     else if (!loading && updatedAt) {
-      const delayed = departures.filter((d) => d.status === 'delayed').length;
+      // Samma gräns som på skärmen: en minut sen är inte "försenad" (N13).
+      const delayed = departures.filter((d) => isAlarmDelay(d)).length;
       const cancelled = departures.filter((d) => d.status === 'cancelled').length;
       const parts = [
         delayed ? `${delayed} ${delayed === 1 ? t('försenad', 'delayed') : t('försenade', 'delayed')}` : '',
@@ -358,7 +372,7 @@ export default function DepartureBoard({
       >
         {/* En rad överst: vad tavlan visar och när den uppdaterades, och de två verktygen till höger.
             Öppnade tar verktygen hela bredden. Så får tavlan plats högre upp på skärmen. */}
-        <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', columnGap: '2px', rowGap: '6px', flexWrap: 'wrap', marginBottom: '-6px' }}>
+        <div className={walkMin !== null ? 'board-tools walk-on' : 'board-tools'} style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', columnGap: '2px', rowGap: '6px', flexWrap: 'wrap', marginBottom: '-6px' }}>
           <span
             style={{
               marginRight: hasDisruption ? 0 : 'auto',
@@ -739,12 +753,21 @@ export default function DepartureBoard({
                   onShowTrip={onShowTrip}
                   stale={stale || offline}
                   walkMinutes={item.id === walkTargetId ? walkMin : null}
+                  unreachable={unreachable.has(item.id)}
                   alternative={alternatives.get(item.id) || null}
                   onOpen={onRowOpen}
                   clockFirst={mode === 'train'}
                   boardName={stopName}
                   transferNote={byteNoteFor(item)}
-                  usuallyLate={item.status === 'cancelled' ? '' : usuallyLate(item.line, item.destination)}
+                  usuallyLate={
+                    item.status === 'cancelled'
+                      ? ''
+                      : usuallyLate(item.line, item.destination, {
+                          realtime: item.hasRealtime !== false,
+                          minutesLeft: parseLocal(item.expectedAt) === null ? null : Math.floor(((parseLocal(item.expectedAt) as number) - now) / 60000),
+                          clock: clockFor(item),
+                        })
+                  }
                 />
               ))}
             </div>

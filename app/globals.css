@@ -982,3 +982,19 @@ html {
   min-height: 100%;
   transform: translateY(-50%);
 }
+
+/* Nästa-kortet på smal skärm (UX-revisionen runda 2, N2): Spara flyttar ned under strecket och
+   siffran blir ett steg mindre, så att den aldrig går ihop med länken. */
+.save-below { display: none; }
+@media (max-width: 359px) {
+  /* Spara finns kvar i avgångens utfällda rad; här får tavlan platsen i stället. */
+  .save-inline { display: none !important; }
+  .save-below-keep { display: flex; }
+  .hero-big { font-size: 2.5rem !important; }
+  .tool-text, .tool-text-xs { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
+/* Med gångtid på i mobilen: Hitta min tur blir bara ikonen, så att verktygen får plats på en rad. */
+@media (max-width: 480px) {
+  .board-tools.walk-on .tool-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}

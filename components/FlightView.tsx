@@ -6,7 +6,7 @@ import { AIRPORTS, airportByIata, flightMatches } from '../lib/flights.mjs';
 import { parseLocal } from '../lib/lineFormat';
 import DirectionToggle from './DirectionToggle';
 import QueueForecast from './QueueForecast';
-import { gatePlan, gateStage, queueNowFor, typicalQueueFor } from '../lib/gateTime.mjs';
+import { gatePlan, gateStage, queueNowFor, typicalQueueFor, gateClosedByAirport } from '../lib/gateTime.mjs';
 import { stockholmMinute } from '../lib/sweTime.mjs';
 import { isMyFlight, loadMyFlight, MY_FLIGHT_EVENT, storeMyFlight, type MyFlight } from '../lib/myFlight';
 import { flightStatus, translator, useLang, type Lang } from '../lib/i18n';
@@ -58,6 +58,17 @@ type Props = {
 /** Kötid som text: "Ingen kö" i stället för "0 min", som läses som ett fel. */
 function queueLabel(minutes: number, t: (sv: string, en: string) => string): string {
   return minutes <= 0 ? t('Ingen kö', 'No queue') : `${minutes} min`;
+}
+
+/**
+ * "T5" i stället för Swedavias "Terminal 5F" (kontroll F i terminal 5). Bokstaven behålls bara
+ * när samma terminal har flera kontroller, så att de går att skilja åt (N10).
+ */
+function queueShortName(q: { name: string; terminal?: string; fastTrack?: boolean }, all: { name: string; terminal?: string; fastTrack?: boolean }[]): string {
+  const short = q.name.replace(/^Terminal\s*/i, 'T');
+  if (!q.terminal) return short;
+  const sameTerminal = new Set(all.filter((o) => !o.fastTrack && o.terminal === q.terminal).map((o) => o.name));
+  return sameTerminal.size > 1 ? short : `T${q.terminal}`;
 }
 
 export default function FlightView({ initialAirport }: Props) {
@@ -272,12 +283,13 @@ export default function FlightView({ initialAirport }: Props) {
             }}
           >
             <span style={{ fontWeight: 700, color: colors.textDim, whiteSpace: 'nowrap' }}>{t('Säkerhetskontroll', 'Security')}</span>
-            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {/* Bryter rad hellre än att klippa "T4 In…" (N10). */}
+            <span style={{ flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', gap: '0 12px' }}>
               {queues
                 .filter((q) => !q.fastTrack)
                 .map((q) => (
-                  <span key={q.name} style={{ marginRight: '12px' }}>
-                    {q.name.replace(/^Terminal\s*/i, 'T')}{' '}
+                  <span key={q.name} style={{ whiteSpace: 'nowrap' }}>
+                    {queueShortName(q, queues)}{' '}
                     <strong style={{ fontFamily: fonts.display, color: q.minutes >= 20 ? colors.amber : colors.text }}>{queueLabel(q.minutes, t)}</strong>
                   </span>
                 ))}
@@ -473,6 +485,16 @@ function FlightRow({
   const notes = [...(statusText && statusText !== statusLine ? [statusText] : []), ...(f.remarks || [])].filter(
     (n, i, all) => all.indexOf(n) === i && !all.some((o) => o !== n && o.startsWith(n))
   );
+  // Högst en tid i Status: flygplatsen skriver ibland "Beräknad 12:45" och "Försenad till 12:35" om
+  // samma flyg. Den som stämmer med raden får stå; annars den första. En stängd gate behöver ingen tid (N6).
+  const clockIn = (n: string) => (/\b(\d{1,2})[:.](\d{2})\b/.exec(n) || []).slice(1, 3).map((x, i) => (i === 0 ? x.padStart(2, '0') : x)).join(':');
+  const timed = notes.filter((n) => clockIn(n));
+  if (gone || stage === 'closed' || new Set(timed.map(clockIn)).size > 1) {
+    const keep = gone || stage === 'closed' ? null : timed.find((n) => clockIn(n) === f.newTime) || timed[0];
+    for (const n of timed) if (n !== keep) notes.splice(notes.indexOf(n), 1);
+  }
+  // "Gate stängd" står redan i rutan ovanför.
+  if (stage === 'closed') for (const n of [...notes]) if (/^gate stängd\.?$/i.test(n)) notes.splice(notes.indexOf(n), 1);
   // Säkerhetskontrollen per terminal: "Terminal 5F: 5 min · FastTrack 0 min".
   const queueText = [...new Set(queues.map((q) => q.name))]
     .map((name) => {
@@ -610,7 +632,9 @@ function FlightRow({
               </div>
               <div style={{ color: colors.textDim, marginTop: '4px', fontSize: 'var(--fs-2)' }}>
                 {stage === 'closed'
-                  ? t(`Gaten stänger ca ${plan.gateCloses}, enligt flygbolagets vanliga regler eller flygplatsen.`, `The gate closes around ${plan.gateCloses}, by the airline's usual rules or the airport.`)
+                  ? gateClosedByAirport(f)
+                    ? t('Flygplatsen anger att gaten är stängd.', 'The airport says the gate is closed.')
+                    : t(`Gaten stängde ca ${plan.gateCloses}.`, `The gate closed around ${plan.gateCloses}.`)
                   : t(`Gaten stänger ca ${plan.gateCloses}. Uppskattat.`, `The gate closes around ${plan.gateCloses}. Estimated.`)}
               </div>
             </div>

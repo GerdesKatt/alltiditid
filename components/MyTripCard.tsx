@@ -66,7 +66,11 @@ export default function MyTripCard({
       d.status === 'cancelled'
         ? `${d.scheduledTime} ${t('inställd', 'cancelled')}`
         : `${nu(countdownFor(d, now))}${
-            d.status === 'delayed' ? `, ${t('försenad, ny tid', 'delayed, new time')} ${clockFor(d)}` : ''
+            isAlarmDelay(d)
+              ? `, ${t('försenad, ny tid', 'delayed, new time')} ${clockFor(d)}`
+              : d.status === 'delayed'
+              ? `, ${t('väntas', 'expected')} ${clockFor(d)}`
+              : ''
           }`
     )
     .join('; ');
@@ -115,35 +119,35 @@ export default function MyTripCard({
   const nextIn = rest[0] && rest[0].status !== 'cancelled' ? parseLocal(rest[0].expectedAt) : null;
   const nextMin = nextIn !== null ? Math.max(1, Math.floor((nextIn - liveNow) / 60000)) : null;
   const calm = !headCancelled && !headDelayed && !deviation && next.every((d) => d.status !== 'cancelled' && !isAlarmDelay(d));
+  // Raden under strecket, högst en: beskedet står redan i rutan bredvid siffran, så med gångtid
+  // säger raden bara det rutan inte säger (vädret, eller när nästa går). Kortet ska inte trycka ner
+  // tavlan: tre avgångar i första vyn även med gångtid (UX-revisionen runda 2, N1 och N3).
+  const rain = useRain(walkMinutes !== null ? stopAt : null);
+  const rainLine =
+    rain?.wet && verdict && verdict.kind !== 'missed'
+      ? rain.snow
+        ? t('Snö inom en timme.', 'Snow within the hour.')
+        : t('Regn inom en timme.', 'Rain within the hour.')
+      : '';
   const line = !head || headCancelled || head.pending
     ? ''
     : verdict
-    ? verdict.kind === 'relax'
-      ? verdict.leaveIn > 12
-        ? t('Du har tid för en kaffe.', 'You have time for a coffee.')
-        : t('Du hinner. Gå, spring inte.', "You'll make it. Walk, don't run.")
-      : verdict.kind === 'go'
-      ? t('Gå nu, så hinner du.', "Leave now and you'll make it.")
-      : nextMin !== null
-      ? t(`Den väntar inte, men nästa går om ${nextMin}.`, `It won't wait, but the next leaves in ${nextMin}.`)
-      : t('Den hinner du inte.', "You won't make that one.")
+    ? verdict.kind === 'missed'
+      ? nextMin !== null
+        ? t(`Den väntar inte, men nästa går om ${nextMin}.`, `It won't wait, but the next leaves in ${nextMin}.`)
+        : t('Den hinner du inte.', "You won't make that one.")
+      : rainLine
+      ? ''
+      : verdict.kind === 'relax' && verdict.leaveIn > 12
+      ? t('Du har tid för en kaffe.', 'You have time for a coffee.')
+      : ''
     : minutesLeft !== null && minutesLeft > 12 && minutesLeft < 60
     ? t('Du har tid för en kaffe.', 'You have time for a coffee.')
     : calm && minutesLeft !== null && minutesLeft >= 1
     ? t('Lugnt. Inga förseningar här.', 'Calm. No delays here.')
     : '';
-  // Vädret när det spelar roll: regn inom en timme, bara med gångtid och när man ännu hinner (idé 17).
-  const rain = useRain(walkMinutes !== null ? stopAt : null);
-  const rainLine =
-    rain?.wet && verdict && verdict.kind !== 'missed'
-      ? rain.snow
-        ? t('Snö på väg. Gå i god tid.', 'Snow on the way. Leave in good time.')
-        : verdict.kind === 'go'
-        ? t('Regn på väg. Gå nu så är du torr.', "Rain on the way. Leave now and stay dry.")
-        : t('Regn inom en timme. Ta paraplyet.', 'Rain within the hour. Bring an umbrella.')
-      : '';
   // Väntan får innehåll: kuriosan om platsen, bara när det dröjer (idé 9).
-  const waitLong = minutesLeft !== null && minutesLeft > 8 && !headCancelled;
+  const waitLong = minutesLeft !== null && minutesLeft > 8 && !headCancelled && !verdict;
   const trivia = useTrivia(trip.stopName, null, lang, waitLong);
 
   // Storläge: bara siffran, så stor det går (idé 21). Skärmen hålls tänd där och vid "Gå nu" (idé 15).
@@ -184,6 +188,17 @@ export default function MyTripCard({
       // Talsyntesen svarade inte.
     }
   }
+  // Spara bredvid siffran när det inte finns något besked i rutan (på bred skärm).
+  // Gäller både Spara (Din avgång) och Ta bort (sparad resa på sin egen hållplats).
+  const inlineSave = Boolean(showingStop && head);
+  // Högst en rad under strecket: repliken eller vädret.
+  const note = line ? (
+    <strong style={{ color: verdict?.kind === 'missed' ? colors.amber : colors.text }}>{line}</strong>
+  ) : rainLine ? (
+    <>
+      {rainLine} <span style={{ color: colors.textDim }}>· SMHI</span>
+    </>
+  ) : null;
   const label = (text: string) => (
     <span style={{ ...labelStyle, flexShrink: 0 }}>
       {text}
@@ -260,6 +275,7 @@ export default function MyTripCard({
       ) : (
         <div>
           <div
+            className="hero-big"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -285,45 +301,49 @@ export default function MyTripCard({
               onClick={() => setBig(true)}
               aria-label={t('Visa nästa avgång i storläge', 'Show the next departure full screen')}
               className="big-open"
-              style={{ flex: 1, minWidth: 0, whiteSpace: !verdict && auto && showingStop ? 'nowrap' : undefined }}
+              style={{ flex: 1, minWidth: 0, whiteSpace: inlineSave ? 'nowrap' : undefined }}
             >
               {/* Siffran rullar upp när den byts (av vid "minska rörelse"). */}
-              <span aria-hidden="true" key={headBig} className="tick-in">
+              <span aria-hidden="true" key={headBig} className="tick-in" style={headBig.length > 6 ? { fontSize: '0.72em' } : undefined}>
                 {headBig}
               </span>
             </button>
-            {!verdict && auto && showingStop ? (
-              // Spara står bredvid siffran i stället för på en egen rad: kortet blir en rad lägre
-              // och tavlan får plats högre upp.
-              <button type="button" onClick={onSave} style={{ ...textButton, alignSelf: 'flex-end', marginBottom: '-10px', fontFamily: 'var(--font-text)', fontStretch: '100%', letterSpacing: 0, lineHeight: 1.2, fontVariantNumeric: 'normal', flexShrink: 1, maxWidth: '10rem', textAlign: 'right' }}>
-                {t('Spara som min resa', 'Save as my trip')}
-              </button>
-            ) : null}
+            {inlineSave || verdict ? (
+              // Spara och beskedet står till höger om siffran i stället för på egna rader: kortet blir
+              // lika lågt med gångtid som utan, och tavlan får plats högre upp (N1).
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', alignSelf: 'flex-end', gap: '6px', flexShrink: 1, minWidth: 0 }}>
+                {inlineSave ? (
+                  <button type="button" onClick={auto ? onSave : onRemove} className="save-inline" style={{ ...textButton, minHeight: verdict ? '28px' : textButton.minHeight, marginBottom: verdict ? 0 : '-10px', fontFamily: 'var(--font-text)', fontStretch: '100%', letterSpacing: 0, lineHeight: 1.2, fontVariantNumeric: 'normal', maxWidth: '10rem', textAlign: 'right' }}>
+                    {auto ? t('Spara som min resa', 'Save as my trip') : t('Ta bort', 'Remove')}
+                    {auto ? null : <span className="sr-only"> {t('min resa', 'my trip')}</span>}
+                  </button>
+                ) : null}
             {verdict ? (
-              <span
-                aria-hidden="true"
-                style={{
-                  flexShrink: 0,
-                  alignSelf: 'flex-end',
-                  padding: '8px 10px',
-                  backgroundColor: verdict.kind === 'missed' ? 'transparent' : colors.text,
-                  color: verdict.kind === 'missed' ? colors.amber : colors.bg,
-                  border: verdict.kind === 'missed' ? `1px solid ${colors.amber}` : 'none',
-                  fontFamily: fonts.display,
-                  fontStretch: 'var(--stretch-wide)',
-                  fontSize: 'var(--fs-1)',
-                  fontWeight: 700,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
-                  lineHeight: 1,
-                  textDecoration: 'none',
-                }}
-              >
-                {verdict.kind === 'go'
-                  ? t('Gå nu', 'Go now')
-                  : verdict.kind === 'missed'
-                  ? t('Hinner inte', "Won't make it")
-                  : t(`Gå om ${verdict.leaveIn} min`, `Leave in ${verdict.leaveIn} min`)}
+                <span
+                  aria-hidden="true"
+                  style={{
+                    flexShrink: 0,
+                    padding: '8px 10px',
+                    backgroundColor: verdict.kind === 'missed' ? 'transparent' : colors.text,
+                    color: verdict.kind === 'missed' ? colors.amber : colors.bg,
+                    border: verdict.kind === 'missed' ? `1px solid ${colors.amber}` : 'none',
+                    fontFamily: fonts.display,
+                    fontStretch: 'var(--stretch-wide)',
+                    fontSize: 'var(--fs-1)',
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                    lineHeight: 1,
+                    textDecoration: 'none',
+                  }}
+                >
+                  {verdict.kind === 'go'
+                    ? t('Gå nu', 'Go now')
+                    : verdict.kind === 'missed'
+                    ? t('Hinner inte', "Won't make it")
+                    : t(`Gå om ${verdict.leaveIn} min`, `Leave in ${verdict.leaveIn} min`)}
+                </span>
+              ) : null}
               </span>
             ) : null}
           </div>
@@ -355,7 +375,10 @@ export default function MyTripCard({
                 : `${t('I tid', 'On time')} · ${clockFor(head)}`}
               {head.track ? ` · ${trackLabel(trackText(head.track, head.transportMode), lang)}` : ''}
             </span>
-            {rest.length ? (
+            {verdict && note ? (
+              // Med gångtid står repliken eller vädret här i stället för Därefter: en rad mindre.
+              <span>{note}</span>
+            ) : rest.length ? (
               <span style={{ color: colors.textDim }}>
                 {t('Därefter', 'Then')}{' '}
                 {andList(
@@ -368,18 +391,7 @@ export default function MyTripCard({
         </div>
       )}
 
-      {line ? (
-        // En torr replik i annonsernas röst, under strecket (Apple-juryn, punkt 9; Vägen till 10, idé 10).
-        <p style={{ margin: '8px 0 0', fontSize: 'var(--fs-2)', fontWeight: 700, color: verdict?.kind === 'missed' ? colors.amber : colors.text }}>
-          {line}
-        </p>
-      ) : null}
-
-      {rainLine ? (
-        <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-2)', color: colors.text }}>
-          {rainLine} <span style={{ color: colors.textDim }}>· SMHI</span>
-        </p>
-      ) : null}
+      {note && !verdict ? <p style={{ margin: '8px 0 0', fontSize: 'var(--fs-2)' }}>{note}</p> : null}
 
       {trivia && waitLong ? (
         // Väntan får innehåll: en rad om platsen när det är mer än åtta minuter kvar (idé 9).
@@ -410,8 +422,15 @@ export default function MyTripCard({
         </p>
       ) : null}
 
-      {!verdict && auto && showingStop && head ? null : (
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '0 12px', marginTop: '6px', marginBottom: '-10px' }}>
+      {inlineSave ? (
+        // Smal skärm: Ta bort får inte plats bredvid siffran och står här i stället. Spara finns i radens meny (N2).
+        <div className={auto ? 'save-below' : 'save-below save-below-keep'} style={{ justifyContent: 'flex-end', marginTop: '6px', marginBottom: '-10px' }}>
+          <button type="button" onClick={auto ? onSave : onRemove} style={textButton}>
+            {auto ? t('Spara som min resa', 'Save as my trip') : t('Ta bort', 'Remove')}
+          </button>
+        </div>
+      ) : (
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '0 12px', marginTop: '6px', marginBottom: '-10px' }}>
         {/* På hållplatsens egen tavla står namnet redan under kortet. */}
         {showingStop ? (
           <span />
@@ -420,7 +439,7 @@ export default function MyTripCard({
             {t('från', 'from')} {trip.stopName}
           </span>
         )}
-        <span style={{ display: 'flex' }}>
+        <span style={{ display: 'flex', marginLeft: 'auto' }}>
           {!showingStop ? (
             <button type="button" onClick={onShowStop} style={textButton}>
               {t('Visa tavlan', 'Show board')}
