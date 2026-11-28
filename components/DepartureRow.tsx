@@ -10,6 +10,7 @@ import { trackText } from '../lib/lineNames.mjs';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { sameAsBoard } from '../lib/nextPick.mjs';
 import { doorRange } from '../lib/punctuality.mjs';
+import type { ShareResult } from '../lib/share';
 
 type Props = {
   item: Departure;
@@ -34,6 +35,8 @@ type Props = {
   alternative?: Departure | null;
   /** Raden fälldes ut. */
   onOpen?: (item: Departure) => void;
+  /** Dela avgången (text och länk till tavlan). */
+  onShare?: (item: Departure) => Promise<ShareResult>;
   /** Filtret Tåg: fjärr- och regionaltåg med klockslaget stort, som på biljetten. */
   clockFirst?: boolean;
   /** Tavlans namn, så att delhållplatsen inte upprepas när den är samma plats. */
@@ -82,12 +85,14 @@ export default function DepartureRow({
   unreachable = false,
   alternative = null,
   onOpen,
+  onShare,
   clockFirst = false,
   boardName = '',
   transferNote = null,
   usuallyLate = '',
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [shareNote, setShareNote] = useState<'' | 'copied' | 'failed'>('');
   const { lang, t } = useLang();
   const line = lineLabel(item.line, lang);
   // En eller två minuter sent visas som väntad tid ('11:11 → 11:12'), inte som larm.
@@ -583,6 +588,23 @@ export default function DepartureRow({
                 style={rowLink}
               >
                 {t('Hela resan', 'Whole journey')}
+              </button>
+            ) : null}
+            {onShare ? (
+              <button
+                type="button"
+                className="tap-44 row-link"
+                aria-label={`${t('Dela', 'Share')}: ${line} ${direction === 'arrivals' ? t('från', 'from') : t('mot', 'to')} ${item.destination} ${item.scheduledTime}`}
+                onClick={async () => {
+                  const result = await onShare(item);
+                  if (result === 'copied' || result === 'failed') {
+                    setShareNote(result);
+                    window.setTimeout(() => setShareNote(''), 4000);
+                  }
+                }}
+                style={rowLink}
+              >
+                {shareNote === 'copied' ? t('✓ Kopierad', '✓ Copied') : shareNote === 'failed' ? t('Gick inte att dela', "Couldn't share") : t('Dela', 'Share')}
               </button>
             ) : null}
           </span>

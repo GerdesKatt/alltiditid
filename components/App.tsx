@@ -71,8 +71,11 @@ const VIEW_KEY = 'alltiditid:vy';
 /** Samma brytpunkt som .layout i globals.css. */
 const WIDE_QUERY = '(min-width: 1100px)';
 import { buildShareMessage } from '../lib/shareMessage';
+import { boardShareUrl, departureShareText, shareLink } from '../lib/share';
 import { lineLabel, useLang } from '../lib/i18n';
 import FeedbackBox from './FeedbackBox';
+import InstallApp from './InstallApp';
+import { airportByIata } from '../lib/flights.mjs';
 import type {
   BoardDirection,
   BoardSource,
@@ -136,12 +139,14 @@ type AppProps = {
   page?: StopPage;
   /** Text om sidans hållplats under tavlan, renderad på servern för sökmotorerna. */
   intro?: React.ReactNode;
+  /** Flygplatssidor (/flyg/arlanda) startar på Flyg med sin flygplats (IATA-kod). */
+  initialAirport?: string;
 };
 
 /** Trafikslagen som kan väljas på tavlan, i den ordning de visas. */
 const BOARD_MODES = MODE_CHOICES;
 
-export default function App({ initialStop, page, intro }: AppProps) {
+export default function App({ initialStop, page, intro, initialAirport }: AppProps) {
   const { lang, t } = useLang();
   const [region, setRegion] = useState<RegionKey>('all');
   const [selectedStop, setSelectedStopRaw] = useState<StopOption>(initialStop || REGIONS[0].stations[0]);
@@ -201,7 +206,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
   }, []);
   // Kollektivtrafik eller flyg, och flygplatsen som sökningen pekade på.
   // Appen startar alltid på Avgångar (Nils 2026-11-28): senaste fliken sparas inte längre.
-  const [tab, setTab] = useState<AppTab>('trafik');
+  // Utom flygplatssidorna, som öppnar Flyg på sin flygplats.
+  const [tab, setTab] = useState<AppTab>(initialAirport ? 'flyg' : 'trafik');
   // Genvägar på hemskärmen (manifestets shortcuts, Vägen till 10, idé 16): /?flik=resa eller /?flik=flyg.
   useEffect(() => {
     const flik = new URLSearchParams(window.location.search).get('flik');
@@ -222,7 +228,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
   useEffect(() => {
     if (!trainNumber) setPickByte(false);
   }, [trainNumber]);
-  const [flightAirport, setFlightAirport] = useState<string | undefined>(undefined);
+  const [flightAirport, setFlightAirport] = useState<string | undefined>(initialAirport);
   function changeTab(next: AppTab) {
     withTransition(() => {
       setTab(next);
@@ -458,7 +464,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
 
   useEffect(() => {
     if (!restored) return;
-    if (hasStop) saveState({ stop: selectedStop, direction, region }, initialStop, stationPage?.slug);
+    // På en flygplatssida (/flyg/arlanda) står adressen kvar så länge Flyg visas.
+    if (hasStop && !(initialAirport && tab === 'flyg')) saveState({ stop: selectedStop, direction, region }, initialStop, stationPage?.slug);
     // På Hem är adressen startsidan: en omladdning ger Hem, och ingen hållplatstext följer med.
     if (screen === 'home' && tab === 'trafik' && typeof window !== 'undefined' && window.location.pathname + window.location.search !== '/') {
       window.history.replaceState(null, '', `/${window.location.hash}`);
@@ -971,7 +978,16 @@ export default function App({ initialStop, page, intro }: AppProps) {
         onChange={onMenu}
         hasJourney={Boolean(myFlight || myTrain || myTrip || planned)}
       />
+      {tab === 'flyg' && initialAirport && !restored ? (
+        // Flygtavlan laddas bara i webbläsaren. Flygplatssidan (/flyg/arlanda) får ändå sin rubrik
+        // i HTML:en, så att sökmotorerna ser vilken flygplats sidan gäller.
+        <h1 style={{ fontSize: 'var(--fs-5)', fontStretch: 'var(--stretch-head)', fontWeight: 800, lineHeight: 1.05, margin: '0 0 12px', color: colors.text }}>
+          {airportByIata(initialAirport)?.name}
+        </h1>
+      ) : null}
       {tab === 'flyg' ? <FlightView initialAirport={flightAirport} /> : null}
+      {/* Texten om flygplatsen, på flygplatsens egen sida (/flyg/arlanda). */}
+      {tab === 'flyg' && initialAirport ? intro : null}
       {tab === 'resa' ? (
         <section aria-label={t('Min resa', 'My trip')} style={{ marginBottom: '24px' }}>
           <h1 style={{ fontSize: 'var(--fs-5)', fontWeight: 800, margin: '0 0 14px' }}>{t('Min resa', 'My trip')}</h1>
@@ -1527,6 +1543,23 @@ export default function App({ initialStop, page, intro }: AppProps) {
           setStationOpen(true);
           if (!stopIndex) loadStopIndex().then((index) => index && setStopIndex(index));
         }}
+        onShare={async () => {
+          const result = await shareLink({
+            title: `${selectedStop.name} – ${t('avgångar i realtid', 'real-time departures')}`,
+            url: boardShareUrl(selectedStop, stationPage),
+          });
+          if (result === 'shared' || result === 'copied') track('funktion', 0, 'dela_tavla');
+          return result;
+        }}
+        onShareDeparture={async (item) => {
+          const result = await shareLink({
+            title: `${selectedStop.name} – ${t('avgångar i realtid', 'real-time departures')}`,
+            text: departureShareText(item, selectedStop.name, lang),
+            url: boardShareUrl(selectedStop, stationPage),
+          });
+          if (result === 'shared' || result === 'copied') track('funktion', 0, 'dela_avgang');
+          return result;
+        }}
         direction={direction}
         onDirectionChange={setDirection}
         modes={boardModes}
@@ -1583,9 +1616,16 @@ export default function App({ initialStop, page, intro }: AppProps) {
       </div>
       </div>
 
+      {/* Hemskärmsraden även under tavlan: den som kommer via en hållplatssida eller en delad
+          länk ser aldrig Hem. Visas från andra besöksdagen, samma regler som på Hem. */}
+      {skylt || tab !== 'trafik' || screen !== 'board' || !hasStop ? null : (
+        <div style={{ marginTop: '22px' }}>
+          <InstallApp where="tavla" />
+        </div>
+      )}
       {/* Texten om hållplatsen följer tavlan: byter man hållplats på en hållplatssida visas
           den nya hållplatsens text (eller ingen, om den saknar egen sida). */}
-      {skylt || (tab === 'trafik' && screen === 'home') ? null : page && stationPage?.id === page.id ? (
+      {skylt || initialAirport || (tab === 'trafik' && screen === 'home') ? null : page && stationPage?.id === page.id ? (
         intro
       ) : page && stationPage && stopIndex ? (
         <StopAbout stop={stationPage} pages={stopIndex.list} />

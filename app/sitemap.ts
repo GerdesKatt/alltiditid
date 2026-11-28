@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { CITY_PAGES, STOP_PAGES } from '../lib/stops';
+import { AIRPORT_PAGES } from '../lib/airportPages';
 
 export const dynamic = 'force-static';
 
@@ -13,6 +14,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: `${SITE}/avgangar/${c.slug}`,
       changeFrequency: 'weekly' as const,
       priority: 0.7,
+    })),
+    ...AIRPORT_PAGES.map((a) => ({
+      url: `${SITE}/flyg/${a.slug}`,
+      changeFrequency: 'daily' as const,
+      priority: 0.8,
     })),
     ...STOP_PAGES.map((s) => ({
       url: `${SITE}/${s.slug}`,

@@ -73,7 +73,8 @@ function queueShortName(q: { name: string; terminal?: string; fastTrack?: boolea
 
 export default function FlightView({ initialAirport }: Props) {
   const { lang, t } = useLang();
-  const [airport, setAirport] = useState('ARN');
+  // Flygplatssidan (/flyg/landvetter) renderas på servern med rätt flygplats i rubriken.
+  const [airport, setAirport] = useState(initialAirport && airportByIata(initialAirport) ? initialAirport.toUpperCase() : 'ARN');
   const [direction, setDirection] = useState<BoardDirection>('departures');
   const [flights, setFlights] = useState<Flight[]>([]);
   const [queues, setQueues] = useState<SecurityQueue[]>([]);

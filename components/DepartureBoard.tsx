@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { StarIcon } from './Icon';
+import Icon, { StarIcon } from './Icon';
 import type { BoardDirection, BoardSource, Departure, Disruption, TransportMode } from '../lib/types';
+import type { ShareResult } from '../lib/share';
 import DepartureRow from './DepartureRow';
 import LineGroupRow from './LineGroupRow';
 import DisruptionBox from './DisruptionBox';
@@ -65,6 +66,10 @@ type Props = {
   onOpenStation: () => void;
   /** Satt när tavlan öppnades från sökfältet: säger "Avgångar härifrån" och erbjuder resan dit. */
   onTripHere?: () => void;
+  /** Dela tavlan (telefonens delningsmeny, annars kopieras länken). */
+  onShare?: () => Promise<ShareResult>;
+  /** Dela en avgång i en utfälld rad: "Buss 4 mot Radiohuset går 08:16 från Slussen." */
+  onShareDeparture?: (item: Departure) => Promise<ShareResult>;
   /** Öppnar ett tågs hela resa. */
   onShowTrain: (trainNumber: string) => void;
   onShowTrip: (trip: { id: string; date: string }) => void;
@@ -195,6 +200,8 @@ export default function DepartureBoard({
   onToggleFavorite,
   onOpenStation,
   onTripHere,
+  onShare,
+  onShareDeparture,
   onShowTrain,
   onShowTrip,
   filterText,
@@ -230,6 +237,7 @@ export default function DepartureBoard({
   const [limit, setLimit] = useState(PAGE_SIZE);
   // Menyn med det man gör ibland: ankomster, per linje, stationen.
   const [menuOpen, setMenuOpen] = useState(false);
+  const [shareNote, setShareNote] = useState<'' | 'copied' | 'failed'>('');
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!menuOpen) return;
@@ -511,6 +519,24 @@ export default function DepartureBoard({
               <StarIcon filled={isFavorite} size={22} />
             </span>
           </button>
+          {onShare ? (
+            // Dela syns direkt bredvid Spara: en länk i gruppchatten är hur appen sprids (tillväxtplanen, ändring 1).
+            <button
+              type="button"
+              aria-label={t(`Dela ${stopName}`, `Share ${stopName}`)}
+              title={t('Dela', 'Share')}
+              onClick={async () => {
+                const result = await onShare();
+                if (result === 'copied' || result === 'failed') {
+                  setShareNote(result);
+                  window.setTimeout(() => setShareNote(''), 4000);
+                }
+              }}
+              style={iconButton}
+            >
+              <Icon name="share" size={20} />
+            </button>
+          ) : null}
           <div ref={menuRef} style={{ position: 'relative', flexShrink: 0 }}>
             <button
               type="button"
@@ -584,6 +610,13 @@ export default function DepartureBoard({
           </div>
         </div>
 
+        <p role="status" aria-live="polite" style={{ flexBasis: '100%', margin: shareNote ? '2px 0 0' : 0, fontSize: 'var(--fs-2)', color: colors.textDim }}>
+          {shareNote === 'copied'
+            ? t('Länken är kopierad.', 'Link copied.')
+            : shareNote === 'failed'
+            ? t('Kunde inte dela. Kopiera adressen i stället.', "Couldn't share. Copy the address instead.")
+            : ''}
+        </p>
         {/* Trafikslag direkt på tavlan: vid Stockholm C ska man kunna se bara tågen
             utan att öppna sökpanelen. Visas bara när hållplatsen har mer än ett slag. */}
         {modes.length > 1 || mode !== 'all' ? (
@@ -786,6 +819,7 @@ export default function DepartureBoard({
                   onToggleMyTrip={direction === 'departures' ? onToggleMyTrip : undefined}
                   onShowTrain={onShowTrain}
                   onShowTrip={onShowTrip}
+                  onShare={onShareDeparture}
                   stale={stale || offline}
                   walkMinutes={item.id === walkTargetId ? walkMin : null}
                   unreachable={unreachable.has(item.id)}

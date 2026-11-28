@@ -3,6 +3,7 @@ import React from 'react';
 import Header from '../../components/Header';
 import Tr from '../../components/Tr';
 import { colors } from '../../components/styles';
+import { AIRPORT_PAGES } from '../../lib/airportPages';
 import { CITY_PAGES, cityBySlug, placeSlug, STOP_PAGES } from '../../lib/stops';
 
 export const metadata: Metadata = {
@@ -68,6 +69,20 @@ export default function AllStopsPage() {
             </ul>
           </section>
         ) : null}
+        <section style={{ marginBottom: '18px' }}>
+          <h2 style={{ fontSize: '1.125rem', fontWeight: 800, margin: '0 0 8px', paddingTop: '10px', borderTop: '1px solid var(--c-text)' }}>
+            <Tr sv="Flygplatser" en="Airports" />
+          </h2>
+          <ul style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', listStyle: 'none', margin: 0, padding: 0 }}>
+            {AIRPORT_PAGES.map((a) => (
+              <li key={a.slug}>
+                <a href={`/flyg/${a.slug}`} style={{ color: colors.text, fontSize: '0.9375rem' }}>
+                  {a.name}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
         {places.map((place) => (
           <section key={place} style={{ marginBottom: '18px' }}>
             <h2 style={{ fontSize: '1.125rem', fontWeight: 800, margin: '0 0 8px', paddingTop: '10px', borderTop: '1px solid var(--c-text)' }}>

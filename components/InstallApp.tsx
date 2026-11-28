@@ -15,7 +15,7 @@ const DISMISS_KEY = 'alltiditid:hemskarm-nej';
  * Android och Chrome får en riktig installationsknapp. iPhone har ingen sådan, där visas de två stegen.
  * Syns inte när sajten redan är öppnad från hemskärmen, eller när man har tackat nej.
  */
-export default function InstallApp() {
+export default function InstallApp({ where = 'hem' }: { where?: 'hem' | 'tavla' }) {
   const { t } = useLang();
   const [prompt, setPrompt] = useState<InstallEvent | null>(null);
   const [visible, setVisible] = useState(false);
@@ -34,7 +34,8 @@ export default function InstallApp() {
     } catch {
       dismissed = false;
     }
-    // Först vid tredje besöket (olika dagar): den som är ny ska se avgångar, inte en uppmaning.
+    // Från andra besöket (olika dagar): den som är ny ska se avgångar, inte en uppmaning.
+    // Den som kommer tillbaka en andra dag är den som har nytta av appen på hemskärmen (tillväxtplanen, ändring 2).
     let visits = 0;
     try {
       const today = new Date().toISOString().slice(0, 10);
@@ -47,7 +48,7 @@ export default function InstallApp() {
     } catch {
       visits = 0;
     }
-    if (standalone || dismissed || visits < 3) return;
+    if (standalone || dismissed || visits < 2) return;
     const ua = navigator.userAgent;
     const isIos = /iPhone|iPad|iPod/.test(ua) || (ua.includes('Macintosh') && navigator.maxTouchPoints > 1);
     setIos(isIos);
@@ -81,7 +82,7 @@ export default function InstallApp() {
   }
 
   async function install() {
-    track('funktion', 0, 'hemskarm');
+    track('funktion', 0, where === 'tavla' ? 'hemskarm_tavla' : 'hemskarm');
     if (prompt) {
       await prompt.prompt();
       const choice = await prompt.userChoice;

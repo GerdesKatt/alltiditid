@@ -67,10 +67,10 @@ export default async function StopPageRoute({ params }: Params) {
 
   return (
     <>
-      {/* Hämta tavlan direkt, innan React har laddat (som PREFETCH_SCRIPT på startsidan). */}
+      {/* Hämta tavlan direkt, innan React har laddat (som PREFETCH_SCRIPT på startsidan). En delad länk (?utm_source=dela) hämtar också. */}
       <script
         dangerouslySetInnerHTML={{
-          __html: `try{if(!location.search)window.__alltiditidPrefetch={url:${JSON.stringify(
+          __html: `try{if(!location.search||/^\\?utm_source=[\\w-]+$/.test(location.search))window.__alltiditidPrefetch={url:${JSON.stringify(
             url
           )},promise:fetch(${JSON.stringify(url)})}}catch(e){}`,
         }}

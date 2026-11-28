@@ -7,6 +7,8 @@ import { colors, fonts } from './styles';
 import { decimal, modesSentence, useLang, type Lang } from '../lib/i18n';
 import { useTrivia } from '../lib/useTrivia';
 import StopTrivia from './StopTrivia';
+import { boardShareUrl, shareLink } from '../lib/share';
+import { track } from '../lib/track';
 
 type Props = {
   stop: StopOption;
@@ -31,8 +33,7 @@ function roughDaily(n: number, lang: Lang): string {
 
 /** Länken som delas: stationens sida om den finns, annars en vanlig tavellänk. */
 export function shareUrlFor(stop: StopOption, page: StopPage | undefined): string {
-  if (page) return `https://alltiditid.se/${page.slug}`;
-  return `https://alltiditid.se/?h=${encodeURIComponent(stop.id)}&n=${encodeURIComponent(stop.name)}`;
+  return boardShareUrl(stop, page);
 }
 
 /**
@@ -46,6 +47,7 @@ export default function StationSheet({ stop, page, neighbours, coords, onSelectS
   const trivia = useTrivia(stop.name, coords, lang);
   const sheetRef = useRef<HTMLElement>(null);
   const [shared, setShared] = useState<'' | 'copied' | 'failed'>('');
+  const [embedCopied, setEmbedCopied] = useState(false);
 
   useEffect(() => {
     sheetRef.current?.focus({ preventScroll: true });
@@ -61,19 +63,11 @@ export default function StationSheet({ stop, page, neighbours, coords, onSelectS
   async function share() {
     const url = shareUrlFor(stop, page);
     const title = `${stop.name} – ${t('avgångar i realtid', 'real-time departures')}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title, url });
-        return;
-      }
-      await navigator.clipboard.writeText(url);
-      setShared('copied');
-    } catch (err) {
-      // Avbrutet delningsfönster är inget fel.
-      if (err instanceof DOMException && err.name === 'AbortError') return;
-      setShared('failed');
-    }
+    const result = await shareLink({ title, url });
+    if (result === 'shared' || result === 'copied') track('funktion', 0, 'dela_station');
+    setShared(result === 'copied' ? 'copied' : result === 'failed' ? 'failed' : '');
   }
+
 
   const where = page?.place && !page.name.startsWith(page.place) ? ` ${t('i', 'in')} ${page.place}` : '';
 
@@ -218,6 +212,49 @@ export default function StationSheet({ stop, page, neighbours, coords, onSelectS
             : ''}
         </span>
       </div>
+
+      {/* Tavlan på en annan sajt: hotell, kontor, förening (tillväxtplanen, ändring 6). */}
+      <details style={{ marginTop: '14px', fontSize: 'var(--fs-2)', color: colors.textDim }}>
+        <summary style={{ cursor: 'pointer', minHeight: '44px', display: 'flex', alignItems: 'center', fontWeight: 700, color: colors.text }}>
+          {t('Visa tavlan på din egen sajt', 'Show the board on your own site')}
+        </summary>
+        <p style={{ margin: '4px 0 8px', lineHeight: 1.5 }}>
+          {t(
+            'Klistra in koden på hotellets, kontorets eller föreningens sida. Tavlan uppdateras av sig själv.',
+            "Paste the code on your hotel's, office's or club's page. The board updates by itself."
+          )}
+        </p>
+        <textarea
+          readOnly
+          value={embedCode(stop)}
+          aria-label={t('Kod för att visa tavlan', 'Code to show the board')}
+          onFocus={(e) => e.currentTarget.select()}
+          rows={4}
+          style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'ui-monospace, monospace', fontSize: '0.75rem', padding: '8px', border: `1px solid ${colors.border}`, backgroundColor: colors.bg, color: colors.text, resize: 'vertical' }}
+        />
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(embedCode(stop));
+              setEmbedCopied(true);
+              track('funktion', 0, 'inbaddning_kopierad');
+            } catch {
+              setEmbedCopied(false);
+            }
+          }}
+          style={{ marginTop: '6px', minHeight: '44px', padding: '0 14px', border: `1px solid ${colors.text}`, background: 'transparent', color: colors.text, fontSize: 'var(--fs-2)', fontWeight: 700, cursor: 'pointer' }}
+        >
+          {embedCopied ? t('✓ Koden är kopierad', '✓ Code copied') : t('Kopiera koden', 'Copy the code')}
+        </button>
+      </details>
     </section>
   );
+}
+
+/** iframe-koden för /tavla (components/EmbedBoard.tsx). */
+function embedCode(stop: StopOption): string {
+  const src = `https://alltiditid.se/tavla?h=${encodeURIComponent(stop.id)}&n=${encodeURIComponent(stop.name)}`;
+  const title = `Avgångar från ${stop.name.replace(/"/g, '')}`;
+  return `<iframe src="${src}" title="${title}" width="100%" height="460" style="border:0" loading="lazy"></iframe>`;
 }
