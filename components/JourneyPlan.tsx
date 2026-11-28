@@ -69,6 +69,12 @@ export function rideLabel(leg: Leg): string {
   return `${leg.agency} ${leg.line.charAt(0).toLowerCase()}${leg.line.slice(1)}`;
 }
 
+/** "spår 2" för tåg och T-bana, "läge A" för buss och spårvagn. */
+export function trackText(mode: string, value: string, t: (sv: string, en: string) => string): string {
+  if (/^(spår|läge|track|stand)\b/i.test(value)) return value;
+  return mode === 'bus' || mode === 'tram' ? `${t('läge', 'stand')} ${value}` : `${t('spår', 'track')} ${value}`;
+}
+
 /** Datumet i svensk tid, så att "i dag" och "i morgon" stämmer även på en telefon i en annan tidszon. */
 const isoDay = (d: Date) => stockholmDay(d.getTime());
 
@@ -534,6 +540,34 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
   );
 }
 
+/** Linjenumret i en ruta med linjens färg i kanten, som på tavlan. */
+export function LineBadge({ leg, large = false }: { leg: Leg; large?: boolean }) {
+  if (leg.kind !== 'ride') return null;
+  const tint = lineColor({ line: leg.line, transportMode: leg.mode as TransportMode });
+  const num = leg.line.match(/\S+$/)?.[0] || leg.line;
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        flexShrink: 0,
+        alignSelf: large ? 'center' : 'flex-start',
+        minWidth: large ? '52px' : '44px',
+        padding: large ? '4px 8px' : '3px 6px',
+        paddingLeft: tint ? (large ? '13px' : '10px') : large ? '8px' : '6px',
+        boxSizing: 'border-box',
+        border: `1.5px solid ${colors.badgeBorder}`,
+        boxShadow: tint ? `inset ${large ? 6 : 5}px 0 0 ${tint}` : 'none',
+        fontFamily: fonts.display,
+        fontWeight: 800,
+        fontSize: large ? '1.125rem' : '0.875rem',
+        textAlign: 'center',
+      }}
+    >
+      {num}
+    </span>
+  );
+}
+
 export function LegRow({ leg }: { leg: Leg }) {
   const { t } = useLang();
   if (leg.kind === 'walk') {
@@ -561,33 +595,13 @@ export function LegRow({ leg }: { leg: Leg }) {
       </li>
     );
   }
-  const tint = lineColor({ line: leg.line, transportMode: leg.mode as TransportMode });
-  const num = leg.line.match(/\S+$/)?.[0] || leg.line;
   const late = (p: Point) => p.rtTime && p.rtTime !== p.time;
   const time = (p: Point) => (
     <span style={{ fontWeight: 700, color: late(p) ? colors.amber : colors.text }}>{p.rtTime || p.time}</span>
   );
   return (
     <li style={{ display: 'flex', gap: '12px', padding: '8px 0', borderTop: `1px solid ${colors.border}` }}>
-      <span
-        aria-hidden="true"
-        style={{
-          flexShrink: 0,
-          alignSelf: 'flex-start',
-          minWidth: '44px',
-          padding: '3px 6px',
-          paddingLeft: tint ? '10px' : '6px',
-          boxSizing: 'border-box',
-          border: `1.5px solid ${colors.badgeBorder}`,
-          boxShadow: tint ? `inset 5px 0 0 ${tint}` : 'none',
-          fontFamily: fonts.display,
-          fontWeight: 800,
-          fontSize: '0.875rem',
-          textAlign: 'center',
-        }}
-      >
-        {num}
-      </span>
+      <LineBadge leg={leg} />
       <span style={{ flex: 1, minWidth: 0, fontSize: '0.875rem', lineHeight: 1.45 }}>
         <strong style={{ display: 'block', fontSize: '0.9375rem', textDecoration: leg.cancelled ? 'line-through' : 'none' }}>
           {rideLabel(leg)}
@@ -596,7 +610,7 @@ export function LegRow({ leg }: { leg: Leg }) {
         {leg.cancelled ? <span style={{ display: 'block', color: colors.amber, fontWeight: 700 }}>{t('Inställd', 'Cancelled')}</span> : null}
         <span style={{ display: 'block' }}>
           {time(leg.from)} {leg.from.name}
-          {leg.from.track ? `, ${t('spår', 'track')} ${leg.from.track}` : ''}
+          {leg.from.track ? `, ${trackText(leg.mode, leg.from.track, t)}` : ''}
         </span>
         <span style={{ display: 'block' }}>
           {time(leg.to)} {leg.to.name}
