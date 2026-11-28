@@ -8,6 +8,7 @@ import { boardUrl } from '../lib/prefetch';
 import { positionAllowed, rememberPositionAllowed } from '../lib/visits';
 import InstallApp from './InstallApp';
 import SmartSearch from './SmartSearch';
+import type { ChosenPlace } from './PlaceSuggest';
 import StrandedTips from './StrandedTips';
 import { track } from '../lib/track';
 import ModeFilter from './ModeFilter';
@@ -25,11 +26,12 @@ type Props = {
   /** Webbläsarens sparade hållplatser är inlästa: först då vet vi om besökaren är ny. */
   ready?: boolean;
   now: number;
-  onOpenStop: (stop: StopOption) => void;
+  /** fromSearch: öppnad från sökfältet, så att tavlan erbjuder "Resa hit". */
+  onOpenStop: (stop: StopOption, fromSearch?: boolean) => void;
   onOpenTrain: (number: string) => void;
   onOpenAirport: (iata: string) => void;
   /** Vart ska du? från Hem: öppnar Min resa och söker resan. */
-  onGoal: (text: string) => void;
+  onGoal: (text: string, place?: ChosenPlace) => void;
   /** Platsen man skrev in när positionen är avstängd (null när den tas bort); blir start för resor. */
   /** Ta bort en hållplats från Hem (id), eller glöm alla besök (null). */
   onForget?: (id: string | null) => void;
@@ -299,7 +301,7 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
           </p>
         </section>
       ) : null}
-      <SmartSearch onOpenStop={onOpenStop} onGoal={onGoal} onOpenTrain={onOpenTrain} onOpenAirport={onOpenAirport} />
+      <SmartSearch onOpenStop={(s) => onOpenStop(s, true)} onGoal={onGoal} onOpenTrain={onOpenTrain} onOpenAirport={onOpenAirport} />
       {modeChoices.length > 1 && !editing ? (
         <>
           {/* Säger vad flikarna gör: de gäller listorna nedanför (UX-revisionen, fynd 16). */}
