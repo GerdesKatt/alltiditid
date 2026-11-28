@@ -168,7 +168,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
   const [departures, setDepartures] = useState<Departure[]>([]);
   // Spåren från förra hämtningen, så att ett spårbyte syns på raden och i kortet (del 2, idé 3).
   // Minnet gäller en tavla i taget: samma tåg har olika spår på olika stationer.
-  const trackMemory = React.useRef({ url: '', map: new Map<string, { track: string; from?: string; at?: number }>() });
+  const trackMemory = React.useRef({ url: '', map: new Map<string, { track: string; from?: string; at?: number; exp?: string; laterAt?: number }>() });
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   // Ökar när någon trycker på Försök igen, så att tavlan hämtas på nytt direkt.
@@ -805,12 +805,18 @@ export default function App({ initialStop, page, intro }: AppProps) {
   const walkMin = direction === 'departures' && walk.state.kind === 'ready' ? walk.state.minutes : null;
   // Något på tavlan är sent eller inställt: då säger Nästa-kortet "Lugnt" om din (juryn, runda 2).
   const boardTrouble = departures.some((d) => d.status === 'cancelled' || isAlarmDelay(d));
+  // Hur långt fram tavlan räcker, så att kortet kan säga "ingen fler inom en timme" (del 2, idé 8).
+  const boardUntil = departures.reduce<number | null>((max, d) => {
+    const at = parseLocal(d.expectedAt);
+    return at !== null && (max === null || at > max) ? at : max;
+  }, null);
   const tripCard =
     myTrip && !planned ? (
         <MyTripCard
           walkMinutes={myTrip.stopId === selectedStop.id ? walkMin : null}
           stopAt={myTrip.stopId === selectedStop.id ? walk.stopAt : null}
           boardTrouble={myTrip.stopId === selectedStop.id && boardTrouble}
+          boardUntil={myTrip.stopId === selectedStop.id ? boardUntil : null}
           trip={myTrip}
           next={tripNext}
           alternative={tripAlternative}
@@ -934,6 +940,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
       walkMinutes={walkMin}
       stopAt={walk.stopAt}
       boardTrouble={boardTrouble}
+      boardUntil={boardUntil}
       onSave={() => {
         setMyTrip(autoTrip.trip);
         storeMyTrip(autoTrip.trip);

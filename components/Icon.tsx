@@ -61,6 +61,7 @@ const PATHS = {
     </>
   ),
   expand: <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />,
+  share: <path d="M12 15V4M8 8l4-4 4 4M5 12v7h14v-7" />,
   star: <path d="M12 3.2l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6-4.5-4.2 6.1-.7z" strokeLinejoin="miter" />,
 } as const;
 
