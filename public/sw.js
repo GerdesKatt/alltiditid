@@ -9,11 +9,11 @@
  *   rörs inte och sparas aldrig.
  */
 
-const VERSION = 'v6';
+const VERSION = 'v7';
 const SHELL = `alltiditid-skal-${VERSION}`;
 const BOARDS = `alltiditid-tavlor-${VERSION}`;
 const MAX_BOARDS = 12;
-const SHELL_FILES = ['/', '/manifest.webmanifest', '/icon-v4.svg', '/icon-192-v4.png'];
+const SHELL_FILES = ['/', '/manifest.webmanifest', '/icon-v6.svg', '/icon-192-v6.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
