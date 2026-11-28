@@ -404,7 +404,8 @@ body {
     /* Får radbrytas: vid stor text hamnar språkväljaren under loggan. */
     gap: 2px 12px !important;
   }
-  /* Sloganen syns även på mobilen, i liten normal text under ordmärket. */
+  /* Bara ordmärket på mobilen: sloganen tar höjd från tavlan. Den syns på bred skärm, i annonser och delningsbilden. */
+  .site-tagline,
   .site-nav-board {
     display: none !important;
   }
