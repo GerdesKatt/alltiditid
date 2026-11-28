@@ -1001,8 +1001,15 @@ export default function App({ initialStop, page, intro }: AppProps) {
                 startAt={startAt}
                 ticket={ticketPlan}
                 savedKey={planned ? `${planned.trip.depDate} ${planned.trip.dep}` : ''}
-                onSave={(to, from, trip, ticket) => {
-                  const next = { to, from, trip, savedAt: Date.now(), ...(ticket ? { anchor: ticket.anchor, backup: ticket.backup } : {}) };
+                onSave={(to, from, trip, ticket, startAlt) => {
+                  const next = {
+                    to,
+                    from,
+                    trip,
+                    savedAt: Date.now(),
+                    ...(ticket ? { anchor: ticket.anchor, backup: ticket.backup } : {}),
+                    ...(startAlt ? { startAlt } : {}),
+                  };
                   setPlanned(next);
                   storePlannedTrip(next);
                   // En sparad resa i taget: den planerade ersätter en sparad avgång, så att det inte blir två kort.

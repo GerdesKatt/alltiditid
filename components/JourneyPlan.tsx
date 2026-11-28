@@ -7,7 +7,8 @@ import { useLang } from '../lib/i18n';
 import { lineColor } from '../lib/lineFormat';
 import { track } from '../lib/track';
 import type { TransportMode } from '../lib/types';
-import { dayLabel, type PlanLeg, type PlanPoint, type PlanTrip } from '../lib/plannedTrip';
+import { startAlternative } from '../lib/plan.mjs';
+import { dayLabel, type StartAlt, type PlanLeg, type PlanPoint, type PlanTrip } from '../lib/plannedTrip';
 import PlaceSuggest, { placeDetail, type ChosenPlace } from './PlaceSuggest';
 import { stockholmDay } from '../lib/sweTime.mjs';
 import TicketPicker from './TicketPicker';
@@ -50,7 +51,7 @@ type Props = {
   /** Platsen man skrev in under Avgångar när positionen är avstängd: används i stället för positionen. */
   startAt?: { name: string; lat: number; lon: number } | null;
   /** Spara en resa som Min resa. Med en bokad biljett följer biljetten och reserven med. */
-  onSave: (to: string, from: string, trip: Trip, ticket?: { anchor: Anchor; backup: TicketBackup | null }) => void;
+  onSave: (to: string, from: string, trip: Trip, ticket?: { anchor: Anchor; backup: TicketBackup | null }, startAlt?: StartAlt | null) => void;
   /** Rensa: tömmer Vart ska du? och resultaten. */
   onClear?: () => void;
   /** Planera kring en bokad biljett (valet står överst i Ny resa). */
@@ -725,7 +726,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
                                 if (ticketMode && anchor) {
                                   // Hela resan: dit, bytet med marginal och biljetten sist.
                                   onSave(onwardTrip ? target : anchor.to || target, anchor.onboard ? anchor.label : from, trip, { anchor, backup: backupOf(feeder) });
-                                } else onSave(plan.to, from, trip);
+                                } else onSave(plan.to, from, trip, undefined, startAlternative(trip, plan.trips));
                                 track('funktion', 0, 'reseplan_spara');
                               }}
                               style={primary}
