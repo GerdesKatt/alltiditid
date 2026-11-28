@@ -3,6 +3,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   alightFor,
+  boardFor,
+  goalIsStation,
+  pickOnward,
   at,
   deadline,
   flightMargin,
@@ -122,4 +125,60 @@ test('avstigning: stationen som stämmer med målet, annars slutstationen', () =
   assert.equal(alightFor(stops, 'Katrineholm'), 2);
   assert.equal(alightFor(stops, 'Hemma'), 4);
   assert.equal(alightFor(stops, 'Stockholm C', 0), 4);
+});
+
+test('resor som redan har gått föreslås aldrig, och hinner inget sägs det', () => {
+  const dep = at(D, '10:19');
+  const latest = dep - 10 * 60_000;
+  // Klockan är 08:52. Nattresan 03:33 har gått, och 6 h söderut hinner inte.
+  const night = feeder('03:33', '09:49');
+  const late = feeder('08:55', '15:10');
+  const pick = pickFeeder([night, late], latest, dep, at(D, '08:52'));
+  assert.equal(pick.none, true);
+  assert.equal(pick.main, null);
+  // En som går om en stund och hinner väljs fortfarande.
+  const ok = pickFeeder([night, feeder('09:10', '09:40')], latest, dep, at(D, '08:52'));
+  assert.equal(ok.main.dep, '09:10');
+});
+
+test('påstigning: tågets station närmast där man är, och långt bort frågas', () => {
+  const stops = [
+    { name: 'Lund C', lat: 55.7058, lon: 13.1868, departure: { scheduled: '10:19' } },
+    { name: 'Norrköping C', lat: 58.5966, lon: 16.1838, departure: { scheduled: '13:20' } },
+    { name: 'Södertälje Syd', lat: 59.1626, lon: 17.6466, departure: { scheduled: '14:10' } },
+    { name: 'Stockholm C', lat: 59.3301, lon: 18.0583, arrival: { scheduled: '14:36' } },
+  ];
+  // I Fruängen: Södertälje Syd är närmast av stationerna där tåget går, ca 30 km.
+  const fruangen = { lat: 59.285, lon: 17.965 };
+  const b = boardFor(stops, fruangen);
+  assert.equal(b.board, 2);
+  assert.equal(b.far, false);
+  // Lund valt för hand från Stockholm: långt bort.
+  assert.equal(boardFor([stops[0]], fruangen).far, true);
+  // Utan position: första stationen.
+  assert.equal(boardFor(stops, null).board, 0);
+});
+
+test('resan vidare från avstigningen: tågets slutstation är inte målet', () => {
+  assert.equal(goalIsStation('Stockholm C', 'Härnösand'), false);
+  assert.equal(goalIsStation('Karlstad C', 'karlstad'), true);
+  const on = { ...feeder('14:52', '19:30') };
+  on.legs = [{ kind: 'ride', mode: 'train', line: 'Tåg 572', direction: 'Härnösand C', from: P('Stockholm C', '14:52', '11'), to: P('Härnösand C', '19:30'), minutes: 278, cancelled: false }];
+  const early = { ...on, dep: '14:40' };
+  assert.equal(pickOnward([early, on], at(D, '14:46')), on);
+
+  const a532 = { kind: 'train', number: '532', label: 'Tåg 532', date: D, dep: '14:10', from: 'Södertälje Syd', to: 'Stockholm C', arr: '14:36', margin: 10 };
+  const trip = ticketTrip(feeder('13:30', '13:55'), a532, on);
+  assert.equal(trip.arr, '19:30');
+  assert.equal(trip.legs[trip.legs.length - 1].to.name, 'Härnösand C');
+  // Byte mellan tåget och resan vidare, med marginal för stor station.
+  const swap = trip.legs[trip.legs.length - 2];
+  assert.equal(swap.transfer, true);
+  assert.equal(swap.minutes, 10);
+
+  // Redan på tåget: ingen resa dit, bara tåget och resan vidare.
+  const onboard = ticketTrip(null, { ...a532, onboard: true }, on);
+  assert.equal(onboard.dep, '14:10');
+  assert.equal(onboard.legs[0].anchor, true);
+  assert.equal(onboard.arr, '19:30');
 });
