@@ -1,3 +1,4 @@
+import { saysSomething } from '../../lib/disruptionText.mjs';
 import { historyRows, saveHistory } from '../../lib/history.mjs';
 import { airportByIata, datesToFetch, flightBoard, normalizeFlight, pick as pickField, waitTimes } from '../../lib/flights.mjs';
 import { AVINOR_AIRLINE_NAMES, AVINOR_AIRPORT_NAMES, AVINOR_FLIGHTS, avinorBoard, parseNames } from '../../lib/avinor.mjs';
@@ -2842,7 +2843,8 @@ function finalizeTiming(d) {
 
 /** Avvikelser som hör till en enda tur och stannar på raden. */
 // Spårändrat, preliminär tid och liknande är upplysningar om en tur, inte störningar.
-const ROW_ONLY_DEVIATION = /^(går inte hela vägen|inställd|spårändrat|ändrat spår|prel\.? tid|preliminär tid|ny tid saknas|inväntar avgång)/i;
+// "Kort tåg, Dörr 2-13" är var man ska stå, inte en störning (UX-revisionen, fynd 6).
+const ROW_ONLY_DEVIATION = /^(kort tåg|långt tåg|dubbelt tåg|går inte hela vägen|inställd|spårändrat|ändrat spår|prel\.? tid|preliminär tid|ny tid saknas|inväntar avgång)/i;
 const MAX_DISRUPTIONS = 4;
 
 /**
@@ -2872,7 +2874,8 @@ function groupDisruptions(departures, stopDisruptions = []) {
   }
   const shared = new Set(Array.from(byText.values()).filter((e) => e.rows >= 2).map((e) => e.text));
   const disruptions = Array.from(byText.values())
-    .filter((e) => shared.has(e.text))
+    // En rubrik utan händelse ("Buss", "NE Terminalen" från Västtrafik) är ingen störning (fynd 10).
+    .filter((e) => shared.has(e.text) && saysSomething(e.text))
     // Det som syns på avgångarna just nu först, sedan hållplatsens allmänna information.
     .sort((a, b) => Number(b.onRows) - Number(a.onRows) || a.importance - b.importance || b.rows - a.rows)
     .slice(0, MAX_DISRUPTIONS)

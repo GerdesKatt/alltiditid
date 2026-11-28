@@ -4,7 +4,7 @@ import { COMPENSATION_DELAY_MIN } from '../lib/byte';
 import { compensationLink } from '../lib/compensation';
 import Icon from './Icon';
 import { badgeLook, colors, fonts } from './styles';
-import { COUNTDOWN_MAX_MIN, lineBadge, parseLocal, rowLineName, splitProduct } from '../lib/lineFormat';
+import { COUNTDOWN_MAX_MIN, lineBadge, parseLocal, isAlarmDelay, rowLineName, shownDeviation, splitProduct } from '../lib/lineFormat';
 import { lineLabel, trackLabel, useLang } from '../lib/i18n';
 import { trackText } from '../lib/lineNames.mjs';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
@@ -62,7 +62,8 @@ export default function DepartureRow({
   const [open, setOpen] = useState(false);
   const { lang, t } = useLang();
   const line = lineLabel(item.line, lang);
-  const isDelayed = item.status === 'delayed';
+  // En eller två minuter sent visas som väntad tid ('11:11 → 11:12'), inte som larm.
+  const isDelayed = isAlarmDelay(item);
   const isCancelled = item.status === 'cancelled';
   const onlySchedule = !isCancelled && !isDelayed && item.hasRealtime === false;
   // Realtid är normalfallet och får inget märke. Bara undantaget syns: tidtabellstider är grå med "tidtabell".
@@ -116,11 +117,18 @@ export default function DepartureRow({
   const towards = direction === 'arrivals' ? `${t('Från', 'From')} ${place}` : place;
   // Alltid "Spår 2" eller "Läge D", aldrig en ensam siffra.
   const details = [item.stopLabel, trackLabel(trackText(item.track, item.transportMode), lang)].filter(Boolean).join(' · ');
+  // Spåret först i undertexten, så att det aldrig är det som klipps bort på en smal telefon
+  // ("Spår 3 · Röda linjen · T-Centralen", UX-revisionen, fynd 4).
+  const subline = [trackLabel(trackText(item.track, item.transportMode), lang), name, item.stopLabel].filter(Boolean).join(' · ');
+  // "Ny tid saknas" betyder bara något för ett tåg som står kvar, och där säger tidskolumnen det redan.
+  const deviation = shownDeviation(item);
   const compensation =
     isCancelled || (isDelayed && (item.delayMinutes || 0) >= COMPENSATION_DELAY_MIN);
 
   // Tidtabellstider: grå siffra och ordet "tidtabell" under, inget tilde.
-  const shownBig = booked ? item.scheduledTime : bigTime;
+  // Ett tåg som står kvar har ingen nedräkning: ordinarie tid under alla filter (inte "Nu" under Alla
+  // och "10:51" under Tåg, UX-revisionen, fynd 2).
+  const shownBig = booked || item.pending ? item.scheduledTime : bigTime;
   // Sent bokat tåg med känd ny tid som skiljer sig från den ordinarie.
   const lateBooked = booked && isDelayed && !!newTime && newTime !== item.scheduledTime;
   const timeColor = isCancelled
@@ -160,7 +168,7 @@ export default function DepartureRow({
     spokenTime,
     spokenStatus,
     details,
-    item.deviation && !(isCancelled && item.deviation === 'Inställd') ? item.deviation : '',
+    deviation,
     walkText ? `${t('gångtid', 'walking')}: ${walkText}` : '',
   ]
     .filter(Boolean)
@@ -271,9 +279,9 @@ export default function DepartureRow({
                 {walkText}
               </span>
             ) : null}
-            {[name, details].filter(Boolean).join(' · ')}
+            {subline}
           </span>
-          {item.deviation && !(isCancelled && item.deviation === 'Inställd') ? (
+          {deviation ? (
             // Avvikelsen är skälet att titta: egen rad, högst två, aldrig avklippt efter ett ord.
             <span
               style={{
@@ -288,7 +296,7 @@ export default function DepartureRow({
                 fontWeight: 600,
               }}
             >
-              {item.deviation}
+              {deviation}
             </span>
           ) : null}
         </span>
@@ -334,7 +342,7 @@ export default function DepartureRow({
             {isCancelled ? (
               t('Inställd', 'Cancelled')
             ) : item.pending ? (
-              <span style={{ color: colors.amber, fontWeight: 600 }}>{t('Står kvar', 'Still at platform')}</span>
+              <span style={{ color: colors.amber, fontWeight: 600 }}>{t('Väntar på ny tid', 'Awaiting new time')}</span>
             ) : booked ? (
               // Bokat tåg: ordinarie tid står stort ovanför.
               <>
@@ -347,6 +355,8 @@ export default function DepartureRow({
                 )}
                 {early ? <span style={{ color: colors.okText }}>{`${clock} · ${early} ${t('min tidig', 'min early')}`}</span> : ''}
                 {early && countdown ? ' · ' : ''}
+                {/* En eller två minuter efter tidtabellen: väntad tid utan larmfärg, så att raden och kortet säger samma minut. */}
+                {shifted && !early && !isDelayed ? `${t('väntas', 'exp.')} ${clock}${countdown ? ' · ' : ''}` : ''}
                 {isDelayed ? '' : countdown}
                 {onlySchedule ? `${countdown ? ' · ' : ''}${t('tidtabell', 'timetable')}` : ''}
               </>

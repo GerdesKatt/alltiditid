@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import type { Flight, SecurityQueue } from '../lib/types';
 import type { MyFlight } from '../lib/myFlight';
 import { airportByIata } from '../lib/flights.mjs';
-import { gatePlan, queueNowFor, typicalQueueFor } from '../lib/gateTime.mjs';
+import { gatePlan, gateStage, queueNowFor, typicalQueueFor } from '../lib/gateTime.mjs';
+import { stockholmMinute } from '../lib/sweTime.mjs';
 import { flightStatus, useLang } from '../lib/i18n';
 import { parseLocal } from '../lib/lineFormat';
 import { colors, fonts } from './styles';
@@ -73,6 +74,8 @@ export default function MyFlightCard({ saved, now, onRemove }: { saved: MyFlight
   const usingTypical = queueNow === null && !soon && typical !== null;
   const plan = f ? gatePlan(f, saved.airport, queueNow ?? (usingTypical ? typical : null)) : null;
   const gateStatus = f ? flightStatus(f.gateText, lang) : '';
+  // Samma regel som på Flyg: ingen security-tid som redan passerat (UX-revisionen, fynd 1).
+  const stage = f ? gateStage(f, plan, stockholmMinute(now)) : 'ok';
 
   return (
     <section
@@ -127,6 +130,19 @@ export default function MyFlightCard({ saved, now, onRemove }: { saved: MyFlight
             <div style={{ color: colors.cancelledText, fontWeight: 700, marginTop: '6px' }}>{t('Inställt', 'Cancelled')}</div>
           ) : f.done ? (
             <div style={{ marginTop: '6px' }}>{t('Har lyft. Trevlig resa!', 'Departed. Have a good trip!')}</div>
+          ) : plan && stage !== 'ok' ? (
+            <div style={{ marginTop: '6px' }}>
+              <div style={{ fontWeight: 700, color: colors.amber }}>
+                {stage === 'closed' ? t('Gaten är stängd', 'The gate is closed') : t('Security-tiden har passerat', 'Security time has passed')}
+              </div>
+              <div>
+                {stage === 'closed'
+                  ? t('Fråga flygbolaget om du inte hunnit fram.', 'Ask the airline if you have not made it.')
+                  : f.gate
+                  ? t(`Gå direkt till gate ${f.gate}. Gaten stänger ca ${plan.gateCloses}.`, `Go straight to gate ${f.gate}. The gate closes around ${plan.gateCloses}.`)
+                  : t(`Gå direkt till gaten. Den stänger ca ${plan.gateCloses}.`, `Go straight to the gate. It closes around ${plan.gateCloses}.`)}
+              </div>
+            </div>
           ) : plan ? (
             <>
               {f.status === 'delayed' ? (

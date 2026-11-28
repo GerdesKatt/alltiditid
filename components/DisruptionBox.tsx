@@ -3,6 +3,7 @@ import type { Disruption } from '../lib/types';
 import Icon from './Icon';
 import { colors } from './styles';
 import { lineLabel, useLang, type Lang } from '../lib/i18n';
+import { textInLanguage } from '../lib/disruptionText.mjs';
 
 type Props = {
   disruptions: Disruption[];
@@ -107,7 +108,7 @@ export default function DisruptionBox({ disruptions, inline = false }: Props) {
           <strong style={{ display: 'block', fontSize: '0.875rem', color: colors.delayedText }}>
             {formatLines(d.lines, lang)}
           </strong>
-          <p style={{ margin: '2px 0 0', fontSize: '0.875rem', lineHeight: 1.5, color: colors.textSoft }}>{d.text}</p>
+          <p style={{ margin: '2px 0 0', fontSize: '0.875rem', lineHeight: 1.5, color: colors.textSoft }}>{textInLanguage(d.text, lang)}</p>
           {d.from ? (
             // Texten är trafikbolagets egen ("vår trygghetscentral" är SL:s), så avsändaren står under.
             <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: colors.textSoft }}>

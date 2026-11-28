@@ -161,3 +161,18 @@ test('ankomster matchar avreseortens kod och via-orter', () => {
   );
   for (const q of ['HEL', 'Helsinki', 'helsingfors', 'Vantaa', 'TKU', 'Åbo']) assert.ok(flightMatches(f, q), q);
 });
+
+// UX-revisionen, fynd 13: ett ord för gate och ingen motsägande tid.
+test('Utgång blir gate, och en motsägande Beräknad-text visas inte', () => {
+  const f = normalizeFlight(
+    flight('LH2415', 30, {
+      DepartureTime: { ScheduledUtc: utcIn(30), EstimatedUtc: utcIn(55), ActualUtc: null },
+      LocationAndStatus: { Terminal: '5', Gate: 'E9', GateActionSwedish: 'Utgång stängd', FlightLegStatus: 'DEL', FlightLegStatusSwedish: 'Beräknad 23:59' },
+      RemarksSwedish: [{ Text: 'Gate stängd' }],
+    }),
+    'departures'
+  );
+  assert.equal(f.gateText, 'Gate stängd');
+  assert.equal(f.statusText, undefined);
+  assert.deepEqual(f.remarks, ['Gate stängd']);
+});

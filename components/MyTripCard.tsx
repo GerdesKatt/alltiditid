@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Departure } from '../lib/types';
 import type { MyTrip } from '../lib/myTrip';
-import { clockFor, countdownFor, lineBadge, lineName, parseLocal } from '../lib/lineFormat';
+import { clockFor, countdownFor, lineBadge, lineName, isAlarmDelay, parseLocal } from '../lib/lineFormat';
 import { badgeLook, colors, fonts, labelStyle } from './styles';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { lineLabel, trackLabel, useLang } from '../lib/i18n';
@@ -64,7 +64,8 @@ export default function MyTripCard({
   const [head, ...rest] = next;
   const look = badgeLook({ line: trip.line, transportMode: head?.transportMode, operator: head?.operator });
   const headCancelled = head?.status === 'cancelled';
-  const headDelayed = head?.status === 'delayed';
+  const headDelayed = Boolean(head && isAlarmDelay(head));
+  const headLate = head?.status === 'delayed' && !headDelayed;
   const headSchedule = head && !headCancelled && !headDelayed && head.hasRealtime === false;
   const headBig = head ? nu(countdownFor(head, now)) : '';
   // Gå nu / Gå om X min / Hinner inte: samma regel som på tavlan.
@@ -214,6 +215,8 @@ export default function MyTripCard({
                 ? t('Inställd', 'Cancelled')
                 : headDelayed
                 ? `⚠ ${t('Försenad', 'Delayed')}${head.delayMinutes ? ` +${head.delayMinutes}` : ''} · ${t('ny tid', 'new time')} ${clockFor(head)}`
+                : headLate
+                ? `${t('Väntas', 'Expected')} ${clockFor(head)} · +${head.delayMinutes} min`
                 : headSchedule
                 ? `${t('Enligt tidtabell', 'Scheduled')} · ${clockFor(head)}`
                 : `${t('I tid', 'On time')} · ${clockFor(head)}`}

@@ -25,6 +25,23 @@ const navLink = {
 
 export default function Header({ onContactClick, onHome, linkBase = '' }: Props) {
   const { lang, t, setLang } = useLang();
+  // På mobilen glider sidhuvudet undan när man scrollar nedåt och kommer tillbaka uppåt,
+  // så att de fasta fälten tar mindre av skärmen (UX-revisionen, fynd 11). Se .site-header i globals.css.
+  React.useEffect(() => {
+    let last = window.scrollY;
+    const root = document.documentElement;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y > 120 && y > last + 4) root.dataset.headerHidden = '1';
+      else if (y < last - 4 || y <= 120) delete root.dataset.headerHidden;
+      last = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      delete root.dataset.headerHidden;
+    };
+  }, []);
   return (
     <header
       id="sidhuvud"

@@ -168,3 +168,28 @@ export function lineColor(item: Pick<Departure, 'line' | 'transportMode'> & { op
 export function isRailMode(mode?: string): boolean {
   return mode === 'train' || mode === 'commuter' || mode === 'subway' || mode === 'tram';
 }
+
+/**
+ * Avvikelsetexten som raden visar. Trafikverkets "Ny tid saknas" står på tåg som går i tid
+ * (alla Västtåg från Göteborg C 28 nov) och på tåg som står kvar, där tidskolumnen redan säger
+ * "Väntar på ny tid". Den delen tas bort; resten ("Buss 32A") står kvar (UX-revisionen, fynd 10).
+ */
+export function shownDeviation(d: Pick<Departure, 'deviation' | 'status'>): string {
+  const text = String(d.deviation || '').trim();
+  if (!text) return '';
+  if (d.status === 'cancelled' && /^inställd$/i.test(text)) return '';
+  return text
+    .split(/\s*[•·]\s*/)
+    .filter((part) => part && !/^ny tid saknas\.?$/i.test(part))
+    .join(' · ');
+}
+
+/**
+ * Från så här många minuter får en försening larmfärg, varningstriangel och överstruken tid.
+ * Servern märker tåg försenade från första minuten (som stationsskyltarna), men en minut
+ * ska inte se ut som ett larm (UX-revisionen, fynd 7). Under gränsen visas väntad tid lugnt.
+ */
+export const ALARM_DELAY_MIN = 3;
+export function isAlarmDelay(d: Pick<Departure, 'status' | 'delayMinutes'>): boolean {
+  return d.status === 'delayed' && (d.delayMinutes || 0) >= ALARM_DELAY_MIN;
+}

@@ -140,7 +140,7 @@ export default function SearchPanel({
           color: colors.text,
         }}
       >
-        {t('Koll på resan i realtid', 'Your journey in real time')}
+        {t('Byt hållplats', 'Change stop')}
       </h2>
 
       {/* Sökfältet först: det är det en stressad resenär letar efter. */}

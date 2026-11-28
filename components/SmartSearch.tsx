@@ -6,6 +6,8 @@ import { useLang } from '../lib/i18n';
 import { mergeStops } from '../lib/stationGroups.mjs';
 import { AIRPORTS } from '../lib/flights.mjs';
 import { track } from '../lib/track';
+import { loadStopIndex } from '../lib/stopIndex';
+import { fuzzyStops } from '../lib/fuzzyStops.mjs';
 
 type Props = {
   onOpenStop: (stop: StopOption) => void;
@@ -19,7 +21,7 @@ const TRAIN = /^(?:tåg|sj|tag|train)?\s*(\d{2,5})$/i;
 type Row =
   | { kind: 'train'; number: string }
   | { kind: 'airport'; iata: string; name: string }
-  | { kind: 'stop'; stop: StopOption }
+  | { kind: 'stop'; stop: StopOption; guess?: boolean }
   | { kind: 'trip'; text: string };
 
 /**
@@ -31,6 +33,8 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
   const { t } = useLang();
   const [q, setQ] = useState('');
   const [stops, setStops] = useState<StopOption[]>([]);
+  // "Menade du …?" när sökningen inte gav någon träff (UX-revisionen, fynd 5).
+  const [guesses, setGuesses] = useState<StopOption[]>([]);
   const [active, setActive] = useState(-1);
   // Sant när hållplatssöket svarade fel, så att "inga träffar" inte visas när det är servern som felar.
   const [failed, setFailed] = useState(false);
@@ -39,6 +43,7 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
   useEffect(() => {
     if (text.length < 2 || TRAIN.test(text)) {
       setStops([]);
+      setGuesses([]);
       setFailed(false);
       return;
     }
@@ -46,10 +51,22 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
     const timer = setTimeout(() => {
       fetch(`/api/trafik?action=search&q=${encodeURIComponent(text)}`)
         .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-        .then((d) => {
+        .then(async (d) => {
           if (!alive) return;
-          setStops((mergeStops(d.stops || []) as StopOption[]).slice(0, 4));
+          const found = (mergeStops(d.stops || []) as StopOption[]).slice(0, 4);
           setFailed(false);
+          if (found.length) {
+            setStops(found);
+            setGuesses([]);
+            return;
+          }
+          // Ingen träff: kanske ett stavfel. Jämför mot hållplatslistan ("uppsla" → Uppsala C).
+          setStops([]);
+          const index = await loadStopIndex();
+          if (!alive) return;
+          setGuesses(
+            index ? fuzzyStops(text, index.list, 2).map((p) => ({ id: p.id, name: p.name, place: p.place, modes: p.modes })) : []
+          );
         })
         .catch(() => {
           if (!alive) return;
@@ -74,6 +91,7 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
   if (train) rows.push({ kind: 'train', number: train });
   if (airport) rows.push({ kind: 'airport', iata: airport.iata, name: airport.name });
   for (const s of stops) rows.push({ kind: 'stop', stop: s });
+  for (const s of guesses) rows.push({ kind: 'stop', stop: s, guess: true });
   if (text.length >= 2 && !train) rows.push({ kind: 'trip', text });
 
   // Vad Enter gör: tåg > flygplats > hållplats som börjar så > resan.
@@ -82,12 +100,14 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
     rows.find((r) => r.kind === 'train') ||
     rows.find((r) => r.kind === 'airport') ||
     rows.find((r) => r.kind === 'stop' && r.stop.name.toLowerCase().startsWith(lower)) ||
+    rows.find((r) => r.kind === 'stop' && r.guess) ||
     rows.find((r) => r.kind === 'trip');
 
   function choose(r: Row) {
     track('funktion', 0, `sok_${r.kind}`);
     setQ('');
     setStops([]);
+    setGuesses([]);
     if (r.kind === 'train') onOpenTrain(r.number);
     else if (r.kind === 'airport') onOpenAirport(r.iata);
     else if (r.kind === 'stop') onOpenStop(r.stop);
@@ -163,7 +183,8 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
               setQ('');
             }
           }}
-          placeholder={t('Vart ska du? Hållplats, adress eller tåg', 'Where to? Stop, address or train')}
+          // Kort nog för 375 px (förut klipptes "…eller tå"). Frågan "Vart ska du?" står i etiketten.
+          placeholder={t('Hållplats, adress eller tåg', 'Stop, address or train')}
           style={{
             width: '100%',
             boxSizing: 'border-box',
@@ -210,7 +231,9 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
                   <>
                     <span style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ display: 'block', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {r.guess ? <span style={{ fontWeight: 500, color: colors.textDim }}>{t('Menade du ', 'Did you mean ')}</span> : null}
                         {r.stop.name}
+                        {r.guess ? '?' : ''}
                       </span>
                       {r.stop.place || r.stop.modes?.length ? (
                         <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim }}>
