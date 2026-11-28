@@ -189,9 +189,10 @@ export default function App({ initialStop, page, intro }: AppProps) {
     return () => window.removeEventListener(MY_FLIGHT_EVENT, sync);
   }, []);
   // Kollektivtrafik eller flyg, och flygplatsen som sökningen pekade på.
+  // Appen startar alltid på Avgångar (Nils 2026-11-28): senaste fliken sparas inte längre.
   const [tab, setTab] = useState<AppTab>('trafik');
   // Hur stor del av besöken som öppnar Flyg (planen: flytta Flyg ur menyn om under 5 %).
-  // Räknas en gång per sidvisning, oavsett om man kom dit via menyn, sök eller en sparad flik.
+  // Räknas en gång per sidvisning, oavsett om man kom dit via menyn eller sök.
   useEffect(() => {
     if (tab === 'flyg') track('flygflik');
   }, [tab]);
@@ -203,23 +204,9 @@ export default function App({ initialStop, page, intro }: AppProps) {
     if (!trainNumber) setPickByte(false);
   }, [trainNumber]);
   const [flightAirport, setFlightAirport] = useState<string | undefined>(undefined);
-  useEffect(() => {
-    try {
-      if (!initialStop && ['flyg', 'resa'].includes(window.localStorage.getItem('alltiditid:flik') || '')) {
-        setTab(window.localStorage.getItem('alltiditid:flik') as AppTab);
-      }
-    } catch {
-      // Ingen lagring.
-    }
-  }, [initialStop]);
   function changeTab(next: AppTab) {
     setTab(next);
     setStationOpen(false);
-    try {
-      window.localStorage.setItem('alltiditid:flik', next);
-    } catch {
-      // Valet gäller tills sidan laddas om.
-    }
   }
   const [riderStatus, setRiderStatus] = useState<RiderMood>('on-time');
   const [riderNote, setRiderNote] = useState('');
