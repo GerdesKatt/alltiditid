@@ -73,3 +73,24 @@ test('ankomster frågar inte SL', async () => {
   await board('action=departures&stopId=740021705&stopName=Gullmarsplan&mode=all&direction=arrivals&x=2', env);
   assert.ok(!calls.some((c) => c.includes('transport.integration.sl.se')));
 });
+
+test('SL-svaret delas i 25 s per site, och efter 429 används det senaste svaret', async () => {
+  const { slUpdatesCached, resetSlShared } = await import('../functions/api/trafik.js');
+  resetSlShared();
+  let calls = 0;
+  const ok = async () => { calls++; return new Map([['x', calls]]); };
+  const t0 = 1_000_000;
+  const [a, b] = await Promise.all([slUpdatesCached('s1', ok, t0), slUpdatesCached('s1', ok, t0 + 10)]);
+  assert.equal(calls, 1);
+  assert.equal(a, b);
+  await slUpdatesCached('s1', ok, t0 + 20_000);
+  assert.equal(calls, 1);
+  const busy = async () => { calls++; throw new Error('SL departures 429'); };
+  const stale = await slUpdatesCached('s1', busy, t0 + 30_000);
+  assert.equal(stale, a);
+  assert.equal(calls, 2);
+  // Siten vilar i 30 s: inget nytt anrop.
+  assert.equal(await slUpdatesCached('s1', ok, t0 + 40_000), a);
+  assert.equal(calls, 2);
+  resetSlShared();
+});
