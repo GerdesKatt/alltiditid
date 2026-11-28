@@ -3,7 +3,7 @@ import React from 'react';
 // Archivo med både vikt- och breddaxel (62–125 %), ett typsnitt för hela appen.
 import '@fontsource-variable/archivo/standard.css';
 import './globals.css';
-import { THEME_SCRIPT } from '../lib/theme';
+import { INTRO_SCRIPT, THEME_SCRIPT } from '../lib/theme';
 import { PREFETCH_SCRIPT } from '../lib/prefetch';
 
 export const metadata: Metadata = {
@@ -53,6 +53,7 @@ export default function RootLayout({
       <head>
         {/* Startar hämtningen av tavlan innan React har laddat (lib/prefetch.ts). */}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: INTRO_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: PREFETCH_SCRIPT }} />
         <meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)" />
         <meta name="theme-color" content="#ecece8" media="(prefers-color-scheme: light)" />

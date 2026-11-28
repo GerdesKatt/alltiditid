@@ -35,3 +35,9 @@ export function applyTheme(choice: ThemeChoice): void {
 
 /** Körs i <head> före React: sätter sparat val direkt, så att sidan inte blinkar i fel färg. */
 export const THEME_SCRIPT = `(function(){try{var v=localStorage.getItem('${KEY}');if(v==='light'||v==='dark')document.documentElement.setAttribute('data-theme',v);}catch(e){}})();`;
+
+/**
+ * Körs i <head>: strecket ritas och ordmärket tonar in en gång per besök (Vägen till 10, idé 5).
+ * Aldrig med "minska rörelse", och inte igen vid omladdning i samma flik.
+ */
+export const INTRO_SCRIPT = `(function(){try{if(sessionStorage.getItem('alltiditid:intro'))return;sessionStorage.setItem('alltiditid:intro','1');if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)return;document.documentElement.setAttribute('data-intro','');}catch(e){}})();`;

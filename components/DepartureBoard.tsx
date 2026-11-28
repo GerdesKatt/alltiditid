@@ -360,7 +360,14 @@ export default function DepartureBoard({
             {updatedAt && !stale && !offline ? (
               <span style={{ color: limited ? colors.amber : colors.textDim, letterSpacing: '0.04em' }}>
                 <span className={hasDisruption && direction !== 'arrivals' ? 'eyebrow-word' : undefined}>· </span>
-                {limited ? t('Begränsad realtid', 'Limited real-time') : updatedLabel}
+                {limited ? (
+                  t('Begränsad realtid', 'Limited real-time')
+                ) : (
+                  // Klockslaget lyser kort i rosé när färsk data har kommit (Vägen till 10, idé 4).
+                  <span key={updatedAt.getTime()} className="fresh-flash" style={{ padding: '0 2px', margin: '0 -2px' }}>
+                    {updatedLabel}
+                  </span>
+                )}
               </span>
             ) : null}
             {view === 'lines' ? (

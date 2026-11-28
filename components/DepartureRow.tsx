@@ -9,6 +9,8 @@ import { lineLabel, trackLabel, useLang } from '../lib/i18n';
 import { trackText } from '../lib/lineNames.mjs';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { sameAsBoard } from '../lib/nextPick.mjs';
+import { secondsLabel } from '../lib/countdown.mjs';
+import { useLiveNow } from '../lib/useLiveNow';
 
 type Props = {
   item: Departure;
@@ -63,7 +65,7 @@ const WALK_HORIZON_MIN = 60;
 export default function DepartureRow({
   item,
   direction,
-  now,
+  now: nowProp,
   isSelectedTrip,
   onSelectOnBoard,
   isMyTrip = false,
@@ -91,11 +93,17 @@ export default function DepartureRow({
   const early = !isCancelled && !isDelayed ? item.earlyMinutes || 0 : 0;
 
   const expected = parseLocal(item.expectedAt);
+  // De sista två minuterna tickar raden varje sekund och visar tiotal sekunder (Vägen till 10, idé 2).
+  const liveNow = useLiveNow(nowProp, isCancelled || item.pending ? null : expected);
+  const now = liveNow;
   const minutesLeft = expected !== null ? Math.floor((expected - now) / 60000) : null;
+  const seconds = !isCancelled && !item.pending && expected !== null ? secondsLabel(expected - now) : null;
   const bigTime = isCancelled
     ? item.scheduledTime
     : minutesLeft === null || minutesLeft >= COUNTDOWN_MAX_MIN
     ? clock
+    : seconds
+    ? seconds
     : minutesLeft <= 0
     ? t('Nu', 'Now')
     : `${minutesLeft} min`;
@@ -209,6 +217,8 @@ export default function DepartureRow({
       style={{
         // Raderna glider till sin nya plats när listan ändras (View Transitions, lib/motion.ts).
         viewTransitionName: `dep-${item.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`,
+        // Klassen låter CSS ge rader som gått en egen utgång (glider åt vänster, globals.css).
+        ...({ viewTransitionClass: 'dep' } as React.CSSProperties),
         // En rad i listan: tunn avdelare i stället för ett eget kort.
         backgroundColor: isSelectedTrip ? colors.selectedRowBg : colors.surface,
         borderBottom: `1px solid ${colors.border}`,

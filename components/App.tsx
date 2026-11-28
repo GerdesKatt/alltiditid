@@ -626,7 +626,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
         return !d.pending && at !== null && at + DEPARTED_GRACE_MS >= last && at + DEPARTED_GRACE_MS < next;
       });
       last = next;
-      if (gone) withTransition(() => setNow(next), { onlyNearTop: true });
+      if (gone) withTransition(() => setNow(next), { onlyNearTop: true, kind: 'gone' });
       else setNow(next);
     }, CLOCK_TICK_MS);
     return () => clearInterval(tick);

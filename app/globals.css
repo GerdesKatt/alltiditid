@@ -216,6 +216,8 @@
   --c-badge-border: var(--rose-ink);
   --c-badge-text: var(--rose-ink);
   --brand: var(--rose-ink);
+  /* Tidslinjen i strecket: svart på rosé i ljust läge, rosé på mörkt. */
+  --timeline-fill: var(--rose-ink);
   background-color: var(--rose);
   color: var(--rose-ink);
 }
@@ -240,6 +242,7 @@
     --c-badge-border: var(--ink);
     --c-badge-text: var(--ink);
     --brand: var(--ink);
+    --timeline-fill: var(--rose);
     background-color: var(--rose-night);
     color: var(--ink);
     border-top: 2px solid var(--rose);
@@ -263,6 +266,7 @@
   --c-badge-border: var(--ink);
   --c-badge-text: var(--ink);
   --brand: var(--ink);
+  --timeline-fill: var(--rose);
   background-color: var(--rose-night);
   color: var(--ink);
   border-top: 2px solid var(--rose);
@@ -339,6 +343,130 @@
   animation-timing-function: var(--ease-out);
 }
 
+/* Vägen till 10 ------------------------------------------------------------------ */
+
+/* Strecket som tidslinje i Nästa-kortet (idé 1): fylls från vänster tills det är dags att gå. */
+.timeline-fill {
+  position: absolute;
+  left: 0;
+  top: -2px;
+  height: 3px;
+  max-width: 100%;
+  background-color: var(--timeline-fill, currentColor);
+  transition: width 1s linear;
+  pointer-events: none;
+}
+
+/* Siffran i Nästa-kortet är en knapp som öppnar storläget (idé 21). */
+.big-open {
+  display: block;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  text-align: left;
+  cursor: zoom-in;
+}
+.big-open:active {
+  opacity: 0.7;
+}
+
+/* Storläget: Nästa-kortet i helskärm, siffran så stor det går. */
+.big-view {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+  overflow: hidden;
+  cursor: zoom-out;
+}
+.big-view-number {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: var(--stretch-head);
+  font-variant-numeric: proportional-nums;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.big-view-close {
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top));
+  right: 12px;
+  min-height: 44px;
+  padding: 0 8px;
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: var(--fs-3);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* Ny data: klockslaget vid "Avgångar · 11:08" lyser kort i rosé när färsk data kommit (idé 4). */
+.fresh-flash {
+  animation: fresh-flash 1100ms var(--ease-out) 1;
+}
+@keyframes fresh-flash {
+  0%,
+  25% {
+    background-color: var(--rose);
+    color: var(--rose-ink);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+/* En avgång som gått glider ut åt vänster, i färdriktningen, i stället för att tona bort (idé 3).
+   Bara när klockan tar bort raden (html[data-vt='gone'], lib/motion.ts), inte vid filterbyten. */
+html[data-vt='gone']::view-transition-old(*.dep):only-child {
+  animation: dep-out 320ms var(--ease-out) both;
+}
+@keyframes dep-out {
+  to {
+    transform: translateX(-45%);
+    opacity: 0;
+  }
+}
+
+/* Strecket ritas över skärmen första gången sidan öppnas, sedan kommer ordmärket (idé 5).
+   html[data-intro] sätts av INTRO_SCRIPT en gång per besök, aldrig med "minska rörelse". */
+html[data-intro] .site-header::before {
+  transform-origin: 0 50%;
+  animation: line-draw 300ms var(--ease-out) both;
+}
+html[data-intro] .wordmark {
+  animation: wordmark-in 240ms var(--ease-out) 220ms both;
+}
+@keyframes line-draw {
+  from {
+    transform: translateX(-50%) scaleX(0);
+  }
+  to {
+    transform: translateX(-50%) scaleX(1);
+  }
+}
+@keyframes wordmark-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* "Minska rörelse" i telefonen stänger av animationer. */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -352,6 +480,13 @@
   ::view-transition-old(*),
   ::view-transition-new(*) {
     animation: none !important;
+  }
+  html[data-intro] .site-header::before,
+  html[data-intro] .wordmark {
+    animation: none !important;
+  }
+  .timeline-fill {
+    transition: none;
   }
 }
 
