@@ -29,6 +29,8 @@ export type Departure = {
   /** false när källan saknar realtidsdata för avgången (bara tidtabell). */
   hasRealtime?: boolean;
   track?: string;
+  /** Spåret innan det ändrades, i tio minuter efter bytet (sätts i appen). */
+  previousTrack?: string;
   /** Delhållplats i en sammanslagen tavla, t.ex. "Drottningtorget" under Göteborg C. */
   stopLabel?: string;
   deviation?: string;

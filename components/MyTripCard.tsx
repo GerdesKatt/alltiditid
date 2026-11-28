@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Departure } from '../lib/types';
 import type { MyTrip } from '../lib/myTrip';
@@ -13,6 +13,7 @@ import { useWakeLock } from '../lib/wakeLock';
 import Icon from './Icon';
 import { useTrivia } from '../lib/useTrivia';
 import { useRain } from '../lib/useRain';
+import { morphTransition } from '../lib/motion';
 
 type Props = {
   trip: MyTrip;
@@ -62,7 +63,7 @@ export default function MyTripCard({
   const badge = lineBadge(trip.line);
   const name = lineLabel(lineName(trip.line, badge), lang);
   const nu = (label: string) => (label === 'Nu' ? t('Nu', 'Now') : label);
-  const deviation = next.find((d) => d.deviation)?.deviation;
+  const deviationRaw = next.find((d) => d.deviation)?.deviation;
 
   const spokenTimes = next
     .map((d) =>
@@ -80,26 +81,33 @@ export default function MyTripCard({
 
   const [head, ...rest] = next;
   const look = badgeLook({ line: trip.line, transportMode: head?.transportMode, operator: head?.operator });
-  const headCancelled = head?.status === 'cancelled';
-  const headDelayed = Boolean(head && isAlarmDelay(head));
-  const headLate = head?.status === 'delayed' && !headDelayed;
-  const headSchedule = head && !headCancelled && !headDelayed && head.hasRealtime === false;
-  const headAt = head ? parseLocal(head.expectedAt) : null;
+  const tripCancelled = head?.status === 'cancelled';
+  // Plan B: är avgången inställd visar kortet direkt det du tar i stället, med siffra, spår och
+  // tidslinje mot den nya avgången. Det är då appen behövs mest (Vägen till 10 del 2, idé 11).
+  const planB = tripCancelled && alternative && !alternative.pending ? alternative : null;
+  // "Inställd" står redan i plan B-raden: avvikelsen visas bara om den säger något mer.
+  const deviation = planB && /^inställd\.?$/i.test(String(deviationRaw || '').trim()) ? undefined : deviationRaw;
+  const shown = planB ?? head;
+  const headCancelled = shown?.status === 'cancelled';
+  const headDelayed = Boolean(shown && isAlarmDelay(shown));
+  const headLate = shown?.status === 'delayed' && !headDelayed;
+  const headSchedule = shown && !headCancelled && !headDelayed && shown.hasRealtime === false;
+  const headAt = shown ? parseLocal(shown.expectedAt) : null;
   // De sista två minuterna tickar kortet varje sekund så att tidslinjen fylls mjukt. Siffran säger
   // "under 2 min": källorna ger hela minuter, så sekunder vore en falsk precision (juryn, runda 2).
   const liveNow = useLiveNow(now, headCancelled ? null : headAt);
-  const headUnder = Boolean(head && headAt !== null && !headCancelled && !head.pending && underTwoMinutes(headAt - liveNow));
-  const headBig = head ? (headUnder ? '2 min' : nu(countdownFor(head, liveNow))) : '';
+  const headUnder = Boolean(shown && headAt !== null && !headCancelled && !shown.pending && underTwoMinutes(headAt - liveNow));
+  const headBig = shown ? (headUnder ? '2 min' : nu(countdownFor(shown, liveNow))) : '';
   // Gå nu / Gå om X min / Hinner inte: samma regel som på tavlan.
   const verdict =
-    head && walkMinutes !== null && headAt !== null && !headCancelled
-      ? walkVerdict(Math.floor((headAt - liveNow) / 60000), walkMinutes, platformMinutes(head.transportMode))
+    shown && walkMinutes !== null && headAt !== null && !headCancelled
+      ? walkVerdict(Math.floor((headAt - liveNow) / 60000), walkMinutes, platformMinutes(shown.transportMode))
       : null;
   // Strecket som tidslinje: fylls de sista tio minuterna före "gå senast" (med gångtid)
   // eller före avgången (utan). Varumärkets ornament blir svaret (Vägen till 10, idé 1).
   const deadline =
-    head && headAt !== null && !headCancelled
-      ? headAt - (walkMinutes !== null ? (walkMinutes + platformMinutes(head.transportMode)) * 60_000 : 0)
+    shown && headAt !== null && !headCancelled
+      ? headAt - (walkMinutes !== null ? (walkMinutes + platformMinutes(shown.transportMode)) * 60_000 : 0)
       : null;
   const fill = deadline !== null ? timelineFill(deadline - liveNow) : 0;
 
@@ -120,7 +128,8 @@ export default function MyTripCard({
 
   // Repliken under strecket: med gångtid beskedet, utan gångtid lugnet eller kaffet (idé 10).
   const minutesLeft = headAt !== null ? Math.floor((headAt - liveNow) / 60000) : null;
-  const nextIn = rest[0] && rest[0].status !== 'cancelled' ? parseLocal(rest[0].expectedAt) : null;
+  const after = planB ? null : rest[0];
+  const nextIn = after && after.status !== 'cancelled' ? parseLocal(after.expectedAt) : null;
   const nextMin = nextIn !== null ? Math.max(1, Math.floor((nextIn - liveNow) / 60000)) : null;
   const calm = !headCancelled && !headDelayed && !deviation && next.every((d) => d.status !== 'cancelled' && !isAlarmDelay(d));
   // Raden under strecket, högst en: beskedet står redan i rutan bredvid siffran, så med gångtid
@@ -133,7 +142,7 @@ export default function MyTripCard({
         ? t('Snö inom en timme.', 'Snow within the hour.')
         : t('Regn inom en timme.', 'Rain within the hour.')
       : '';
-  const line = !head || headCancelled || head.pending
+  const line = !shown || headCancelled || shown.pending || planB
     ? ''
     : verdict
     ? verdict.kind === 'missed'
@@ -158,19 +167,29 @@ export default function MyTripCard({
 
   // Storläge: bara siffran, så stor det går (idé 21). Skärmen hålls tänd där och vid "Gå nu" (idé 15).
   const [big, setBig] = useState(false);
+  // Storläget växer ur kortet: siffran glider till helskärm och tillbaka (del 2, idé 1).
+  const numberRef = useRef<HTMLButtonElement>(null);
+  const openBig = () => morphTransition(() => setBig(true), () => numberRef.current, () => document.querySelector('.big-view .big-view-number'), 'big-number');
+  const closeBig = useCallback(
+    () => morphTransition(() => setBig(false), () => document.querySelector('.big-view .big-view-number'), () => numberRef.current, 'big-number'),
+    []
+  );
   useWakeLock(big || kind === 'go');
 
   // Läs upp med webbläsarens egen talsyntes (idé 19). Knappen visas bara där den finns.
   const [canSpeak, setCanSpeak] = useState(false);
   useEffect(() => setCanSpeak(typeof window !== 'undefined' && 'speechSynthesis' in window), []);
-  const spoken = head
+  const spoken = head && shown
     ? [
         `${lineLabel(name || badge, lang)} ${t('mot', 'to')} ${trip.destination}`,
+        planB
+          ? `${t('inställd. Ta i stället', 'cancelled. Take instead')} ${lineLabel(planB.line, lang)} ${t('mot', 'to')} ${planB.destination}`
+          : '',
         headCancelled
           ? t('inställd', 'cancelled')
-          : spokenWhen(headAt, liveNow, clockFor(head), t),
-        headDelayed ? `${t('försenad, ny tid', 'delayed, new time')} ${clockFor(head)}` : '',
-        head.track ? trackLabel(trackText(head.track, head.transportMode), lang) : '',
+          : spokenWhen(headAt, liveNow, clockFor(shown), t),
+        headDelayed ? `${t('försenad, ny tid', 'delayed, new time')} ${clockFor(shown)}` : '',
+        shown.track ? `${shown.previousTrack ? t('nytt spår', 'new track') + ', ' : ''}${trackLabel(trackText(shown.track, shown.transportMode), lang)}` : '',
         verdict
           ? verdict.kind === 'go'
             ? t('Gå nu.', 'Leave now.')
@@ -265,7 +284,7 @@ export default function MyTripCard({
           // Storläget syns som en egen knapp, inte bara som en dold funktion på siffran (juryn, runda 2, punkt 4).
           <button
             type="button"
-            onClick={() => setBig(true)}
+            onClick={openBig}
             className="row-link"
             aria-label={t('Storläge', 'Full screen')}
             title={t('Storläge', 'Full screen')}
@@ -294,6 +313,17 @@ export default function MyTripCard({
         </p>
       ) : (
         <div>
+          {planB && head ? (
+            // Plan B: den inställda överst, i larmfärg, och sedan det du tar i stället i full storlek.
+            <p style={{ margin: '8px 0 0', fontSize: 'var(--fs-3)', color: colors.amber }}>
+              <strong>
+                {t('Inställd', 'Cancelled')} {head.scheduledTime}.
+              </strong>{' '}
+              <span style={{ color: colors.text }}>
+                {t('Ta i stället', 'Take instead')} {lineLabel(planB.line, lang)} {t('mot', 'to')} {planB.destination}:
+              </span>
+            </p>
+          ) : null}
           <div
             className="hero-big"
             style={{
@@ -318,10 +348,11 @@ export default function MyTripCard({
             {/* Ett tryck på siffran visar storläget (idé 21). */}
             <button
               type="button"
-              onClick={() => setBig(true)}
+              onClick={openBig}
               aria-label={t('Visa nästa avgång i storläge', 'Show the next departure full screen')}
               className="big-open"
-              style={{ flex: 1, minWidth: 0, whiteSpace: inlineSave ? 'nowrap' : undefined }}
+              style={{ flex: '1 1 auto', minWidth: 0, whiteSpace: inlineSave ? 'nowrap' : undefined }}
+              ref={numberRef}
             >
               {/* Siffran rullar upp när den byts (av vid "minska rörelse"). */}
               {headUnder ? (
@@ -336,7 +367,7 @@ export default function MyTripCard({
             {inlineSave || verdict ? (
               // Spara och beskedet står till höger om siffran i stället för på egna rader: kortet blir
               // lika lågt med gångtid som utan, och tavlan får plats högre upp (N1).
-              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', alignSelf: 'flex-end', gap: '6px', flexShrink: 1, minWidth: 0 }}>
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', alignSelf: 'flex-end', gap: '6px', flexShrink: 1, minWidth: 0, marginLeft: 'auto' }}>
                 {inlineSave ? (
                   <button type="button" onClick={auto ? onSave : onRemove} className="save-inline" style={{ ...textButton, minHeight: verdict ? '28px' : textButton.minHeight, marginBottom: verdict ? 0 : '-10px', fontFamily: 'var(--font-text)', fontStretch: '100%', letterSpacing: 0, lineHeight: 1.2, fontVariantNumeric: 'normal', maxWidth: '10rem', textAlign: 'right' }}>
                     {auto ? t('Spara som min resa', 'Save as my trip') : t('Ta bort', 'Remove')}
@@ -398,18 +429,32 @@ export default function MyTripCard({
               {headCancelled
                 ? t('Inställd', 'Cancelled')
                 : headDelayed
-                ? `⚠ ${t('Försenad', 'Delayed')}${head.delayMinutes ? ` +${head.delayMinutes}` : ''} · ${t('ny tid', 'new time')} ${clockFor(head)}`
+                ? `⚠ ${t('Försenad', 'Delayed')}${shown.delayMinutes ? ` +${shown.delayMinutes}` : ''} · ${t('ny tid', 'new time')} ${clockFor(shown)}`
                 : headLate
-                ? `${t('Väntas', 'Expected')} ${clockFor(head)} · +${head.delayMinutes} min`
+                ? `${t('Väntas', 'Expected')} ${clockFor(shown)} · +${shown.delayMinutes} min`
                 : headSchedule
-                ? `${t('Enligt tidtabell', 'Scheduled')} · ${clockFor(head)}`
-                : `${t('I tid', 'On time')} · ${clockFor(head)}`}
-              {head.track ? ` · ${trackLabel(trackText(head.track, head.transportMode), lang)}` : ''}
+                ? `${t('Enligt tidtabell', 'Scheduled')} · ${clockFor(shown)}`
+                : `${t(planB ? 'Går' : 'I tid', planB ? 'Departs' : 'On time')} · ${clockFor(shown)}`}
+              {shown.track && shown.previousTrack ? (
+                // Spårbytet syns även här: gamla spåret struket, det nya i fet stil (del 2, idé 3).
+                <>
+                  {' · '}
+                  <span className="track-changed">
+                    {trackLabel(trackText(shown.track, shown.transportMode), lang).replace(/\s.*$/, '')}{' '}
+                    <s className="track-old">{trackText(shown.previousTrack, shown.transportMode).replace(/^\S+\s/, '')}</s> →{' '}
+                    <strong className="track-new">{trackText(shown.track, shown.transportMode).replace(/^\S+\s/, '')}</strong>
+                  </span>
+                </>
+              ) : shown.track ? (
+                ` · ${trackLabel(trackText(shown.track, shown.transportMode), lang)}`
+              ) : (
+                ''
+              )}
             </span>
             {verdict && note ? (
               // Med gångtid står repliken eller vädret här i stället för Därefter: en rad mindre.
               <span>{note}</span>
-            ) : rest.length ? (
+            ) : rest.length && !planB ? (
               <span style={{ color: colors.textDim }}>
                 {t('Därefter', 'Then')}{' '}
                 {andList(
@@ -431,7 +476,7 @@ export default function MyTripCard({
         </p>
       ) : null}
 
-      {next[0]?.status === 'cancelled' && alternative ? (
+      {next[0]?.status === 'cancelled' && alternative && !planB ? (
         // Inställt: alltid ett nästa steg.
         <p style={{ margin: '10px 0 0', fontSize: 'var(--fs-3)', color: colors.amber }}>
           <strong>{t('Ta istället:', 'Take instead:')}</strong>{' '}
@@ -492,10 +537,10 @@ export default function MyTripCard({
 
       {big && head ? (
         <BigView
-          onClose={() => setBig(false)}
-          badge={lineLabel(badge, lang)}
-          look={look}
-          destination={trip.destination}
+          onClose={closeBig}
+          badge={lineLabel(planB ? lineBadge(planB.line) : badge, lang)}
+          look={planB ? badgeLook({ line: planB.line, transportMode: planB.transportMode, operator: planB.operator }) : look}
+          destination={planB ? planB.destination : trip.destination}
           big={headBig}
           under={headUnder ? t('under', 'under') : ''}
           towards={t('mot', 'to')}
@@ -505,9 +550,9 @@ export default function MyTripCard({
           status={
             headCancelled
               ? t('Inställd', 'Cancelled')
-              : `${headDelayed || headLate ? t('Väntas', 'Expected') : t('Går', 'Departs')} ${clockFor(head)}${
-                  head.track ? ` · ${trackLabel(trackText(head.track, head.transportMode), lang)}` : ''
-                }`
+              : `${planB ? `${t('Inställd', 'Cancelled')} ${head.scheduledTime}. ${t('Ta', 'Take')} ${lineLabel(planB.line, lang)} · ` : ''}${
+                  headDelayed || headLate ? t('Väntas', 'Expected') : t('Går', 'Departs')
+                } ${clockFor(shown!)}${shown!.track ? ` · ${trackLabel(trackText(shown!.track, shown!.transportMode), lang)}` : ''}`
           }
           verdict={
             verdict

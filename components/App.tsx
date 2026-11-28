@@ -7,6 +7,8 @@ import DepartureBoard from './DepartureBoard';
 import Header from './Header';
 import ConsentBanner from './ConsentBanner';
 import InfoFooter from './InfoFooter';
+import KeyboardShortcuts from './KeyboardShortcuts';
+import { useWakeLock } from '../lib/wakeLock';
 import {
   ANALYTICS_ENABLED,
   clearConsent,
@@ -32,6 +34,7 @@ import { homeStops, markBoardShown, recordVisit, forgetStop, forgetAllVisits } f
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { track } from '../lib/track';
 import { alternativeFor } from '../lib/alternative.mjs';
+import { markTrackChanges } from '../lib/trackChanges.mjs';
 import { matchConnection } from '../lib/transferMatch.mjs';
 import { groupKey, isAlarmDelay, parseLocal } from '../lib/lineFormat';
 import JourneyPlan from './JourneyPlan';
@@ -163,6 +166,9 @@ export default function App({ initialStop, page, intro }: AppProps) {
 
   const [filterText, setFilterText] = useState('');
   const [departures, setDepartures] = useState<Departure[]>([]);
+  // Spåren från förra hämtningen, så att ett spårbyte syns på raden och i kortet (del 2, idé 3).
+  // Minnet gäller en tavla i taget: samma tåg har olika spår på olika stationer.
+  const trackMemory = React.useRef({ url: '', map: new Map<string, { track: string; from?: string; at?: number }>() });
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   // Ökar när någon trycker på Försök igen, så att tavlan hämtas på nytt direkt.
@@ -298,6 +304,16 @@ export default function App({ initialStop, page, intro }: AppProps) {
     query.addEventListener?.('change', update);
     return () => query.removeEventListener?.('change', update);
   }, []);
+  // Skyltläge (?skylt=1): bara Nästa-kortet och tavlan i stor text, för en skärm på väggen.
+  // Skärmen hålls tänd och sidhuvud, flikar och sidfot är borta (Vägen till 10 del 2, idé 6).
+  const [skylt, setSkylt] = useState(false);
+  useEffect(() => {
+    const on = new URLSearchParams(window.location.search).get('skylt') === '1';
+    setSkylt(on);
+    if (on) document.documentElement.setAttribute('data-skylt', '');
+    return () => document.documentElement.removeAttribute('data-skylt');
+  }, []);
+  useWakeLock(skylt);
   const [favorites, setFavorites] = useState<StopOption[]>([]);
   const [myTrip, setMyTrip] = useState<MyTrip | null>(null);
   // En planerad resa från reseplaneraren (t.ex. i morgon), sparad som Min resa.
@@ -529,7 +545,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
             const list: Departure[] = Array.isArray(data.departures) ? data.departures : [];
             if (!hasData) markFirstBoard(list.length);
             hasData = true;
-            setDepartures(list);
+            if (trackMemory.current.url !== url) trackMemory.current = { url, map: new Map() };
+            setDepartures(markTrackChanges(trackMemory.current.map, list, Date.now()));
             if (data.savedAt === 0) saveLastBoard(url, list, Array.isArray(data.disruptions) ? data.disruptions : []);
             setErrorMsg(null);
             setLoading(false);
@@ -788,6 +805,36 @@ export default function App({ initialStop, page, intro }: AppProps) {
   const walkMin = direction === 'departures' && walk.state.kind === 'ready' ? walk.state.minutes : null;
   // Något på tavlan är sent eller inställt: då säger Nästa-kortet "Lugnt" om din (juryn, runda 2).
   const boardTrouble = departures.some((d) => d.status === 'cancelled' || isAlarmDelay(d));
+  const tripCard =
+    myTrip && !planned ? (
+        <MyTripCard
+          walkMinutes={myTrip.stopId === selectedStop.id ? walkMin : null}
+          stopAt={myTrip.stopId === selectedStop.id ? walk.stopAt : null}
+          boardTrouble={myTrip.stopId === selectedStop.id && boardTrouble}
+          trip={myTrip}
+          next={tripNext}
+          alternative={tripAlternative}
+          loading={tripOnBoard ? loading : tripLoading}
+          now={now}
+          showingStop={myTrip.stopId === selectedStop.id}
+          onShowStop={() => {
+            setSelectedStop({ id: myTrip.stopId, name: myTrip.stopName });
+            const stopRegion = regionForStop(myTrip.stopId);
+            if (stopRegion !== 'all') setRegion(stopRegion);
+            setDirection('departures');
+            setControlsOpen(false);
+            setTab('trafik');
+          }}
+          onRemove={() => {
+            setMyTrip(null);
+            storeMyTrip(null);
+          }}
+        />
+    ) : null;
+  // Dator: Nästa-kortet står överst i vänsterkolumnen i mobilbredd, med siffran i full storlek,
+  // och tavlan får hela högerkolumnen (Vägen till 10 del 2, idé 6). Skyltläget har samma upplägg.
+  const cardInSide = wide && screen === 'board' && tab === 'trafik';
+  const tripCardInSide = Boolean(cardInSide && myTrip && !planned && myTrip.stopId === selectedStop.id);
   const journeyCards = (
     <>
       {planned ? (
@@ -821,31 +868,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
         />
       ) : null}
       {/* En sparad resa i taget: med en planerad resa visas inte en sparad avgång bredvid. */}
-      {myTrip && !planned ? (
-        <MyTripCard
-          walkMinutes={myTrip.stopId === selectedStop.id ? walkMin : null}
-          stopAt={myTrip.stopId === selectedStop.id ? walk.stopAt : null}
-          boardTrouble={myTrip.stopId === selectedStop.id && boardTrouble}
-          trip={myTrip}
-          next={tripNext}
-          alternative={tripAlternative}
-          loading={tripOnBoard ? loading : tripLoading}
-          now={now}
-          showingStop={myTrip.stopId === selectedStop.id}
-          onShowStop={() => {
-            setSelectedStop({ id: myTrip.stopId, name: myTrip.stopName });
-            const stopRegion = regionForStop(myTrip.stopId);
-            if (stopRegion !== 'all') setRegion(stopRegion);
-            setDirection('departures');
-            setControlsOpen(false);
-            setTab('trafik');
-          }}
-          onRemove={() => {
-            setMyTrip(null);
-            storeMyTrip(null);
-          }}
-        />
-      ) : null}
+      {tripCardInSide ? null : tripCard}
     </>
   );
   // Fliken och bokmärket heter som hållplatsen man tittar på, även när man bytt hållplats i appen
@@ -1310,7 +1333,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
       <div style={tab === 'trafik' ? undefined : { display: 'none' }}>
       <div className="layout">
       <div className="layout-side">
-      {controlsOpen || (wide && screen === 'board') ? (
+      {tripCardInSide ? tripCard : cardInSide ? autoCard : null}
+      {!skylt && (controlsOpen || (wide && screen === 'board')) ? (
         <SearchPanel
           region={region}
           currentRegion={currentRegionObj}
@@ -1410,7 +1434,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
           <span aria-hidden="true">←</span> {t('Start', 'Home')}
         </button>
       ) : null}
-      {tab === 'trafik' ? autoCard : null}
+      {tab === 'trafik' && !cardInSide ? autoCard : null}
 
       {!hasStop ? (
         <section
@@ -1519,16 +1543,40 @@ export default function App({ initialStop, page, intro }: AppProps) {
 
       {/* Texten om hållplatsen följer tavlan: byter man hållplats på en hållplatssida visas
           den nya hållplatsens text (eller ingen, om den saknar egen sida). */}
-      {tab === 'trafik' && screen === 'home' ? null : page && stationPage?.id === page.id ? (
+      {skylt || (tab === 'trafik' && screen === 'home') ? null : page && stationPage?.id === page.id ? (
         intro
       ) : page && stationPage && stopIndex ? (
         <StopAbout stop={stationPage} pages={stopIndex.list} />
       ) : null}
-      <FeedbackBox tab={tab} />
-      <AboutSection />
+      {skylt ? null : <FeedbackBox tab={tab} />}
+      {skylt ? null : <AboutSection />}
       </div>
       </div>
       </main>
+
+      <KeyboardShortcuts
+        onTab={(i) => changeTab((['trafik', 'resa', 'flyg'] as const)[i - 1])}
+        onSearch={() => {
+          const find = () => (document.getElementById('sok-hallplats') || document.getElementById('sok-allt')) as HTMLInputElement | null;
+          const field = find();
+          if (field) {
+            field.focus();
+            return;
+          }
+          changeTab('trafik');
+          setControlsOpen(true);
+          setTimeout(() => find()?.focus(), 80);
+        }}
+        onSave={
+          screen === 'board' && hasStop && tab === 'trafik'
+            ? () => {
+                const next = toggleFavorite(favorites, selectedStop);
+                setFavorites(next);
+                storeFavorites(next);
+              }
+            : undefined
+        }
+      />
 
       <InfoFooter
         activeTab={activeInfoTab}

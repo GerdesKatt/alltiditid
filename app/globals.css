@@ -1042,3 +1042,152 @@ html {
 @media (max-width: 480px) {
   .board-tools.walk-on .tool-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
+
+/* ── Vägen till 10, del 2 ─────────────────────────────────────────────── */
+
+/* Spårbytet syns: gamla spåret struket i sten, det nya i fet stil som glider in (idé 3). */
+.track-old {
+  color: var(--c-text-dim);
+  text-decoration-thickness: 2px;
+}
+.track-new {
+  display: inline-block;
+  animation: track-in 360ms var(--ease-out) 1 both;
+}
+@keyframes track-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Storläget växer ur kortet: siffran är samma element före och efter (idé 1, lib/motion.ts). */
+html[data-vt='morph']::view-transition-group(big-number) {
+  animation-duration: 320ms;
+  animation-timing-function: var(--ease-out);
+}
+html[data-vt='morph']::view-transition-old(big-number),
+html[data-vt='morph']::view-transition-new(big-number) {
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Snabbkommandon på datorn (idé 19). */
+.kbd-help-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(17, 17, 17, 0.4);
+}
+.kbd-help {
+  width: min(100%, 26rem);
+  padding: 16px 20px 12px;
+  background: var(--c-bg);
+  color: var(--c-text);
+  border-top: 3px solid var(--c-text);
+}
+.kbd {
+  display: inline-block;
+  min-width: 2em;
+  padding: 2px 6px;
+  border: 1.5px solid var(--c-text);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--fs-2);
+  text-align: center;
+}
+
+/* Dator: Nästa-kortet i vänsterkolumnen, i mobilbredd (idé 6). */
+@media (min-width: 1100px) {
+  .layout-side > .hero-card {
+    margin-bottom: 16px !important;
+  }
+}
+
+/* Skyltläget (?skylt=1): bara kortet och tavlan, i stor text för en skärm på väggen (idé 6). */
+html[data-skylt] .site-header,
+html[data-skylt] .app-tabs,
+html[data-skylt] footer,
+html[data-skylt] .back-home,
+html[data-skylt] .consent-banner,
+html[data-skylt] .skip-link {
+  display: none !important;
+}
+@media (min-width: 1100px) {
+  html[data-skylt] .layout {
+    grid-template-columns: minmax(380px, 34%) minmax(0, 1fr);
+  }
+  html[data-skylt] .layout-side {
+    top: 24px;
+  }
+}
+html[data-skylt] .app-shell {
+  max-width: none !important;
+}
+@media (min-width: 1100px) {
+  html[data-skylt] {
+    font-size: 125%;
+  }
+}
+
+/* Öka kontrast (idé 18): sten blir nästan svart, linjerna tydligare och tidslinjens spår kraftigare.
+   Rosé och betong står kvar; det är telefonens egen inställning som styr. */
+@media (prefers-contrast: more) {
+  :root {
+    --muted: #2b2a28;
+    --border: #75756f;
+    --rose-muted: #111111;
+    --c-border-strong: #111111;
+    --c-border-muted: #111111;
+  }
+  :root .hero-card {
+    --timeline-track: rgba(17, 17, 17, 0.6);
+    --c-border: rgba(17, 17, 17, 0.6);
+  }
+  .track-old {
+    color: inherit;
+  }
+}
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --muted: #d6d6d0;
+    --border: #8a8a84;
+    --rose-muted: #ecece8;
+    --c-border-strong: #ecece8;
+    --c-border-muted: #ecece8;
+  }
+  :root:not([data-theme='light']) .hero-card {
+    --timeline-track: rgba(236, 236, 232, 0.6);
+  }
+}
+@media (prefers-contrast: more) {
+  :root[data-theme='dark'] {
+    --muted: #d6d6d0;
+    --border: #8a8a84;
+    --rose-muted: #ecece8;
+    --c-border-strong: #ecece8;
+    --c-border-muted: #ecece8;
+  }
+  :root[data-theme='dark'] .hero-card {
+    --timeline-track: rgba(236, 236, 232, 0.6);
+  }
+}
+
+/* Stor text (idé 17): med 200 % text får flikarnas ord brytas i stället för att klippas,
+   och Spara i Nästa-kortet går ned under siffran när de inte får plats bredvid varandra. */
+.app-tab-label {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+.hero-big {
+  flex-wrap: wrap;
+}
