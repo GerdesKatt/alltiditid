@@ -11,7 +11,7 @@ import { dayLabel, type PlanLeg, type PlanPoint, type PlanTrip } from '../lib/pl
 import PlaceSuggest, { placeDetail, type ChosenPlace } from './PlaceSuggest';
 import { stockholmDay } from '../lib/sweTime.mjs';
 import TicketPicker from './TicketPicker';
-import { AIRPORT_PLACES, clockOf, deadline, pickFeeder, ticketTrip, type Anchor } from '../lib/ticket.mjs';
+import { AIRPORT_PLACES, at as ticketAt, clockOf, deadline, goalIsStation, onwardMargin, pickFeeder, pickOnward, ticketTrip, type Anchor } from '../lib/ticket.mjs';
 import type { TicketBackup } from '../lib/plannedTrip';
 
 type Point = PlanPoint;
@@ -111,6 +111,8 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
   // "Jag har en biljett": den fasta avgången som resten byggs runt.
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const ticketMode = whenMode === 'ticket';
+  // Resan vidare från tågets sista station till målet (Stockholm C → Härnösand).
+  const [onward, setOnward] = useState<Trip[] | null>(null);
   useEffect(() => {
     setWhenMode((m) => (ticket ? 'ticket' : m === 'ticket' ? 'now' : m));
   }, [ticket]);
@@ -154,10 +156,91 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
 
   const target = goal.trim();
   const placeKey = place ? place.id || `${place.lat},${place.lon}` : '';
-  const anchorKey = ticketMode && anchor ? `${anchor.number}/${anchor.date}/${anchor.dep}/${anchor.from}/${anchor.margin}` : '';
+  const anchorKey = ticketMode && anchor ? `${anchor.number}/${anchor.date}/${anchor.dep}/${anchor.from}/${anchor.to}/${anchor.margin}/${anchor.onboard ? 'ombord' : ''}` : '';
   const query = `${target}|${whenMode}|${anchorKey}|${date}|${time}|${arrive}|${useOther ? `other:${fromKey}` : useStop ? fromId : startAt ? `${startAt.lat},${startAt.lon}` : 'here'}|${placeKey}`;
   const hereName = startAt ? startAt.name : '';
   const stale = plan !== null && asked !== query;
+
+  /** POST till reseplaneraren. Kastar med serverns felmeddelande. */
+  async function planRequest(body: object): Promise<Plan> {
+    const res = await fetch('/api/trafik?action=plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const err = new Error(data.error || '') as Error & { status?: number; to?: string };
+      err.status = res.status;
+      err.to = data.to;
+      throw err;
+    }
+    return data as Plan;
+  }
+
+  /**
+   * Biljetten: resan till stationen (baklänges från avgången, om man inte redan sitter på
+   * tåget) och resan vidare från där man kliver av till målet, om målet inte är stationen.
+   */
+  async function findTicket(a: Anchor) {
+    const needOnward = a.kind === 'train' && Boolean(a.arr) && !goalIsStation(a.to, target);
+    const fromPosition = !useStop && !useOther;
+    try {
+      // Vidare: från avstigningen, tidigast ankomsten plus bytet.
+      const onwardJob = needOnward
+        ? (() => {
+            const after = clockOf(ticketAt(a.arrDate || a.date, a.arr || a.dep) + onwardMargin(a.to) * 60_000);
+            return planRequest({ to: target, ...(place ? { place } : {}), from: a.to, date: after.date, time: after.time }).catch(() => null);
+          })()
+        : Promise.resolve(null);
+
+      let feeder: Plan | null = null;
+      if (!a.onboard) {
+        const pos = fromPosition ? (startAt ? { lat: startAt.lat, lon: startAt.lon } : await position()) : null;
+        setLastPos(pos);
+        if (fromPosition && !pos && !fromId) {
+          setFromMode('other');
+          setError(t('Kunde inte få din position. Skriv var du startar under Från.', 'Could not get your location. Type where you start under From.'));
+          focusFrom();
+          return;
+        }
+        const start = useOther
+          ? fromPick
+            ? fromPick.kind === 'stop' && fromPick.id
+              ? { fromId: fromPick.id, fromName: fromPick.name }
+              : { lat: fromPick.lat, lon: fromPick.lon, fromName: fromPick.name }
+            : { from: fromText.trim() }
+          : pos || { fromId, fromName };
+        const by = clockOf(deadline(a));
+        try {
+          feeder = await planRequest({ ...ticketTarget(a), ...start, date: by.date, time: by.time, arrive: true, ticket: true });
+        } catch (e) {
+          const err = e as Error & { status?: number; samePlace?: boolean };
+          // Redan vid stationen: ingen resa dit behövs.
+          if (err.status === 409) feeder = null;
+          else throw e;
+        }
+      }
+      const onwardPlan = await onwardJob;
+      setOnward(onwardPlan ? onwardPlan.trips : needOnward ? [] : null);
+      setPlan(
+        feeder || {
+          to: a.to,
+          fromHere: false,
+          from: a.from,
+          date: a.date,
+          time: '',
+          arrive: false,
+          trips: [],
+        }
+      );
+      track('funktion', 0, a.onboard ? 'reseplan_biljett_ombord' : 'reseplan_biljett');
+    } catch (e) {
+      setError((e as Error).message || t('Hittade ingen resa just nu. Prova en annan tid eller ett mål i närheten.', 'No trip found right now. Try another time or a destination nearby.'));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function find() {
     const fromPosition = !useStop && !useOther;
@@ -175,8 +258,13 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
     setError('');
     setNoTrip(false);
     setPlan(null);
+    setOnward(null);
     setOpen(0);
     setAsked(query);
+    if (ticketMode && anchor) {
+      await findTicket(anchor);
+      return;
+    }
     const pos = fromPosition ? (startAt ? { lat: startAt.lat, lon: startAt.lon } : await position()) : null;
     setLastPos(pos ? { lat: pos.lat, lon: pos.lon } : null);
     if (fromPosition && !pos && !fromId) {
@@ -200,24 +288,12 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
       const res = await fetch('/api/trafik?action=plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(
-          ticketMode && anchor
-            ? {
-                // Baklänges: till stationen eller flygplatsen, framme senast avgången minus marginalen.
-                ...ticketTarget(anchor),
-                ...start,
-                ...(() => {
-                  const by = clockOf(deadline(anchor));
-                  return { date: by.date, time: by.time, arrive: true, ticket: true };
-                })(),
-              }
-            : {
-                to: target,
-                ...(place ? { place } : {}),
-                ...start,
-                ...(whenMode === 'later' ? { date, time, arrive } : {}),
-              }
-        ),
+        body: JSON.stringify({
+          to: target,
+          ...(place ? { place } : {}),
+          ...start,
+          ...(whenMode === 'later' ? { date, time, arrive } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -225,7 +301,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
         throw new Error(data.error || '');
       }
       setPlan(data as Plan);
-      track('funktion', 0, ticketMode ? 'reseplan_biljett' : 'reseplan');
+      track('funktion', 0, 'reseplan');
     } catch (e) {
       setError((e as Error).message || t('Hittade ingen resa just nu. Prova en annan tid eller ett mål i närheten.', 'No trip found right now. Try another time or a destination nearby.'));
     } finally {
@@ -260,15 +336,36 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
   if (target.length < 2) return null;
 
   // Med en biljett: en förbindelse med god marginal, och den sista som hinner som reserv.
-  const ticketPick = ticketMode && anchor && plan ? pickFeeder(plan.trips, deadline(anchor)) : null;
-  const shown: { trip: Trip; tag?: string }[] = ticketPick
-    ? [
-        { trip: ticketPick.main, tag: ticketPick.tight ? t('Snålt, men först fram', 'Tight, but earliest') : t('Rekommenderas', 'Recommended') },
-        ...(ticketPick.backup ? [{ trip: ticketPick.backup, tag: t('Reserv om du missar den', 'Backup if you miss it') }] : []),
-      ]
-    : (plan?.trips || []).map((trip) => ({ trip }));
-  const backupOf = (trip: Trip): TicketBackup | null => {
-    if (!ticketPick || !ticketPick.backup || trip !== ticketPick.main) return null;
+  // Ingen resa dit (redan på tåget, eller redan vid stationen): bara tåget och resan vidare.
+  const noFeeder = Boolean(ticketMode && anchor && plan && (anchor.onboard || plan.trips.length === 0));
+  const ticketPick =
+    ticketMode && anchor && plan && !noFeeder ? pickFeeder(plan.trips, deadline(anchor), ticketAt(anchor.date, anchor.dep), Date.now()) : null;
+  // Resan vidare från avstigningen, tidigast när tåget är framme plus bytet.
+  const onwardTrip =
+    ticketMode && anchor && onward && anchor.arr
+      ? pickOnward(onward, ticketAt(anchor.arrDate || anchor.date, anchor.arr) + onwardMargin(anchor.to) * 60_000)
+      : null;
+  const onwardMissing = Boolean(ticketMode && anchor && onward && !onwardTrip);
+  type Shown = { trip: Trip; feeder: Trip | null; tag?: string };
+  const shown: Shown[] =
+    ticketMode && anchor && plan
+      ? noFeeder
+        ? [{ trip: ticketTrip(null, anchor, onwardTrip), feeder: null }]
+        : ticketPick && ticketPick.main
+          ? [
+              {
+                trip: ticketTrip(ticketPick.main, anchor, onwardTrip),
+                feeder: ticketPick.main,
+                tag: ticketPick.tight ? t('Snålt, men först fram', 'Tight, but earliest') : t('Rekommenderas', 'Recommended'),
+              },
+              ...(ticketPick.backup
+                ? [{ trip: ticketTrip(ticketPick.backup, anchor, onwardTrip), feeder: ticketPick.backup, tag: t('Reserv om du missar den', 'Backup if you miss it') }]
+                : []),
+            ]
+          : []
+      : (plan?.trips || []).map((trip) => ({ trip, feeder: null }));
+  const backupOf = (feeder: Trip | null): TicketBackup | null => {
+    if (!ticketPick || !ticketPick.backup || !feeder || feeder !== ticketPick.main) return null;
     const first = ticketPick.backup.legs.find((l) => l.kind === 'ride');
     return first && first.kind === 'ride' ? { dep: first.from.time, line: rideLabel(first), from: first.from.name } : null;
   };
@@ -313,7 +410,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
             {t('Annan dag', 'Other day')}
           </button>
         </div>
-        {ticketMode ? <TicketPicker goal={target} onAnchor={(a) => setAnchor(a)} /> : null}
+        {ticketMode ? <TicketPicker goal={target} near={startAt ? { lat: startAt.lat, lon: startAt.lon } : null} onAnchor={(a) => setAnchor(a)} /> : null}
         {whenMode === 'later' ? (
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '8px', marginTop: '10px' }}>
             <label style={fieldLabel}>
@@ -334,7 +431,8 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
           </div>
         ) : null}
       </fieldset>
-      <fieldset style={{ border: 'none', margin: '0 0 14px', padding: 0 }}>
+      {/* Sitter man redan på tåget behövs ingen start. */}
+      <fieldset style={{ border: 'none', margin: '0 0 14px', padding: 0, display: ticketMode && anchor?.onboard ? 'none' : undefined }}>
         <legend style={{ ...label, marginBottom: '6px' }}>{t('Från', 'From')}</legend>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
           <button type="button" aria-pressed={fromMode === 'here'} onClick={() => setFromMode('here')} style={chip(fromMode === 'here')}>
@@ -414,7 +512,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
       >
         {loading ? t('Söker resa…', 'Finding a trip…') : `${t('Sök resa', 'Find trip')} →`}
       </button>
-      {fromMode === 'here' ? (
+      {fromMode === 'here' && !(ticketMode && anchor?.onboard) ? (
         <p style={{ margin: '6px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
           {hereName
             ? t(`Startar vid ${hereName}, som du skrev under Avgångar.`, `Starts at ${hereName}, as you typed under Departures.`)
@@ -436,7 +534,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
               {/* Vad texten tolkades som, tydligt, så att man ser om det blev fel mål. */}
               <p style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>
                 <span style={{ fontWeight: 400, color: colors.textDim }}>{t('Till', 'To')} </span>
-                {ticketMode && anchor ? anchor.to || target : plan.to}
+                {ticketMode && anchor ? (onwardTrip ? target : anchor.to || target) : plan.to}
               </p>
               {ticketMode && anchor ? (
                 <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
@@ -520,11 +618,25 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
                   {anchor.to ? ` ${t('till', 'to')} ${anchor.to}` : ''} · {anchor.dep}
                   {anchor.track ? `, ${anchor.kind === 'train' ? trackText('train', anchor.track, t) : anchor.track}` : ''}
                 </strong>
-                <span style={{ display: 'block', marginTop: '2px', fontSize: '0.875rem' }}>
-                  {t(`Var på ${anchor.from} senast`, `Be at ${anchor.from} by`)} <strong>{clockOf(deadline(anchor)).time}</strong>
-                  <span style={{ color: colors.textDim }}> · {t(`${anchor.margin} min marginal`, `${anchor.margin} min to spare`)}</span>
-                </span>
-                {ticketPick?.tight ? (
+                {anchor.onboard ? (
+                  <span style={{ display: 'block', marginTop: '2px', fontSize: '0.875rem' }}>
+                    {t(`Du sitter på tåget och kliver av i ${anchor.to}`, `You are on the train and get off at ${anchor.to}`)} {anchor.arr}
+                  </span>
+                ) : (
+                  <span style={{ display: 'block', marginTop: '2px', fontSize: '0.875rem' }}>
+                    {t(`Var på ${anchor.from} senast`, `Be at ${anchor.from} by`)} <strong>{clockOf(deadline(anchor)).time}</strong>
+                    <span style={{ color: colors.textDim }}> · {t(`${anchor.margin} min marginal`, `${anchor.margin} min to spare`)}</span>
+                  </span>
+                )}
+                {ticketPick?.none ? (
+                  // Ingen resa hinner till påstigningen: säg det, och föreslå ingenting.
+                  <span style={{ display: 'block', marginTop: '6px', fontSize: '0.9375rem', color: colors.amber, fontWeight: 700, lineHeight: 1.4 }}>
+                    {t(
+                      `Du hinner inte till ${anchor.from} före ${anchor.dep} härifrån. Kliver du på någon annanstans, eller sitter du redan på tåget? Ändra under Din biljett.`,
+                      `You can't get to ${anchor.from} before ${anchor.dep} from here. Boarding somewhere else, or already on the train? Change it under Your ticket.`
+                    )}
+                  </span>
+                ) : ticketPick?.tight ? (
                   <span style={{ display: 'block', marginTop: '4px', fontSize: '0.875rem', color: colors.amber, fontWeight: 700 }}>
                     {t('Ingen resa hinner fram med hela marginalen. Åk så tidigt du kan.', 'No trip gets you there with the full margin. Leave as early as you can.')}
                   </span>
@@ -533,10 +645,22 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
                     {t('Det går glest härifrån, så det finns ingen senare som hinner.', 'Departures are sparse here, so there is no later one that makes it.')}
                   </span>
                 ) : null}
+                {onwardTrip ? (
+                  <span style={{ display: 'block', marginTop: '4px', fontSize: '0.8125rem', color: colors.textDim }}>
+                    {t(`Sedan vidare från ${anchor.to} till ${target}, framme ${onwardTrip.arr}.`, `Then on from ${anchor.to} to ${target}, arriving ${onwardTrip.arr}.`)}
+                  </span>
+                ) : onwardMissing ? (
+                  <span style={{ display: 'block', marginTop: '4px', fontSize: '0.8125rem', color: colors.amber }}>
+                    {t(
+                      `Hittade ingen resa vidare från ${anchor.to} till ${target} efter ${anchor.arr}. Resan nedan slutar i ${anchor.to}.`,
+                      `Found no trip on from ${anchor.to} to ${target} after ${anchor.arr}. The trip below ends at ${anchor.to}.`
+                    )}
+                  </span>
+                ) : null}
               </div>
             ) : null}
             <ol style={{ listStyle: 'none', margin: '6px 0 0', padding: 0 }}>
-              {shown.map(({ trip, tag }, i) => {
+              {shown.map(({ trip, feeder, tag }, i) => {
                 const expanded = open === i;
                 const rides = trip.legs.filter((l) => l.kind === 'ride');
                 return (
@@ -579,7 +703,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
                       {tag ? (
                         <span style={{ ...label, flexBasis: '100%', marginTop: '2px', color: i === 0 ? colors.text : colors.textDim }}>
                           {tag}
-                          {anchor ? ` · ${t('framme', 'there')} ${trip.arr}` : ''}
+                          {anchor && feeder ? ` · ${t(`på ${anchor.from}`, `at ${anchor.from}`)} ${feeder.arr}` : ''}
                         </span>
                       ) : null}
                     </button>
@@ -600,7 +724,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
                                 const from = plan.fromHere ? hereName || t('din position', 'your location') : plan.from || fromName;
                                 if (ticketMode && anchor) {
                                   // Hela resan: dit, bytet med marginal och biljetten sist.
-                                  onSave(anchor.to || target, from, ticketTrip(trip, anchor), { anchor, backup: backupOf(trip) });
+                                  onSave(onwardTrip ? target : anchor.to || target, anchor.onboard ? anchor.label : from, trip, { anchor, backup: backupOf(feeder) });
                                 } else onSave(plan.to, from, trip);
                                 track('funktion', 0, 'reseplan_spara');
                               }}

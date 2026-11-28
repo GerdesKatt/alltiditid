@@ -24,6 +24,8 @@ export type Anchor = {
   scheduledAt?: string;
   /** Inskriven för hand: ingen realtid att följa. */
   manual?: boolean;
+  /** Sitter redan på tåget: ingen resa till stationen. */
+  onboard?: boolean;
 };
 export type FlightMargin = { minutes: number; boarding: number; walk: number; queue: number; queueKnown: boolean; toSecurity: number; bags: number };
 
@@ -44,8 +46,21 @@ export function at(date: string, time: string): number;
 export function clockOf(ms: number): { date: string; time: string };
 export function deadline(anchor: Anchor): number;
 export const EARLIER_MAX_MIN: number;
-export function pickFeeder(trips: PlanTrip[], latestMs: number): { main: PlanTrip; backup: PlanTrip | null; tight: boolean } | null;
-export function ticketTrip(feeder: PlanTrip, anchor: Anchor): PlanTrip;
+export function pickFeeder(
+  trips: PlanTrip[],
+  latestMs: number,
+  depMs?: number,
+  nowMs?: number
+): { main: PlanTrip | null; backup: PlanTrip | null; tight: boolean; none?: boolean } | null;
+export const FAR_BOARD_METERS: number;
+export function boardFor(
+  stops: { name: string; lat?: number; lon?: number; departure?: unknown }[],
+  pos: { lat: number; lon: number } | null
+): { board: number; meters: number | null; far: boolean };
+export function goalIsStation(stationName: string, goal: string): boolean;
+export function onwardMargin(stationName: string): number;
+export function pickOnward(trips: PlanTrip[], fromMs: number): PlanTrip | null;
+export function ticketTrip(feeder: PlanTrip | null, anchor: Anchor, onward?: PlanTrip | null): PlanTrip;
 export function withAnchorLive(trip: PlanTrip, live: { rtTime?: string; track?: string; cancelled?: boolean; arrRt?: string } | null): PlanTrip;
 export function lateMinutes(time: string, rtTime: string): number;
 export function alightFor(stops: { name: string }[], goal: string, boardIndex?: number): number;

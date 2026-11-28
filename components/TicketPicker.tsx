@@ -5,11 +5,13 @@ import { useLang } from '../lib/i18n';
 import { AIRPORTS, foldSearch } from '../lib/flights.mjs';
 import { typicalQueueFor } from '../lib/gateTime.mjs';
 import { stockholmDay } from '../lib/sweTime.mjs';
-import { alightFor, flightMargin, isBigStation, parseTicket, trainMargin, type Anchor, type FlightMargin } from '../lib/ticket.mjs';
+import { alightFor, boardFor, flightMargin, isBigStation, parseTicket, trainMargin, type Anchor, type FlightMargin } from '../lib/ticket.mjs';
 import type { Flight } from '../lib/types';
 
 type TrainStop = {
   name: string;
+  lat?: number;
+  lon?: number;
   track?: string;
   cancelled?: boolean;
   departure?: { scheduled: string; estimated?: string };
@@ -22,7 +24,21 @@ type Props = {
   goal: string;
   /** Den färdiga biljetten med marginal, eller null så länge den inte är klar. */
   onAnchor: (anchor: Anchor | null, info?: { why: string }) => void;
+  /** Där man startar, om det redan är känt (inskriven plats). Annars frågar appen telefonen. */
+  near?: { lat: number; lon: number } | null;
 };
+
+/** Telefonens position, utan att vänta länge. null om den nekas. */
+function locate(): Promise<{ lat: number; lon: number } | null> {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60_000 }
+    );
+  });
+}
 
 /** Flygplatserna där resan dit går att planera (ResRobot täcker bara Sverige). */
 const SWEDISH_AIRPORTS = AIRPORTS.filter((a) => a.source !== 'avinor');
@@ -32,7 +48,7 @@ const SWEDISH_AIRPORTS = AIRPORTS.filter((a) => a.source !== 'avinor');
  * (Trafikverket för tåg, flygplatsens tavla för flyg), räknar marginalen och lämnar
  * en färdig biljett till reseplaneraren. Hittas den inte skriver man tiden själv.
  */
-export default function TicketPicker({ goal, onAnchor }: Props) {
+export default function TicketPicker({ goal, onAnchor, near = null }: Props) {
   const { t } = useLang();
   const today = stockholmDay(Date.now());
   const tomorrow = stockholmDay(Date.now() + 86_400_000);
@@ -45,6 +61,11 @@ export default function TicketPicker({ goal, onAnchor }: Props) {
   const [train, setTrain] = useState<TrainData | null>(null);
   const [board, setBoard] = useState(0);
   const [alight, setAlight] = useState(-1);
+  // Var man är, för att föreslå påstigning närmast en.
+  const [pos, setPos] = useState<{ lat: number; lon: number } | null>(near);
+  // Påstigningen ligger långt härifrån: sitter man redan på tåget, eller ska man dit?
+  const [onboard, setOnboard] = useState<boolean | null>(null);
+  const [boardTouched, setBoardTouched] = useState(false);
   const [flight, setFlight] = useState<Flight | null>(null);
   const [queue, setQueue] = useState<number | null>(null);
   // Hittades inte (annan dag, annat bolag): skriv in tiden från biljetten.
@@ -78,8 +99,15 @@ export default function TicketPicker({ goal, onAnchor }: Props) {
           }
           const stops = data.stops as TrainStop[];
           setTrain(data as TrainData);
-          setBoard(0);
-          setAlight(alightFor(stops, goal, 0));
+          // Påstigning: tågets station närmast där du är, annars första.
+          const where = near || pos || (await locate());
+          if (!active) return;
+          if (where) setPos(where);
+          const b = boardFor(stops, where).board;
+          setBoard(b);
+          setBoardTouched(false);
+          setOnboard(null);
+          setAlight(alightFor(stops, goal, b));
         } else {
           // Flygtavlan visar bara dagens flyg. En annan dag: tiden från biljetten.
           if (date !== today) {
@@ -137,13 +165,20 @@ export default function TicketPicker({ goal, onAnchor }: Props) {
   const departing = useMemo(() => (train ? train.stops.map((s, i) => ({ s, i })).filter(({ s }) => s.departure) : []), [train]);
 
   // Den färdiga biljetten.
+  // Hur långt bort påstigningen ligger. Långt bort: fråga innan något planeras.
+  const boardStop = train ? train.stops[board] : null;
+  const away = boardStop && pos ? boardFor([boardStop], pos) : null;
+  const far = Boolean(away && away.far);
+
   const result = useMemo((): { anchor: Anchor; why: string; fm?: FlightMargin } | null => {
     if (!parsed) return null;
     if (train) {
       const from = train.stops[board];
       const to = train.stops[alight];
       if (!from?.departure || !to) return null;
-      const margin = trainMargin(from.name);
+      if (far && onboard === null) return null;
+      const on = far && onboard === true;
+      const margin = on ? 0 : trainMargin(from.name);
       const product = train.product ? train.product.replace(/\s*tåg$/i, 'tåg') : '';
       return {
         anchor: {
@@ -159,8 +194,11 @@ export default function TicketPicker({ goal, onAnchor }: Props) {
           arr: (to.arrival || to.departure)?.scheduled,
           arrDate: train.date,
           margin,
+          ...(on ? { onboard: true } : {}),
         },
-        why: isBigStation(from.name)
+        why: on
+          ? t('Du sitter redan på tåget.', 'You are already on the train.')
+          : isBigStation(from.name)
           ? t(`${margin} min före: stor station, långt mellan spåren`, `${margin} min early: big station, long walks between tracks`)
           : t(`${margin} min före avgång`, `${margin} min before departure`),
       };
@@ -227,7 +265,7 @@ export default function TicketPicker({ goal, onAnchor }: Props) {
     }
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parsed?.number, train, board, alight, flight, airport, queue, bags, manual, manualFrom, manualTime, date, goal, t]);
+  }, [parsed?.number, train, board, alight, far, onboard, flight, airport, queue, bags, manual, manualFrom, manualTime, date, goal, t]);
 
   const anchorKey = result ? JSON.stringify(result.anchor) : '';
   useEffect(() => {
@@ -303,6 +341,8 @@ export default function TicketPicker({ goal, onAnchor }: Props) {
                   onChange={(e) => {
                     const b = Number(e.target.value);
                     setBoard(b);
+                    setBoardTouched(true);
+                    setOnboard(null);
                     setAlight((a) => (a > b ? a : alightFor(train.stops, goal, b)));
                   }}
                   style={field}
@@ -328,6 +368,28 @@ export default function TicketPicker({ goal, onAnchor }: Props) {
                 </select>
               </label>
             </div>
+            {far && away?.meters ? (
+              // Påstigningen ligger långt bort: sitter man redan på tåget, eller ska man dit?
+              <div style={{ marginTop: '10px' }}>
+                <p style={{ margin: 0, fontSize: '0.875rem', lineHeight: 1.45 }}>
+                  {t(
+                    `${train.stops[board].name} ligger ${Math.round(away.meters / 1000)} km härifrån. Är du redan på tåget?`,
+                    `${train.stops[board].name} is ${Math.round(away.meters / 1000)} km from here. Are you already on the train?`
+                  )}
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+                  <button type="button" aria-pressed={onboard === true} onClick={() => setOnboard(true)} style={chip(onboard === true)}>
+                    {t('Ja, jag är på tåget', 'Yes, I am on the train')}
+                  </button>
+                  <button type="button" aria-pressed={onboard === false} onClick={() => setOnboard(false)} style={chip(onboard === false)}>
+                    {t(`Nej, jag ska till ${train.stops[board].name}`, `No, I am going to ${train.stops[board].name}`)}
+                  </button>
+                </div>
+                {!boardTouched && onboard === null ? (
+                  <p style={note}>{t('Kliver du på någon annanstans? Välj stationen ovan.', 'Boarding somewhere else? Pick the station above.')}</p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -373,7 +435,13 @@ export default function TicketPicker({ goal, onAnchor }: Props) {
           </label>
         ) : null}
 
-        {result ? (
+        {result && result.anchor.onboard ? (
+          <p style={{ ...note, color: colors.text }}>
+            <strong>
+              {t(`Du kliver av i ${result.anchor.to} ${result.anchor.arr || ''}`, `You get off at ${result.anchor.to} ${result.anchor.arr || ''}`)}
+            </strong>
+          </p>
+        ) : result ? (
           <p style={{ ...note, color: colors.text }}>
             <strong>
               {t(`Var på ${result.anchor.from} senast`, `Be at ${result.anchor.from} by`)} {clockMinus(result.anchor.dep, result.anchor.margin)}

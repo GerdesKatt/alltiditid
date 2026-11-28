@@ -278,9 +278,18 @@ function trackLabelFor(value, mode) {
 // Trafikverket (tåg): spår, förseningar, inställda och avvikelser
 // ---------------------------------------------------------------------------
 
+/** "POINT (18.0583 59.3301)" → { lat, lon }, annars inget. */
+function wgsPoint(wkt) {
+  const m = /POINT\s*\(\s*(-?[\d.]+)\s+(-?[\d.]+)\s*\)/i.exec(String(wkt || ''));
+  if (!m) return {};
+  const lon = Number(m[1]);
+  const lat = Number(m[2]);
+  return Number.isFinite(lat) && Number.isFinite(lon) ? { lat: Math.round(lat * 1e4) / 1e4, lon: Math.round(lon * 1e4) / 1e4 } : {};
+}
+
 /** Hämtar alla annonserade stationer (namn + signatur), cachat ett dygn. */
 async function fetchTrafikverketStations(trafikverketKey, context) {
-  const cacheKey = new Request('https://cache.alltiditid.se/trafikverket/stations-v2');
+  const cacheKey = new Request('https://cache.alltiditid.se/trafikverket/stations-v3');
   const cached = await cacheGet(cacheKey);
   if (cached) {
     try {
@@ -299,6 +308,7 @@ async function fetchTrafikverketStations(trafikverketKey, context) {
     <INCLUDE>LocationSignature</INCLUDE>
     <INCLUDE>AdvertisedLocationName</INCLUDE>
     <INCLUDE>AdvertisedShortLocationName</INCLUDE>
+    <INCLUDE>Geometry.WGS84</INCLUDE>
   </QUERY>
 </REQUEST>`;
 
@@ -316,6 +326,8 @@ async function fetchTrafikverketStations(trafikverketKey, context) {
         signature: String(st.LocationSignature).trim(),
         name: String(st.AdvertisedLocationName || ''),
         shortName: String(st.AdvertisedShortLocationName || ''),
+        // "POINT (18.0583 59.3301)": var stationen ligger, för att välja påstigning närmast en.
+        ...wgsPoint(st.Geometry && st.Geometry.WGS84),
       }));
 
     if (stations.length > 0) {
@@ -585,6 +597,15 @@ async function handleTrain(url, keys, context) {
     }
     const journey = trainJourney(anns, nameOf, swedishDateTime(nowIso));
     if (journey.stops.length === 0) continue;
+    // Stationernas läge, så att appen kan föreslå påstigning närmast där man är.
+    const where = new Map((stations || []).filter((st) => Number.isFinite(st.lat)).map((st) => [st.signature, st]));
+    for (const st of journey.stops) {
+      const w = where.get(st.signature);
+      if (w) {
+        st.lat = w.lat;
+        st.lon = w.lon;
+      }
+    }
     // Gårdagens tåg bara om det fortfarande är på väg.
     if (date !== today && journey.stops.every((st) => st.passed)) continue;
     return jsonResponse(
