@@ -22,3 +22,12 @@ test('spår och läge i samma form', () => {
   assert.equal(trackText('C', 'bus'), 'Läge C');
   assert.equal(trackText('', 'bus'), '');
 });
+
+test('trackText: platshållare som "x" blir inget spår', async () => {
+  const { trackText } = await import('../lib/lineNames.mjs');
+  assert.equal(trackText('x', 'train'), '');
+  assert.equal(trackText('Spår x', 'train'), '');
+  assert.equal(trackText('-', 'bus'), '');
+  assert.equal(trackText('16b', 'train'), 'Spår 16b');
+  assert.equal(trackText('A', 'bus'), 'Läge A');
+});

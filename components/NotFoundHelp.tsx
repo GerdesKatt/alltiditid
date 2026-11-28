@@ -30,7 +30,7 @@ export default function NotFoundHelp() {
   if (!guesses.length) return null;
   return (
     <section style={{ marginTop: '18px' }}>
-      <h2 style={{ fontSize: '1rem', fontWeight: 800, margin: '0 0 6px' }}>
+      <h2 style={{ fontSize: 'var(--fs-3)', fontWeight: 800, margin: '0 0 6px' }}>
         <Tr sv="Menade du" en="Did you mean" />
       </h2>
       <ul style={{ listStyle: 'none', margin: 0, padding: 0, borderTop: `1px solid ${colors.text}` }}>

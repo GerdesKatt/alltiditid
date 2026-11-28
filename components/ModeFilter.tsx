@@ -53,8 +53,8 @@ export default function ModeFilter({
               borderBottom: `2px solid ${active ? colors.text : 'transparent'}`,
               backgroundColor: 'transparent',
               color: active ? colors.text : colors.textDim,
-              fontWeight: active ? 700 : 600,
-              fontSize: many ? '0.8125rem' : '0.875rem',
+              fontWeight: active ? 800 : 700,
+              fontSize: 'var(--fs-2)',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
             }}

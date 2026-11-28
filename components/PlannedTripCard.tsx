@@ -132,14 +132,14 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
         }}
       >
         <span style={label}>{day}</span>
-        <span style={{ fontFamily: fonts.display, fontWeight: 800, fontSize: '1.125rem', fontVariantNumeric: 'proportional-nums' }}>
+        <span style={{ fontFamily: fonts.display, fontWeight: 800, fontSize: 'var(--fs-4)', fontVariantNumeric: 'proportional-nums' }}>
           {trip.dep}
         </span>
-        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.875rem' }}>
+        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 'var(--fs-2)' }}>
           {t('till', 'to')} {planned.to}
           {anchor ? ` · ${anchor.label} ${anchor.dep}` : ''}
         </span>
-        <span aria-hidden="true" style={{ fontSize: '0.875rem', color: colors.textDim }}>
+        <span aria-hidden="true" style={{ fontSize: 'var(--fs-2)', color: colors.textDim }}>
           →
         </span>
       </button>
@@ -248,7 +248,7 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
         style={{
           marginTop: '6px',
           fontFamily: fonts.display,
-          fontSize: 'clamp(2.25rem, 11vw, 3.5rem)',
+          fontSize: 'var(--fs-6)',
           fontStretch: 'var(--stretch-head)',
           fontWeight: 800,
           // Proportionella siffror: fast bredd ger luft runt kolonet i den här storleken.
@@ -259,19 +259,19 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
       >
         {big}
       </div>
-      {anchorFor ? <p style={{ margin: '6px 0 0', fontSize: '1rem', fontWeight: 700, lineHeight: 1.3 }}>{anchorFor}</p> : null}
+      {anchorFor ? <p style={{ margin: '6px 0 0', fontSize: 'var(--fs-3)', fontWeight: 700, lineHeight: 1.3 }}>{anchorFor}</p> : null}
       {sub ? (
-        <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: hurry ? colors.amber : colors.textDim, fontWeight: hurry ? 700 : 400 }}>{sub}</p>
+        <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-2)', color: hurry ? colors.amber : colors.textDim, fontWeight: hurry ? 700 : 400 }}>{sub}</p>
       ) : null}
       {anchor && anchorRide?.cancelled ? (
-        <p style={{ margin: '6px 0 0', fontSize: '0.875rem', color: colors.amber, fontWeight: 700 }}>
+        <p style={{ margin: '6px 0 0', fontSize: 'var(--fs-2)', color: colors.amber, fontWeight: 700 }}>
           {t(
             `${anchor.label} är inställt. Kolla med ${anchor.kind === 'flight' ? 'flygbolaget' : 'tågbolaget'} vilken avgång du får ta i stället.`,
             `${anchor.label} is cancelled. Check with the ${anchor.kind === 'flight' ? 'airline' : 'train company'} which departure to take instead.`
           )}
         </p>
       ) : anchor && late > 0 && step.kind !== 'done' ? (
-        <p style={{ margin: '6px 0 0', fontSize: '0.875rem', color: colors.amber, fontWeight: 700 }}>
+        <p style={{ margin: '6px 0 0', fontSize: 'var(--fs-2)', color: colors.amber, fontWeight: 700 }}>
           {onAnchor
             ? t(`${anchor.label} är ${late} min sen.`, `${anchor.label} is ${late} min late.`)
             : t(
@@ -282,14 +282,14 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
       ) : null}
       {startAlt ? (
         // Lång promenad, men bussen från närmaste hållplats hinner samma resa.
-        <p style={{ margin: '4px 0 0', fontSize: '0.875rem' }}>
+        <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-2)' }}>
           {t('Eller', 'Or')} <strong>{line({ ...startAlt, kind: 'ride', from: { name: startAlt.from, time: startAlt.dep, rtTime: '', track: '' }, to: { name: '', time: '', rtTime: '', track: '' }, minutes: 0, cancelled: false } as Ride)}</strong>
           {startAlt.direction ? ` ${t('mot', 'to')} ${place(startAlt.direction)}` : ''} {t('från', 'from')} {place(startAlt.from)} {startAlt.dep}
           {startAlt.walk ? t(`, ${startAlt.walk} min att gå dit`, `, ${startAlt.walk} min walk there`) : ''}
         </p>
       ) : null}
       {backup ? (
-        <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: colors.textDim }}>
+        <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-2)', color: colors.textDim }}>
           {t(`Missar du den här, ta ${backup.line} ${backup.dep} från ${backup.from}.`, `If you miss it, take ${backup.line} at ${backup.dep} from ${backup.from}.`)}
         </p>
       ) : null}
@@ -299,7 +299,7 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
         <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: `1px solid ${colors.text}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <LineBadge leg={ride} large />
-            <strong style={{ fontSize: '1.125rem', lineHeight: 1.25, textDecoration: ride.cancelled ? 'line-through' : 'none' }}>
+            <strong style={{ fontSize: 'var(--fs-4)', lineHeight: 1.25, textDecoration: ride.cancelled ? 'line-through' : 'none' }}>
               <span className="sr-only">{line(ride)} </span>
               <span aria-hidden="true">{kind(ride)}</span>
               {toward(ride)}
@@ -307,24 +307,24 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
           </div>
           {step.kind === 'before' && step.walk ? (
             // Först promenaden, så att det syns var du kliver på (och att det inte är en buss dit).
-            <div style={{ ...row, marginTop: '8px', fontSize: '0.875rem', color: colors.textDim }}>
+            <div style={{ ...row, marginTop: '8px', fontSize: 'var(--fs-2)', color: colors.textDim }}>
               <span style={{ minWidth: 0 }}>
                 {t('Gå till', 'Walk to')} {place(ride.from.name)}
               </span>
               <span>{step.walkMinutes} min</span>
             </div>
           ) : null}
-          {ride.cancelled ? <p style={{ margin: '4px 0 0', color: colors.amber, fontWeight: 700, fontSize: '0.875rem' }}>{t('Inställd', 'Cancelled')}</p> : null}
+          {ride.cancelled ? <p style={{ margin: '4px 0 0', color: colors.amber, fontWeight: 700, fontSize: 'var(--fs-2)' }}>{t('Inställd', 'Cancelled')}</p> : null}
           {step.kind !== 'riding' ? (
-            <div style={{ ...row, marginTop: '8px', fontSize: '0.9375rem' }}>
+            <div style={{ ...row, marginTop: '8px', fontSize: 'var(--fs-3)' }}>
               <span style={{ minWidth: 0 }}>
                 {place(ride.from.name)}
                 {ride.from.track ? ` · ${trackOf(ride, ride.from)}` : ''}
               </span>
-              <strong style={{ fontFamily: fonts.display, fontSize: '1.0625rem' }}>{time(ride.from)}</strong>
+              <strong style={{ fontFamily: fonts.display, fontSize: 'var(--fs-4)' }}>{time(ride.from)}</strong>
             </div>
           ) : null}
-          <div style={{ ...row, marginTop: '4px', fontSize: step.kind === 'riding' ? '0.9375rem' : '0.875rem', color: step.kind === 'riding' ? colors.text : colors.textDim }}>
+          <div style={{ ...row, marginTop: '4px', fontSize: step.kind === 'riding' ? 'var(--fs-3)' : 'var(--fs-2)', color: step.kind === 'riding' ? colors.text : colors.textDim }}>
             <span style={{ minWidth: 0 }}>
               {t('Kliv av', 'Get off at')} {place(ride.to.name)}
               {ride.to.track ? ` · ${trackOf(ride, ride.to)}` : ''}
@@ -338,7 +338,7 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
         // Resten av resan som en tidslinje: varje del med start- och sluttid.
         <ol style={{ listStyle: 'none', margin: '12px 0 0 2px', padding: '0 0 0 12px', borderLeft: `2px solid ${colors.borderStrong}` }}>
           {later.map((l, i) => (
-            <li key={i} style={{ padding: i === 0 ? '0 0 8px' : '8px 0', fontSize: '0.875rem', lineHeight: 1.4 }}>
+            <li key={i} style={{ padding: i === 0 ? '0 0 8px' : '8px 0', fontSize: 'var(--fs-2)', lineHeight: 1.4 }}>
               <span style={{ display: 'block' }}>
                 <strong>{line(l)}</strong>
                 {toward(l)}
@@ -363,7 +363,7 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
             {luggage ? t('✓ Bagage, extra tid', '✓ Luggage, extra time') : t('+ Bagage, extra tid', '+ Luggage, extra time')}
           </button>
         ) : (
-          <span style={{ fontSize: '0.8125rem', color: colors.textDim }}>
+          <span style={{ fontSize: 'var(--fs-2)', color: colors.textDim }}>
             {trip.changes === 0 ? t('Inga byten', 'Direct') : t(`${trip.changes} byten`, `${trip.changes} changes`)}
           </span>
         )}
@@ -385,12 +385,12 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
               <LegRow key={i} leg={l} />
             ))}
           </ol>
-          <p style={{ margin: '6px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
+          <p style={{ margin: '6px 0 0', fontSize: 'var(--fs-2)', color: colors.textDim }}>
             {t('från', 'from')} {planned.from}
           </p>
         </>
       ) : null}
-      <p style={{ margin: '14px 0 0', fontSize: '0.75rem', color: colors.textDim }}>
+      <p style={{ margin: '14px 0 0', fontSize: 'var(--fs-1)', color: colors.textDim }}>
         {anchor && !anchor.manual
           ? t(
               `${anchor.label} följs live. Övriga tider är från när du sparade resan, så kolla under Avgångar innan du går.`,
@@ -425,16 +425,16 @@ const chip = (on: boolean): React.CSSProperties => ({
   border: `1px solid ${on ? colors.text : colors.borderStrong}`,
   background: 'none',
   color: colors.text,
-  fontSize: '0.8125rem',
-  fontWeight: 600,
+  fontSize: 'var(--fs-2)',
+  fontWeight: 700,
   cursor: 'pointer',
 });
 
 const label: React.CSSProperties = {
   fontFamily: 'var(--font-display)',
   fontStretch: 'var(--stretch-wide)',
-  fontSize: '0.6875rem',
-  fontWeight: 600,
+  fontSize: 'var(--fs-1)',
+  fontWeight: 700,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
   color: colors.textDim,
@@ -447,8 +447,8 @@ const textButton: React.CSSProperties = {
   border: 'none',
   background: 'none',
   color: colors.text,
-  fontSize: '0.8125rem',
-  fontWeight: 600,
+  fontSize: 'var(--fs-2)',
+  fontWeight: 700,
   textDecoration: 'underline',
   textUnderlineOffset: '3px',
   cursor: 'pointer',

@@ -24,7 +24,7 @@ const linkButton = {
   border: `1px solid ${colors.borderStrong}`,
   backgroundColor: colors.surface,
   color: colors.text,
-  fontSize: '0.8125rem',
+  fontSize: 'var(--fs-2)',
   fontWeight: 700,
   textDecoration: 'none',
   whiteSpace: 'nowrap',
@@ -102,8 +102,8 @@ export default function FallbackRow({ stopId, stopName, coords, sparse }: Props)
           <Icon name="car" size={18} />
         </span>
         <div style={{ flex: '1 1 12rem', minWidth: 0 }}>
-          <strong style={{ display: 'block', fontSize: '0.9375rem' }}>{heading}</strong>
-          <span style={{ fontSize: '0.8125rem', color: colors.textDim }}>
+          <strong style={{ display: 'block', fontSize: 'var(--fs-3)' }}>{heading}</strong>
+          <span style={{ fontSize: 'var(--fs-2)', color: colors.textDim }}>
             {sub}
           </span>
         </div>
@@ -137,10 +137,10 @@ export default function FallbackRow({ stopId, stopName, coords, sparse }: Props)
             <Icon name="bike" size={18} />
           </span>
           <span style={{ flex: '1 1 auto', minWidth: 0 }}>
-            <strong style={{ display: 'block', fontSize: '0.9375rem' }}>
+            <strong style={{ display: 'block', fontSize: 'var(--fs-3)' }}>
               {b.name}, {b.meters} m
             </strong>
-            <span style={{ fontSize: '0.8125rem', color: colors.textDim }}>
+            <span style={{ fontSize: 'var(--fs-2)', color: colors.textDim }}>
               {b.station} · {b.bikes === 1 ? t('1 cykel ledig', '1 bike free') : t(`${b.bikes} cyklar lediga`, `${b.bikes} bikes free`)}
             </span>
           </span>
@@ -149,7 +149,7 @@ export default function FallbackRow({ stopId, stopName, coords, sparse }: Props)
       ))}
       {bikes.length ? (
         // Källan ska stå med (Lundahojs licens kräver det, och det är schysst mot övriga).
-        <p style={{ margin: 0, padding: '0 0 10px 28px', fontSize: '0.75rem', color: colors.textFaint }}>
+        <p style={{ margin: 0, padding: '0 0 10px 28px', fontSize: 'var(--fs-1)', color: colors.textFaint }}>
           {t('Öppna data från', 'Open data from')} {Array.from(new Set(bikes.map((b) => b.name))).join(', ')}.
         </p>
       ) : null}

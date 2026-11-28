@@ -54,7 +54,35 @@ const PATHS = {
       <path d="M12 10v5M12 17.5v.5" />
     </>
   ),
+  star: <path d="M12 3.2l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6-4.5-4.2 6.1-.7z" strokeLinejoin="miter" />,
 } as const;
+
+/**
+ * Stjärnan för Spara, ritad i samma linjetjocklek som övriga ikoner (inte tecknet ☆ i Arial).
+ * Sparad fylls den med rosé och studsar en gång (.star-pop, av vid "minska rörelse").
+ */
+export function StarIcon({ filled, size = 20 }: { filled: boolean; size?: number }) {
+  // Studsen bara när man själv sparar, inte när sidan öppnas med en redan sparad stjärna.
+  const initial = React.useRef(filled);
+  const pop = filled && !initial.current;
+  return (
+    <svg
+      key={filled ? 'on' : 'off'}
+      className={pop ? 'star-pop' : undefined}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill={filled ? 'var(--rose)' : 'none'}
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinejoin="miter"
+      aria-hidden="true"
+      style={{ flexShrink: 0, verticalAlign: '-0.15em' }}
+    >
+      {PATHS.star}
+    </svg>
+  );
+}
 
 export default function Icon({ name, size = 16 }: { name: keyof typeof PATHS; size?: number }) {
   return (

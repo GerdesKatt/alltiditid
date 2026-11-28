@@ -114,8 +114,8 @@ export const stretch = {
 export const labelStyle: CSSProperties = {
   fontFamily: 'var(--font-display)',
   fontStretch: 'var(--stretch-wide)',
-  fontSize: '0.6875rem',
-  fontWeight: 600,
+  fontSize: 'var(--fs-1)',
+  fontWeight: 700,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
   color: 'var(--c-text-dim)',
@@ -163,7 +163,7 @@ export function textInput(borderColor: string): CSSProperties {
     border: `1px solid ${borderColor}`,
     backgroundColor: colors.surface,
     color: colors.text,
-    fontSize: '0.8125rem',
+    fontSize: 'var(--fs-2)',
   };
 }
 

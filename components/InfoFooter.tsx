@@ -349,13 +349,13 @@ function InfoSheet({ title, onClose, children }: { title: string; onClose: () =>
           border: `1px solid ${colors.border}`,
           boxShadow: `0 -8px 28px ${colors.shadow}`,
           color: colors.textDim,
-          fontSize: '0.9375rem',
+          fontSize: 'var(--fs-3)',
           // Över samtyckesrutan, så att "Läs mer" där visar integritetstexten ovanpå.
           zIndex: 60,
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-          <h2 id="infoblad-rubrik" style={{ fontFamily: fonts.display, fontSize: '1.375rem', fontWeight: 800, margin: 0, color: colors.text }}>
+          <h2 id="infoblad-rubrik" style={{ fontFamily: fonts.display, fontSize: 'var(--fs-5)', fontWeight: 800, margin: 0, color: colors.text }}>
             {title}
           </h2>
           <button
@@ -369,7 +369,7 @@ function InfoSheet({ title, onClose, children }: { title: string; onClose: () =>
               border: `1px solid ${colors.borderStrong}`,
               backgroundColor: colors.surface,
               color: colors.text,
-              fontSize: '0.8125rem',
+              fontSize: 'var(--fs-2)',
               fontWeight: 700,
               cursor: 'pointer',
             }}
@@ -395,7 +395,7 @@ export default function InfoFooter({ activeTab, onTabChange, onChangeAnalyticsCh
         paddingTop: '12px',
         paddingBottom: '24px',
         color: colors.textDim,
-        fontSize: '0.8125rem',
+        fontSize: 'var(--fs-2)',
       }}
     >
       {/* Sidfoten väger lätt: en rad länkar. Texterna öppnas i ett blad, så att sidan inte växer nedåt. */}
@@ -415,8 +415,8 @@ export default function InfoFooter({ activeTab, onTabChange, onChangeAnalyticsCh
               backgroundColor: 'transparent',
               color: colors.textDim,
               cursor: 'pointer',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
+              fontSize: 'var(--fs-2)',
+              fontWeight: 700,
               textDecoration: 'underline',
               textUnderlineOffset: '3px',
             }}
@@ -439,7 +439,7 @@ export default function InfoFooter({ activeTab, onTabChange, onChangeAnalyticsCh
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: '8px',
-          fontSize: '0.8125rem',
+          fontSize: 'var(--fs-2)',
           color: colors.textFaint,
         }}
       >

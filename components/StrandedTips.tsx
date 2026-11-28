@@ -19,7 +19,7 @@ const button: React.CSSProperties = {
   border: `1px solid ${colors.text}`,
   borderRadius: 0,
   color: colors.text,
-  fontSize: '0.875rem',
+  fontSize: 'var(--fs-2)',
   fontWeight: 700,
   textDecoration: 'none',
   whiteSpace: 'nowrap',
@@ -75,11 +75,11 @@ export default function StrandedTips({ lat, lon }: { lat: number; lon: number })
   ) : null;
 
   const block: React.CSSProperties = { display: 'flex', gap: '12px', padding: '14px 0', borderTop: `1px solid ${colors.border}` };
-  const text: React.CSSProperties = { margin: '2px 0 10px', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 };
+  const text: React.CSSProperties = { margin: '2px 0 10px', fontSize: 'var(--fs-2)', color: colors.textSoft, lineHeight: 1.5 };
 
   return (
     <section aria-label={t('Så kommer du vidare', 'How to get onward')} style={{ marginTop: '16px' }}>
-      <h3 style={{ margin: '0 0 2px', fontFamily: fonts.text, fontSize: '1rem', fontWeight: 800, color: colors.text }}>
+      <h3 style={{ margin: '0 0 2px', fontFamily: fonts.text, fontSize: 'var(--fs-3)', fontWeight: 800, color: colors.text }}>
         {t('Strandad? Inte länge till.', 'Stranded? Not for long.')}
       </h3>
 
@@ -88,7 +88,7 @@ export default function StrandedTips({ lat, lon }: { lat: number; lon: number })
           <Icon name="bus" size={18} />
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <strong style={{ fontSize: '0.9375rem' }}>{t('Närtrafik', 'On-demand public transport')}</strong>
+          <strong style={{ fontSize: 'var(--fs-3)' }}>{t('Närtrafik', 'On-demand public transport')}</strong>
           <p style={text}>
             {t(
               'Landsbygdens bäst bevarade hemlighet: en buss eller taxi som hämtar dig om du bokar, till vanligt busspris. Boka gärna ett par timmar innan.',
@@ -110,7 +110,7 @@ export default function StrandedTips({ lat, lon }: { lat: number; lon: number })
           <Icon name="car" size={18} />
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <strong style={{ fontSize: '0.9375rem' }}>{t('Taxi', 'Taxi')}</strong>
+          <strong style={{ fontSize: 'var(--fs-3)' }}>{t('Taxi', 'Taxi')}</strong>
           <p style={text}>
             {city
               ? t('Snabbast, inte billigast. Jämför i apparna.', 'Fastest, not cheapest. Compare in the apps.')

@@ -28,7 +28,7 @@ const smallButton = {
   backgroundColor: colors.surface,
   color: colors.text,
   fontFamily: 'inherit',
-  fontSize: '0.8125rem',
+  fontSize: 'var(--fs-2)',
   fontWeight: 700,
   cursor: 'pointer',
 } as const;
@@ -58,7 +58,7 @@ export default function WalkBar({ stopName, state, pace, onTurnOn, onTurnOff, on
           color: colors.accent,
           fontFamily: 'inherit',
           fontWeight: 700,
-          fontSize: '0.875rem',
+          fontSize: 'var(--fs-2)',
           cursor: 'pointer',
         }}
       >
@@ -71,7 +71,7 @@ export default function WalkBar({ stopName, state, pace, onTurnOn, onTurnOff, on
   // Redo eller letar: en kort rad i statusraden med takten som en liten väljare.
   if (state.kind === 'ready' || state.kind === 'locating') {
     return (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px', fontSize: '0.875rem', color: colors.text }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px', fontSize: 'var(--fs-2)', color: colors.text }}>
         <Icon name="walk" />
         <span role="status" style={{ fontWeight: 700 }}>
           {state.kind === 'ready'
@@ -90,7 +90,7 @@ export default function WalkBar({ stopName, state, pace, onTurnOn, onTurnOff, on
               borderRadius: 0,
               background: 'transparent',
               color: colors.text,
-              fontSize: '0.8125rem',
+              fontSize: 'var(--fs-2)',
               fontFamily: 'inherit',
             }}
           >
@@ -105,7 +105,7 @@ export default function WalkBar({ stopName, state, pace, onTurnOn, onTurnOff, on
           type="button"
           onClick={onTurnOff}
           aria-label={t('Stäng av gångtid', 'Turn off walking time')}
-          style={{ minWidth: '32px', minHeight: '44px', padding: 0, border: 'none', background: 'none', color: colors.textDim, fontSize: '1rem', cursor: 'pointer' }}
+          style={{ minWidth: '32px', minHeight: '44px', padding: 0, border: 'none', background: 'none', color: colors.textDim, fontSize: 'var(--fs-3)', cursor: 'pointer' }}
         >
           ×
         </button>
@@ -116,7 +116,7 @@ export default function WalkBar({ stopName, state, pace, onTurnOn, onTurnOff, on
   // Långt bort: bara en kort text i statusraden, ingen ruta som trycker ner tavlan.
   if (state.kind === 'far') {
     return (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px', fontSize: '0.8125rem', color: colors.textDim }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px', fontSize: 'var(--fs-2)', color: colors.textDim }}>
         <Icon name="walk" />
         <span role="status">
           {t(`${decimal(state.meters / 1000, 1, lang)} km bort`, `${decimal(state.meters / 1000, 1, lang)} km away`)}
@@ -125,7 +125,7 @@ export default function WalkBar({ stopName, state, pace, onTurnOn, onTurnOff, on
           type="button"
           onClick={onTurnOff}
           aria-label={t('Stäng av gångtid', 'Turn off walking time')}
-          style={{ minWidth: '32px', minHeight: '44px', padding: 0, border: 'none', background: 'none', color: colors.textDim, fontSize: '1rem', cursor: 'pointer' }}
+          style={{ minWidth: '32px', minHeight: '44px', padding: 0, border: 'none', background: 'none', color: colors.textDim, fontSize: 'var(--fs-3)', cursor: 'pointer' }}
         >
           ×
         </button>
@@ -156,10 +156,10 @@ export default function WalkBar({ stopName, state, pace, onTurnOn, onTurnOff, on
         borderRadius: 'var(--radius-card)',
         border: `1px solid ${colors.border}`,
         backgroundColor: colors.surface,
-        fontSize: '0.875rem',
+        fontSize: 'var(--fs-2)',
       }}
     >
-      <span role="status" style={{ flex: '1 1 12rem', minWidth: 0, color: colors.text, fontWeight: 600 }}>
+      <span role="status" style={{ flex: '1 1 12rem', minWidth: 0, color: colors.text, fontWeight: 700 }}>
         <Icon name="walk" /> 
         {message}
       </span>

@@ -28,20 +28,20 @@ export default function StopTrivia({ trivia, stopName }: { trivia: Trivia; stopN
       aria-labelledby="kuriosa-rubrik"
       style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid ${colors.border}` }}
     >
-      <h3 id="kuriosa-rubrik" style={{ fontSize: '0.9375rem', fontWeight: 700, margin: 0, color: colors.text }}>
+      <h3 id="kuriosa-rubrik" style={{ fontSize: 'var(--fs-3)', fontWeight: 700, margin: 0, color: colors.text }}>
         {t('Visste du?', 'Did you know?')}
       </h3>
-      {lead ? <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>{lead}</p> : null}
-      <p lang={trivia.lang} style={{ margin: '6px 0 0', fontSize: '0.9375rem', lineHeight: 1.55, color: colors.textSoft }}>
+      {lead ? <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-2)', fontWeight: 700, color: colors.textDim }}>{lead}</p> : null}
+      <p lang={trivia.lang} style={{ margin: '6px 0 0', fontSize: 'var(--fs-3)', lineHeight: 1.55, color: colors.textSoft }}>
         {trivia.text}
       </p>
-      <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: colors.textFaint }}>
+      <p style={{ margin: '6px 0 0', fontSize: 'var(--fs-1)', color: colors.textFaint }}>
         <a
           href={trivia.url}
           target="_blank"
           rel="noopener noreferrer"
           onClick={() => track('funktion', 0, 'kuriosa_wikipedia')}
-          style={{ color: colors.textDim, fontWeight: 600 }}
+          style={{ color: colors.textDim, fontWeight: 700 }}
         >
           {t('Läs mer på Wikipedia ↗', 'Read more on Wikipedia ↗')}
         </a>
@@ -59,7 +59,7 @@ export default function StopTrivia({ trivia, stopName }: { trivia: Trivia; stopN
 
       {around.length ? (
         <>
-          <h4 style={{ fontSize: '0.8125rem', fontWeight: 700, margin: '14px 0 4px', color: colors.text }}>
+          <h4 style={{ fontSize: 'var(--fs-2)', fontWeight: 700, margin: '14px 0 4px', color: colors.text }}>
             {t('Runt hörnet', 'Around the corner')}
           </h4>
           <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
@@ -81,12 +81,12 @@ export default function StopTrivia({ trivia, stopName }: { trivia: Trivia; stopN
                   }}
                 >
                   <span style={{ flex: '1 1 auto', minWidth: 0 }}>
-                    <strong style={{ display: 'block', fontSize: '0.875rem' }}>{a.title}</strong>
-                    <span lang={trivia.lang} style={{ fontSize: '0.8125rem', color: colors.textDim }}>
+                    <strong style={{ display: 'block', fontSize: 'var(--fs-2)' }}>{a.title}</strong>
+                    <span lang={trivia.lang} style={{ fontSize: 'var(--fs-2)', color: colors.textDim }}>
                       {a.description}
                     </span>
                   </span>
-                  <span style={{ flexShrink: 0, fontSize: '0.8125rem', color: colors.textDim }}>{a.meters} m ↗</span>
+                  <span style={{ flexShrink: 0, fontSize: 'var(--fs-2)', color: colors.textDim }}>{a.meters} m ↗</span>
                 </a>
               </li>
             ))}

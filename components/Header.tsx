@@ -81,7 +81,7 @@ export default function Header({ onContactClick, onHome, linkBase = '' }: Props)
           <span
             style={{
               fontFamily: fonts.display,
-              fontSize: '1.375rem',
+              fontSize: 'var(--fs-5)',
               fontWeight: 800,
               letterSpacing: '-0.035em',
               lineHeight: 1,
@@ -94,7 +94,7 @@ export default function Header({ onContactClick, onHome, linkBase = '' }: Props)
             className="site-tagline"
             style={{
               overflowWrap: 'anywhere',
-              fontSize: '0.75rem',
+              fontSize: 'var(--fs-1)',
               fontWeight: 400,
               color: colors.textDim,
               marginTop: '5px',
@@ -106,7 +106,7 @@ export default function Header({ onContactClick, onHome, linkBase = '' }: Props)
       </a>
 
       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px 16px', marginLeft: 'auto' }}>
-        <nav className="site-nav" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px', fontSize: '0.8125rem', fontWeight: 600 }}>
+        <nav className="site-nav" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px', fontSize: 'var(--fs-2)', fontWeight: 700 }}>
           <a href={`${linkBase}#avgangstavla`} className="site-nav-board" style={navLink}>
             {t('Tidtabell', 'Timetable')}
           </a>
@@ -134,8 +134,8 @@ export default function Header({ onContactClick, onHome, linkBase = '' }: Props)
             border: 'none',
             background: 'none',
             font: 'inherit',
-            fontSize: '0.8125rem',
-            fontWeight: 600,
+            fontSize: 'var(--fs-2)',
+            fontWeight: 700,
             cursor: 'pointer',
           }}
         >

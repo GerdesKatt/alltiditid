@@ -96,10 +96,10 @@ export default function StationSheet({ stop, page, neighbours, coords, onSelectS
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
         <div style={{ minWidth: 0 }}>
-          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>{t('Om stationen', 'About the station')}</span>
+          <span style={{ fontSize: 'var(--fs-2)', fontWeight: 700, color: colors.textDim }}>{t('Om stationen', 'About the station')}</span>
           <h2
             id="stationsblad-rubrik"
-            style={{ fontFamily: fonts.display, fontSize: '1.375rem', fontWeight: 800, margin: '2px 0 0', color: colors.text }}
+            style={{ fontFamily: fonts.display, fontSize: 'var(--fs-5)', fontWeight: 800, margin: '2px 0 0', color: colors.text }}
           >
             {stop.name}
           </h2>
@@ -115,7 +115,7 @@ export default function StationSheet({ stop, page, neighbours, coords, onSelectS
             border: `1px solid ${colors.borderStrong}`,
             backgroundColor: colors.surface,
             color: colors.text,
-            fontSize: '0.8125rem',
+            fontSize: 'var(--fs-2)',
             fontWeight: 700,
             cursor: 'pointer',
           }}
@@ -128,7 +128,7 @@ export default function StationSheet({ stop, page, neighbours, coords, onSelectS
 
       {/* Utan egen sida men med kuriosa räcker kuriosan; "ingen sida än" behövs inte då. */}
       {page || trivia === null ? (
-      <p style={{ margin: '12px 0 0', fontSize: '0.9375rem', lineHeight: 1.55, color: colors.textDim }}>
+      <p style={{ margin: '12px 0 0', fontSize: 'var(--fs-3)', lineHeight: 1.55, color: colors.textDim }}>
         {page
           ? lang === 'en'
             ? `${page.name}${where}${page.modes.length ? ` is served by ${modesSentence(page.modes, 'en')}` : ''}${
@@ -152,7 +152,7 @@ export default function StationSheet({ stop, page, neighbours, coords, onSelectS
 
       {neighbours.length ? (
         <>
-          <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, margin: '16px 0 8px', color: colors.text }}>
+          <h3 style={{ fontSize: 'var(--fs-3)', fontWeight: 700, margin: '16px 0 8px', color: colors.text }}>
             {t('Hållplatser i närheten', 'Stops nearby')}
           </h3>
           <ul style={{ display: 'flex', flexDirection: 'column', gap: '6px', listStyle: 'none', margin: 0, padding: 0 }}>
@@ -173,8 +173,8 @@ export default function StationSheet({ stop, page, neighbours, coords, onSelectS
                     border: 'none',
                     backgroundColor: colors.surfaceRaised,
                     color: colors.text,
-                    fontSize: '0.9375rem',
-                    fontWeight: 600,
+                    fontSize: 'var(--fs-3)',
+                    fontWeight: 700,
                     textAlign: 'left',
                     cursor: 'pointer',
                   }}
@@ -182,7 +182,7 @@ export default function StationSheet({ stop, page, neighbours, coords, onSelectS
                   <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {n.name}
                   </span>
-                  <span style={{ flexShrink: 0, fontSize: '0.8125rem', fontWeight: 500, color: colors.textDim }}>
+                  <span style={{ flexShrink: 0, fontSize: 'var(--fs-2)', fontWeight: 400, color: colors.textDim }}>
                     {page ? km(distanceKm(page, n), lang) : ''} ›
                   </span>
                 </button>
@@ -203,14 +203,14 @@ export default function StationSheet({ stop, page, neighbours, coords, onSelectS
             border: 'none',
             backgroundColor: colors.accentStrong,
             color: colors.onAccent,
-            fontSize: '0.9375rem',
+            fontSize: 'var(--fs-3)',
             fontWeight: 700,
             cursor: 'pointer',
           }}
         >
           {t('Dela stationen', 'Share the station')}
         </button>
-        <span role="status" style={{ fontSize: '0.8125rem', color: colors.textDim }}>
+        <span role="status" style={{ fontSize: 'var(--fs-2)', color: colors.textDim }}>
           {shared === 'copied'
             ? t('Länken är kopierad.', 'Link copied.')
             : shared === 'failed'

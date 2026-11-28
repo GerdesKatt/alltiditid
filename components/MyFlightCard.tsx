@@ -89,27 +89,27 @@ export default function MyFlightCard({ saved, now, onRemove }: { saved: MyFlight
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '-10px' }}>
-        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>
+        <span style={{ fontSize: 'var(--fs-2)', fontWeight: 700, color: colors.textDim }}>
           {t('Mitt flyg', 'My flight')} · {airport?.short || saved.airport}
         </span>
         <button
           type="button"
           onClick={onRemove}
-          style={{ minHeight: '44px', padding: '0 4px 0 12px', marginRight: '-4px', border: 'none', background: 'none', color: colors.textDim, fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
+          style={{ minHeight: '44px', padding: '0 4px 0 12px', marginRight: '-4px', border: 'none', background: 'none', color: colors.textDim, fontSize: 'var(--fs-2)', fontWeight: 700, cursor: 'pointer' }}
         >
           {t('Ta bort', 'Remove')}
           <span className="sr-only"> {t('mitt flyg', 'my flight')}</span>
         </button>
       </div>
 
-      <h2 style={{ margin: 0, fontFamily: fonts.display, fontSize: '1.125rem', fontWeight: 800 }}>
+      <h2 style={{ margin: 0, fontFamily: fonts.display, fontSize: 'var(--fs-4)', fontWeight: 800 }}>
         {saved.flightId}
-        {f?.place ? <span style={{ fontWeight: 600, color: colors.textDim }}> {t('till', 'to')} {f.place}</span> : null}
+        {f?.place ? <span style={{ fontWeight: 700, color: colors.textDim }}> {t('till', 'to')} {f.place}</span> : null}
         <span style={{ float: 'right' }}>{f?.status === 'delayed' && f.newTime ? f.newTime : saved.scheduledAt.slice(11, 16)}</span>
       </h2>
 
       {f ? (
-        <div style={{ marginTop: '8px', fontSize: '0.9375rem', lineHeight: 1.6 }}>
+        <div style={{ marginTop: '8px', fontSize: 'var(--fs-3)', lineHeight: 1.6 }}>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             {f.terminal ? (
               <span
@@ -146,7 +146,7 @@ export default function MyFlightCard({ saved, now, onRemove }: { saved: MyFlight
           ) : plan ? (
             <>
               {f.status === 'delayed' ? (
-                <div style={{ color: colors.amber, fontWeight: 600 }}>
+                <div style={{ color: colors.amber, fontWeight: 700 }}>
                   {t('Försenat', 'Delayed')} +{f.delayMinutes} min
                 </div>
               ) : null}
@@ -157,7 +157,7 @@ export default function MyFlightCard({ saved, now, onRemove }: { saved: MyFlight
                 {gateStatus ? <strong style={{ color: colors.amber }}>{gateStatus} · </strong> : null}
                 {t('Boarding ca', 'Boarding ~')} {plan.boarding} · {t('gaten stänger ca', 'gate closes ~')} {plan.gateCloses}
               </div>
-              <div style={{ color: colors.textDim, fontSize: '0.8125rem' }}>
+              <div style={{ color: colors.textDim, fontSize: 'var(--fs-2)' }}>
                 {plan.queue !== null && usingTypical
                   ? t(`Med ${plan.queue} min kötid, som det brukar vara då, och ${plan.walkMin}–${plan.walkMax} min till gaten. Uppskattat.`, `With ${plan.queue} min at security, as it usually is then, and ${plan.walkMin}–${plan.walkMax} min to the gate. Estimated.`)
                   : plan.queue !== null
@@ -168,7 +168,7 @@ export default function MyFlightCard({ saved, now, onRemove }: { saved: MyFlight
           ) : null}
         </div>
       ) : (
-        <div style={{ marginTop: '8px', fontSize: '0.875rem', color: colors.textDim }}>
+        <div style={{ marginTop: '8px', fontSize: 'var(--fs-2)', color: colors.textDim }}>
           {missing
             ? t('Flyget syns inte på tavlan just nu. Det visas igen när Swedavia har det.', "The flight isn't on the board right now. It will show again once Swedavia lists it.")
             : t('Hämtar flyget…', 'Loading the flight…')}

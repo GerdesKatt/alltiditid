@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { StarIcon } from './Icon';
 import { colors, fonts } from './styles';
 import { arrivalAt, loadByte, storeByte, verdict } from '../lib/byte';
 import type { Connection, SavedByte } from '../lib/byte';
@@ -59,7 +60,7 @@ function stopAction(active: boolean): React.CSSProperties {
     border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
     backgroundColor: active ? colors.accentStrong : colors.surface,
     color: active ? colors.onAccent : colors.text,
-    fontSize: '0.875rem',
+    fontSize: 'var(--fs-2)',
     fontWeight: 700,
     cursor: 'pointer',
   };
@@ -257,10 +258,10 @@ export default function TrainSheet({
             <div style={{ margin: '4px 0 8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px', marginBottom: '6px' }}>
                 <span style={{ minWidth: 0 }}>
-                  <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, margin: 0 }}>
+                  <h3 style={{ fontSize: 'var(--fs-3)', fontWeight: 700, margin: 0 }}>
                     {t('Byte i', 'Change at')} {byteStation}
                   </h3>
-                  <span style={{ fontSize: '0.8125rem', color: colors.textDim }}>
+                  <span style={{ fontSize: 'var(--fs-2)', color: colors.textDim }}>
                     {t(
                       `ankomst ${byteArrival.slice(11)} · bytestid ${transfer} min`,
                       `arrival ${byteArrival.slice(11)} · transfer time ${transfer} min`
@@ -278,7 +279,7 @@ export default function TrainSheet({
                     border: `1px solid ${colors.borderStrong}`,
                     backgroundColor: colors.surface,
                     color: colors.text,
-                    fontSize: '0.8125rem',
+                    fontSize: 'var(--fs-2)',
                     fontWeight: 700,
                     cursor: 'pointer',
                   }}
@@ -286,7 +287,7 @@ export default function TrainSheet({
                   {t('Stäng', 'Close')}
                 </button>
               </div>
-              {connError ? <p style={{ color: colors.errorText, fontSize: '0.875rem' }}>{connError}</p> : null}
+              {connError ? <p style={{ color: colors.errorText, fontSize: 'var(--fs-2)' }}>{connError}</p> : null}
               {connections.length > 0 ? (
                 <div style={{ margin: '2px 0 8px' }}>
                   <label htmlFor="byte-dest" className="sr-only">
@@ -311,24 +312,24 @@ export default function TrainSheet({
                       border: `1px solid ${colors.borderStrong}`,
                       backgroundColor: colors.surface,
                       color: colors.text,
-                      fontSize: '1rem',
+                      fontSize: 'var(--fs-3)',
                       boxSizing: 'border-box',
                     }}
                   />
                   {destTrimmed && !stopsReady ? (
-                    <span role="status" style={{ display: 'block', marginTop: '4px', fontSize: '0.8125rem', color: colors.textDim }}>
+                    <span role="status" style={{ display: 'block', marginTop: '4px', fontSize: 'var(--fs-2)', color: colors.textDim }}>
                       {t('Letar även bland hållplatserna längs linjerna…', 'Also checking the stops along each line…')}
                     </span>
                   ) : null}
                 </div>
               ) : null}
               {connections.length === 0 && !connError ? (
-                <p style={{ color: colors.textDim, fontSize: '0.875rem' }}>
+                <p style={{ color: colors.textDim, fontSize: 'var(--fs-2)' }}>
                   {t('Inga avgångar timmen efter ankomsten.', 'No departures in the hour after arrival.')}
                 </p>
               ) : null}
               {connections.length > 0 && shownConnections.length === 0 && destTrimmed ? (
-                <p style={{ color: colors.textDim, fontSize: '0.875rem' }}>
+                <p style={{ color: colors.textDim, fontSize: 'var(--fs-2)' }}>
                   {stopsReady
                     ? t(
                         `Ingen anslutning mot ${destTrimmed} timmen efter ankomsten.`,
@@ -372,10 +373,10 @@ export default function TrainSheet({
                           opacity: v.tone === 'miss' ? 0.6 : 1,
                         }}
                       >
-                        <span style={{ fontFamily: fonts.display, fontWeight: 800, fontSize: '0.9375rem', width: '44px', flexShrink: 0 }}>
+                        <span style={{ fontFamily: fonts.display, fontWeight: 800, fontSize: 'var(--fs-3)', width: '44px', flexShrink: 0 }}>
                           {c.newTime || c.scheduledTime}
                         </span>
-                        <span style={{ flex: 1, minWidth: 0, fontSize: '0.875rem', lineHeight: 1.3 }}>
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 'var(--fs-2)', lineHeight: 1.3 }}>
                           <strong style={{ display: 'block' }}>{c.line}</strong>
                           <span style={{ color: colors.textDim }}>
                             {t('mot', 'to')} {c.destination}
@@ -383,7 +384,7 @@ export default function TrainSheet({
                             {c.track ? ` · ${trackLabel(c.track, lang)}` : ''}
                           </span>
                         </span>
-                        <span style={{ flexShrink: 0, fontSize: '0.8125rem', fontWeight: 700, color }}>{v.text}</span>
+                        <span style={{ flexShrink: 0, fontSize: 'var(--fs-2)', fontWeight: 700, color }}>{v.text}</span>
                       </button>
                     </li>
                   );
@@ -427,13 +428,13 @@ export default function TrainSheet({
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
         <div style={{ minWidth: 0 }}>
-          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>
+          <span style={{ fontSize: 'var(--fs-2)', fontWeight: 700, color: colors.textDim }}>
             {journey?.from && journey?.to ? `${journey.from} – ${journey.to}` : t('Tågets resa', "The train's journey")}
           </span>
-          <h2 id="tagresa-rubrik" style={{ fontFamily: fonts.display, fontSize: '1.375rem', fontWeight: 800, margin: '2px 0 0' }}>
+          <h2 id="tagresa-rubrik" style={{ fontFamily: fonts.display, fontSize: 'var(--fs-5)', fontWeight: 800, margin: '2px 0 0' }}>
             {title}
           </h2>
-          {journey?.operator ? <span style={{ fontSize: '0.8125rem', color: colors.textDim }}>{journey.operator}</span> : null}
+          {journey?.operator ? <span style={{ fontSize: 'var(--fs-2)', color: colors.textDim }}>{journey.operator}</span> : null}
           {onToggleSaved && journey ? (
             <button
               type="button"
@@ -441,8 +442,8 @@ export default function TrainSheet({
               onClick={onToggleSaved}
               style={{ ...stopAction(trainSaved), display: 'block', marginTop: '8px' }}
             >
-              <span aria-hidden="true" style={{ color: trainSaved ? colors.onAccent : colors.brand, marginRight: '6px' }}>
-                {trainSaved ? '★' : '☆'}
+              <span aria-hidden="true" style={{ display: 'inline-flex', color: trainSaved ? colors.onAccent : colors.brand, marginRight: '6px' }}>
+                <StarIcon filled={trainSaved} size={16} />
               </span>
               {trainSaved ? t('Sparat som mitt tåg', 'Saved as my train') : t('Spara som mitt tåg', 'Save as my train')}
             </button>
@@ -459,7 +460,7 @@ export default function TrainSheet({
             border: `1px solid ${colors.borderStrong}`,
             backgroundColor: colors.surface,
             color: colors.text,
-            fontSize: '0.8125rem',
+            fontSize: 'var(--fs-2)',
             fontWeight: 700,
             cursor: 'pointer',
           }}
@@ -485,7 +486,7 @@ export default function TrainSheet({
                 borderRadius: 'var(--radius-control)',
                 backgroundColor: colors.surfaceRaised,
                 fontWeight: 700,
-                fontSize: '0.9375rem',
+                fontSize: 'var(--fs-3)',
               }}
             >
               <span className="rt-dot" aria-hidden="true" style={{ display: 'inline-block', marginRight: '8px', verticalAlign: '1px' }} />
@@ -502,13 +503,13 @@ export default function TrainSheet({
                 border: `1px solid ${colors.borderStrong}`,
               }}
             >
-              <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>
+              <div style={{ fontSize: 'var(--fs-2)', fontWeight: 700, color: colors.textDim }}>
                 {t('Ditt byte i', 'Your change at')} {saved.station}
               </div>
-              <div style={{ fontSize: '1rem', fontWeight: 700, marginTop: '2px' }}>
+              <div style={{ fontSize: 'var(--fs-3)', fontWeight: 700, marginTop: '2px' }}>
                 {saved.line} {t('mot', 'to')} {saved.destination} {saved.scheduledTime}
               </div>
-              <div style={{ fontSize: '0.875rem', marginTop: '2px' }}>
+              <div style={{ fontSize: 'var(--fs-2)', marginTop: '2px' }}>
                 {!connections ? (
                   <span style={{ color: colors.textDim }}>{t('Räknar…', 'Calculating…')}</span>
                 ) : savedConn ? (
@@ -518,8 +519,8 @@ export default function TrainSheet({
                     return (
                       <span style={{ color, fontWeight: 700 }}>
                         {v.text}
-                        {savedConn.track ? <span style={{ color: colors.textDim, fontWeight: 500 }}> · {trackLabel(savedConn.track, lang)}</span> : null}
-                        {v.tone === 'miss' ? <span style={{ color: colors.textDim, fontWeight: 500 }}> · {t('se nästa nedan', 'see the next one below')}</span> : null}
+                        {savedConn.track ? <span style={{ color: colors.textDim, fontWeight: 400 }}> · {trackLabel(savedConn.track, lang)}</span> : null}
+                        {v.tone === 'miss' ? <span style={{ color: colors.textDim, fontWeight: 400 }}> · {t('se nästa nedan', 'see the next one below')}</span> : null}
                       </span>
                     );
                   })()
@@ -535,7 +536,7 @@ export default function TrainSheet({
                   setSaved(null);
                   storeByte(null);
                 }}
-                style={{ marginTop: '6px', minHeight: '36px', padding: 0, border: 'none', background: 'none', color: colors.textDim, fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                style={{ marginTop: '6px', minHeight: '36px', padding: 0, border: 'none', background: 'none', color: colors.textDim, fontSize: 'var(--fs-2)', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
               >
                 {t('Ta bort bytet', 'Remove the connection')}
               </button>
@@ -549,8 +550,8 @@ export default function TrainSheet({
                 padding: '10px 12px',
                 borderRadius: 'var(--radius-control)',
                 backgroundColor: colors.accentTint,
-                fontSize: '0.9375rem',
-                fontWeight: 600,
+                fontSize: 'var(--fs-3)',
+                fontWeight: 700,
               }}
             >
               {t('Tryck på stationen där du byter, och välj Byte här.', 'Tap the station where you change, then choose Change here.')}
@@ -598,18 +599,18 @@ export default function TrainSheet({
                       background: 'none',
                       color: colors.text,
                       fontWeight: 700,
-                      fontSize: '0.9375rem',
+                      fontSize: 'var(--fs-3)',
                       textAlign: 'left',
                       cursor: 'pointer',
                       textDecoration: st.cancelled ? 'line-through' : 'none',
                     }}
                   >
                     {st.name}
-                    <span aria-hidden="true" style={{ color: colors.textDim, fontWeight: 500 }}>
+                    <span aria-hidden="true" style={{ color: colors.textDim, fontWeight: 400 }}>
                       {openStop === st.name ? '▴' : '▾'}
                     </span>
                   </button>
-                  <span style={{ display: 'block', fontSize: '0.8125rem', color: st.cancelled ? colors.cancelledText : colors.textDim }}>
+                  <span style={{ display: 'block', fontSize: 'var(--fs-2)', color: st.cancelled ? colors.cancelledText : colors.textDim }}>
                     {[
                       st.cancelled ? t('Inställd här', 'Cancelled here') : '',
                       offStation === st.name ? t('Du kliver av här', 'You get off here') : '',
@@ -620,7 +621,7 @@ export default function TrainSheet({
                       .join(' · ')}
                   </span>
                 </span>
-                <span style={{ textAlign: 'right', fontSize: '0.875rem', fontVariantNumeric: 'tabular-nums' }}>
+                <span style={{ textAlign: 'right', fontSize: 'var(--fs-2)', fontVariantNumeric: 'tabular-nums' }}>
                   {timeCell(st.arrival, t('Ankomst', 'Arrival'))}
                   {timeCell(st.departure, t('Avgång', 'Departure'))}
                 </span>
@@ -661,7 +662,7 @@ export default function TrainSheet({
                 ) : null}
                 {byteStation === st.name ? (
                   <div style={{ gridColumn: '1 / -1' }}>
-                    {connections ? connectionList : <p style={{ margin: '4px 0 8px', fontSize: '0.875rem', color: colors.textDim }}>
+                    {connections ? connectionList : <p style={{ margin: '4px 0 8px', fontSize: 'var(--fs-2)', color: colors.textDim }}>
                         {t('Hämtar anslutningar…', 'Loading connections…')}
                       </p>}
                   </div>
@@ -678,14 +679,14 @@ export default function TrainSheet({
                     padding: '8px 6px',
                     borderRadius: 'var(--radius-control)',
                     backgroundColor: colors.surfaceRaised,
-                    fontSize: '0.875rem',
+                    fontSize: 'var(--fs-2)',
                     fontWeight: 700,
                   }}
                 >
                   <span className="rt-dot" aria-hidden="true" style={{ flexShrink: 0, marginLeft: '2px' }} />
                   <span>
                     {t('Här nu', 'Here now')}
-                    <span style={{ fontWeight: 500, color: colors.textDim }}>
+                    <span style={{ fontWeight: 400, color: colors.textDim }}>
                       {' · '}
                       {journey.gps.metersToNext < 60
                         ? t(`vid ${journey.stops[i + 1].name}`, `at ${journey.stops[i + 1].name}`)
@@ -701,7 +702,7 @@ export default function TrainSheet({
               </React.Fragment>
             ))}
           </ol>
-          <p style={{ fontSize: '0.8125rem', color: colors.textDim, margin: '12px 0 0' }}>
+          <p style={{ fontSize: 'var(--fs-2)', color: colors.textDim, margin: '12px 0 0' }}>
             {trip
               ? journey.gps
                 ? t(

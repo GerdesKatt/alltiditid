@@ -125,11 +125,11 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
     borderBottom: `1px solid ${colors.border}`,
     backgroundColor: on ? colors.surfaceRaised : 'transparent',
     color: colors.text,
-    fontSize: '1rem',
+    fontSize: 'var(--fs-3)',
     textAlign: 'left',
     cursor: 'pointer',
   });
-  const hint: React.CSSProperties = { flexShrink: 0, fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim };
+  const hint: React.CSSProperties = { flexShrink: 0, fontSize: 'var(--fs-2)', fontWeight: 700, color: colors.textDim };
 
   return (
     <section aria-label={t('Sök', 'Search')} style={{ marginBottom: '22px' }}>
@@ -194,7 +194,7 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
             borderRadius: 0,
             background: 'transparent',
             color: colors.text,
-            fontSize: '1rem',
+            fontSize: 'var(--fs-3)',
             fontFamily: 'inherit',
           }}
         />
@@ -203,7 +203,7 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
             type="button"
             onClick={() => setQ('')}
             aria-label={t('Rensa', 'Clear')}
-            style={{ position: 'absolute', right: 0, top: 0, width: '48px', height: '56px', border: 'none', background: 'none', color: colors.textDim, fontSize: '1.375rem', cursor: 'pointer' }}
+            style={{ position: 'absolute', right: 0, top: 0, width: '48px', height: '56px', border: 'none', background: 'none', color: colors.textDim, fontSize: 'var(--fs-5)', cursor: 'pointer' }}
           >
             ×
           </button>
@@ -231,12 +231,12 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
                   <>
                     <span style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ display: 'block', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {r.guess ? <span style={{ fontWeight: 500, color: colors.textDim }}>{t('Menade du ', 'Did you mean ')}</span> : null}
+                        {r.guess ? <span style={{ fontWeight: 400, color: colors.textDim }}>{t('Menade du ', 'Did you mean ')}</span> : null}
                         {r.stop.name}
                         {r.guess ? '?' : ''}
                       </span>
                       {r.stop.place || r.stop.modes?.length ? (
-                        <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim }}>
+                        <span style={{ display: 'block', fontSize: 'var(--fs-2)', color: colors.textDim }}>
                           {[r.stop.place, r.stop.modes?.join(', ')].filter(Boolean).join(' · ')}
                         </span>
                       ) : null}
@@ -258,7 +258,7 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
         </ul>
       ) : null}
       {failed ? (
-        <p role="status" style={{ margin: '8px 0 0', fontSize: '0.875rem', color: colors.textDim }}>
+        <p role="status" style={{ margin: '8px 0 0', fontSize: 'var(--fs-2)', color: colors.textDim }}>
           {t(
             'Hållplatssöket fungerar inte just nu. Försök igen om en stund, eller välj en sparad hållplats.',
             'Stop search is not working right now. Try again in a moment, or pick a saved stop.'

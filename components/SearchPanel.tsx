@@ -124,7 +124,7 @@ export default function SearchPanel({
             backgroundColor: colors.surfaceRaised,
             color: colors.text,
             fontWeight: 700,
-            fontSize: '0.875rem',
+            fontSize: 'var(--fs-2)',
             cursor: 'pointer',
           }}
         >
@@ -133,7 +133,7 @@ export default function SearchPanel({
       ) : null}
       <h2
         style={{
-          fontSize: '1.375rem',
+          fontSize: 'var(--fs-5)',
           fontWeight: 800,
           letterSpacing: '-0.015em',
           margin: '0 0 4px 0',
@@ -161,7 +161,7 @@ export default function SearchPanel({
             onKeyDown={onSearchKeyDown}
             onChange={(e) => onStationQueryChange(e.target.value)}
             placeholder={t('Hållplats eller tåg', 'Stop or train')}
-            style={{ ...textInput(colors.text), minHeight: '52px', fontSize: '1rem', borderWidth: '2px' }}
+            style={{ ...textInput(colors.text), minHeight: '52px', fontSize: 'var(--fs-3)', borderWidth: '2px' }}
           />
 
           {trainHit ? (
@@ -180,7 +180,7 @@ export default function SearchPanel({
                 border: `1px solid ${colors.borderStrong}`,
                 backgroundColor: colors.surface,
                 color: colors.text,
-                fontSize: '0.9375rem',
+                fontSize: 'var(--fs-3)',
                 fontWeight: 700,
                 textAlign: 'left',
                 cursor: 'pointer',
@@ -206,7 +206,7 @@ export default function SearchPanel({
                 border: `1px solid ${colors.borderStrong}`,
                 backgroundColor: colors.surface,
                 color: colors.text,
-                fontSize: '0.9375rem',
+                fontSize: 'var(--fs-3)',
                 fontWeight: 700,
                 textAlign: 'left',
                 cursor: 'pointer',
@@ -219,7 +219,7 @@ export default function SearchPanel({
 
           {!stationQuery && recentStops.some((s) => s.id !== selectedStop.id) ? (
             <div style={{ marginTop: '10px' }}>
-              <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim, marginBottom: '6px' }}>
+              <span style={{ display: 'block', fontSize: 'var(--fs-2)', fontWeight: 700, color: colors.textDim, marginBottom: '6px' }}>
                 {t('Senast', 'Recent')}
               </span>
               <ul style={{ listStyle: 'none', margin: 0, padding: 0, borderTop: `1px solid ${colors.border}` }}>
@@ -258,7 +258,7 @@ export default function SearchPanel({
               }}
             >
               {searchingStops ? (
-                <div role="status" style={{ padding: '11px 14px', color: colors.textDim, fontSize: '0.8125rem' }}>
+                <div role="status" style={{ padding: '11px 14px', color: colors.textDim, fontSize: 'var(--fs-2)' }}>
                   {t('Söker platser...', 'Searching...')}
                 </div>
               ) : (
@@ -286,9 +286,9 @@ export default function SearchPanel({
                       cursor: 'pointer',
                     }}
                   >
-                    <span style={{ display: 'block', fontSize: '0.9375rem', fontWeight: 700 }}>{stop.name}</span>
+                    <span style={{ display: 'block', fontSize: 'var(--fs-3)', fontWeight: 700 }}>{stop.name}</span>
                     {stop.place || stop.modes?.length ? (
-                      <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim, marginTop: '1px' }}>
+                      <span style={{ display: 'block', fontSize: 'var(--fs-2)', color: colors.textDim, marginTop: '1px' }}>
                         {[stop.place, stop.modes?.map((m) => modeLabel(m, lang)).join(', ')].filter(Boolean).join(' · ')}
                       </span>
                     ) : null}
@@ -323,8 +323,8 @@ export default function SearchPanel({
                 backgroundColor: 'transparent',
                 color: colors.textDim,
                 fontFamily: 'inherit',
-                fontWeight: 600,
-                fontSize: '0.8125rem',
+                fontWeight: 700,
+                fontSize: 'var(--fs-2)',
                 cursor: 'pointer',
               }}
             >
@@ -343,7 +343,7 @@ export default function SearchPanel({
                 transform: 'translateY(-50%)',
                 pointerEvents: 'none',
                 color: colors.textDim,
-                fontSize: '0.625rem',
+                fontSize: 'var(--fs-1)',
               }}
             >
               ▼
@@ -405,7 +405,7 @@ export default function SearchPanel({
               background: 'none',
               color: colors.text,
               fontFamily: 'inherit',
-              fontSize: '0.875rem',
+              fontSize: 'var(--fs-2)',
               fontWeight: 700,
               textAlign: 'left',
               cursor: 'pointer',
@@ -421,7 +421,7 @@ export default function SearchPanel({
                   borderRadius: 0,
                   backgroundColor: colors.accentStrong,
                   color: colors.onAccent,
-                  fontSize: '0.75rem',
+                  fontSize: 'var(--fs-1)',
                   fontWeight: 700,
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -435,8 +435,8 @@ export default function SearchPanel({
             <span
               style={{
                 marginLeft: 'auto',
-                fontSize: '0.8125rem',
-                fontWeight: 600,
+                fontSize: 'var(--fs-2)',
+                fontWeight: 700,
                 color: colors.textDim,
                 whiteSpace: 'nowrap',
               }}
@@ -447,7 +447,7 @@ export default function SearchPanel({
                 style={{
                   display: 'inline-block',
                   marginLeft: '6px',
-                  fontSize: '0.625rem',
+                  fontSize: 'var(--fs-1)',
                   transform: filtersOpen ? 'rotate(180deg)' : undefined,
                 }}
               >
@@ -483,7 +483,7 @@ export default function SearchPanel({
                     border: `1px solid ${colors.borderStrong}`,
                     backgroundColor: colors.surface,
                     color: colors.text,
-                    fontSize: '0.9375rem',
+                    fontSize: 'var(--fs-3)',
                     fontWeight: 700,
                     textAlign: 'left',
                     cursor: 'pointer',
@@ -516,8 +516,8 @@ function quickRow(active: boolean): React.CSSProperties {
     border: 'none',
     background: 'none',
     color: colors.text,
-    fontWeight: active ? 700 : 500,
-    fontSize: '0.9375rem',
+    fontWeight: active ? 700 : 400,
+    fontSize: 'var(--fs-3)',
     textAlign: 'left',
     cursor: 'pointer',
   };

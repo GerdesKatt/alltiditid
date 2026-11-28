@@ -2,20 +2,20 @@ import React from 'react';
 import { colors } from './styles';
 import { useLang } from '../lib/i18n';
 
-const paragraph = { color: colors.textDim, fontSize: '0.875rem', lineHeight: 1.65 } as const;
+const paragraph = { color: colors.textDim, fontSize: 'var(--fs-2)', lineHeight: 1.65 } as const;
 
 export default function AboutSection() {
   const { lang } = useLang();
   return (
     // Ihopfälld: texten finns kvar för den som vill läsa (och för sökmotorer) men tar ingen plats från tavlan.
     <details id="om-tjansten" className="om-tjansten" style={{ borderTop: `1px solid ${colors.border}`, margin: '8px 0 26px' }}>
-      <summary style={{ minHeight: '48px', display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: colors.textDim }}>
+      <summary style={{ minHeight: '48px', display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: 'var(--fs-2)', fontWeight: 700, color: colors.textDim }}>
         {lang === 'en' ? 'How alltid i tid works' : 'Så funkar alltid i tid'}
       </summary>
       <div style={{ padding: '4px 0 8px' }}>
       {lang === 'en' ? (
         <>
-          <h2 style={{ fontSize: '1.125rem', fontWeight: 800, margin: '0 0 10px 0', color: colors.text }}>
+          <h2 style={{ fontSize: 'var(--fs-4)', fontWeight: 800, margin: '0 0 10px 0', color: colors.text }}>
             Departures, trips and flights in one place
           </h2>
           <p style={{ ...paragraph, margin: '0 0 12px 0' }}>
@@ -41,7 +41,7 @@ export default function AboutSection() {
         </>
       ) : (
         <>
-          <h2 style={{ fontSize: '1.125rem', fontWeight: 800, margin: '0 0 10px 0', color: colors.text }}>
+          <h2 style={{ fontSize: 'var(--fs-4)', fontWeight: 800, margin: '0 0 10px 0', color: colors.text }}>
             Avgångar, resor och flyg på ett ställe
           </h2>
           <p style={{ ...paragraph, margin: '0 0 12px 0' }}>

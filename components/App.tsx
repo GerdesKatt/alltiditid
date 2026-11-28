@@ -20,6 +20,7 @@ import { loadMyFlight, MY_FLIGHT_EVENT, storeMyFlight, type MyFlight } from '../
 import SheetBackdrop from './SheetBackdrop';
 import { colors, textInput } from './styles';
 import ModeTabs, { type AppTab, type MenuKey } from './ModeTabs';
+import { withTransition } from '../lib/motion';
 import { loadModeFor, MODE_CHOICES, storeModeFor } from '../lib/modeMemory';
 import { loadLastBoard, saveLastBoard } from '../lib/lastBoard';
 import { fuzzyStops } from '../lib/fuzzyStops.mjs';
@@ -93,8 +94,8 @@ const sectionLabel: React.CSSProperties = {
   margin: '0 0 8px',
   fontFamily: 'var(--font-display)',
   fontStretch: 'var(--stretch-wide)',
-  fontSize: '0.6875rem',
-  fontWeight: 600,
+  fontSize: 'var(--fs-1)',
+  fontWeight: 700,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
   color: colors.textDim,
@@ -153,7 +154,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
   // Trafikslaget minns per hållplats: den som tar T-banan från Slussen slipper välja om.
   const selectedStopIdRef = React.useRef('');
   function setMode(next: TransportMode) {
-    setModeRaw(next);
+    withTransition(() => setModeRaw(next));
     if (selectedStopIdRef.current) storeModeFor(selectedStopIdRef.current, next);
   }
   const [stationQuery, setStationQuery] = useState('');
@@ -209,8 +210,10 @@ export default function App({ initialStop, page, intro }: AppProps) {
   }, [trainNumber]);
   const [flightAirport, setFlightAirport] = useState<string | undefined>(undefined);
   function changeTab(next: AppTab) {
-    setTab(next);
-    setStationOpen(false);
+    withTransition(() => {
+      setTab(next);
+      setStationOpen(false);
+    });
   }
   const [riderStatus, setRiderStatus] = useState<RiderMood>('on-time');
   const [riderNote, setRiderNote] = useState('');
@@ -511,28 +514,34 @@ export default function App({ initialStop, page, intro }: AppProps) {
         })
         .then((data) => {
           if (!active) return;
-          setOffline(data.savedAt > 0);
-          const list: Departure[] = Array.isArray(data.departures) ? data.departures : [];
-          if (!hasData) markFirstBoard(list.length);
-          hasData = true;
-          setDepartures(list);
-          if (data.savedAt === 0) saveLastBoard(url, list, Array.isArray(data.disruptions) ? data.disruptions : []);
-          setErrorMsg(null);
-          setLoading(false);
-          setUpdatedAt(data.savedAt > 0 ? new Date(data.savedAt) : new Date());
-          setNow(Date.now());
-          setSource(data.source === 'resrobot' ? 'resrobot' : 'trafiklab-realtime');
-          setDisruptions(Array.isArray(data.disruptions) ? data.disruptions : []);
-          if (data.stop && Number.isFinite(data.stop.lat) && Number.isFinite(data.stop.lon)) {
-            setStopCoords({ lat: data.stop.lat, lon: data.stop.lon });
-          }
+          // En uppdatering av en tavla som redan syns: raderna glider på plats och de som gått tonar ut.
+          const refresh = hasData;
+          const apply = () => {
+            setOffline(data.savedAt > 0);
+            const list: Departure[] = Array.isArray(data.departures) ? data.departures : [];
+            if (!hasData) markFirstBoard(list.length);
+            hasData = true;
+            setDepartures(list);
+            if (data.savedAt === 0) saveLastBoard(url, list, Array.isArray(data.disruptions) ? data.disruptions : []);
+            setErrorMsg(null);
+            setLoading(false);
+            setUpdatedAt(data.savedAt > 0 ? new Date(data.savedAt) : new Date());
+            setNow(Date.now());
+            setSource(data.source === 'resrobot' ? 'resrobot' : 'trafiklab-realtime');
+            setDisruptions(Array.isArray(data.disruptions) ? data.disruptions : []);
+            if (data.stop && Number.isFinite(data.stop.lat) && Number.isFinite(data.stop.lon)) {
+              setStopCoords({ lat: data.stop.lat, lon: data.stop.lon });
+            }
 
-          setOnBoardTrip((prev) => {
-            if (!prev) return null;
-            const match = list.find((item) => item.id === prev.id);
-            // Finns resan inte längre på tavlan (t.ex. har gått) slutar den uppdateras: markera det.
-            return match || { ...prev, gone: true };
-          });
+            setOnBoardTrip((prev) => {
+              if (!prev) return null;
+              const match = list.find((item) => item.id === prev.id);
+              // Finns resan inte längre på tavlan (t.ex. har gått) slutar den uppdateras: markera det.
+              return match || { ...prev, gone: true };
+            });
+          };
+          if (refresh) withTransition(apply, { onlyNearTop: true });
+          else apply();
         })
         .catch(() => {
           if (!active) return;
@@ -604,8 +613,22 @@ export default function App({ initialStop, page, intro }: AppProps) {
   }, [restored, myTrip, tripOnBoard]);
 
   // Klockan tickar så att avgångar som redan gått försvinner även mellan hämtningarna.
+  // När en avgång försvinner glider raderna under upp i stället för att hoppa (Apple-juryn, punkt 2).
+  const departuresRef = React.useRef<Departure[]>([]);
+  departuresRef.current = departures;
   useEffect(() => {
-    const tick = setInterval(() => setNow(Date.now()), CLOCK_TICK_MS);
+    let last = Date.now();
+    const tick = setInterval(() => {
+      const next = Date.now();
+      const gone = departuresRef.current.some((d) => {
+        const at = parseLocal(d.expectedAt);
+        // Försvinner i just det här ticket: gick ut över gränsen mellan förra och nuvarande tick.
+        return !d.pending && at !== null && at + DEPARTED_GRACE_MS >= last && at + DEPARTED_GRACE_MS < next;
+      });
+      last = next;
+      if (gone) withTransition(() => setNow(next), { onlyNearTop: true });
+      else setNow(next);
+    }, CLOCK_TICK_MS);
     return () => clearInterval(tick);
   }, []);
 
@@ -896,7 +919,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
       {tab === 'flyg' ? <FlightView initialAirport={flightAirport} /> : null}
       {tab === 'resa' ? (
         <section aria-label={t('Min resa', 'My trip')} style={{ marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '1.375rem', fontWeight: 800, margin: '0 0 14px' }}>{t('Min resa', 'My trip')}</h1>
+          <h1 style={{ fontSize: 'var(--fs-5)', fontWeight: 800, margin: '0 0 14px' }}>{t('Min resa', 'My trip')}</h1>
           {myFlight || myTrain || myTrip || planned ? (
             <>
               <h2 style={sectionLabel}>{t('Sparad', 'Saved')}</h2>
@@ -905,7 +928,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
           ) : null}
             <h2 style={{ ...sectionLabel, marginTop: myFlight || myTrain || myTrip || planned ? '22px' : 0 }}>{t('Ny resa', 'New trip')}</h2>
             <div style={{ borderTop: `1px solid ${colors.text}`, paddingTop: '14px' }}>
-              <label htmlFor="vart-ska-du" style={{ display: 'block', fontSize: '0.9375rem', fontWeight: 700 }}>
+              <label htmlFor="vart-ska-du" style={{ display: 'block', fontSize: 'var(--fs-3)', fontWeight: 700 }}>
                 {t('Vart ska du?', 'Where are you going?')}
               </label>
               <div style={{ position: 'relative', marginTop: '6px' }}>
@@ -934,7 +957,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
                     }
                   }}
                   placeholder={t('Hållplats, adress eller tåg', 'Stop, address or train')}
-                  style={{ ...textInput(colors.borderStrong), display: 'block', minHeight: '48px', fontSize: '1rem', paddingRight: '48px' }}
+                  style={{ ...textInput(colors.borderStrong), display: 'block', minHeight: '48px', fontSize: 'var(--fs-3)', paddingRight: '48px' }}
                 />
                 {goal ? (
                   // Rensa: tömmer fältet och tar bort resultaten.
@@ -956,7 +979,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
                       border: 'none',
                       background: 'none',
                       color: colors.textDim,
-                      fontSize: '1.375rem',
+                      fontSize: 'var(--fs-5)',
                       cursor: 'pointer',
                     }}
                   >
@@ -976,8 +999,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
                   border: 'none',
                   background: 'none',
                   color: colors.text,
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
+                  fontSize: 'var(--fs-2)',
+                  fontWeight: 700,
                   textAlign: 'left',
                   textDecoration: 'underline',
                   textUnderlineOffset: '3px',
@@ -1000,13 +1023,13 @@ export default function App({ initialStop, page, intro }: AppProps) {
                     setSuggestOpen(false);
                     track('funktion', 0, 'mitt_tag');
                   }}
-                  style={{ display: 'block', width: '100%', minHeight: '48px', marginTop: '4px', border: 'none', background: colors.text, color: colors.bg, fontWeight: 700, fontSize: '0.9375rem', cursor: 'pointer' }}
+                  style={{ display: 'block', width: '100%', minHeight: '48px', marginTop: '4px', border: 'none', background: colors.text, color: colors.bg, fontWeight: 700, fontSize: 'var(--fs-3)', cursor: 'pointer' }}
                 >
                   {t(`Följ tåg ${goal.trim()}`, `Follow train ${goal.trim()}`)}
                 </button>
               ) : null}
               {ticketPlan && goal.trim().length < 2 ? (
-                <p style={{ margin: '8px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
+                <p style={{ margin: '8px 0 0', fontSize: 'var(--fs-2)', color: colors.textDim }}>
                   {t(
                     'Skriv vart du ska. Sedan tåg- eller flightnumret, så räknar vi baklänges när du ska gå.',
                     'Type where you are going. Then the train or flight number, and we work back to when you should leave.'
@@ -1029,7 +1052,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
                                 setGoalPlace(null);
                                 setSuggestOpen(true);
                               }}
-                              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', minHeight: '44px', padding: 0, border: 'none', background: 'none', color: colors.text, fontSize: '0.9375rem', fontWeight: 500, textAlign: 'left', cursor: 'pointer' }}
+                              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', minHeight: '44px', padding: 0, border: 'none', background: 'none', color: colors.text, fontSize: 'var(--fs-3)', fontWeight: 400, textAlign: 'left', cursor: 'pointer' }}
                             >
                               <span>{t(`Till ${stop.name}`, `To ${stop.name}`)}</span>
                               <span aria-hidden="true" style={{ color: colors.textDim }}>→</span>
@@ -1040,19 +1063,19 @@ export default function App({ initialStop, page, intro }: AppProps) {
                     </>
                   ) : null}
                   <h2 style={sectionLabel}>{t('Exempel på en resa', 'Example trip')}</h2>
-                  <ol aria-label={t('Exempel på en resa', 'Example trip')} style={{ listStyle: 'none', margin: 0, padding: 0, borderTop: `1px solid ${colors.text}`, color: colors.textDim, fontSize: '0.875rem' }}>
+                  <ol aria-label={t('Exempel på en resa', 'Example trip')} style={{ listStyle: 'none', margin: 0, padding: 0, borderTop: `1px solid ${colors.text}`, color: colors.textDim, fontSize: 'var(--fs-2)' }}>
                     {[
                       [t('Gå 11:32', 'Leave 11:32'), t('4 min till Odenplan', '4 min to Odenplan')],
                       [t('Pendeltåg 41 · 11:38', 'Commuter train 41 · 11:38'), t('Spår 2 · mot Märsta', 'Track 2 · to Märsta')],
                       [t('Framme 11:44', 'Arrive 11:44'), t('T-Centralen · 3 min marginal', 'T-Centralen · 3 min margin')],
                     ].map(([a, b]) => (
                       <li key={a} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', padding: '10px 0', borderBottom: `1px solid ${colors.border}` }}>
-                        <strong style={{ color: colors.text, fontWeight: 650 }}>{a}</strong>
+                        <strong style={{ color: colors.text, fontWeight: 700 }}>{a}</strong>
                         <span style={{ textAlign: 'right' }}>{b}</span>
                       </li>
                     ))}
                   </ol>
-                  <p style={{ margin: '8px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
+                  <p style={{ margin: '8px 0 0', fontSize: 'var(--fs-2)', color: colors.textDim }}>
                     {t(
                       'Skriv vart du ska, så räknar vi när du ska gå och följer resan i realtid. Har du en biljett räknar vi baklänges från den.',
                       'Type where you are going and we work out when to leave and follow the trip in real time. With a ticket we work back from it.'
@@ -1098,8 +1121,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
                     margin: '18px 0 0',
                     fontFamily: 'var(--font-display)',
                     fontStretch: 'var(--stretch-wide)',
-                    fontSize: '0.6875rem',
-                    fontWeight: 600,
+                    fontSize: 'var(--fs-1)',
+                    fontWeight: 700,
                     letterSpacing: '0.06em',
                     textTransform: 'uppercase',
                     color: colors.textDim,
@@ -1116,9 +1139,9 @@ export default function App({ initialStop, page, intro }: AppProps) {
                         key={d.id}
                         style={{ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '52px', borderBottom: `1px solid ${colors.border}` }}
                       >
-                        <span style={{ flex: 1, minWidth: 0, fontSize: '0.9375rem' }}>
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 'var(--fs-3)' }}>
                           <strong>{lineLabel(d.line, lang)}</strong> {t('mot', 'to')} {d.destination}
-                          <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim }}>
+                          <span style={{ display: 'block', fontSize: 'var(--fs-2)', color: colors.textDim }}>
                             {t('från', 'from')} {selectedStop.name} · {d.newTime || d.estimatedTime || d.scheduledTime}
                             {d.track ? ` · ${d.track}` : ''}
                           </span>
@@ -1147,7 +1170,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
                             border: 'none',
                             backgroundColor: colors.accentStrong,
                             color: colors.onAccent,
-                            fontSize: '0.875rem',
+                            fontSize: 'var(--fs-2)',
                             fontWeight: 700,
                             cursor: 'pointer',
                           }}
@@ -1384,8 +1407,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
             marginBottom: '18px',
           }}
         >
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 6px' }}>{t('Välj en hållplats', 'Choose a stop')}</h1>
-          <p style={{ margin: 0, fontSize: '0.9375rem', lineHeight: 1.5, color: colors.textDim }}>
+          <h1 style={{ fontSize: 'var(--fs-5)', fontWeight: 800, margin: '0 0 6px' }}>{t('Välj en hållplats', 'Choose a stop')}</h1>
+          <p style={{ margin: 0, fontSize: 'var(--fs-3)', lineHeight: 1.5, color: colors.textDim }}>
             {t(
               'Sök på en station, en hållplats eller ett tågnummer, välj ett snabbval eller tryck på',
               'Search for a station, a stop or a train number, pick a shortcut or tap'

@@ -14,7 +14,7 @@ const choiceButton = {
   padding: '0 16px',
   borderRadius: 0,
   fontWeight: 800,
-  fontSize: '0.875rem',
+  fontSize: 'var(--fs-2)',
   cursor: 'pointer',
   color: colors.text,
 } as const;
@@ -49,7 +49,7 @@ export default function ConsentBanner({ onAccept, onDecline, onReadMore }: Props
         boxShadow: `0 16px 40px ${colors.shadow}`,
       }}
     >
-      <p style={{ flex: '1 1 16rem', margin: 0, fontSize: '0.8125rem', lineHeight: 1.4, color: colors.textSoft }}>
+      <p style={{ flex: '1 1 16rem', margin: 0, fontSize: 'var(--fs-2)', lineHeight: 1.4, color: colors.textSoft }}>
         {t(
           'Får vi mäta besöken med Google Analytics? Det sätter kakor och skickar uppgifter till Google.',
           'May we measure visits with Google Analytics? It sets cookies and sends data to Google.'
@@ -63,7 +63,7 @@ export default function ConsentBanner({ onAccept, onDecline, onReadMore }: Props
             background: 'none',
             color: colors.accent,
             textDecoration: 'underline',
-            fontSize: '0.8125rem',
+            fontSize: 'var(--fs-2)',
             cursor: 'pointer',
           }}
         >

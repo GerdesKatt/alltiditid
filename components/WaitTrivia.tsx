@@ -54,8 +54,8 @@ export default function WaitTrivia({
         <Icon name="book" size={18} />
       </span>
       <span style={{ flex: '1 1 auto', minWidth: 0 }}>
-        <strong style={{ display: 'block', fontSize: '0.9375rem' }}>{t('När du väntar', 'While you wait')}</strong>
-        <span style={{ fontSize: '0.8125rem', color: colors.textDim }}>
+        <strong style={{ display: 'block', fontSize: 'var(--fs-3)' }}>{t('När du väntar', 'While you wait')}</strong>
+        <span style={{ fontSize: 'var(--fs-2)', color: colors.textDim }}>
           {t(`Visste du det här om ${about}?`, `Did you know this about ${about}?`)}
         </span>
       </span>

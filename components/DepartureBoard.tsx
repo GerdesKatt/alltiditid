@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { StarIcon } from './Icon';
 import type { BoardDirection, BoardSource, Departure, Disruption, TransportMode } from '../lib/types';
 import DepartureRow from './DepartureRow';
 import LineGroupRow from './LineGroupRow';
@@ -123,8 +124,8 @@ const menuItem = {
   background: 'none',
   color: colors.text,
   fontFamily: 'inherit',
-  fontSize: '0.9375rem',
-  fontWeight: 600,
+  fontSize: 'var(--fs-3)',
+  fontWeight: 700,
   textAlign: 'left',
   cursor: 'pointer',
 } as const;
@@ -138,7 +139,7 @@ const chipOff = {
   backgroundColor: 'transparent',
   color: colors.text,
   fontFamily: 'inherit',
-  fontSize: '0.75rem',
+  fontSize: 'var(--fs-1)',
   fontWeight: 700,
   cursor: 'pointer',
 } as const;
@@ -150,7 +151,7 @@ const emptyButton = {
   border: `1px solid ${colors.borderStrong}`,
   backgroundColor: colors.surface,
   color: colors.text,
-  fontSize: '0.875rem',
+  fontSize: 'var(--fs-2)',
   fontWeight: 700,
   cursor: 'pointer',
 } as const;
@@ -345,8 +346,8 @@ export default function DepartureBoard({
               gap: '0 6px',
               fontFamily: 'var(--font-display)',
               fontStretch: 'var(--stretch-wide)',
-              fontSize: '0.6875rem',
-              fontWeight: 600,
+              fontSize: 'var(--fs-1)',
+              fontWeight: 700,
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
               color: colors.textDim,
@@ -424,8 +425,8 @@ export default function DepartureBoard({
             onClick={onToggleFavorite}
             style={{ ...iconButton, cursor: favoritesFull ? 'not-allowed' : 'pointer', opacity: favoritesFull ? 0.6 : 1 }}
           >
-            <span aria-hidden="true" style={{ fontSize: '1.125rem', lineHeight: 1, color: colors.brand }}>
-              {isFavorite ? '★' : '☆'}
+            <span aria-hidden="true" style={{ display: 'inline-flex', lineHeight: 1, color: colors.brand }}>
+              <StarIcon filled={isFavorite} size={22} />
             </span>
           </button>
           <div ref={menuRef} style={{ position: 'relative', flexShrink: 0 }}>
@@ -508,7 +509,7 @@ export default function DepartureBoard({
         ) : null}
         {/* Valt trafikslag sparas mellan hållplatser. Säg det, så att ingen tror att bussarna saknas (UX-revisionen, fynd 15). */}
         {mode !== 'all' && hiddenByMode > 0 && !errorMsg ? (
-          <p style={{ flexBasis: '100%', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0 10px', margin: '2px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
+          <p style={{ flexBasis: '100%', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0 10px', margin: '2px 0 0', fontSize: 'var(--fs-2)', color: colors.textDim }}>
             <span>
               {t(
                 `Bara ${(modes.find((m) => m.key === mode)?.label || '').toLowerCase()} visas. ${hiddenByMode} andra avgångar är dolda.`,
@@ -532,7 +533,7 @@ export default function DepartureBoard({
               gap: '8px',
               padding: '8px 12px',
               backgroundColor: colors.surfaceRaised,
-              fontSize: '0.875rem',
+              fontSize: 'var(--fs-2)',
             }}
           >
             <span>{t('Du ser ankomster, inte avgångar.', 'You are viewing arrivals, not departures.')}</span>
@@ -546,7 +547,7 @@ export default function DepartureBoard({
                 background: 'transparent',
                 color: colors.text,
                 fontWeight: 700,
-                fontSize: '0.8125rem',
+                fontSize: 'var(--fs-2)',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
               }}
@@ -572,7 +573,7 @@ export default function DepartureBoard({
             border: `2px solid ${colors.amber}`,
             backgroundColor: colors.noticeBg,
             color: colors.noticeText,
-            fontSize: '0.9375rem',
+            fontSize: 'var(--fs-3)',
             lineHeight: 1.4,
           }}
         >
@@ -597,10 +598,10 @@ export default function DepartureBoard({
             color: colors.errorText,
             padding: '16px',
             borderRadius: 0,
-            fontSize: '0.875rem',
+            fontSize: 'var(--fs-2)',
           }}
         >
-          <strong style={{ display: 'block', fontSize: '0.9375rem' }}>{errorMsg}</strong>
+          <strong style={{ display: 'block', fontSize: 'var(--fs-3)' }}>{errorMsg}</strong>
           <span style={{ display: 'block', marginTop: '4px' }}>
             {t(
               'Det är oftast tillfälligt, särskilt under jord. Vi försöker igen automatiskt var 30:e sekund.',
@@ -706,6 +707,7 @@ export default function DepartureBoard({
                   alternative={alternatives.get(item.id) || null}
                   onOpen={onRowOpen}
                   clockFirst={mode === 'train'}
+                  boardName={stopName}
                 />
               ))}
             </div>
@@ -724,7 +726,7 @@ export default function DepartureBoard({
                 border: `1px solid ${colors.borderStrong}`,
                 backgroundColor: colors.surface,
                 color: colors.text,
-                fontSize: '0.875rem',
+                fontSize: 'var(--fs-2)',
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
@@ -736,7 +738,7 @@ export default function DepartureBoard({
       )}
       {departures.length === 0 && mode === 'all' ? fallback : null}
 
-      <p style={{ fontSize: '0.8125rem', color: colors.textFaint, margin: '12px 0 0 0' }}>
+      <p style={{ fontSize: 'var(--fs-2)', color: colors.textFaint, margin: '12px 0 0 0' }}>
         {t('Trafikdata från', 'Traffic data from')}{' '}
         <a
           href="https://www.trafiklab.se"

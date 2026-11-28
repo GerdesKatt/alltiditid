@@ -134,7 +134,7 @@ export default function NearbyStops({ onSelect, trailing }: Props) {
           color: colors.accent,
           fontFamily: 'inherit',
           fontWeight: 700,
-          fontSize: '0.875rem',
+          fontSize: 'var(--fs-2)',
           cursor: busy ? 'default' : 'pointer',
           marginLeft: '-10px',
         }}
@@ -157,7 +157,7 @@ export default function NearbyStops({ onSelect, trailing }: Props) {
 
       <div aria-live="polite">
         {status.kind === 'error' ? (
-          <p style={{ margin: '8px 0 0 0', fontSize: '0.8125rem', color: colors.amber, lineHeight: 1.45 }}>
+          <p style={{ margin: '8px 0 0 0', fontSize: 'var(--fs-2)', color: colors.amber, lineHeight: 1.45 }}>
             {status.message}
           </p>
         ) : null}
@@ -188,14 +188,14 @@ export default function NearbyStops({ onSelect, trailing }: Props) {
                     borderBottom: `1px solid ${colors.border}`,
                     backgroundColor: 'transparent',
                     color: colors.text,
-                    fontSize: '0.9375rem',
+                    fontSize: 'var(--fs-3)',
                     fontWeight: 700,
                     textAlign: 'left',
                     cursor: 'pointer',
                   }}
                 >
                   <span>{stop.name}</span>
-                  <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim, whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 'var(--fs-2)', fontWeight: 700, color: colors.textDim, whiteSpace: 'nowrap' }}>
                     {formatDistance(stop.distance, lang)} ·{' '}
                     {t(
                       `ca ${walkingMinutes(stop.distance)} min gång`,
