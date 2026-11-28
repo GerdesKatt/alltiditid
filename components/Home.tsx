@@ -1,8 +1,8 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import type { Departure, StopOption } from '../lib/types';
+import type { Departure, StopOption, TransportMode } from '../lib/types';
 import { colors, fonts } from './styles';
-import { lineLabel, useLang } from '../lib/i18n';
+import { lineLabel, modeLabel, useLang } from '../lib/i18n';
 import { countdownFor, groupKey, lineBadge, lineColor, parseLocal, splitProduct } from '../lib/lineFormat';
 import { boardUrl } from '../lib/prefetch';
 import { positionAllowed, rememberPositionAllowed } from '../lib/visits';
@@ -10,6 +10,8 @@ import InstallApp from './InstallApp';
 import SmartSearch from './SmartSearch';
 import StrandedTips from './StrandedTips';
 import { track } from '../lib/track';
+import ModeFilter from './ModeFilter';
+import { loadHomeMode, MODE_CHOICES, storeHomeMode } from '../lib/modeMemory';
 
 type Nearby = StopOption & { distance: number; modes?: string[] };
 
@@ -46,7 +48,7 @@ const label: React.CSSProperties = {
  */
 export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain, onOpenAirport, onGoal, onStartAt, onForget }: Props) {
   const [editing, setEditing] = useState(false);
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [nearby, setNearby] = useState<Nearby[] | null>(null);
   const [locating, setLocating] = useState(false);
   const [posError, setPosError] = useState('');
@@ -87,6 +89,13 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
   }
   // Linjer och riktningar som redan syns under Dina hållplatser: visas inte igen under Nära dig.
   const [covered, setCovered] = useState<Record<string, string[]>>({});
+  // Trafikslag: T-bana, Buss, Tåg … för den som bara vill se sitt eget. Kommer ihåg valet.
+  const [chosenMode, setChosenMode] = useState<TransportMode>('all');
+  useEffect(() => setChosenMode(loadHomeMode()), []);
+  // Trafikslagen som faktiskt går från varje hållplats och från Nära dig, för valen.
+  const [present, setPresent] = useState<Record<string, string[]>>({});
+  const reportModes = (id: string, modes: string[]) =>
+    setPresent((p) => (p[id]?.join() === modes.join() ? p : { ...p, [id]: modes }));
 
   function locate() {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -164,6 +173,21 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
   const away = !fresh && nearby !== null && nearby.length > 0 && mine.every((s) => distanceOf(s) === Infinity);
   const nearFirst = fresh || away;
 
+  // Bara de slag som går här visas. Finns det valda inte här (borta hemifrån) visas allt,
+  // men valet ligger kvar till nästa gång man är hemma.
+  const presentModes = new Set(Object.values(present).flat());
+  const modeChoices = MODE_CHOICES.filter((m) => presentModes.has(m.key));
+  const mode: TransportMode = chosenMode !== 'all' && presentModes.size > 0 && !presentModes.has(chosenMode) ? 'all' : chosenMode;
+  const chooseMode = (m: TransportMode) => {
+    setChosenMode(m);
+    storeHomeMode(m);
+    track('funktion', 0, 'trafikslag_hem');
+  };
+  const modeName = (m: TransportMode) => {
+    const hit = MODE_CHOICES.find((c) => c.key === m);
+    return hit ? modeWord(hit.label, lang) : '';
+  };
+
   const nearSection = (
     <section aria-label={t('Nära dig', 'Near you')} style={{ marginBottom: '22px' }}>
       <h2 style={{ ...label, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px' }}>
@@ -206,7 +230,16 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
           </p>
         )
       ) : (
-        <NearbyLines stops={others} now={now} onOpenStop={onOpenStop} exclude={new Set(Object.values(covered).flat())} here={here} />
+        <NearbyLines
+          stops={others}
+          now={now}
+          onOpenStop={onOpenStop}
+          exclude={new Set(Object.values(covered).flat())}
+          here={here}
+          mode={mode}
+          onModes={(m) => reportModes('nara', m)}
+          onShowAll={() => chooseMode('all')}
+        />
       )}
       {posError ? <p style={{ margin: '8px 0 0', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 }}>{posError}</p> : null}
       {denied && !manualPlace ? (
@@ -261,6 +294,7 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
         </section>
       ) : null}
       <SmartSearch onOpenStop={onOpenStop} onGoal={onGoal} onOpenTrain={onOpenTrain} onOpenAirport={onOpenAirport} />
+      {modeChoices.length > 1 && !editing ? <ModeFilter modes={modeChoices} mode={mode} onChange={chooseMode} style={{ margin: '-4px 0 18px' }} /> : null}
       {nearFirst ? nearSection : null}
 
       {!fresh ? (
@@ -311,6 +345,7 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
               </p>
             </>
           ) : (
+          <>
           <ul style={list}>
             {mine.map((s) => (
               <StopRow
@@ -320,9 +355,20 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
                 distance={distanceOf(s)}
                 onOpen={() => onOpenStop(s)}
                 onKeys={(keys) => setCovered((c) => (c[s.id]?.join() === keys.join() ? c : { ...c, [s.id]: keys }))}
+                mode={mode}
+                onModes={(m) => reportModes(s.id, m)}
               />
             ))}
           </ul>
+          {mode !== 'all' && mine.every((s) => present[s.id] && !present[s.id].includes(mode)) ? (
+            <p style={{ margin: '10px 0 0', fontSize: '0.875rem', color: colors.textDim }}>
+              {t(`Inga avgångar med ${modeName(mode)} från dina hållplatser just nu. `, `No ${modeName(mode)} departures from your stops right now. `)}
+              <button type="button" onClick={() => chooseMode('all')} style={{ border: 'none', background: 'none', padding: 0, color: colors.text, font: 'inherit', textDecoration: 'underline', cursor: 'pointer' }}>
+                {t('Visa alla', 'Show all')}
+              </button>
+            </p>
+          ) : null}
+          </>
           )}
         </section>
       ) : null}
@@ -349,6 +395,9 @@ function NearbyLines({
   onOpenStop,
   exclude,
   here,
+  mode = 'all',
+  onModes,
+  onShowAll,
 }: {
   stops: Nearby[];
   now: number;
@@ -356,6 +405,11 @@ function NearbyLines({
   exclude: Set<string>;
   /** Var man är: för tipsen när inget går. */
   here: { lat: number; lon: number } | null;
+  /** Valt trafikslag på Avgångar; 'all' visar allt. */
+  mode?: TransportMode;
+  /** Trafikslagen som går här, för valen ovanför. */
+  onModes?: (modes: string[]) => void;
+  onShowAll?: () => void;
 }) {
   const { t, lang } = useLang();
   const [boards, setBoards] = useState<Record<string, Departure[]>>({});
@@ -384,6 +438,12 @@ function NearbyLines({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
+  const modesHere = modesOf(stops.slice(0, 6).flatMap((s) => boards[s.id] || []));
+  useEffect(() => {
+    onModes?.(modesHere);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modesHere.join()]);
+
   type Row = { d: Departure; stop: Nearby };
   const best = new Map<string, Row>();
   // Avgångar som redan syns under Dina hållplatser: då är det inte "lugnt läge", bara redan visat.
@@ -392,6 +452,7 @@ function NearbyLines({
     for (const d of boards[stop.id] || []) {
       const at = parseLocal(d.expectedAt);
       if (d.status === 'cancelled' || (at !== null && at < now + 60_000)) continue;
+      if (mode !== 'all' && d.transportMode !== mode) continue;
       const k = groupKey(d);
       // Samma linje och riktning som dina hållplatser visar: en dubblett om hållplatsen ligger nära,
       // men längre bort (en bit längs linjen) är det nyttigt att se samma buss där också.
@@ -413,6 +474,20 @@ function NearbyLines({
   const nu = (x: string) => (x === 'Nu' ? t('Nu', 'Now') : x);
 
   if (!loaded) return <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textDim }}>{t('Hämtar…', 'Loading…')}</p>;
+  // Ett trafikslag är valt men inget av det går här snart: säg det, och en väg tillbaka till allt.
+  if (rows.length === 0 && mode !== 'all') {
+    const name = modeWord(MODE_CHOICES.find((c) => c.key === mode)?.label || '', lang);
+    return (
+      <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textDim }}>
+        {t(`Inga avgångar med ${name} nära dig just nu. `, `No ${name} departures near you right now. `)}
+        {onShowAll ? (
+          <button type="button" onClick={onShowAll} style={{ border: 'none', background: 'none', padding: 0, color: colors.text, font: 'inherit', textDecoration: 'underline', cursor: 'pointer' }}>
+            {t('Visa alla', 'Show all')}
+          </button>
+        ) : null}
+      </p>
+    );
+  }
   // Inga avgångar snart (landet, natten): visa ändå de närmaste hållplatserna, så att man kan se
   // när nästa går, och erbjud att planera resan. Appen ska alltid föreslå en väg framåt.
   if (rows.length === 0 && alreadyShown > 0)
@@ -512,12 +587,17 @@ function StopRow({
   distance,
   onOpen,
   onKeys,
+  mode = 'all',
+  onModes,
 }: {
   stop: StopOption;
   now: number;
   distance: number;
   onOpen: () => void;
   onKeys?: (keys: string[]) => void;
+  /** Valt trafikslag på Avgångar; en hållplats utan det slaget döljs. */
+  mode?: TransportMode;
+  onModes?: (modes: string[]) => void;
 }) {
   const { t, lang } = useLang();
   const [deps, setDeps] = useState<Departure[] | null>(null);
@@ -544,6 +624,7 @@ function StopRow({
   // En rad per linje och riktning, med nästa avgång: så ser man åt vilket håll hållplatsen går.
   const seen = new Set<string>();
   const next = (deps || [])
+    .filter((d) => mode === 'all' || d.transportMode === mode)
     .filter((d) => {
       // Från Hem hinner man inte en avgång som går nu: visa den som går om minst en minut.
       const at = parseLocal(d.expectedAt);
@@ -564,6 +645,14 @@ function StopRow({
     if (onKeys && deps) onKeys(keyString ? keyString.split('\n') : []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyString, deps === null]);
+  const modesHere = deps ? modesOf(deps) : null;
+  useEffect(() => {
+    if (onModes && modesHere) onModes(modesHere);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modesHere?.join()]);
+
+  // Ett annat trafikslag är valt och inget av det går härifrån: hållplatsen tar ingen plats.
+  if (mode !== 'all' && deps && !deps.some((d) => d.transportMode === mode)) return null;
 
   return (
     <li style={rowItem}>
@@ -699,4 +788,15 @@ function WayForward({ text }: { text: string }) {
 function formatDistance(m: number): string {
   if (m < 1000) return `${Math.round(m)} m`;
   return m < 10_000 ? `${(m / 1000).toFixed(1).replace('.', ',')} km` : `${Math.round(m / 1000)} km`;
+}
+
+/** Trafikslagen bland avgångarna, t.ex. ["subway", "bus"]. */
+function modesOf(deps: Departure[]): string[] {
+  return Array.from(new Set(deps.map((d) => d.transportMode).filter((m): m is TransportMode => !!m && m !== 'all' && (m as string) !== 'other'))).sort();
+}
+
+/** "T-bana", "buss", "metro": trafikslaget mitt i en mening. */
+function modeWord(label: string, lang: 'sv' | 'en'): string {
+  if (lang === 'sv' && label === 'T-bana') return 'T‑bana';
+  return modeLabel(label, lang).toLowerCase();
 }

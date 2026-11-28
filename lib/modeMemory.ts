@@ -34,3 +34,39 @@ export function storeModeFor(stopId: string, mode: TransportMode): void {
     // Valet gäller tills sidan laddas om.
   }
 }
+
+/** Trafikslagen man kan välja, i samma ordning på tavlan och på Avgångar. */
+export const MODE_CHOICES: { key: Exclude<TransportMode, 'all'>; label: string }[] = [
+  { key: 'train', label: 'Tåg' },
+  { key: 'commuter', label: 'Pendel' },
+  { key: 'subway', label: 'T-bana' },
+  { key: 'tram', label: 'Spårvagn' },
+  { key: 'bus', label: 'Buss' },
+  { key: 'ferry', label: 'Båt' },
+];
+
+/**
+ * Trafikslaget man valt på Avgångar (Dina hållplatser och Linjer nära dig). Ett val för hela
+ * sidan, så att den som bara tar T-banan slipper bussarna varje morgon.
+ */
+const HOME_KEY = 'alltiditid:trafikslag-hem';
+
+export function loadHomeMode(): TransportMode {
+  if (typeof window === 'undefined') return 'all';
+  try {
+    const m = window.localStorage.getItem(HOME_KEY) as TransportMode | null;
+    return m && MODES.includes(m) ? m : 'all';
+  } catch {
+    return 'all';
+  }
+}
+
+export function storeHomeMode(mode: TransportMode): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (mode === 'all') window.localStorage.removeItem(HOME_KEY);
+    else window.localStorage.setItem(HOME_KEY, mode);
+  } catch {
+    // Valet gäller tills sidan laddas om.
+  }
+}
