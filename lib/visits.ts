@@ -1,6 +1,7 @@
 import type { StopOption } from './types';
 import { stockholmDay, stockholmHour } from './sweTime.mjs';
 import { activeDays } from './activeDays.mjs';
+import { usageSignals } from './usage.mjs';
 
 /**
  * Vilka hållplatser man tittar på och när på dygnet, för Hem: "dina hållplatser".
@@ -21,24 +22,31 @@ function read(): Visit[] {
   }
 }
 
+export type VisitResult = {
+  /** Antal aktiva dagar senaste veckan när det här var dagens första besök, annars 0. */
+  days: number;
+  /** För de anonyma räkningarna: dagens och veckans första tavla, och om man var här förra veckan. */
+  usage: ReturnType<typeof usageSignals>;
+};
+
 /**
- * En tavla visades. Samma hållplats inom tio minuter räknas en gång.
- * Returnerar antal aktiva dagar senaste veckan när det här var dagens första besök, annars 0.
+ * En tavla visades. Samma hållplats inom tio minuter räknas en gång (då null).
  */
-export function recordVisit(stop: StopOption, now = Date.now()): number {
-  if (typeof window === 'undefined' || !stop.id) return 0;
+export function recordVisit(stop: StopOption, now = Date.now()): VisitResult | null {
+  if (typeof window === 'undefined' || !stop.id) return null;
   const list = read();
-  if (list.some((v) => v.id === stop.id && now - v.t < 10 * 60_000)) return 0;
+  if (list.some((v) => v.id === stop.id && now - v.t < 10 * 60_000)) return null;
+  const usage = usageSignals(list, now);
   const today = stockholmDay(now);
   const firstToday = !list.some((v) => stockholmDay(v.t) === today);
   list.push({ id: stop.id, n: stop.name.slice(0, 80), h: stockholmHour(now), t: now });
   try {
     window.localStorage.setItem(KEY, JSON.stringify(list.slice(-MAX)));
   } catch {
-    // Ingen lagring: Hem lär sig inte.
-    return 0;
+    // Ingen lagring: Hem lär sig inte, och inget räknas (annars blir varje sidvisning en ny användare).
+    return null;
   }
-  return firstToday ? activeDays(list, now) : 0;
+  return { days: firstToday ? activeDays(list, now) : 0, usage };
 }
 
 /**

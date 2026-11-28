@@ -16,12 +16,33 @@ export type TrackName =
   /** Dagens första tavla: antal olika dagar med en tavla senaste 7 dygnen (etikett 1–7). */
   | 'aktiva_dagar'
   /** Varifrån besöket kom: sajtens namn ur länken (reddit, google), utm_source eller direkt. */
-  | 'kalla';
+  | 'kalla'
+  /** Dagens och veckans första tavla per enhet (lib/usage.mjs): dag_app, dag_webb, vecka_ny, vecka_ater, vecka_tillbaka. */
+  | 'anvandare'
+  /** Varje öppning av sajten: app (från hemskärmen) eller webb. */
+  | 'oppning'
+  /** Nyckelhändelser för statistiksidan: sok, spara_resa, planera_resa, folj_tag, folj_flyg, hemskarm_lagd (Tyck till räknas ur feedback-tabellen). */
+  | 'nyckel';
+
+/** Öppnad som installerad app från hemskärmen (inte i en flik i webbläsaren). */
+export function isStandalone(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return (
+      window.matchMedia?.('(display-mode: standalone)').matches === true ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true
+    );
+  } catch {
+    return false;
+  }
+}
 
 const sent = new Set<string>();
 
 export function track(name: TrackName, value = 0, label = ''): void {
   if (typeof window === 'undefined') return;
+  // Automatiska webbläsare (våra egna tester och skärmbilder, robotar) räknas inte.
+  if (navigator.webdriver) return;
   // Samma händelse med samma etikett räknas en gång per sidvisning.
   const once = `${name}|${label}`;
   if (name !== 'funktion' && sent.has(once)) return;

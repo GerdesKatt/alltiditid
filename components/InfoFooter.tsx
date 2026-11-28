@@ -45,8 +45,8 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
       return (
         <div style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
           <p style={privacyPara}>
-            alltid i tid has no accounts and shows no ads. Cookies are only used for statistics, and only if you have
-            agreed to it. This is how the little that is needed is handled:
+            alltid i tid has no accounts and shows no ads. It sets no cookies for statistics and stores no
+            identifier about you. This is how the little that is needed is handled:
           </p>
           <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
             <li style={privacyItem}>
@@ -99,6 +99,12 @@ function TabContentEn({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChange
               also count on how many different days in the past week you looked at a board (a number from 1 to
               7), based on the stops already saved for Home. We also count where the visit came from, as the
               name of the site you followed a link from (such as reddit or google), never the full address.
+              To see how many people use the site and come back, your browser also sends a short label the first time
+              you look at a board each day and each week: whether you were here last week too, and whether the site
+              was opened from your home screen. It is worked out from the stops already saved for Home, nothing new is
+              stored for it, and no ID is sent, so we cannot tell visitors apart. We also count, as plain tallies,
+              when someone searches, saves or plans a trip, follows a train or flight, or adds the site to the home
+              screen.
             </li>
             <li style={privacyItem}>
               <strong>Suggestions and filters.</strong> Which lines you open and which mode you picked at a stop
@@ -177,8 +183,8 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
       return (
         <div style={{ lineHeight: 1.6, margin: '0 0 14px 0' }}>
           <p style={privacyPara}>
-            alltid i tid har inga konton och visar inga annonser. Kakor används bara för statistik,
-            och bara om du har godkänt det. Så här hanteras det lilla som behövs:
+            alltid i tid har inga konton och visar inga annonser. Inga kakor används för statistik, och
+            inget id om dig sparas. Så här hanteras det lilla som behövs:
           </p>
           <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
             <li style={privacyItem}>
@@ -234,7 +240,12 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
               En gång per dag räknar vi också hur många olika dagar den senaste veckan du tittat på en
               tavla (ett tal mellan 1 och 7), utifrån hållplatserna som redan sparas för Hem. Vi räknar
               också varifrån besöket kom, som namnet på sajten du följde en länk från (till exempel
-              reddit eller google), aldrig hela adressen.
+              reddit eller google), aldrig hela adressen. För att se hur många som använder sajten och
+              kommer tillbaka skickar din webbläsare också en kort etikett första gången du tittar på en tavla varje
+              dag och varje vecka: om du var här även förra veckan, och om sajten öppnades från hemskärmen. Den räknas
+              fram ur hållplatserna som redan sparas för Hem, inget nytt sparas för det och inget id skickas, så vi
+              kan inte skilja besökare åt. Vi räknar också, som rena antal, när någon söker, sparar eller planerar en
+              resa, följer ett tåg eller flyg, eller lägger sajten på hemskärmen.
             </li>
             <li style={privacyItem}>
               <strong>Förslag och filter.</strong> Vilka linjer du öppnar och vilket trafikslag du valt

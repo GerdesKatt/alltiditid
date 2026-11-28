@@ -105,6 +105,7 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
 
   function choose(r: Row) {
     track('funktion', 0, `sok_${r.kind}`);
+    track('nyckel', 0, 'sok');
     setQ('');
     setStops([]);
     setGuesses([]);

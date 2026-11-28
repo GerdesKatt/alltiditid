@@ -57,7 +57,10 @@ export default function InstallApp() {
       setPrompt(e as InstallEvent);
       setVisible(true);
     };
-    const onInstalled = () => setVisible(false);
+    const onInstalled = () => {
+      setVisible(false);
+      track('nyckel', 0, 'hemskarm_lagd');
+    };
     window.addEventListener('beforeinstallprompt', onPrompt);
     window.addEventListener('appinstalled', onInstalled);
     return () => {

@@ -1,3 +1,4 @@
+import { track } from './track';
 /**
  * "Mitt flyg": ett sparat avgående flyg som visas under Min resa med terminal, gate,
  * boarding och när man senast bör vara vid säkerhetskontrollen. Försvinner av sig
@@ -29,6 +30,7 @@ export function loadMyFlight(now = Date.now()): MyFlight | null {
 }
 
 export function storeMyFlight(f: MyFlight | null): void {
+  if (f) track('nyckel', 0, 'folj_flyg');
   try {
     if (f) window.localStorage.setItem(KEY, JSON.stringify(f));
     else window.localStorage.removeItem(KEY);

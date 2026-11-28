@@ -3,6 +3,7 @@
  * Resan tas bort av sig själv när den är framme sedan en timme.
  */
 import type { Anchor } from './ticket.mjs';
+import { track } from './track';
 
 export type PlanPoint = { name: string; time: string; rtTime: string; track: string; date?: string };
 export type PlanLeg =
@@ -73,6 +74,7 @@ export function loadPlannedTrip(now = Date.now()): PlannedTrip | null {
 }
 
 export function storePlannedTrip(p: PlannedTrip | null) {
+  if (p) track('nyckel', 0, 'planera_resa');
   try {
     if (p) window.localStorage.setItem(KEY, JSON.stringify(p));
     else window.localStorage.removeItem(KEY);
