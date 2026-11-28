@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { MyTrain } from '../lib/myTrain';
-import { arrivalAt, BYTE_EVENT, COMPENSATION_DELAY_MIN, loadByte, storeByte, verdict } from '../lib/byte';
+import { arrivalAt, BYTE_EVENT, COMPENSATION_DELAY_MIN, loadByte, publishByteMargin, storeByte, verdict } from '../lib/byte';
+import { recordArrival } from '../lib/receipts';
 import type { Connection, SavedByte } from '../lib/byte';
 import { colors, fonts } from './styles';
 import { compensationLink } from '../lib/compensation';
@@ -142,6 +143,25 @@ export default function MyTrainCard({
           lang
         )
       : '';
+  // Kvittot: framme där man skulle av, med klockslag och marginal, och resor räknade i webbläsaren (idé 7).
+  const homeKey = journey && homeArrived ? `${journey.number}|${journey.date || ''}` : '';
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (homeKey) setCount(recordArrival(homeKey));
+  }, [homeKey]);
+  const homeShown = homeArr?.actual || homeArr?.estimated || homeArr?.scheduled || '';
+  const homeLate = homeArr?.delay && homeArr.delay > 0 ? Math.round(homeArr.delay) : 0;
+
+  // Bytet räknas på raden (idé 18): marginalen följer med till tavlan på bytesstationen.
+  useEffect(() => {
+    publishByteMargin(
+      byte && savedConn
+        ? { station: byte.station, line: byte.line, scheduledTime: byte.scheduledTime, margin: savedConn.margin, tone: v?.tone || 'ok', cancelled: savedConn.status === 'cancelled' }
+        : null
+    );
+  }, [byte, savedConn, v?.tone]);
+  useEffect(() => () => publishByteMargin(null), []);
+
   async function shareArrival() {
     track('funktion', 0, 'dela_ankomst');
     try {
@@ -219,6 +239,20 @@ export default function MyTrainCard({
             <strong style={{ fontFamily: fonts.display }}>{arr.scheduled}</strong>
           )}
         </p>
+      ) : null}
+
+      {homeKey && homeShown ? (
+        <div className="hero-card" style={{ margin: '10px 0 0', padding: '10px 12px' }} role="status">
+          <strong style={{ display: 'block', fontFamily: fonts.display, fontSize: 'var(--fs-4)' }}>
+            {t(`Framme ${homeShown}.`, `Arrived ${homeShown}.`)}{' '}
+            {homeLate ? t(`${homeLate} min sent.`, `${homeLate} min late.`) : t('I tid.', 'On time.')}
+          </strong>
+          {count > 1 ? (
+            <span style={{ fontSize: 'var(--fs-2)' }}>
+              {t(`${count} resor framme med alltid i tid.`, `${count} trips completed with alltid i tid.`)}
+            </span>
+          ) : null}
+        </div>
       ) : null}
 
       {/* Hinner jag bytet: svaret direkt på kortet. */}

@@ -9,6 +9,10 @@ import FindTrip from './FindTrip';
 import { stockholmHour } from '../lib/sweTime.mjs';
 import FallbackRow from './FallbackRow';
 import WaitTrivia from './WaitTrivia';
+import NightAnswer from './NightAnswer';
+import { flyStar } from '../lib/flyStar';
+import { BYTE_MARGIN_EVENT, byteRowText, currentByteMargin, type ByteMargin } from '../lib/byte';
+import { sameAsBoard } from '../lib/nextPick.mjs';
 import ModeFilter from './ModeFilter';
 import { sparseBoard } from '../lib/mobility.mjs';
 import type { Walk } from '../lib/useWalk';
@@ -285,6 +289,21 @@ export default function DepartureBoard({
   const ageMin = updatedAt ? Math.max(1, Math.floor((now - updatedAt.getTime()) / 60000)) : 0;
   const limited = source === 'resrobot';
 
+  // Bytet räknas på raden (Vägen till 10, idé 18): på bytesstationen visar anslutningen marginalen.
+  const [byteMargin, setByteMargin] = useState<ByteMargin | null>(null);
+  useEffect(() => {
+    const sync = () => setByteMargin(currentByteMargin());
+    sync();
+    window.addEventListener(BYTE_MARGIN_EVENT, sync);
+    return () => window.removeEventListener(BYTE_MARGIN_EVENT, sync);
+  }, []);
+  const byteHere =
+    byteMargin && direction === 'departures' && (sameAsBoard(byteMargin.station, stopName) || sameAsBoard(stopName, byteMargin.station))
+      ? byteMargin
+      : null;
+  const byteNoteFor = (item: Departure) =>
+    byteHere && item.line === byteHere.line && item.scheduledTime === byteHere.scheduledTime ? byteRowText(byteHere, lang) : null;
+
   // Glest just nu (nästa avgång om mer än 20 min, eller inga alls): visa taxi och lånecykel.
   // Bara för avgångar, utan filter och när tavlan är färsk, så att vanliga tavlor står lugna.
   const sparse =
@@ -429,7 +448,11 @@ export default function DepartureBoard({
                 ? t('Sparad', 'Saved')
                 : t('Spara', 'Save')
             }
-            onClick={onToggleFavorite}
+            onClick={(e) => {
+              // Stjärnan flyger till Avgångar, där Sparade ligger (Vägen till 10, idé 11).
+              if (!isFavorite && !favoritesFull) flyStar(e.currentTarget);
+              onToggleFavorite();
+            }}
             style={{ ...iconButton, cursor: favoritesFull ? 'not-allowed' : 'pointer', opacity: favoritesFull ? 0.6 : 1 }}
           >
             <span aria-hidden="true" style={{ display: 'inline-flex', lineHeight: 1, color: colors.brand }}>
@@ -669,6 +692,8 @@ export default function DepartureBoard({
                 </span>
               ) : null}
             </>
+          ) : mode === 'all' && direction === 'departures' ? (
+            <NightAnswer stopId={stopId} stopName={stopName} now={now} />
           ) : mode === 'all' ? (
             t(
               'Inga avgångar härifrån de närmaste timmarna, varken i realtid eller i tidtabellen.',
@@ -715,6 +740,7 @@ export default function DepartureBoard({
                   onOpen={onRowOpen}
                   clockFirst={mode === 'train'}
                   boardName={stopName}
+                  transferNote={byteNoteFor(item)}
                 />
               ))}
             </div>

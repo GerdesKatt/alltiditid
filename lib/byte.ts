@@ -81,3 +81,39 @@ export function verdict(c: Pick<Connection, 'status' | 'margin'>, transfer: numb
 
 /** Från så här många minuters försening vid ankomst kan man ha rätt till ersättning. */
 export const COMPENSATION_DELAY_MIN = 20;
+
+/** Marginalen för det sparade bytet, delad från Mitt tåg-kortet till tavlan (Vägen till 10, idé 18). */
+export type ByteMargin = {
+  station: string;
+  line: string;
+  scheduledTime: string;
+  margin: number | null;
+  tone: Verdict['tone'];
+  cancelled: boolean;
+};
+export const BYTE_MARGIN_EVENT = 'alltiditid:byte-margin';
+let currentMargin: ByteMargin | null = null;
+
+export function publishByteMargin(m: ByteMargin | null): void {
+  const same = JSON.stringify(m) === JSON.stringify(currentMargin);
+  currentMargin = m;
+  if (same || typeof window === 'undefined') return;
+  try {
+    window.dispatchEvent(new Event(BYTE_MARGIN_EVENT));
+  } catch {
+    // Tavlan visar marginalen vid nästa uppdatering.
+  }
+}
+
+export function currentByteMargin(): ByteMargin | null {
+  return currentMargin;
+}
+
+/** Texten på raden: "+4 min att byta", "1 min, spring" eller "Missar bytet". */
+export function byteRowText(m: Pick<ByteMargin, 'margin' | 'cancelled'>, lang: Lang = 'sv'): { text: string; urgent: boolean } | null {
+  const t = translator(lang);
+  if (m.cancelled || m.margin === null) return null;
+  if (m.margin < 0) return { text: t('Missar bytet', 'Misses the connection'), urgent: true };
+  if (m.margin <= 1) return { text: t(`${m.margin} min, spring`, `${m.margin} min, run`), urgent: true };
+  return { text: t(`+${m.margin} min att byta`, `+${m.margin} min to change`), urgent: m.margin < 3 };
+}

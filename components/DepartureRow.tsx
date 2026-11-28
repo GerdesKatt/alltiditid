@@ -37,6 +37,8 @@ type Props = {
   clockFirst?: boolean;
   /** Tavlans namn, så att delhållplatsen inte upprepas när den är samma plats. */
   boardName?: string;
+  /** Marginalen för bytet från Mitt tåg, när raden är anslutningen. */
+  transferNote?: { text: string; urgent: boolean } | null;
 };
 
 /** Länkarna under strecket i en utfälld rad: text med understrykning, som i Nästa-kortet. */
@@ -78,6 +80,7 @@ export default function DepartureRow({
   onOpen,
   clockFirst = false,
   boardName = '',
+  transferNote = null,
 }: Props) {
   const [open, setOpen] = useState(false);
   const { lang, t } = useLang();
@@ -208,6 +211,7 @@ export default function DepartureRow({
     details,
     deviation,
     walkText ? `${t('gångtid', 'walking')}: ${walkText}` : '',
+    transferNote ? `${t('ditt byte', 'your connection')}: ${transferNote.text}` : '',
   ]
     .filter(Boolean)
     .join(', ');
@@ -322,6 +326,23 @@ export default function DepartureRow({
               >
                 <Icon name="walk" size={14} /> 
                 {walkText}
+              </span>
+            ) : null}
+            {transferNote ? (
+              // Bytet från Mitt tåg: marginalen direkt på anslutningens rad (Vägen till 10, idé 18).
+              <span
+                style={{
+                  display: 'inline-block',
+                  marginRight: '6px',
+                  padding: '0 6px',
+                  borderRadius: 'var(--radius-badge)',
+                  backgroundColor: transferNote.urgent ? 'transparent' : colors.okBg,
+                  border: transferNote.urgent ? `1px solid ${colors.amber}` : 'none',
+                  color: transferNote.urgent ? colors.amber : colors.okText,
+                  fontWeight: 700,
+                }}
+              >
+                {transferNote.text}
               </span>
             ) : null}
             {subline}

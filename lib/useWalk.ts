@@ -19,14 +19,15 @@ export type WalkState =
   | { kind: 'far'; meters: number }
   | { kind: 'ready'; meters: number; minutes: number };
 
-function load(): Saved {
+/** Sparat val, eller null om man aldrig har slagit gångtid på eller av. */
+function load(): Saved | null {
   try {
     const v = JSON.parse(window.localStorage.getItem(KEY) || 'null');
     if (v && typeof v.on === 'boolean' && ['calm', 'normal', 'brisk'].includes(v.pace)) return v;
   } catch {
     // Inget sparat val.
   }
-  return { on: false, pace: 'normal' };
+  return null;
 }
 
 function store(v: Saved): void {
@@ -46,7 +47,29 @@ export function useWalk(stopId: string) {
   const [stop, setStop] = useState<{ lat: number; lon: number } | null>(null);
 
   // local storage finns bara i webbläsaren.
-  useEffect(() => setSaved(load()), []);
+  // Gångtid utan tryck (Vägen till 10, idé 14): har man aldrig valt själv men redan gett webbläsaren
+  // platsbehörighet, slås gångtiden på direkt. Ett eget "av" gäller alltid. Inget sparas förrän man väljer.
+  useEffect(() => {
+    const v = load();
+    if (v) {
+      setSaved(v);
+      return;
+    }
+    let alive = true;
+    try {
+      navigator.permissions
+        ?.query({ name: 'geolocation' as PermissionName })
+        .then((p) => {
+          if (alive && p.state === 'granted') setSaved({ on: true, pace: 'normal' });
+        })
+        .catch(() => {});
+    } catch {
+      // Ingen Permissions API: gångtiden slås på med ett tryck som förut.
+    }
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Hållplatsens koordinater ur hållplatslistan, först när funktionen är på.
   useEffect(() => {

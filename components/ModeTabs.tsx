@@ -55,6 +55,7 @@ export default function ModeTabs({
             type="button"
             aria-current={current ? 'page' : undefined}
             className={`app-tab${current ? ' app-tab--active' : ''}`}
+            data-tab={tb.key}
             onClick={() => onChange(tb.key)}
           >
             <span className="app-tab-sym" aria-hidden="true">

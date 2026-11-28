@@ -11,6 +11,7 @@ import { secondsLabel, timelineFill } from '../lib/countdown.mjs';
 import { useLiveNow } from '../lib/useLiveNow';
 import { useWakeLock } from '../lib/wakeLock';
 import Icon from './Icon';
+import { useTrivia } from '../lib/useTrivia';
 
 type Props = {
   trip: MyTrip;
@@ -104,6 +105,32 @@ export default function MyTripCard({
       // Ingen vibration i den här webbläsaren.
     }
   }, [kind]);
+
+  // Repliken under strecket: med gångtid beskedet, utan gångtid lugnet eller kaffet (idé 10).
+  const minutesLeft = headAt !== null ? Math.floor((headAt - liveNow) / 60000) : null;
+  const nextIn = rest[0] && rest[0].status !== 'cancelled' ? parseLocal(rest[0].expectedAt) : null;
+  const nextMin = nextIn !== null ? Math.max(1, Math.floor((nextIn - liveNow) / 60000)) : null;
+  const calm = !headCancelled && !headDelayed && !deviation && next.every((d) => d.status !== 'cancelled' && !isAlarmDelay(d));
+  const line = !head || headCancelled || head.pending
+    ? ''
+    : verdict
+    ? verdict.kind === 'relax'
+      ? verdict.leaveIn > 12
+        ? t('Du har tid för en kaffe.', 'You have time for a coffee.')
+        : t('Du hinner. Gå, spring inte.', "You'll make it. Walk, don't run.")
+      : verdict.kind === 'go'
+      ? t('Gå nu, så hinner du.', "Leave now and you'll make it.")
+      : nextMin !== null
+      ? t(`Den väntar inte, men nästa går om ${nextMin}.`, `It won't wait, but the next leaves in ${nextMin}.`)
+      : t('Den hinner du inte.', "You won't make that one.")
+    : minutesLeft !== null && minutesLeft > 12 && minutesLeft < 60
+    ? t('Du har tid för en kaffe.', 'You have time for a coffee.')
+    : calm && minutesLeft !== null && minutesLeft >= 1
+    ? t('Lugnt. Inga förseningar här.', 'Calm. No delays here.')
+    : '';
+  // Väntan får innehåll: kuriosan om platsen, bara när det dröjer (idé 9).
+  const waitLong = minutesLeft !== null && minutesLeft > 8 && !headCancelled;
+  const trivia = useTrivia(trip.stopName, null, lang, waitLong);
 
   // Storläge: bara siffran, så stor det går (idé 21). Skärmen hålls tänd där och vid "Gå nu" (idé 15).
   const [big, setBig] = useState(false);
@@ -327,16 +354,17 @@ export default function MyTripCard({
         </div>
       )}
 
-      {verdict && !headCancelled ? (
-        // En torr replik i annonsernas röst, under strecket (Apple-juryn, punkt 9).
-        <p style={{ margin: '8px 0 0', fontSize: 'var(--fs-2)', fontWeight: 700, color: verdict.kind === 'missed' ? colors.amber : colors.text }}>
-          {verdict.kind === 'relax'
-            ? t('Du hinner. Gå, spring inte.', "You'll make it. Walk, don't run.")
-            : verdict.kind === 'go'
-            ? t('Gå nu, så hinner du.', "Leave now and you'll make it.")
-            : rest.length
-            ? t('Den hinner du inte. Ta nästa.', "You won't make that one. Take the next.")
-            : t('Den hinner du inte.', "You won't make that one.")}
+      {line ? (
+        // En torr replik i annonsernas röst, under strecket (Apple-juryn, punkt 9; Vägen till 10, idé 10).
+        <p style={{ margin: '8px 0 0', fontSize: 'var(--fs-2)', fontWeight: 700, color: verdict?.kind === 'missed' ? colors.amber : colors.text }}>
+          {line}
+        </p>
+      ) : null}
+
+      {trivia && waitLong ? (
+        // Väntan får innehåll: en rad om platsen när det är mer än åtta minuter kvar (idé 9).
+        <p className="clamp-2" style={{ margin: '4px 0 0', fontSize: 'var(--fs-2)', color: colors.textDim }}>
+          {t('Visste du?', 'Did you know?')} {trivia.text}
         </p>
       ) : null}
 
