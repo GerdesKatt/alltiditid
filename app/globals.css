@@ -31,6 +31,8 @@
   --rose-ink: #111111;
   --rose-muted: #4a4744;
   --rose-night: #2a2120; /* Nästa-kortet i mörkt läge */
+  /* Strecket överst och valt läge: natt på dagen, rosé på natten (varumärket syns även i mörkt). */
+  --accent-line: var(--ink);
 
   /* En familj i tre bredder: bred för namn och rubriker, normal för text, smal för täta rader. */
   --font-display: 'Archivo Variable', 'Helvetica Neue', Arial, system-ui, sans-serif;
@@ -119,6 +121,7 @@
     --signal-bg: #2a1810;
     --signal-ink: #ff7a4f;
     --rose-muted: #b9afad;
+    --accent-line: var(--rose);
 
     --c-border-strong: #6d6d68; /* 3,5:1 */
     --c-border-muted: #6d6d68;
@@ -142,6 +145,7 @@
   --signal-bg: #2a1810;
   --signal-ink: #ff7a4f;
   --rose-muted: #b9afad;
+  --accent-line: var(--rose);
 
   --c-border-strong: #6d6d68; /* 3,5:1 */
   --c-border-muted: #6d6d68;
@@ -409,7 +413,17 @@ body {
   width: 100vw;
   height: 1px;
   transform: translateX(-50%);
-  background-color: var(--c-text);
+  background-color: var(--accent-line);
+}
+
+/* Sidfoten längst ned även när sidan är kort (t.ex. Flyg utan data): ingen tom yta under den. */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - 40px);
+}
+.app-shell > #sidfot {
+  margin-top: auto;
 }
 
 /* Kompakt sidhuvud på mobilen, så att tavlan kommer högre upp. */
@@ -560,7 +574,7 @@ body {
 .app-tab--active {
   color: var(--c-text);
   font-weight: 700;
-  box-shadow: inset 0 2px 0 var(--c-text);
+  box-shadow: inset 0 2px 0 var(--accent-line);
 }
 .app-tab-icon {
   flex-shrink: 0;
@@ -614,7 +628,7 @@ body {
     left: 22%;
     right: 22%;
     height: 2px;
-    background-color: var(--c-text);
+    background-color: var(--accent-line);
   }
   /* Plats för menyn, så att sidfoten och sista raden går att nå. */
   .app-shell {
