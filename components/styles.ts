@@ -142,8 +142,8 @@ export function badgeLook(
       backgroundColor: opts.mine ? 'var(--rose)' : colors.badgeBg,
       color: opts.mine ? 'var(--rose-ink)' : colors.badgeText,
       border: `1.5px solid ${opts.mine ? 'var(--rose)' : colors.badgeBorder}`,
-      boxShadow: `inset 3px 0 0 ${stripe}`,
-      paddingLeft: '9px',
+      boxShadow: `inset 2px 0 0 ${stripe}`,
+      paddingLeft: '8px',
     };
   }
   if (opts.mine) return { backgroundColor: 'var(--rose)', color: 'var(--rose-ink)', border: '1.5px solid var(--rose)' };
