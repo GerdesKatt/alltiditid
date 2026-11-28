@@ -98,6 +98,17 @@ printf 'TRAFIKLAB_REALTIME_API_KEY=din-nyckel\nTRAFIKVERKET_API_KEY=din-nyckel\n
 npx wrangler pages dev out
 ```
 
+## Adresser från Lantmäteriet
+
+Kartan (OpenStreetMap) saknar ofta husnummer. Därför kan "Vart ska du?" också söka i Lantmäteriets
+belägenhetsadresser (öppna data, gratis). De ligger som små filer per gatunamn i `public/adresser/`,
+bland sajtens egna filer, och servern läser dem via `ASSETS`. Det kostar inga anrop och ingen kvot.
+
+1. Beställ "Belägenhetsadress Nedladdning, vektor" för hela Sverige på [Geotorget](https://geotorget.lantmateriet.se) (gratis konto).
+2. Bygg filerna: `npm run adresser -- <filen.gpkg>`. GeoJSONSeq (`ogr2ogr -f GeoJSONSeq ut.geojsonl in.gml`) går också.
+   Skriptet skriver vilka fält det valde. Heter de något annat: `--map gata=FÄLT,nummer=FÄLT,bokstav=FÄLT,ort=FÄLT`.
+3. Committa `public/adresser/` och publicera. Finns inga filer söker appen som förut (Photon och ResRobot).
+
 ## Driftsättning (Cloudflare Pages)
 
 - **Build command:** `npm run build`
