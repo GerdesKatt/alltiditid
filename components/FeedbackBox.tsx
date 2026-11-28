@@ -1,14 +1,12 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useLang } from '../lib/i18n';
 import { colors } from './styles';
 
 type State = 'closed' | 'open' | 'sending' | 'sent' | 'error';
 
 const MAX = 1000;
-const DISMISS_KEY = 'alltiditid:tyck-till-stangd';
-const DISMISS_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * "Tyck till": en smal rad som ligger fast längst ned (ovanför flikarna i mobilen) och fälls ut till en textruta. Synpunkten
@@ -20,38 +18,6 @@ export default function FeedbackBox({ tab }: { tab: 'trafik' | 'resa' | 'flyg' }
   const [text, setText] = useState('');
   const ready = text.trim().length >= 3 && text.length <= MAX;
   const boxRef = useRef<HTMLElement>(null);
-  // Listen kan stängas med krysset. Då visas raden i stället sist på sidan, och listen kommer tillbaka efter en vecka.
-  const [dismissed, setDismissed] = useState(true);
-  const [tabbarH, setTabbarH] = useState(0);
-  useEffect(() => {
-    try {
-      const at = Number(localStorage.getItem(DISMISS_KEY) || 0);
-      setDismissed(Date.now() - at < DISMISS_MS);
-    } catch {
-      setDismissed(false);
-    }
-  }, []);
-  // Listen ska ligga direkt mot flikmenyn i mobilen, så vi mäter menyns höjd i stället för att gissa.
-  useEffect(() => {
-    const bar = document.querySelector('.app-tabs');
-    if (!bar) return;
-    const measure = () => setTabbarH(getComputedStyle(bar).position === 'fixed' ? bar.getBoundingClientRect().height : 0);
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(bar);
-    window.addEventListener('resize', measure);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener('resize', measure);
-    };
-  }, []);
-  function dismiss() {
-    setDismissed(true);
-    try {
-      localStorage.setItem(DISMISS_KEY, String(Date.now()));
-    } catch {}
-  }
-  const pinned = state === 'closed' && !dismissed;
 
   // Raden ligger fast i nederkant; formuläret öppnas på sin plats sist på sidan, så dit skrollar vi.
   function open() {
@@ -87,17 +53,13 @@ export default function FeedbackBox({ tab }: { tab: 'trafik' | 'resa' | 'flyg' }
   };
 
   return (
-    <>
-    {pinned && tabbarH ? <div aria-hidden="true" style={{ height: '48px' }} /> : null}
     <section
       ref={boxRef}
       aria-label={t('Tyck till', 'Give feedback')}
-      className={pinned ? (tabbarH ? 'feedback-bar feedback-bar--fixed' : 'feedback-bar') : undefined}
+      className={state === 'closed' ? 'feedback-bar' : undefined}
       style={
-        pinned
-          ? { margin: '8px 0 0', padding: '4px 0', borderTop: `1px solid ${colors.border}`, backgroundColor: colors.bg, ...(tabbarH ? { bottom: `${tabbarH}px` } : {}) }
-          : state === 'closed'
-          ? { margin: '8px 0 24px', padding: '12px 0 0', borderTop: `1px solid ${colors.border}` }
+        state === 'closed'
+          ? { margin: '8px 0 0', padding: '4px 0', borderTop: `1px solid ${colors.border}`, backgroundColor: colors.bg }
           : { margin: '8px 0 24px', padding: '16px 0 0', borderTop: `1px solid ${colors.border}` }
       }
     >
@@ -114,7 +76,7 @@ export default function FeedbackBox({ tab }: { tab: 'trafik' | 'resa' | 'flyg' }
         </p>
       ) : state === 'closed' ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-          <span style={{ flex: 1, minWidth: 0, fontSize: '0.8125rem', color: colors.textDim }}>
+          <span style={{ fontSize: '0.8125rem', color: colors.textDim }}>
             {t('Saknar du något, eller är något fel?', 'Missing something, or is something wrong?')}
           </span>
           <button
@@ -133,16 +95,6 @@ export default function FeedbackBox({ tab }: { tab: 'trafik' | 'resa' | 'flyg' }
           >
             {t('Tyck till', 'Give feedback')}
           </button>
-          {pinned ? (
-            <button
-              type="button"
-              onClick={dismiss}
-              aria-label={t('Stäng', 'Close')}
-              style={{ flexShrink: 0, width: '36px', height: '36px', marginLeft: '-6px', border: 'none', background: 'none', color: colors.textDim, fontSize: '1.25rem', lineHeight: 1, cursor: 'pointer', padding: 0 }}
-            >
-              ×
-            </button>
-          ) : null}
         </div>
       ) : (
         <form onSubmit={send}>
@@ -208,6 +160,5 @@ export default function FeedbackBox({ tab }: { tab: 'trafik' | 'resa' | 'flyg' }
         </form>
       )}
     </section>
-    </>
   );
 }

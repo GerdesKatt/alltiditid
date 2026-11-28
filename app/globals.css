@@ -613,17 +613,10 @@ html {
   box-shadow: 0 0 0 100vmax var(--c-bg);
   clip-path: inset(0 -100vmax);
 }
-/* I mobilen: en list i full bredd direkt ovanpå flikmenyn (höjden mäts i FeedbackBox). */
-.feedback-bar--fixed {
-  position: fixed;
-  left: 0;
-  right: 0;
-  margin: 0 !important;
-  padding: 4px 16px !important;
-  box-shadow: none;
-  clip-path: none;
-}
 @media (max-width: 767px) {
+  .feedback-bar {
+    bottom: calc(65px + env(safe-area-inset-bottom));
+  }
   .app-tabs {
     position: fixed;
     left: 0;
