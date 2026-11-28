@@ -328,8 +328,14 @@ export default function DepartureBoard({
             >
               {direction === 'arrivals' ? t('Ankomster till', 'Arrivals at') : t('Avgångar från', 'Departures from')}
             </span>
-            <h1 style={{ fontSize: stopName.length > 16 ? 'clamp(1.5rem, 6.5vw, 2rem)' : stopName.length > 10 ? 'clamp(1.75rem, 7.5vw, 2.5rem)' : 'clamp(2rem, 9vw, 2.75rem)', fontWeight: 800, fontStretch: 'var(--stretch-head)', lineHeight: 1, letterSpacing: '-0.015em', margin: 0, color: colors.text, overflowWrap: 'break-word', hyphens: 'auto' }}>
-              {stopName}
+            <h1 style={{ fontSize: stopName.length > 20 ? 'clamp(1.375rem, 6vw, 1.875rem)' : stopName.length > 16 ? 'clamp(1.5rem, 6.5vw, 2rem)' : stopName.length > 10 ? 'clamp(1.75rem, 7.5vw, 2.5rem)' : 'clamp(2rem, 9vw, 2.75rem)', fontWeight: 800, fontStretch: 'var(--stretch-head)', lineHeight: 1, letterSpacing: '-0.015em', margin: 0, color: colors.text, overflowWrap: 'break-word', hyphens: 'auto' }}>
+              {/* Ord med bindestreck (T-Centralen) bryts aldrig vid strecket, bara mellan orden. */}
+              {stopName.split(' ').map((word, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 ? ' ' : null}
+                  {word.includes('-') ? <span style={{ whiteSpace: 'nowrap' }}>{word}</span> : word}
+                </React.Fragment>
+              ))}
             </h1>
           </div>
           <button

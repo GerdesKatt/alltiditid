@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { isRailMode, lineSwatch } from '../lib/lineFormat';
+import { lineSwatch } from '../lib/lineFormat';
 import type { Departure } from '../lib/types';
 
 /**
@@ -129,28 +129,28 @@ export function badgeLook(
   item: Pick<Departure, 'line' | 'transportMode'> & { operator?: string },
   opts: { cancelled?: boolean; mine?: boolean } = {}
 ): CSSProperties {
+  // En regel per trafikslag, så att man ser skillnad utan att läsa:
+  // tunnelbana, pendel och spårvagn = fyrkantig kontur, linjefärgen som 2 px streck till vänster;
+  // buss = rundad kontur, streck bara om linjen har egen färg (blåbussarna); fjärr- och regionaltåg = fylld;
+  // båt = streckad kontur. Din sparade linje är rosa, inställda är grå.
+  const mode = item.transportMode;
+  const radius = mode === 'bus' ? '999px' : 0;
   if (opts.cancelled) {
-    return { backgroundColor: colors.surfaceRaised, color: colors.textDim, border: `1.5px solid ${colors.borderStrong}` };
+    return { backgroundColor: colors.surfaceRaised, color: colors.textDim, border: `1.5px solid ${colors.borderStrong}`, borderRadius: radius };
   }
   const swatch = lineSwatch(item);
-  if (swatch) {
-    // Linjens färg som ett diskret streck i brickans vänstra kant (tunnelbana, pendeltåg, spårvagn i Göteborg).
-    // Vit och svart linjefärg (Göteborgs 1 och 11) syns inte mot alla ytor, så de får textfärgen som streck.
-    const neutral = ['#ffffff', '#111111'].includes(swatch.bg.toLowerCase());
-    const stripe = neutral ? colors.badgeBorder : swatch.bg;
-    return {
-      backgroundColor: opts.mine ? 'var(--rose)' : colors.badgeBg,
-      color: opts.mine ? 'var(--rose-ink)' : colors.badgeText,
-      border: `1.5px solid ${opts.mine ? 'var(--rose)' : colors.badgeBorder}`,
-      boxShadow: `inset 2px 0 0 ${stripe}`,
-      paddingLeft: '8px',
-    };
+  const neutral = swatch ? ['#ffffff', '#111111'].includes(swatch.bg.toLowerCase()) : false;
+  const stripe = swatch ? { boxShadow: `inset 2px 0 0 ${neutral ? colors.badgeBorder : swatch.bg}`, paddingLeft: '8px' } : {};
+  if (opts.mine) {
+    return { backgroundColor: 'var(--rose)', color: 'var(--rose-ink)', border: '1.5px solid var(--rose)', borderRadius: radius, ...stripe };
   }
-  if (opts.mine) return { backgroundColor: 'var(--rose)', color: 'var(--rose-ink)', border: '1.5px solid var(--rose)' };
-  if (isRailMode(item.transportMode)) {
-    return { backgroundColor: colors.badgeBorder, color: colors.bg, border: `1.5px solid ${colors.badgeBorder}` };
+  if (mode === 'train') {
+    return { backgroundColor: colors.badgeBorder, color: colors.bg, border: `1.5px solid ${colors.badgeBorder}`, borderRadius: 0 };
   }
-  return { backgroundColor: colors.badgeBg, color: colors.badgeText, border: `1.5px solid ${colors.badgeBorder}` };
+  if (mode === 'ferry') {
+    return { backgroundColor: colors.badgeBg, color: colors.badgeText, border: `1.5px dashed ${colors.badgeBorder}`, borderRadius: 0 };
+  }
+  return { backgroundColor: colors.badgeBg, color: colors.badgeText, border: `1.5px solid ${colors.badgeBorder}`, borderRadius: radius, ...stripe };
 }
 
 /** Textfält (stationssök, filter). */

@@ -120,6 +120,10 @@ export function lineSwatch(item: Pick<Departure, 'line' | 'transportMode'> & { o
     if (num === 13 || num === 14) return SL_RED;
     if (num >= 17 && num <= 19) return SL_GREEN;
   }
+  // Blåbussarna i Stockholms innerstad (1–4 och 6). Bara när SL står som trafikbolag, eftersom andra städer har samma nummer.
+  if (item.transportMode === 'bus' && /\bSL\b|storstockholms lokaltrafik/i.test(item.operator || '') && ['1', '2', '3', '4', '6'].includes(n) && /^(buss\s*)?\d+$/i.test(item.line.trim())) {
+    return SL_BLUE;
+  }
   // Spårvagn i Göteborg: bara när trafikbolaget är känt, eftersom Stockholm och Norrköping har samma nummer.
   if (item.transportMode === 'tram' && /västtrafik|göteborgs spårväg/i.test(item.operator || '')) {
     return GBG_TRAM[n] || null;
