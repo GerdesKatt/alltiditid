@@ -20,7 +20,7 @@ import { loadMyFlight, MY_FLIGHT_EVENT, storeMyFlight, type MyFlight } from '../
 import SheetBackdrop from './SheetBackdrop';
 import { colors, textInput } from './styles';
 import ModeTabs, { type AppTab, type MenuKey } from './ModeTabs';
-import { loadModeFor, storeModeFor } from '../lib/modeMemory';
+import { loadModeFor, MODE_CHOICES, storeModeFor } from '../lib/modeMemory';
 import { pickNextDeparture } from '../lib/nextPick.mjs';
 import { habitFor, recordOpen } from '../lib/habits';
 import { useWalk } from '../lib/useWalk';
@@ -121,14 +121,7 @@ type AppProps = {
 };
 
 /** Trafikslagen som kan väljas på tavlan, i den ordning de visas. */
-const BOARD_MODES: { key: Exclude<TransportMode, 'all'>; label: string }[] = [
-  { key: 'train', label: 'Tåg' },
-  { key: 'commuter', label: 'Pendel' },
-  { key: 'subway', label: 'T-bana' },
-  { key: 'tram', label: 'Spårvagn' },
-  { key: 'bus', label: 'Buss' },
-  { key: 'ferry', label: 'Båt' },
-];
+const BOARD_MODES = MODE_CHOICES;
 
 export default function App({ initialStop, page, intro }: AppProps) {
   const { lang, t } = useLang();
