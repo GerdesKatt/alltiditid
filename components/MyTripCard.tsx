@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Departure } from '../lib/types';
 import type { MyTrip } from '../lib/myTrip';
 import { clockFor, countdownFor, lineBadge, lineName, isAlarmDelay, parseLocal } from '../lib/lineFormat';
@@ -6,6 +7,10 @@ import { badgeLook, colors, fonts, labelStyle } from './styles';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { lineLabel, trackLabel, useLang } from '../lib/i18n';
 import { trackText } from '../lib/lineNames.mjs';
+import { secondsLabel, timelineFill } from '../lib/countdown.mjs';
+import { useLiveNow } from '../lib/useLiveNow';
+import { useWakeLock } from '../lib/wakeLock';
+import Icon from './Icon';
 
 type Props = {
   trip: MyTrip;
@@ -67,13 +72,77 @@ export default function MyTripCard({
   const headDelayed = Boolean(head && isAlarmDelay(head));
   const headLate = head?.status === 'delayed' && !headDelayed;
   const headSchedule = head && !headCancelled && !headDelayed && head.hasRealtime === false;
-  const headBig = head ? nu(countdownFor(head, now)) : '';
-  // Gå nu / Gå om X min / Hinner inte: samma regel som på tavlan.
   const headAt = head ? parseLocal(head.expectedAt) : null;
+  // De sista två minuterna tickar kortet varje sekund och visar tiotal sekunder ("1:40").
+  const liveNow = useLiveNow(now, headCancelled ? null : headAt);
+  const headSeconds = head && headAt !== null && !headCancelled && !head.pending ? secondsLabel(headAt - liveNow) : null;
+  const headBig = head ? headSeconds ?? nu(countdownFor(head, liveNow)) : '';
+  // Gå nu / Gå om X min / Hinner inte: samma regel som på tavlan.
   const verdict =
     head && walkMinutes !== null && headAt !== null && !headCancelled
-      ? walkVerdict(Math.floor((headAt - now) / 60000), walkMinutes, platformMinutes(head.transportMode))
+      ? walkVerdict(Math.floor((headAt - liveNow) / 60000), walkMinutes, platformMinutes(head.transportMode))
       : null;
+  // Strecket som tidslinje: fylls de sista tio minuterna före "gå senast" (med gångtid)
+  // eller före avgången (utan). Varumärkets ornament blir svaret (Vägen till 10, idé 1).
+  const deadline =
+    head && headAt !== null && !headCancelled
+      ? headAt - (walkMinutes !== null ? (walkMinutes + platformMinutes(head.transportMode)) * 60_000 : 0)
+      : null;
+  const fill = deadline !== null ? timelineFill(deadline - liveNow) : 0;
+
+  // Telefonen vibrerar kort när beskedet blir "Gå nu" medan appen är öppen (idé 6). Ingen notis:
+  // bara när gångtid är på och sidan syns, och bara i webbläsare som kan (Android).
+  const lastKind = useRef<string | null>(null);
+  const kind = verdict?.kind ?? null;
+  useEffect(() => {
+    const before = lastKind.current;
+    lastKind.current = kind;
+    if (kind !== 'go' || before !== 'relax' || typeof navigator === 'undefined' || document.hidden) return;
+    try {
+      navigator.vibrate?.([140, 90, 140]);
+    } catch {
+      // Ingen vibration i den här webbläsaren.
+    }
+  }, [kind]);
+
+  // Storläge: bara siffran, så stor det går (idé 21). Skärmen hålls tänd där och vid "Gå nu" (idé 15).
+  const [big, setBig] = useState(false);
+  useWakeLock(big || kind === 'go');
+
+  // Läs upp med webbläsarens egen talsyntes (idé 19). Knappen visas bara där den finns.
+  const [canSpeak, setCanSpeak] = useState(false);
+  useEffect(() => setCanSpeak(typeof window !== 'undefined' && 'speechSynthesis' in window), []);
+  const spoken = head
+    ? [
+        `${lineLabel(name || badge, lang)} ${t('mot', 'to')} ${trip.destination}`,
+        headCancelled
+          ? t('inställd', 'cancelled')
+          : spokenWhen(headAt, liveNow, clockFor(head), t),
+        headDelayed ? `${t('försenad, ny tid', 'delayed, new time')} ${clockFor(head)}` : '',
+        head.track ? trackLabel(trackText(head.track, head.transportMode), lang) : '',
+        verdict
+          ? verdict.kind === 'go'
+            ? t('Gå nu.', 'Leave now.')
+            : verdict.kind === 'missed'
+            ? t('Den hinner du inte.', "You won't make it.")
+            : t(`Gå om ${verdict.leaveIn} minuter.`, `Leave in ${verdict.leaveIn} minutes.`)
+          : '',
+      ]
+        .filter(Boolean)
+        .join(', ')
+    : '';
+  function speak() {
+    try {
+      const synth = window.speechSynthesis;
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(spoken);
+      u.lang = lang === 'en' ? 'en-GB' : 'sv-SE';
+      u.rate = 1;
+      synth.speak(u);
+    } catch {
+      // Talsyntesen svarade inte.
+    }
+  }
   const label = (text: string) => (
     <span style={{ ...labelStyle, flexShrink: 0 }}>
       {text}
@@ -117,6 +186,18 @@ export default function MyTripCard({
           </span>
           {name ? <span className="sr-only">, {name}</span> : null}
         </span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+        {canSpeak && head ? (
+          <button
+            type="button"
+            onClick={speak}
+            className="row-link"
+            aria-label={t('Läs upp nästa avgång', 'Read the next departure aloud')}
+            style={iconButton}
+          >
+            <Icon name="speaker" size={18} />
+          </button>
+        ) : null}
         {label(
           auto === 'habit'
             ? t('Du brukar ta', 'You usually take')
@@ -124,6 +205,7 @@ export default function MyTripCard({
             ? nextLabel(autoMode, t)
             : t('Din avgång', 'Your departure')
         )}
+        </span>
       </div>
 
       <p className="sr-only" aria-live={auto ? undefined : 'polite'}>
@@ -156,12 +238,19 @@ export default function MyTripCard({
               overflowWrap: 'anywhere',
             }}
           >
-            <span aria-hidden="true" style={{ flex: 1, minWidth: 0, whiteSpace: !verdict && auto && showingStop ? 'nowrap' : undefined }}>
+            {/* Ett tryck på siffran visar storläget (idé 21). */}
+            <button
+              type="button"
+              onClick={() => setBig(true)}
+              aria-label={t('Visa nästa avgång i storläge', 'Show the next departure full screen')}
+              className="big-open"
+              style={{ flex: 1, minWidth: 0, whiteSpace: !verdict && auto && showingStop ? 'nowrap' : undefined }}
+            >
               {/* Siffran rullar upp när den byts (av vid "minska rörelse"). */}
-              <span key={headBig} className="tick-in">
+              <span aria-hidden="true" key={headBig} className="tick-in">
                 {headBig}
               </span>
-            </span>
+            </button>
             {!verdict && auto && showingStop ? (
               // Spara står bredvid siffran i stället för på en egen rad: kortet blir en rad lägre
               // och tavlan får plats högre upp.
@@ -200,6 +289,7 @@ export default function MyTripCard({
           <div
             aria-hidden="true"
             style={{
+              position: 'relative',
               display: 'flex',
               flexWrap: 'wrap',
               justifyContent: 'space-between',
@@ -210,6 +300,8 @@ export default function MyTripCard({
               fontSize: 'var(--fs-2)',
             }}
           >
+            {/* Strecket som tidslinje: fylls från vänster tills det är dags att gå. */}
+            {deadline !== null ? <span className="timeline-fill" style={{ width: `${(fill * 100).toFixed(2)}%` }} /> : null}
             <span style={{ color: headCancelled || headDelayed ? colors.amber : colors.text, fontWeight: headCancelled ? 700 : 400 }}>
               {headCancelled
                 ? t('Inställd', 'Cancelled')
@@ -300,9 +392,139 @@ export default function MyTripCard({
       </div>
       )}
 
+      {big && head ? (
+        <BigView
+          onClose={() => setBig(false)}
+          badge={lineLabel(badge, lang)}
+          look={look}
+          destination={trip.destination}
+          big={headBig}
+          cancelled={headCancelled}
+          status={
+            headCancelled
+              ? t('Inställd', 'Cancelled')
+              : `${headDelayed || headLate ? t('Väntas', 'Expected') : t('Går', 'Departs')} ${clockFor(head)}${
+                  head.track ? ` · ${trackLabel(trackText(head.track, head.transportMode), lang)}` : ''
+                }`
+          }
+          verdict={
+            verdict
+              ? verdict.kind === 'go'
+                ? t('Gå nu', 'Go now')
+                : verdict.kind === 'missed'
+                ? t('Hinner inte', "Won't make it")
+                : t(`Gå om ${verdict.leaveIn} min`, `Leave in ${verdict.leaveIn} min`)
+              : ''
+          }
+          fill={deadline !== null ? fill : null}
+          closeLabel={t('Stäng', 'Close')}
+          title={t('Nästa avgång', 'Next departure')}
+        />
+      ) : null}
     </section>
   );
 }
+
+/** "om 3 minuter", "nu" eller "klockan 11:42", för uppläsningen. */
+function spokenWhen(at: number | null, now: number, clock: string, t: (sv: string, en: string) => string): string {
+  if (at === null) return `${t('klockan', 'at')} ${clock}`;
+  const s = Math.floor((at - now) / 1000);
+  if (s < 30) return t('går nu', 'departing now');
+  if (s < 120) return t(`om ${Math.floor(s / 10) * 10} sekunder`, `in ${Math.floor(s / 10) * 10} seconds`);
+  const m = Math.floor(s / 60);
+  if (m >= 60) return `${t('klockan', 'at')} ${clock}`;
+  return t(`om ${m} minuter`, `in ${m} minutes`);
+}
+
+/**
+ * Storläget: Nästa-kortet i helskärm med bara det som behövs, siffran så stor det går.
+ * För den som ser dåligt, på håll från ett bord, eller för att visa vännen bredvid.
+ */
+function BigView(props: {
+  onClose: () => void;
+  badge: string;
+  look: React.CSSProperties;
+  destination: string;
+  big: string;
+  cancelled: boolean;
+  status: string;
+  verdict: string;
+  fill: number | null;
+  closeLabel: string;
+  title: string;
+}) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const { onClose } = props;
+  useEffect(() => {
+    const before = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = overflow;
+      before?.focus?.();
+    };
+  }, [onClose]);
+  if (typeof document === 'undefined') return null;
+  return createPortal(
+    <div role="dialog" aria-modal="true" aria-label={props.title} className="hero-card big-view expand-in" onClick={onClose}>
+      <button ref={closeRef} type="button" onClick={onClose} className="row-link big-view-close">
+        {props.closeLabel}
+      </button>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', fontSize: 'var(--fs-5)', fontWeight: 700 }}>
+        <span
+          style={{
+            ...props.look,
+            display: 'inline-block',
+            minWidth: '48px',
+            padding: '2px 8px',
+            fontFamily: fonts.display,
+            fontWeight: 800,
+            textAlign: 'center',
+          }}
+        >
+          {props.badge}
+        </span>
+        <span>{props.destination}</span>
+      </div>
+      <div
+        aria-live="off"
+        className="big-view-number"
+        // Så stor det går: bredden räcker för texten ("1:40", "3 min", "11:42"), högst 42 % av höjden.
+        style={{ textDecoration: props.cancelled ? 'line-through' : 'none', fontSize: `min(${Math.floor(140 / Math.max(2, props.big.length))}vw, 42vh)` }}
+      >
+        <span key={props.big} className="tick-in">
+          {props.big}
+        </span>
+      </div>
+      <div style={{ position: 'relative', borderTop: `1px solid ${colors.text}`, paddingTop: '12px', fontSize: 'var(--fs-4)' }}>
+        {props.fill !== null ? <span className="timeline-fill" style={{ width: `${(props.fill * 100).toFixed(2)}%`, height: '5px', top: '-3px' }} /> : null}
+        {props.status}
+        {props.verdict ? <strong style={{ display: 'block', marginTop: '6px', fontSize: 'var(--fs-5)' }}>{props.verdict}</strong> : null}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+const iconButton: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '44px',
+  height: '44px',
+  margin: '-12px 0 -12px -8px',
+  padding: 0,
+  border: 'none',
+  background: 'none',
+  color: colors.text,
+  cursor: 'pointer',
+};
 
 const textButton: React.CSSProperties = {
   minHeight: '44px',
