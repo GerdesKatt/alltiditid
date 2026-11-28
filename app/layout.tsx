@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import React from 'react';
-import '@fontsource-variable/inter/wght.css';
-import '@fontsource-variable/schibsted-grotesk/wght.css';
+// Archivo med både vikt- och breddaxel (62–125 %), ett typsnitt för hela appen.
+import '@fontsource-variable/archivo/standard.css';
 import './globals.css';
 import { THEME_SCRIPT } from '../lib/theme';
 import { PREFETCH_SCRIPT } from '../lib/prefetch';
@@ -11,10 +11,10 @@ export const metadata: Metadata = {
   description: 'Koll på avgångar, ankomster och förseningar i realtid.',
   icons: {
     icon: [
-      { url: '/icon-v2.svg', type: 'image/svg+xml' },
+      { url: '/favicon-v3.svg', type: 'image/svg+xml' },
     ],
-    shortcut: '/icon-v2.svg',
-    apple: '/apple-touch-icon-v2.png',
+    shortcut: '/favicon-v3.svg',
+    apple: '/apple-touch-icon-v3.png',
   },
   manifest: '/manifest.webmanifest',
   metadataBase: new URL('https://alltiditid.se'),
@@ -27,13 +27,13 @@ export const metadata: Metadata = {
     url: 'https://alltiditid.se/',
     title: 'alltid i tid – nästa avgång, i realtid',
     description: 'Avgångar, ankomster och förseningar i realtid för hela Sverige. Utan reklam, utan konto.',
-    images: [{ url: '/og-v2.png', width: 1200, height: 630, alt: 'alltid i tid: nästa avgång, i realtid' }],
+    images: [{ url: '/og-v3.png', width: 1200, height: 630, alt: 'alltid i tid: nästa avgång, i realtid' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'alltid i tid – nästa avgång, i realtid',
     description: 'Avgångar, ankomster och förseningar i realtid för hela Sverige.',
-    images: ['/og-v2.png'],
+    images: ['/og-v3.png'],
   },
   appleWebApp: {
     capable: true,
@@ -54,8 +54,8 @@ export default function RootLayout({
         {/* Startar hämtningen av tavlan innan React har laddat (lib/prefetch.ts). */}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: PREFETCH_SCRIPT }} />
-        <meta name="theme-color" content="#0e0e0e" media="(prefers-color-scheme: dark)" />
-        <meta name="theme-color" content="#f4f2ec" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#ecece8" media="(prefers-color-scheme: light)" />
         {/*
           Google Analytics laddas inte här utan i lib/analytics.ts, och bara om ett
           mätnings-id finns och efter samtycke via ConsentBanner.

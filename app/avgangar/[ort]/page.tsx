@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       url,
       title,
       description: description(city),
-      images: [{ url: '/og-v2.png', width: 1200, height: 630, alt: 'alltid i tid: nästa avgång, i realtid' }],
+      images: [{ url: '/og-v3.png', width: 1200, height: 630, alt: 'alltid i tid: nästa avgång, i realtid' }],
     },
   };
 }

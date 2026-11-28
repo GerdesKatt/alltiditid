@@ -1,34 +1,43 @@
 /*
- * Färgtema "alltid i tid": svart och benvitt, skarpa hörn, stor typografi.
- * Dag (ljust) är svart på papper, natt (telefonens mörka läge) är papper på svart.
+ * Färgtema "Rosa betong": sval betong, natt, rosé och skarpa hörn.
+ * Dag (ljust) är natt på betong, natt (telefonens mörka läge) är betong på natt.
+ * Rosé är varumärkets färg och används bara som yta, alltid med svart text.
  * Signalfärgen (orange) används bara för avvikelser: försenat, inställt, fel.
- * Allt annat är svart, papper och sten. Alla textfärger klarar WCAG 2.2 AA (4,5:1),
- * ramar på knappar och fält minst 3:1.
+ * Alla textfärger klarar WCAG 2.2 AA (4,5:1), ramar på knappar och fält minst 3:1.
  */
 :root {
   color-scheme: light;
 
   /* Varumärkets tokens: dag */
-  --bg: #f4f2ec; /* Papper */
-  --surface: #f4f2ec;
-  --surface-2: #e8e5dd;
-  --border: #d9d6ce; /* linjer */
-  --ink: #0e0e0e; /* Natt */
-  --muted: #5c5a55; /* Sten, mörk: 6,2:1 */
+  --bg: #ecece8; /* Betong */
+  --surface: #ecece8;
+  --surface-2: #e1e1dc;
+  --border: #cfcfc9; /* linjer */
+  --ink: #111111; /* Natt: 16:1 */
+  --muted: #5f5f5a; /* Sten: 5,4:1 */
   --brand: var(--ink);
   --brand-tint: var(--surface-2);
   --on-brand: var(--bg);
   --ok: var(--ink);
-  --signal: #b34d00; /* Signal som text på papper: 4,7:1 */
-  --signal-bg: #f8e7d8;
-  --signal-ink: #9a4200; /* på --signal-bg: 5,5:1 */
+  --signal: #b5360e; /* Signal som text på betong: 5,1:1 */
+  --signal-bg: #f3ddd3;
+  --signal-ink: #8f2a0a; /* på --signal-bg: 6,3:1 */
   --late: var(--signal);
   --late-bg: var(--signal-bg);
   --late-ink: var(--signal-ink);
   --cancel: var(--signal);
+  /* Rosé: varumärkets yta. Text på rosé är natt (12:1) eller --rose-muted (5,6:1). */
+  --rose: #f2c4be;
+  --rose-ink: #111111;
+  --rose-muted: #4a4744;
+  --rose-night: #2a2120; /* Nästa-kortet i mörkt läge */
 
-  --font-display: 'Schibsted Grotesk Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-text: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* En familj i tre bredder: bred för namn och rubriker, normal för text, smal för täta rader. */
+  --font-display: 'Archivo Variable', 'Helvetica Neue', Arial, system-ui, sans-serif;
+  --font-text: 'Archivo Variable', 'Helvetica Neue', Arial, system-ui, sans-serif;
+  --stretch-wide: 125%;
+  --stretch-head: 112%;
+  --stretch-tight: 80%;
 
   /* Skarpa hörn överallt. */
   --radius-card: 0;
@@ -41,8 +50,8 @@
   --c-surface: var(--surface);
   --c-surface-raised: var(--surface-2);
   --c-border: var(--border);
-  --c-border-strong: #76736c; /* 4,2:1 mot papper */
-  --c-border-muted: #76736c;
+  --c-border-strong: #75756f; /* 4,1:1 mot betong */
+  --c-border-muted: #75756f;
   --c-text: var(--ink);
   --c-text-soft: var(--ink);
   --c-text-muted: #2b2a28;
@@ -68,7 +77,7 @@
   --c-message-bg: var(--surface-2);
   --c-switch-bg: var(--ink);
   --c-switch-text: var(--bg);
-  --c-shadow: rgba(14, 14, 14, 0.16);
+  --c-shadow: rgba(17, 17, 17, 0.16);
   --c-ok-bg: var(--surface-2);
   --c-ok-border: var(--ink);
   --c-ok-text: var(--ink);
@@ -79,7 +88,7 @@
   --c-cancelled-border: var(--signal);
   --c-cancelled-text: var(--signal-ink);
   --c-scheduled-bg: var(--surface-2);
-  --c-scheduled-border: #76736c;
+  --c-scheduled-border: #75756f;
   --c-scheduled-text: var(--muted);
   --c-error-bg: var(--signal-bg);
   --c-error-text: var(--signal-ink);
@@ -91,55 +100,57 @@
   --c-focus: var(--ink);
 
   /* Inverterat block (Din avgång): mörk ruta på dagen, ljus på natten. */
-  --inv-muted: #8e8b84;
-  --inv-signal: #ff8a1f;
-  --inv-border: #3a3936;
+  --inv-muted: #9a9a94;
+  --inv-signal: #ff6b3d;
+  --inv-border: #3a3a37;
 }
 
 /* Natt: papper på svart. Följer telefonen, om man inte valt Ljus eller Mörk själv (data-theme). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --bg: #0e0e0e;
-    --surface: #0e0e0e;
-    --surface-2: #1a1a19;
-    --border: #2a2927;
-    --ink: #f4f2ec;
-    --muted: #8e8b84; /* Sten: 5,7:1 */
-    --signal: #ff8a1f; /* 8,2:1 */
-    --signal-bg: #231609;
-    --signal-ink: #ff8a1f;
+    --bg: #121211;
+    --surface: #121211;
+    --surface-2: #1c1c1b;
+    --border: #2c2c2a;
+    --ink: #ecece8;
+    --muted: #9a9a94; /* Sten: 6,5:1 */
+    --signal: #ff6b3d; /* 6,6:1 */
+    --signal-bg: #2a1810;
+    --signal-ink: #ff7a4f;
+    --rose-muted: #b9afad;
 
-    --c-border-strong: #6b6963; /* 3,5:1 */
-    --c-border-muted: #6b6963;
-    --c-text-muted: #d6d3cb;
-    --c-scheduled-border: #6b6963;
+    --c-border-strong: #6d6d68; /* 3,5:1 */
+    --c-border-muted: #6d6d68;
+    --c-text-muted: #d6d6d0;
+    --c-scheduled-border: #6d6d68;
     --c-shadow: rgba(0, 0, 0, 0.6);
-    --inv-muted: #5c5a55;
-    --inv-signal: #b34d00;
-    --inv-border: #d9d6ce;
+    --inv-muted: #5f5f5a;
+    --inv-signal: #b5360e;
+    --inv-border: #cfcfc9;
   }
 }
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #0e0e0e;
-  --surface: #0e0e0e;
-  --surface-2: #1a1a19;
-  --border: #2a2927;
-  --ink: #f4f2ec;
-  --muted: #8e8b84; /* Sten: 5,7:1 */
-  --signal: #ff8a1f; /* 8,2:1 */
-  --signal-bg: #231609;
-  --signal-ink: #ff8a1f;
+  --bg: #121211;
+  --surface: #121211;
+  --surface-2: #1c1c1b;
+  --border: #2c2c2a;
+  --ink: #ecece8;
+  --muted: #9a9a94; /* Sten: 6,5:1 */
+  --signal: #ff6b3d; /* 6,6:1 */
+  --signal-bg: #2a1810;
+  --signal-ink: #ff7a4f;
+  --rose-muted: #b9afad;
 
-  --c-border-strong: #6b6963; /* 3,5:1 */
-  --c-border-muted: #6b6963;
-  --c-text-muted: #d6d3cb;
-  --c-scheduled-border: #6b6963;
+  --c-border-strong: #6d6d68; /* 3,5:1 */
+  --c-border-muted: #6d6d68;
+  --c-text-muted: #d6d6d0;
+  --c-scheduled-border: #6d6d68;
   --c-shadow: rgba(0, 0, 0, 0.6);
-  --inv-muted: #5c5a55;
-  --inv-signal: #b34d00;
-  --inv-border: #d9d6ce;
+  --inv-muted: #5f5f5a;
+  --inv-signal: #b5360e;
+  --inv-border: #cfcfc9;
 }
 
 /* Byter färgerna inne i ett block: allt som läser --c-* blir inverterat. */
@@ -167,18 +178,46 @@
   color: var(--bg);
 }
 
-/* Kortet "Nästa avgång" i mörkt läge: ingen stor ljus yta mitt i svart. Mörk yta, linje överst. */
+/*
+ * Kortet "Nästa avgång": varumärkets rosa yta med svart text i ljust läge.
+ * Signalfärgen mörknar på rosa, så att även liten text klarar 5,3:1.
+ */
+.hero-card {
+  --c-bg: var(--rose);
+  --c-surface: var(--rose);
+  --c-surface-raised: var(--rose);
+  --c-border: rgba(17, 17, 17, 0.2);
+  --c-border-strong: var(--rose-muted);
+  --c-text: var(--rose-ink);
+  --c-text-muted: var(--rose-ink);
+  --c-text-dim: var(--rose-muted);
+  --c-text-faint: var(--rose-muted);
+  --c-amber: #8f2a0a;
+  --c-delayed-bg: transparent;
+  --c-delayed-text: #8f2a0a;
+  --c-cancelled-text: #8f2a0a;
+  --c-accent-strong: var(--rose-ink);
+  --c-on-accent: var(--rose);
+  --c-badge-bg: transparent;
+  --c-badge-border: var(--rose-ink);
+  --c-badge-text: var(--rose-ink);
+  --brand: var(--rose-ink);
+  background-color: var(--rose);
+  color: var(--rose-ink);
+}
+
+/* I mörkt läge: ingen stor ljus yta mitt i svart. Mörk rosébrun yta med rosa streck överst. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .hero-card {
-    --c-bg: var(--surface-2);
-    --c-surface: var(--surface-2);
-    --c-surface-raised: var(--surface-2);
-    --c-border: var(--border);
-    --c-border-strong: #6b6963;
+    --c-bg: var(--rose-night);
+    --c-surface: var(--rose-night);
+    --c-surface-raised: var(--rose-night);
+    --c-border: #4a3a38;
+    --c-border-strong: #7a6a68;
     --c-text: var(--ink);
     --c-text-muted: var(--ink);
-    --c-text-dim: var(--muted);
-    --c-text-faint: var(--muted);
+    --c-text-dim: var(--rose-muted);
+    --c-text-faint: var(--rose-muted);
     --c-amber: var(--signal);
     --c-delayed-text: var(--signal-ink);
     --c-cancelled-text: var(--signal-ink);
@@ -187,21 +226,21 @@
     --c-badge-border: var(--ink);
     --c-badge-text: var(--ink);
     --brand: var(--ink);
-    background-color: var(--surface-2);
+    background-color: var(--rose-night);
     color: var(--ink);
-    border-top: 2px solid var(--ink);
+    border-top: 2px solid var(--rose);
   }
 }
 :root[data-theme='dark'] .hero-card {
-  --c-bg: var(--surface-2);
-  --c-surface: var(--surface-2);
-  --c-surface-raised: var(--surface-2);
-  --c-border: var(--border);
-  --c-border-strong: #6b6963;
+  --c-bg: var(--rose-night);
+  --c-surface: var(--rose-night);
+  --c-surface-raised: var(--rose-night);
+  --c-border: #4a3a38;
+  --c-border-strong: #7a6a68;
   --c-text: var(--ink);
   --c-text-muted: var(--ink);
-  --c-text-dim: var(--muted);
-  --c-text-faint: var(--muted);
+  --c-text-dim: var(--rose-muted);
+  --c-text-faint: var(--rose-muted);
   --c-amber: var(--signal);
   --c-delayed-text: var(--signal-ink);
   --c-cancelled-text: var(--signal-ink);
@@ -210,9 +249,9 @@
   --c-badge-border: var(--ink);
   --c-badge-text: var(--ink);
   --brand: var(--ink);
-  background-color: var(--surface-2);
+  background-color: var(--rose-night);
   color: var(--ink);
-  border-top: 2px solid var(--ink);
+  border-top: 2px solid var(--rose);
 }
 
 /* "Minska rörelse" i telefonen stänger av animationer. */
@@ -234,13 +273,14 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Rubriker och ordmärket i Schibsted Grotesk. */
+/* Rubriker i Archivo, något bredare än brödtexten. */
 h1,
 h2,
 h3,
 .font-display {
   font-family: var(--font-display);
-  letter-spacing: -0.035em;
+  font-stretch: var(--stretch-head);
+  letter-spacing: -0.015em;
 }
 
 /*
@@ -346,9 +386,12 @@ input[type='search']::-webkit-search-decoration {
     /* Får radbrytas: vid stor text hamnar språkväljaren under loggan. */
     gap: 2px 12px !important;
   }
-  .site-tagline,
+  /* Sloganen syns även på mobilen, i liten normal text under ordmärket. */
   .site-nav-board {
     display: none !important;
+  }
+  .site-header {
+    padding-top: 8px !important;
   }
 }
 
@@ -472,9 +515,10 @@ input[type='search']::-webkit-search-decoration {
   background: transparent;
   color: var(--c-text-dim);
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  font-stretch: var(--stretch-wide);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
 }
@@ -515,8 +559,8 @@ input[type='search']::-webkit-search-decoration {
     padding: 6px 2px 4px;
     flex-direction: column;
     gap: 4px;
-    font-size: 0.6875rem;
-    letter-spacing: 0.06em;
+    font-size: 0.625rem;
+    letter-spacing: 0.04em;
     overflow-wrap: normal;
     word-break: keep-all;
   }

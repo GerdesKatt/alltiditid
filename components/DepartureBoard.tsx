@@ -100,8 +100,9 @@ const iconButton = {
   justifyContent: 'center',
   padding: 0,
   borderRadius: 'var(--radius-control)',
-  border: `1px solid ${colors.borderStrong}`,
-  backgroundColor: colors.surface,
+  // Ikonknapp utan ram: bara ikonen och 44 px yta. Ramar är för fält och sekundära knappar.
+  border: 'none',
+  backgroundColor: 'transparent',
   color: colors.text,
   cursor: 'pointer',
 } as const;
@@ -316,16 +317,18 @@ export default function DepartureBoard({
               style={{
                 display: 'block',
                 marginBottom: '4px',
+                fontFamily: 'var(--font-display)',
+                fontStretch: 'var(--stretch-wide)',
                 fontSize: '0.6875rem',
                 fontWeight: 600,
-                letterSpacing: '0.16em',
+                letterSpacing: '0.06em',
                 textTransform: 'uppercase',
                 color: colors.textDim,
               }}
             >
               {direction === 'arrivals' ? t('Ankomster till', 'Arrivals at') : t('Avgångar från', 'Departures from')}
             </span>
-            <h1 style={{ fontSize: stopName.length > 16 ? 'clamp(1.5rem, 6.5vw, 2rem)' : 'clamp(2rem, 9vw, 2.75rem)', fontWeight: 900, lineHeight: 1, letterSpacing: '-0.045em', margin: 0, color: colors.text, overflowWrap: 'anywhere' }}>
+            <h1 style={{ fontSize: stopName.length > 16 ? 'clamp(1.5rem, 6.5vw, 2rem)' : stopName.length > 10 ? 'clamp(1.75rem, 7.5vw, 2.5rem)' : 'clamp(2rem, 9vw, 2.75rem)', fontWeight: 800, fontStretch: 'var(--stretch-head)', lineHeight: 1, letterSpacing: '-0.015em', margin: 0, color: colors.text, overflowWrap: 'break-word', hyphens: 'auto' }}>
               {stopName}
             </h1>
           </div>
@@ -478,10 +481,8 @@ export default function DepartureBoard({
                 alignItems: 'center',
                 gap: '6px',
                 marginRight: 'auto',
-                fontSize: '0.6875rem',
-                fontWeight: 600,
-                letterSpacing: '0.14em',
-                textTransform: 'uppercase',
+                fontSize: '0.8125rem',
+                fontWeight: 500,
                 color: limited ? colors.amber : colors.textDim,
               }}
             >

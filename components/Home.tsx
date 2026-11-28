@@ -1,9 +1,9 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import type { Departure, StopOption, TransportMode } from '../lib/types';
-import { colors, fonts } from './styles';
+import { badgeLook, colors, fonts } from './styles';
 import { lineLabel, modeLabel, useLang } from '../lib/i18n';
-import { countdownFor, groupKey, lineBadge, lineColor, parseLocal, splitProduct } from '../lib/lineFormat';
+import { countdownFor, groupKey, lineBadge, parseLocal, splitProduct } from '../lib/lineFormat';
 import { boardUrl } from '../lib/prefetch';
 import { positionAllowed, rememberPositionAllowed } from '../lib/visits';
 import InstallApp from './InstallApp';
@@ -34,9 +34,11 @@ type Props = {
 
 const label: React.CSSProperties = {
   margin: '0 0 6px',
+  fontFamily: 'var(--font-display)',
+  fontStretch: 'var(--stretch-wide)',
   fontSize: '0.6875rem',
   fontWeight: 600,
-  letterSpacing: '0.16em',
+  letterSpacing: '0.06em',
   textTransform: 'uppercase',
   color: colors.textDim,
 };
@@ -530,7 +532,6 @@ function NearbyLines({
     <>
       <ul style={list}>
         {shown.map(({ d, stop }) => {
-          const tint = lineColor(d);
           const late = d.status === 'delayed';
           return (
             <li key={groupKey(d)} style={rowItem}>
@@ -541,10 +542,8 @@ function NearbyLines({
                     flexShrink: 0,
                     minWidth: '44px',
                     padding: '2px 6px',
-                    paddingLeft: tint ? '10px' : '6px',
                     boxSizing: 'border-box',
-                    border: `1.5px solid ${colors.badgeBorder}`,
-                    boxShadow: tint ? `inset 5px 0 0 ${tint}` : 'none',
+                    ...badgeLook(d),
                     fontFamily: fonts.display,
                     fontWeight: 800,
                     fontSize: '0.875rem',
@@ -658,7 +657,7 @@ function StopRow({
     <li style={rowItem}>
       <button type="button" onClick={onOpen} style={{ ...rowButton, flexDirection: 'column', alignItems: 'stretch', gap: '8px', padding: '12px 0' }}>
         <span style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
-          <span style={{ flex: 1, minWidth: 0, fontFamily: fonts.display, fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.03em' }}>
+          <span style={{ flex: 1, minWidth: 0, fontFamily: fonts.display, fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.015em' }}>
             {stop.name}
           </span>
           {Number.isFinite(distance) ? (
@@ -675,7 +674,6 @@ function StopRow({
         ) : (
           <span style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {next.map((d) => {
-              const tint = lineColor(d);
               const late = d.status === 'delayed';
               const cancelled = d.status === 'cancelled';
               return (
@@ -685,10 +683,8 @@ function StopRow({
                     style={{
                       minWidth: '40px',
                       padding: '1px 5px',
-                      paddingLeft: tint ? '9px' : '5px',
                       boxSizing: 'border-box',
-                      border: `1.5px solid ${colors.badgeBorder}`,
-                      boxShadow: tint ? `inset 4px 0 0 ${tint}` : 'none',
+                      ...badgeLook(d, { cancelled }),
                       fontFamily: fonts.display,
                       fontWeight: 800,
                       fontSize: '0.8125rem',

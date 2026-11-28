@@ -135,7 +135,7 @@ export default function SearchPanel({
         style={{
           fontSize: '1.375rem',
           fontWeight: 800,
-          letterSpacing: '-0.02em',
+          letterSpacing: '-0.015em',
           margin: '0 0 4px 0',
           color: colors.text,
         }}

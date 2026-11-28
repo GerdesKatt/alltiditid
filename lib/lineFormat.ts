@@ -67,23 +67,72 @@ export function groupKey(item: Departure): string {
   return `${line}|${item.destination}`;
 }
 
-/**
- * Linjens egen färg, där färgen är en del av namnet (SL:s tunnelbana och pendeltåg).
- * Det enda undantaget från svart och benvitt: en kant på brickan som hjälper igenkänningen
- * men inte bär information ensam.
+/** Linjens färg som fylld bricka: bakgrund och textfärg som klarar 4,5:1 mot varandra. */
+export type LineSwatch = { bg: string; fg: string };
+
+const WHITE = '#ffffff';
+const NIGHT = '#111111';
+
+/*
+ * SL:s tunnelbana och pendeltåg. Nyanserna är något mörkare än SL:s skyltfärger,
+ * så att vit text på brickan klarar 4,5:1 (röd 5,9:1, grön 4,8:1, blå 5,1:1).
+ * Pendeltågets rosa har svart text (7,5:1).
  */
-export function lineColor(item: Pick<Departure, 'line' | 'transportMode'>): string | null {
+const SL_RED: LineSwatch = { bg: '#c8102e', fg: WHITE };
+const SL_GREEN: LineSwatch = { bg: '#00843d', fg: WHITE };
+const SL_BLUE: LineSwatch = { bg: '#0072bc', fg: WHITE };
+const SL_COMMUTER: LineSwatch = { bg: '#ec619f', fg: NIGHT };
+
+/*
+ * Göteborgs spårvagnar har en färg per linje på skyltar och kartor. Ungefärliga nyanser,
+ * med svart eller vit text efter vad som ger bäst kontrast.
+ */
+const GBG_TRAM: Record<string, LineSwatch> = {
+  '1': { bg: '#ffffff', fg: NIGHT },
+  '2': { bg: '#ffe14d', fg: NIGHT },
+  '3': { bg: '#0057a0', fg: WHITE },
+  '4': { bg: '#00813f', fg: WHITE },
+  '5': { bg: '#d0103a', fg: WHITE },
+  '6': { bg: '#f58220', fg: NIGHT },
+  '7': { bg: '#8a5a2b', fg: WHITE },
+  '8': { bg: '#6f2c91', fg: WHITE },
+  '9': { bg: '#7cc6ea', fg: NIGHT },
+  '10': { bg: '#c4d82e', fg: NIGHT },
+  '11': { bg: '#111111', fg: WHITE },
+};
+
+/**
+ * Linjens egen färg, där färgen är en del av hur resenärer känner igen linjen:
+ * SL:s tunnelbana (röd, grön, blå) och pendeltåg, och Göteborgs spårvagnar.
+ * Färgen fyller brickan men bär aldrig information ensam; numret står alltid i den.
+ */
+export function lineSwatch(item: Pick<Departure, 'line' | 'transportMode'> & { operator?: string }): LineSwatch | null {
   const line = item.line.toLowerCase();
-  if (line.startsWith('gröna linjen')) return '#179d4d';
-  if (line.startsWith('röda linjen')) return '#d71d24';
-  if (line.startsWith('blå linjen')) return '#0089ca';
-  if (line.startsWith('pendeltåg')) return '#ec619f';
+  if (line.startsWith('gröna linjen')) return SL_GREEN;
+  if (line.startsWith('röda linjen')) return SL_RED;
+  if (line.startsWith('blå linjen')) return SL_BLUE;
+  if (line.startsWith('pendeltåg')) return SL_COMMUTER;
+  const n = line.match(/\d+/)?.[0] || '';
   // Tunnelbanan utan linjenamn, bara nummer: 10–11 blå, 13–14 röd, 17–19 grön.
   if (item.transportMode === 'subway') {
-    const n = Number(line.match(/\d+/)?.[0]);
-    if (n === 10 || n === 11) return '#0089ca';
-    if (n === 13 || n === 14) return '#d71d24';
-    if (n >= 17 && n <= 19) return '#179d4d';
+    const num = Number(n);
+    if (num === 10 || num === 11) return SL_BLUE;
+    if (num === 13 || num === 14) return SL_RED;
+    if (num >= 17 && num <= 19) return SL_GREEN;
+  }
+  // Spårvagn i Göteborg: bara när trafikbolaget är känt, eftersom Stockholm och Norrköping har samma nummer.
+  if (item.transportMode === 'tram' && /västtrafik|göteborgs spårväg/i.test(item.operator || '')) {
+    return GBG_TRAM[n] || null;
   }
   return null;
+}
+
+/** Linjens färg som en enda färg (för kanter och prickar), eller null. */
+export function lineColor(item: Pick<Departure, 'line' | 'transportMode'> & { operator?: string }): string | null {
+  return lineSwatch(item)?.bg || null;
+}
+
+/** Spårtrafik får fylld bricka, buss och båt kontur. */
+export function isRailMode(mode?: string): boolean {
+  return mode === 'train' || mode === 'commuter' || mode === 'subway' || mode === 'tram';
 }

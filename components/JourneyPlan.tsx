@@ -2,9 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import Icon from './Icon';
 import StrandedTips from './StrandedTips';
-import { colors, fonts, textInput } from './styles';
+import { badgeLook, colors, fonts, textInput } from './styles';
 import { useLang } from '../lib/i18n';
-import { lineColor } from '../lib/lineFormat';
 import { track } from '../lib/track';
 import type { TransportMode } from '../lib/types';
 import { startAlternative } from '../lib/plan.mjs';
@@ -686,7 +685,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
                         cursor: 'pointer',
                       }}
                     >
-                      <span style={{ fontFamily: fonts.display, fontSize: '1.375rem', fontWeight: 800, letterSpacing: '-0.03em' }}>
+                      <span style={{ fontFamily: fonts.display, fontSize: '1.375rem', fontWeight: 800, letterSpacing: '-0.015em' }}>
                         {trip.dep}–{trip.arr}
                         {trip.arrDate && trip.depDate && trip.arrDate !== trip.depDate ? (
                           <sup style={{ fontSize: '0.75rem', marginLeft: '2px' }}>+1</sup>
@@ -755,10 +754,9 @@ function ticketTarget(anchor: Anchor): { to: string; place?: { kind: 'poi'; name
   return { to: anchor.from };
 }
 
-/** Linjenumret i en ruta med linjens färg i kanten, som på tavlan. */
+/** Linjenumret i en bricka i linjens färg, som på tavlan. */
 export function LineBadge({ leg, large = false }: { leg: Leg; large?: boolean }) {
   if (leg.kind !== 'ride') return null;
-  const tint = lineColor({ line: leg.line, transportMode: leg.mode as TransportMode });
   const num = leg.line.match(/\S+$/)?.[0] || leg.line;
   return (
     <span
@@ -768,10 +766,8 @@ export function LineBadge({ leg, large = false }: { leg: Leg; large?: boolean })
         alignSelf: large ? 'center' : 'flex-start',
         minWidth: large ? '52px' : '44px',
         padding: large ? '4px 8px' : '3px 6px',
-        paddingLeft: tint ? (large ? '13px' : '10px') : large ? '8px' : '6px',
         boxSizing: 'border-box',
-        border: `1.5px solid ${colors.badgeBorder}`,
-        boxShadow: tint ? `inset ${large ? 6 : 5}px 0 0 ${tint}` : 'none',
+        ...badgeLook({ line: leg.line, transportMode: leg.mode as TransportMode }),
         fontFamily: fonts.display,
         fontWeight: 800,
         fontSize: large ? '1.125rem' : '0.875rem',
@@ -844,9 +840,11 @@ export function LegRow({ leg }: { leg: Leg }) {
 
 const label: React.CSSProperties = {
   margin: 0,
+  fontFamily: 'var(--font-display)',
+  fontStretch: 'var(--stretch-wide)',
   fontSize: '0.6875rem',
   fontWeight: 600,
-  letterSpacing: '0.14em',
+  letterSpacing: '0.06em',
   textTransform: 'uppercase',
   color: colors.textDim,
 };

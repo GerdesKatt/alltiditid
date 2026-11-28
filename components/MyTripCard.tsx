@@ -1,8 +1,8 @@
 import React from 'react';
 import type { Departure } from '../lib/types';
 import type { MyTrip } from '../lib/myTrip';
-import { clockFor, countdownFor, lineBadge, lineColor, lineName, parseLocal } from '../lib/lineFormat';
-import { colors, fonts } from './styles';
+import { clockFor, countdownFor, lineBadge, lineName, parseLocal } from '../lib/lineFormat';
+import { badgeLook, colors, fonts, labelStyle } from './styles';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { lineLabel, useLang } from '../lib/i18n';
 
@@ -61,7 +61,7 @@ export default function MyTripCard({
     .join('; ');
 
   const [head, ...rest] = next;
-  const tint = lineColor({ line: trip.line, transportMode: head?.transportMode });
+  const look = badgeLook({ line: trip.line, transportMode: head?.transportMode, operator: head?.operator });
   const headCancelled = head?.status === 'cancelled';
   const headDelayed = head?.status === 'delayed';
   const headSchedule = head && !headCancelled && !headDelayed && head.hasRealtime === false;
@@ -73,7 +73,7 @@ export default function MyTripCard({
       ? walkVerdict(Math.floor((headAt - now) / 60000), walkMinutes, platformMinutes(head.transportMode))
       : null;
   const label = (text: string) => (
-    <span style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', color: colors.textDim }}>
+    <span style={{ ...labelStyle, flexShrink: 0 }}>
       {text}
     </span>
   );
@@ -89,14 +89,29 @@ export default function MyTripCard({
         marginBottom: '18px',
         padding: '14px 18px 16px',
         maxWidth: '40rem',
-        // Linjens färg som en kant, samma som på brickan.
-        boxShadow: tint ? `inset 6px 0 0 ${tint}` : 'none',
-        paddingLeft: tint ? '24px' : '18px',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
-        <span style={{ minWidth: 0, fontSize: '0.9375rem', fontWeight: 600 }}>
-          {lineLabel(badge, lang)} {t('mot', 'to')} {trip.destination}
+        <span style={{ minWidth: 0, fontSize: '0.9375rem', fontWeight: 600, display: 'inline-flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px 8px' }}>
+          {/* Linjebrickan i linjens färg, samma som på tavlan. */}
+          <span
+            style={{
+              ...look,
+              display: 'inline-block',
+              minWidth: '40px',
+              padding: '1px 6px',
+              boxSizing: 'border-box',
+              fontFamily: fonts.display,
+              fontWeight: 800,
+              fontSize: '0.8125rem',
+              textAlign: 'center',
+            }}
+          >
+            {lineLabel(badge, lang)}
+          </span>
+          <span>
+            {t('mot', 'to')} {trip.destination}
+          </span>
           {name ? <span className="sr-only">, {name}</span> : null}
         </span>
         {label(
@@ -126,11 +141,12 @@ export default function MyTripCard({
               marginTop: '6px',
               fontFamily: fonts.display,
               fontSize: 'clamp(3rem, 16vw, 4.5rem)',
-              fontWeight: 900,
+              fontStretch: 'var(--stretch-head)',
+              fontWeight: 800,
               // Proportionella siffror: fast bredd ger luft runt kolonet i den här storleken.
               fontVariantNumeric: 'proportional-nums',
               lineHeight: 0.95,
-              letterSpacing: '-0.05em',
+              letterSpacing: '-0.015em',
               color: headCancelled || headDelayed ? colors.amber : colors.text,
               textDecoration: headCancelled ? 'line-through' : 'none',
               overflowWrap: 'anywhere',
@@ -155,10 +171,11 @@ export default function MyTripCard({
                   backgroundColor: verdict.kind === 'missed' ? 'transparent' : colors.text,
                   color: verdict.kind === 'missed' ? colors.amber : colors.bg,
                   border: verdict.kind === 'missed' ? `1px solid ${colors.amber}` : 'none',
-                  fontFamily: fonts.text,
-                  fontSize: '0.8125rem',
+                  fontFamily: fonts.display,
+                  fontStretch: 'var(--stretch-wide)',
+                  fontSize: '0.75rem',
                   fontWeight: 700,
-                  letterSpacing: '0.08em',
+                  letterSpacing: '0.04em',
                   textTransform: 'uppercase',
                   lineHeight: 1,
                   textDecoration: 'none',

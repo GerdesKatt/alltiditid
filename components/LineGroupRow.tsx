@@ -1,7 +1,7 @@
 import React from 'react';
 import type { BoardDirection, Departure } from '../lib/types';
-import { colors, fonts } from './styles';
-import { countdownFor, lineBadge, lineColor, lineName } from '../lib/lineFormat';
+import { badgeLook, colors, fonts } from './styles';
+import { countdownFor, lineBadge, lineName } from '../lib/lineFormat';
 import { lineLabel, trackLabel, translator, useLang, type Lang } from '../lib/i18n';
 
 type Props = {
@@ -26,7 +26,6 @@ export default function LineGroupRow({ items, direction, now }: Props) {
   const { lang, t } = useLang();
   const first = items[0];
   const badge = lineBadge(first.line);
-  const tint = lineColor(first);
   const trainNumber = first.transportMode === 'train' && /^\d{3,5}$/.test(badge);
   const name = lineLabel(lineName(first.line, badge), lang);
   const shownBadge = trainNumber ? t('Tåg', 'Train') : lineLabel(badge, lang);
@@ -72,11 +71,7 @@ export default function LineGroupRow({ items, direction, now }: Props) {
           padding: '4px 6px',
           borderRadius: 'var(--radius-badge)',
           boxSizing: 'border-box',
-          border: `1.5px solid ${colors.badgeBorder}`,
-          boxShadow: tint ? `inset 5px 0 0 ${tint}` : 'none',
-          paddingLeft: tint ? '10px' : '6px',
-          backgroundColor: colors.badgeBg,
-          color: colors.badgeText,
+          ...badgeLook(first),
           fontFamily: fonts.display,
           fontWeight: 800,
           fontSize: '0.875rem',
