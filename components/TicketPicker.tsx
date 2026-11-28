@@ -61,6 +61,8 @@ export default function TicketPicker({ goal, onAnchor, near = null }: Props) {
   const [train, setTrain] = useState<TrainData | null>(null);
   const [board, setBoard] = useState(0);
   const [alight, setAlight] = useState(-1);
+  // Valt avstigning själv: då styr inte målet längre vilken station det blir.
+  const [alightTouched, setAlightTouched] = useState(false);
   // Var man är, för att föreslå påstigning närmast en.
   const [pos, setPos] = useState<{ lat: number; lon: number } | null>(near);
   // Påstigningen ligger långt härifrån: sitter man redan på tåget, eller ska man dit?
@@ -72,6 +74,13 @@ export default function TicketPicker({ goal, onAnchor, near = null }: Props) {
   const [manual, setManual] = useState(false);
   const [manualFrom, setManualFrom] = useState('');
   const [manualTime, setManualTime] = useState('');
+
+  // Biljetten skrevs före målet (eller målet ändrades): välj avstigningen efter målet igen.
+  useEffect(() => {
+    if (!train || alightTouched) return;
+    setAlight(alightFor(train.stops, goal, board));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goal, train]);
 
   const parsed = parseTicket(text);
   const isFlight = parsed?.kind === 'flight';
@@ -108,6 +117,7 @@ export default function TicketPicker({ goal, onAnchor, near = null }: Props) {
           setBoardTouched(false);
           setOnboard(null);
           setAlight(alightFor(stops, goal, b));
+          setAlightTouched(false);
         } else {
           // Flygtavlan visar bara dagens flyg. En annan dag: tiden från biljetten.
           if (date !== today) {
@@ -280,6 +290,9 @@ export default function TicketPicker({ goal, onAnchor, near = null }: Props) {
       <label style={fieldLabel}>
         {t('Tågnummer eller flightnummer', 'Train or flight number')}
         <input
+          id="biljett-nummer"
+          // Rutan visas först när man valt biljett: markören hamnar direkt i den.
+          autoFocus
           type="text"
           value={text}
           autoComplete="off"
@@ -357,7 +370,14 @@ export default function TicketPicker({ goal, onAnchor, near = null }: Props) {
               </label>
               <label style={{ ...fieldLabel, flex: '1 1 10rem' }}>
                 {t('Du kliver av', 'You get off at')}
-                <select value={alight} onChange={(e) => setAlight(Number(e.target.value))} style={field}>
+                <select
+                  value={alight}
+                  onChange={(e) => {
+                    setAlight(Number(e.target.value));
+                    setAlightTouched(true);
+                  }}
+                  style={field}
+                >
                   {train.stops.map((s, i) =>
                     i > board ? (
                       <option key={i} value={i}>

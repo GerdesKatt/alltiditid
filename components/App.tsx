@@ -972,7 +972,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
                       document.getElementById('sok-resa')?.click();
                     }
                   }}
-                  placeholder={t('Hållplats, adress eller tåg', 'Stop, address or train')}
+                  placeholder={ticketPlan ? t('Slutmålet, t.ex. Härnösand', 'Final destination, e.g. Härnösand') : t('Hållplats, adress eller tåg', 'Stop, address or train')}
                   style={{ ...textInput(colors.borderStrong), display: 'block', minHeight: '48px', fontSize: 'var(--fs-3)', paddingRight: '48px' }}
                 />
                 {goal ? (
@@ -1027,7 +1027,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
                   ? t('Planerar från din biljett · Sök utan biljett i stället', 'Planning from your ticket · Search without a ticket instead')
                   : t('Har du redan en biljett? Ange tåg eller flyg', 'Already have a ticket? Enter the train or flight')}
               </button>
-              {/^\d{2,5}$/.test(goal.trim()) ? (
+              {/^\d{2,5}$/.test(goal.trim()) && !ticketPlan ? (
                 // Bara siffror: ett tågnummer. Följ tåget direkt, samma som det gamla "Följ bara ett tåg".
                 <button
                   type="button"
@@ -1044,11 +1044,19 @@ export default function App({ initialStop, page, intro }: AppProps) {
                   {t(`Följ tåg ${goal.trim()}`, `Follow train ${goal.trim()}`)}
                 </button>
               ) : null}
-              {ticketPlan && goal.trim().length < 2 ? (
+              {ticketPlan && /^\d{2,5}$/.test(goal.trim()) ? (
+                // Numret hamnade i målrutan: säg var det ska stå i stället.
+                <p style={{ margin: '8px 0 0', fontSize: 'var(--fs-2)', color: colors.textSoft }}>
+                  {t(
+                    `Ser ut som ett tågnummer. Skriv ${goal.trim()} under Din biljett, och vart du ska här ovan.`,
+                    `Looks like a train number. Type ${goal.trim()} under Your ticket, and where you are going above.`
+                  )}
+                </p>
+              ) : ticketPlan && goal.trim().length < 2 ? (
                 <p style={{ margin: '8px 0 0', fontSize: 'var(--fs-2)', color: colors.textDim }}>
                   {t(
-                    'Skriv vart du ska. Sedan tåg- eller flightnumret, så räknar vi baklänges när du ska gå.',
-                    'Type where you are going. Then the train or flight number, and we work back to when you should leave.'
+                    'Skriv tåg- eller flightnumret under Din biljett och vart du ska här ovan, så räknar vi baklänges när du ska gå.',
+                    'Type the train or flight number under Your ticket and where you are going above, and we work back to when you should leave.'
                   )}
                 </p>
               ) : null}
