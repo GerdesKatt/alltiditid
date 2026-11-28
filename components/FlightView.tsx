@@ -9,7 +9,7 @@ import QueueForecast from './QueueForecast';
 import { gatePlan, queueNowFor, typicalQueueFor } from '../lib/gateTime.mjs';
 import { isMyFlight, loadMyFlight, MY_FLIGHT_EVENT, storeMyFlight, type MyFlight } from '../lib/myFlight';
 import { flightStatus, translator, useLang, type Lang } from '../lib/i18n';
-import { colors, emptyState, fonts } from './styles';
+import { colors, emptyState, fonts, labelStyle } from './styles';
 
 const AIRPORT_KEY = 'alltiditid:flygplats';
 /** Appen frågar var 2:a minut; servern hämtar från Swedavia högst var 10:e. */
@@ -163,7 +163,7 @@ export default function FlightView({ initialAirport }: Props) {
         role="group"
         aria-label={t('Flygplats', 'Airport')}
         className="chip-scroll"
-        style={{ display: 'flex', gap: '6px', marginBottom: '14px', overflowX: 'auto', paddingBottom: '2px' }}
+        style={{ display: 'flex', gap: '2px 18px', marginBottom: '14px', overflowX: 'auto', paddingBottom: '2px' }}
       >
         {AIRPORTS.map((a) => {
           const active = a.iata === airport;
@@ -173,15 +173,18 @@ export default function FlightView({ initialAirport }: Props) {
               type="button"
               aria-pressed={active}
               onClick={() => setAirport(a.iata)}
+              // Flygplatserna som text, vald med ett streck under: inga knappar som konkurrerar med listan.
               style={{
-                minHeight: '36px',
-                padding: '0 12px',
-                borderRadius: 'var(--radius-control)',
-                border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
-                backgroundColor: active ? colors.accentStrong : colors.surface,
-                color: active ? colors.onAccent : colors.text,
-                fontSize: '0.8125rem',
-                fontWeight: 600,
+                minHeight: '44px',
+                padding: '0',
+                border: 'none',
+                borderRadius: 0,
+                backgroundColor: 'transparent',
+                color: active ? colors.text : colors.textDim,
+                boxShadow: active ? `inset 0 -2px 0 ${colors.text}` : 'none',
+                fontFamily: 'inherit',
+                fontSize: '0.9375rem',
+                fontWeight: active ? 700 : 600,
                 cursor: 'pointer',
                 flexShrink: 0,
               }}
@@ -192,10 +195,10 @@ export default function FlightView({ initialAirport }: Props) {
         })}
       </div>
 
-      <span style={{ fontSize: '0.8125rem', color: colors.textDim, display: 'block' }}>
-        {arrivals ? t('Visar ankomster till', 'Showing arrivals at') : t('Visar avgångar från', 'Showing departures from')}
+      <span style={{ ...labelStyle, display: 'block', marginBottom: '4px' }}>
+        {arrivals ? t('Ankomster till', 'Arrivals at') : t('Avgångar från', 'Departures from')}
       </span>
-      <h1 id="flyg-rubrik" style={{ fontSize: '1.375rem', fontWeight: 800, margin: '0 0 10px', color: colors.text }}>
+      <h1 id="flyg-rubrik" style={{ fontSize: 'clamp(1.5rem, 6.5vw, 2rem)', fontStretch: 'var(--stretch-head)', fontWeight: 800, lineHeight: 1.05, margin: '0 0 12px', color: colors.text }}>
         {airportObj.name}
       </h1>
 
@@ -505,10 +508,10 @@ function FlightRow({
             padding: '4px 6px',
             boxSizing: 'border-box',
             borderRadius: 'var(--radius-badge)',
-            // Samma bricka som linjen på tavlan: kontur i bläck, grå och grå yta när flyget är inställt.
-            border: `1.5px solid ${cancelled ? colors.borderStrong : colors.badgeBorder}`,
-            backgroundColor: cancelled ? colors.surfaceRaised : colors.badgeBg,
-            color: cancelled ? colors.textDim : colors.badgeText,
+            // Samma bricka som linjen på tavlan: kontur i bläck, rosa för mitt flyg, grå när flyget är inställt.
+            border: `1.5px solid ${cancelled ? colors.borderStrong : saved ? 'var(--rose)' : colors.badgeBorder}`,
+            backgroundColor: cancelled ? colors.surfaceRaised : saved ? 'var(--rose)' : colors.badgeBg,
+            color: cancelled ? colors.textDim : saved ? 'var(--rose-ink)' : colors.badgeText,
             fontFamily: fonts.display,
             fontWeight: 800,
             fontSize: '0.8125rem',
@@ -592,8 +595,8 @@ function FlightRow({
         <div style={{ padding: '0 14px 16px', borderBottom: `1px solid ${colors.border}`, fontSize: '0.875rem', lineHeight: 1.45 }}>
           {plan ? (
             <div style={{ padding: '12px 0 14px', borderTop: `1px solid ${colors.border}` }}>
-              <div style={{ color: colors.textDim, fontSize: '0.8125rem' }}>{t('Var vid security senast', 'Be at security by')}</div>
-              <div style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1.1, fontVariantNumeric: 'tabular-nums', color: colors.text }}>
+              <div style={labelStyle}>{t('Var vid security senast', 'Be at security by')}</div>
+              <div style={{ fontFamily: fonts.display, fontStretch: 'var(--stretch-head)', fontSize: '2.5rem', fontWeight: 800, lineHeight: 1.05, marginTop: '4px', fontVariantNumeric: 'tabular-nums', color: colors.text }}>
                 {plan.atSecurity}
               </div>
               <div style={{ color: colors.textDim, marginTop: '4px', fontSize: '0.8125rem' }}>

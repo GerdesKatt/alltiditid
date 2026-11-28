@@ -254,6 +254,22 @@
   border-top: 2px solid var(--rose);
 }
 
+/* Nedräkningen i Nästa-kortet: den nya siffran glider upp när den byts. */
+.tick-in {
+  display: inline-block;
+  animation: tick-in 380ms var(--ease-out) 1;
+}
+@keyframes tick-in {
+  from {
+    transform: translateY(18%);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
 /* "Minska rörelse" i telefonen stänger av animationer. */
 @media (prefers-reduced-motion: reduce) {
   *,

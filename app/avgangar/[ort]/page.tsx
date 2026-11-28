@@ -64,7 +64,7 @@ export default async function CityPageRoute({ params }: Params) {
       />
       <Header linkBase="/" />
       <main id="innehall">
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '8px 0 6px' }}>
+        <h1 style={{ fontSize: 'clamp(1.75rem, 7vw, 2.5rem)', fontWeight: 800, lineHeight: 1.05, margin: '8px 0 10px' }}>
           <Tr sv={`Avgångar i ${city.place}`} en={`Departures in ${city.place}`} />
         </h1>
         <p style={{ color: colors.textDim, margin: '0 0 18px', fontSize: '0.9375rem' }}>
@@ -90,7 +90,7 @@ export default async function CityPageRoute({ params }: Params) {
             }
           />
         </p>
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, borderTop: `1px solid ${colors.text}` }}>
           {city.stops.map((s) => (
             <li key={s.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
               <a
