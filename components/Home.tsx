@@ -693,7 +693,8 @@ function StopRow({
         ) : next.length === 0 ? (
           <span style={{ fontSize: 'var(--fs-2)', color: colors.textDim }}>{t('Tomt på tavlan just nu.', 'Nothing on the board right now.')}</span>
         ) : (
-          <span style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          // Samma luft mellan raderna som i Linjer nära dig, och samma bricka (Nils, 28 nov).
+          <span style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '4px' }}>
             {next.map((d) => {
               const late = d.status === 'delayed';
               const cancelled = d.status === 'cancelled';
@@ -702,8 +703,9 @@ function StopRow({
                   <span
                     aria-hidden="true"
                     style={{
-                      minWidth: '40px',
-                      padding: '1px 5px',
+                      flexShrink: 0,
+                      minWidth: '44px',
+                      padding: '2px 6px',
                       boxSizing: 'border-box',
                       ...badgeLook(d, { cancelled }),
                       fontFamily: fonts.display,

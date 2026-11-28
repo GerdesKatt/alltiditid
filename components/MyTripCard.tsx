@@ -14,6 +14,8 @@ import Icon from './Icon';
 import { useTrivia } from '../lib/useTrivia';
 import { useRain } from '../lib/useRain';
 import { morphTransition } from '../lib/motion';
+import { playChime } from '../lib/chime';
+import { drawPoster, sharePoster } from '../lib/poster';
 
 type Props = {
   trip: MyTrip;
@@ -35,6 +37,8 @@ type Props = {
   walkMinutes?: number | null;
   /** Något annat på tavlan är försenat eller inställt: då är "Lugnt" en nyhet. */
   boardTrouble?: boolean;
+  /** Senaste avgångstiden på tavlan (ms): hur långt fram tavlan räcker. */
+  boardUntil?: number | null;
   /** Hållplatsens läge när gångtiden är på: för regnet (idé 17). */
   stopAt?: { lat: number; lon: number } | null;
 };
@@ -58,6 +62,7 @@ export default function MyTripCard({
   walkMinutes = null,
   stopAt = null,
   boardTrouble = false,
+  boardUntil = null,
 }: Props) {
   const { lang, t } = useLang();
   const badge = lineBadge(trip.line);
@@ -124,6 +129,13 @@ export default function MyTripCard({
     } catch {
       // Ingen vibration i den här webbläsaren.
     }
+    // Har man bett om uppläsning säger appen själv till när det är dags, efter ljudsignaturen
+    // (del 2, idé 9 och 22). Ingen notis: bara medan sidan är öppen och syns.
+    if (speechArmed()) {
+      const text = `${t('Gå nu', 'Leave now')}. ${lineLabel(name || badge, lang)} ${t('mot', 'to')} ${trip.destination}.`;
+      playChime().then(() => say(text));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind]);
 
   // Repliken under strecket: med gångtid beskedet, utan gångtid lugnet eller kaffet (idé 10).
@@ -161,6 +173,12 @@ export default function MyTripCard({
       // (juryn, runda 2, punkt 2). En replik som alltid står där slutar man läsa.
       t('Lugnt. Din avgång går i tid.', 'Calm. Yours is on time.')
     : '';
+  // Sista chansen: tavlan räcker minst en timme efter avgången och linjen har ingen fler där.
+  const lastForAnHour = Boolean(shown && !headCancelled && headAt !== null && boardUntil !== null && boardUntil >= headAt + 60 * 60_000 && !rest.length);
+  const lateEvening = (() => {
+    const h = Number(new Date(liveNow).toLocaleTimeString('sv-SE', { timeZone: 'Europe/Stockholm', hour: '2-digit' }));
+    return h >= 21 || h < 3;
+  })();
   // Väntan får innehåll: kuriosan om platsen, bara när det dröjer (idé 9).
   const waitLong = minutesLeft !== null && minutesLeft > 8 && !headCancelled && !verdict;
   const trivia = useTrivia(trip.stopName, null, lang, waitLong);
@@ -201,7 +219,19 @@ export default function MyTripCard({
         .filter(Boolean)
         .join(', ')
     : '';
+  function say(text: string) {
+    try {
+      const synth = window.speechSynthesis;
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = lang === 'en' ? 'en-GB' : 'sv-SE';
+      synth.speak(u);
+    } catch {
+      // Talsyntesen svarade inte.
+    }
+  }
   function speak() {
+    armSpeech();
     try {
       const synth = window.speechSynthesis;
       synth.cancel();
@@ -232,7 +262,8 @@ export default function MyTripCard({
 
   return (
     <section
-      className="invert hero-card"
+      // Gå nu: kortets rosé mörknar ett steg och stannar där, utan blink (del 2, idé 2).
+      className={`invert hero-card${kind === 'go' ? ' hero-go' : ''}`}
       aria-label={`${auto ? t('Din avgång', 'Your departure') : t('Min resa', 'My trip')}: ${lineLabel(trip.line, lang)} ${t('mot', 'to')} ${trip.destination} ${t(
         'från',
         'from'
@@ -275,6 +306,7 @@ export default function MyTripCard({
             onClick={speak}
             className="row-link"
             aria-label={t('Läs upp nästa avgång', 'Read the next departure aloud')}
+            title={t('Läs upp. Säger också till när det är dags att gå.', 'Read aloud. Also tells you when it is time to leave.')}
             style={iconButton}
           >
             <Icon name="speaker" size={18} />
@@ -454,6 +486,11 @@ export default function MyTripCard({
             {verdict && note ? (
               // Med gångtid står repliken eller vädret här i stället för Därefter: en rad mindre.
               <span>{note}</span>
+            ) : !rest.length && !planB && lastForAnHour ? (
+              // Sista chansen (del 2, idé 8): ingen fler den närmaste timmen, och tavlan räcker så långt.
+              <span style={{ fontWeight: lateEvening ? 700 : 400, color: lateEvening ? colors.text : colors.textDim }}>
+                {t('Ingen fler inom en timme', 'None for an hour after this')}
+              </span>
             ) : rest.length && !planB ? (
               <span style={{ color: colors.textDim }}>
                 {t('Därefter', 'Then')}{' '}
@@ -546,6 +583,7 @@ export default function MyTripCard({
           towards={t('mot', 'to')}
           onSpeak={canSpeak ? speak : undefined}
           speakLabel={t('Läs upp', 'Read aloud')}
+          shareLabel={t('Dela som bild', 'Share as image')}
           cancelled={headCancelled}
           status={
             headCancelled
@@ -603,6 +641,7 @@ function BigView(props: {
   towards: string;
   onSpeak?: () => void;
   speakLabel: string;
+  shareLabel: string;
   cancelled: boolean;
   status: string;
   verdict: string;
@@ -672,6 +711,7 @@ function BigView(props: {
         {props.verdict ? <strong style={{ display: 'block', marginBottom: '6px', fontSize: 'var(--fs-5)' }}>{props.verdict}</strong> : null}
         {props.status}
       </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 20px' }}>
       {props.onSpeak ? (
         // Läs upp även i storläget: samma knapp som i kortet, med text (juryn, runda 2, punkt 4).
         <button
@@ -685,6 +725,26 @@ function BigView(props: {
           <Icon name="speaker" size={22} /> {props.speakLabel}
         </button>
       ) : null}
+      {/* Storläget som affisch (del 2, idé 10): en bild i Rosa betong att skicka till den som väntar. */}
+      <button
+        type="button"
+        className="row-link big-view-speak"
+        onClick={async (e) => {
+          e.stopPropagation();
+          const number = document.querySelector('.big-view .big-view-number');
+          const family = number ? getComputedStyle(number).fontFamily : 'sans-serif';
+          const theme = document.documentElement.getAttribute('data-theme');
+          const dark = theme === 'dark' || (theme !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          const blob = await drawPoster(
+            { badge: props.badge, towards: `${props.towards} ${props.destination}`, big: `${props.under ? `${props.under} ` : ''}${props.big}`, status: props.status, verdict: props.verdict, dark },
+            family
+          );
+          if (blob) await sharePoster(blob, 'alltid-i-tid.png');
+        }}
+      >
+        <Icon name="share" size={22} /> {props.shareLabel}
+      </button>
+      </div>
     </div>,
     document.body
   );
@@ -744,4 +804,24 @@ function andList(items: string[], and: string): string {
   const parts = all ? items.map((x) => x.replace(/ min$/, '')) : items;
   const joined = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} ${and} ${parts[parts.length - 1]}` : parts[0] || '';
   return all ? `${joined} min` : joined;
+}
+
+/*
+ * Läs upp Gå nu av sig själv (del 2, idé 22): ett tryck på högtalaren gäller resten av besöket.
+ * Sparas bara i fliken (sessionStorage), så att en ny dag börjar tyst.
+ */
+const SPEECH_KEY = 'alltiditid:las-upp';
+function armSpeech() {
+  try {
+    window.sessionStorage.setItem(SPEECH_KEY, '1');
+  } catch {
+    // Privat läge: uppläsningen gäller bara det här trycket.
+  }
+}
+function speechArmed(): boolean {
+  try {
+    return window.sessionStorage.getItem(SPEECH_KEY) === '1' && 'speechSynthesis' in window;
+  } catch {
+    return false;
+  }
 }

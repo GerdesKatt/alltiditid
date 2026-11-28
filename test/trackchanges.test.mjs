@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { markTrackChanges, TRACK_CHANGE_KEEP_MS } from '../lib/trackChanges.mjs';
+import { markTrackChanges, TRACK_CHANGE_KEEP_MS, LATER_KEEP_MS } from '../lib/trackChanges.mjs';
 
 test('första hämtningen markerar inget', () => {
   const m = new Map();
@@ -38,4 +38,15 @@ test('avgångar som försvunnit glöms', () => {
   markTrackChanges(m, [{ id: 'a', track: '3' }], 0);
   markTrackChanges(m, [{ id: 'b', track: '1' }], 1);
   assert.equal(m.has('a'), false);
+});
+
+test('en avgång som blir senare markeras en kort stund', () => {
+  const m = new Map();
+  markTrackChanges(m, [{ id: 'a', expectedAt: '2026-11-28T11:10' }], 0);
+  let out = markTrackChanges(m, [{ id: 'a', expectedAt: '2026-11-28T11:14' }], 1000);
+  assert.equal(out[0].justLater, true);
+  out = markTrackChanges(m, [{ id: 'a', expectedAt: '2026-11-28T11:14' }], 1000 + LATER_KEEP_MS + 1);
+  assert.equal(out[0].justLater, undefined);
+  out = markTrackChanges(m, [{ id: 'a', expectedAt: '2026-11-28T11:12' }], 1000 + LATER_KEEP_MS + 2);
+  assert.equal(out[0].justLater, undefined);
 });

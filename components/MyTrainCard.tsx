@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { MyTrain } from '../lib/myTrain';
 import { arrivalAt, BYTE_EVENT, COMPENSATION_DELAY_MIN, loadByte, publishByteMargin, storeByte, verdict } from '../lib/byte';
-import { recordArrival } from '../lib/receipts';
+import { recordArrival, recordArrivalWeek } from '../lib/receipts';
 import type { Connection, SavedByte } from '../lib/byte';
 import { colors, fonts } from './styles';
 import { compensationLink } from '../lib/compensation';
@@ -146,11 +146,17 @@ export default function MyTrainCard({
   // Kvittot: framme där man skulle av, med klockslag och marginal, och resor räknade i webbläsaren (idé 7).
   const homeKey = journey && homeArrived ? `${journey.number}|${journey.date || ''}` : '';
   const [count, setCount] = useState(0);
-  useEffect(() => {
-    if (homeKey) setCount(recordArrival(homeKey));
-  }, [homeKey]);
+  const [week, setWeek] = useState<{ total: number; onTime: number } | null>(null);
   const homeShown = homeArr?.actual || homeArr?.estimated || homeArr?.scheduled || '';
   const homeLate = homeArr?.delay && homeArr.delay > 0 ? Math.round(homeArr.delay) : 0;
+  useEffect(() => {
+    if (!homeKey) return;
+    setCount(recordArrival(homeKey));
+    // Veckans kvitto (del 2, idé 7): datumet är turens, annars dagens.
+    const today = journey?.date || new Date().toLocaleDateString('sv-SE');
+    setWeek(recordArrivalWeek(homeKey, today, homeLate));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [homeKey]);
 
   // Bytet räknas på raden (idé 18): marginalen följer med till tavlan på bytesstationen.
   useEffect(() => {
@@ -247,7 +253,11 @@ export default function MyTrainCard({
             {t(`Framme ${homeShown}.`, `Arrived ${homeShown}.`)}{' '}
             {homeLate ? t(`${homeLate} min sent.`, `${homeLate} min late.`) : t('I tid.', 'On time.')}
           </strong>
-          {count > 1 ? (
+          {week && week.total > 1 ? (
+            <span style={{ fontSize: 'var(--fs-2)' }}>
+              {t(`Den här veckan: ${week.onTime} av ${week.total} resor i tid.`, `This week: ${week.onTime} of ${week.total} trips on time.`)}
+            </span>
+          ) : count > 1 ? (
             <span style={{ fontSize: 'var(--fs-2)' }}>
               {t(`${count} resor framme med alltid i tid.`, `${count} trips completed with alltid i tid.`)}
             </span>

@@ -236,6 +236,8 @@ export default function DepartureRow({
 
   return (
     <div
+      // Fick nyss en senare tid: raden lyser kort i signalton när den glider till sin nya plats (del 2, idé 4).
+      className={item.justLater ? 'row-later' : undefined}
       style={{
         // Raderna glider till sin nya plats när listan ändras (View Transitions, lib/motion.ts).
         viewTransitionName: `dep-${item.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`,

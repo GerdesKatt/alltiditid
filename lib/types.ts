@@ -31,6 +31,8 @@ export type Departure = {
   track?: string;
   /** Spåret innan det ändrades, i tio minuter efter bytet (sätts i appen). */
   previousTrack?: string;
+  /** Fick nyss en senare tid och bytte plats på tavlan (sätts i appen en kort stund). */
+  justLater?: boolean;
   /** Delhållplats i en sammanslagen tavla, t.ex. "Drottningtorget" under Göteborg C. */
   stopLabel?: string;
   deviation?: string;

@@ -1191,3 +1191,79 @@ html[data-skylt] .app-shell {
 .hero-big {
   flex-wrap: wrap;
 }
+
+/* Resans tidslinje i Min resa (idé 5): spår, fyllning och en markering per åk och vid målet. */
+.journey-line {
+  position: relative;
+  height: 1px;
+  margin: 12px 0 8px;
+  background: var(--timeline-track);
+}
+.journey-line .timeline-fill {
+  top: -1.5px;
+}
+.journey-mark {
+  position: absolute;
+  top: -4px;
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  border: 2px solid var(--timeline-fill);
+  background: var(--c-bg);
+  box-sizing: border-box;
+}
+.journey-mark-passed {
+  background: var(--timeline-fill);
+}
+.journey-mark-end {
+  width: 2px;
+  height: 9px;
+  margin-left: -2px;
+  border: none;
+  background: var(--timeline-fill);
+}
+
+/* Gå nu (idé 2): kortets rosé mörknar ett steg när det är dags att gå, och stannar så.
+   Natt på den mörkare rosén klarar 9:1. Ingen blinkning; färgen glider över på 400 ms. */
+.hero-card {
+  transition: background-color 400ms var(--ease-out);
+}
+.hero-card.hero-go {
+  --c-text-dim: #3a3735;
+  --c-text-faint: #3a3735;
+  --c-amber: #6e2006;
+  --c-delayed-text: #6e2006;
+  --c-cancelled-text: #6e2006;
+  --c-bg: #e8a198;
+  --c-surface: #e8a198;
+  --c-surface-raised: #e8a198;
+  background-color: #e8a198;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .hero-card.hero-go {
+    --c-bg: #43292a;
+    --c-surface: #43292a;
+    --c-surface-raised: #43292a;
+    background-color: #43292a;
+    border-top-width: 4px;
+  }
+}
+:root[data-theme='dark'] .hero-card.hero-go {
+  --c-bg: #43292a;
+  --c-surface: #43292a;
+  --c-surface-raised: #43292a;
+  background-color: #43292a;
+  border-top-width: 4px;
+}
+
+/* Raden som just blev senare (idé 4): glider till sin nya plats och lyser kort i signalton,
+   så att man ser vilken avgång som flyttade. Av med Minska rörelse (ingen ton alls då). */
+.row-later {
+  animation: row-later 2.4s var(--ease-out) 1;
+  box-shadow: inset 3px 0 0 var(--c-amber) !important;
+}
+@keyframes row-later {
+  from {
+    background-color: var(--signal-bg);
+  }
+}

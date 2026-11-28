@@ -8,6 +8,7 @@ import { LegRow, LineBadge, rideLabel, trackText } from './JourneyPlan';
 import { at, lateMinutes, withAnchorLive, type Anchor } from '../lib/ticket.mjs';
 import type { Flight } from '../lib/types';
 import { spotName } from '../lib/stopText';
+import { journeyLine } from '../lib/journeyLine.mjs';
 
 type Ride = Extract<PlanLeg, { kind: 'ride' }>;
 
@@ -259,6 +260,7 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
       >
         {big}
       </div>
+      <JourneyLine trip={trip} now={now} />
       {anchorFor ? <p style={{ margin: '6px 0 0', fontSize: 'var(--fs-3)', fontWeight: 700, lineHeight: 1.3 }}>{anchorFor}</p> : null}
       {sub ? (
         <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-2)', color: hurry ? colors.amber : colors.textDim, fontWeight: hurry ? 700 : 400 }}>{sub}</p>
@@ -453,3 +455,25 @@ const textButton: React.CSSProperties = {
   textUnderlineOffset: '3px',
   cursor: 'pointer',
 };
+
+/**
+ * Resans tidslinje (Vägen till 10 del 2, idé 5): strecket under det stora beskedet är hela resan.
+ * En markering där varje åk börjar och en vid målet, fyllt fram till nu. Samma spår och fyllning
+ * som tidslinjen i Nästa-kortet. Bara en bild; beskedet och raderna säger allt i text.
+ */
+function JourneyLine({ trip, now }: { trip: { depDate: string; legs: PlanLeg[] }; now: number }) {
+  const line = journeyLine(trip, now);
+  if (!line) return null;
+  return (
+    <div aria-hidden="true" className="journey-line">
+      <span className="timeline-fill" style={{ width: `${(line.fill * 100).toFixed(2)}%` }} />
+      {line.marks.map((m, i) => (
+        <span
+          key={i}
+          className={m.kind === 'end' ? 'journey-mark journey-mark-end' : `journey-mark${line.fill >= m.at ? ' journey-mark-passed' : ''}`}
+          style={{ left: `${(m.at * 100).toFixed(2)}%` }}
+        />
+      ))}
+    </div>
+  );
+}
