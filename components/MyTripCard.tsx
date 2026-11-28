@@ -17,6 +17,8 @@ import { morphTransition } from '../lib/motion';
 import { playChime } from '../lib/chime';
 import { drawPoster, sharePoster } from '../lib/poster';
 import { BYTE_MARGIN_EVENT, byteRowText, currentByteMargin, type ByteMargin } from '../lib/byte';
+import { boardShareUrl, departureShareText, shareLink } from '../lib/share';
+import { track } from '../lib/track';
 
 type Props = {
   trip: MyTrip;
@@ -66,6 +68,7 @@ export default function MyTripCard({
   boardUntil = null,
 }: Props) {
   const { lang, t } = useLang();
+  const [shareNote, setShareNote] = useState<'' | 'copied' | 'failed'>('');
   const badge = lineBadge(trip.line);
   const name = lineLabel(lineName(trip.line, badge), lang);
   const nu = (label: string) => (label === 'Nu' ? t('Nu', 'Now') : label);
@@ -323,6 +326,30 @@ export default function MyTripCard({
             style={iconButton}
           >
             <Icon name="speaker" size={18} />
+          </button>
+        ) : null}
+        {head ? (
+          // Dela avgången: "Buss 4 mot Radiohuset går 08:16 från Slussen." med länk till tavlan (tillväxtplanen, ändring 1).
+          <button
+            type="button"
+            onClick={async () => {
+              const result = await shareLink({
+                title: `${trip.stopName} – ${t('avgångar i realtid', 'real-time departures')}`,
+                text: departureShareText(shown || head, trip.stopName, lang),
+                url: boardShareUrl({ id: trip.stopId, name: trip.stopName }),
+              });
+              if (result === 'shared' || result === 'copied') track('funktion', 0, 'dela_min_resa');
+              if (result === 'copied' || result === 'failed') {
+                setShareNote(result);
+                window.setTimeout(() => setShareNote(''), 4000);
+              }
+            }}
+            className="row-link"
+            aria-label={shareNote === 'copied' ? t('Länken är kopierad', 'Link copied') : t('Dela avgången', 'Share the departure')}
+            title={shareNote === 'copied' ? t('Länken är kopierad', 'Link copied') : t('Dela', 'Share')}
+            style={iconButton}
+          >
+            {shareNote === 'copied' ? <span aria-hidden="true" style={{ fontWeight: 800 }}>✓</span> : <Icon name="share" size={18} />}
           </button>
         ) : null}
         {head ? (

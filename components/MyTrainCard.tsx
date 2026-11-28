@@ -7,6 +7,7 @@ import { colors, fonts } from './styles';
 import { compensationLink } from '../lib/compensation';
 import { buildArrivalMessage } from '../lib/arrivalMessage.mjs';
 import { track } from '../lib/track';
+import TellFriend from './TellFriend';
 import { lineLabel, trackLabel, trainPosition, useLang } from '../lib/i18n';
 
 type Part = { scheduled: string; estimated?: string; actual?: string; delay: number };
@@ -264,6 +265,7 @@ export default function MyTrainCard({
           ) : null}
         </div>
       ) : null}
+      {homeKey && homeShown ? <TellFriend where="kvitto" /> : null}
 
       {/* Hinner jag bytet: svaret direkt på kortet. */}
       {byte ? (

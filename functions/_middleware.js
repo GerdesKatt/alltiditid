@@ -6,6 +6,10 @@
 //    delningstexten, så att förhandsvisningen i Messenger, iMessage och Slack
 //    visar "Gullmarsplan" i stället för en allmän rubrik. Länkförhandsvisare
 //    kör inget JavaScript, därför görs det här och inte i appen.
+// 3. Korta länkar för QR-lappar (/q/cafe-x/slussen) skickas vidare med koden som
+//    källa (lib/shortLink.mjs).
+
+import { shortLinkTarget } from '../lib/shortLink.mjs';
 
 const SHORT_HOSTS = new Set(['resx.se', 'www.resx.se']);
 const SITE = 'https://alltiditid.se';
@@ -46,6 +50,12 @@ export async function onRequest(context) {
 
   if (SHORT_HOSTS.has(url.hostname)) {
     return Response.redirect(`${SITE}${url.pathname}${url.search}`, 301);
+  }
+
+  const short = shortLinkTarget(url.pathname);
+  if (short) {
+    // 302: en lapp kan få ett nytt mål senare utan att webbläsare minns det gamla.
+    return Response.redirect(`${url.origin}${short}`, 302);
   }
 
   const response = await context.next();

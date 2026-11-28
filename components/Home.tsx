@@ -7,6 +7,7 @@ import { countdownFor, groupKey, lineBadge, parseLocal, splitProduct } from '../
 import { boardUrl } from '../lib/prefetch';
 import { positionAllowed, rememberPositionAllowed } from '../lib/visits';
 import InstallApp from './InstallApp';
+import TellFriend from './TellFriend';
 import SmartSearch from './SmartSearch';
 import type { ChosenPlace } from './PlaceSuggest';
 import StrandedTips from './StrandedTips';
@@ -402,6 +403,8 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
 
 
       <InstallApp />
+      {/* Bara för den som har kommit tillbaka: en ny besökare ska se avgångar först. */}
+      {stops.length > 0 ? <TellFriend where="hem" /> : null}
     </div>
   );
 }
