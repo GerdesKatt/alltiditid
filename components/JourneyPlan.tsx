@@ -53,6 +53,8 @@ type Props = {
   onSave: (to: string, from: string, trip: Trip, ticket?: { anchor: Anchor; backup: TicketBackup | null }) => void;
   /** Rensa: tömmer Vart ska du? och resultaten. */
   onClear?: () => void;
+  /** Planera kring en bokad biljett (valet står överst i Ny resa). */
+  ticket?: boolean;
   /** Avgångstiden för den resa som redan är sparad, så att knappen visar Sparad. */
   savedKey: string;
 };
@@ -102,13 +104,16 @@ function position(): Promise<{ lat: number; lon: number } | null> {
  * Hela resan dit man ska, med byten och gång: buss till Fruängen, T-bana till T-Centralen,
  * regionaltåg till Karlstad. Startar där man står (positionen) eller vid tavlans hållplats.
  */
-export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, startAt, onSave, savedKey, onClear }: Props) {
+export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, startAt, onSave, savedKey, onClear, ticket = false }: Props) {
   const { t, lang } = useLang();
   // Tid: nu, eller ett valt datum och klockslag, som avgång eller senaste ankomst.
   const [whenMode, setWhenMode] = useState<'now' | 'later' | 'ticket'>('now');
   // "Jag har en biljett": den fasta avgången som resten byggs runt.
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const ticketMode = whenMode === 'ticket';
+  useEffect(() => {
+    setWhenMode((m) => (ticket ? 'ticket' : m === 'ticket' ? 'now' : m));
+  }, [ticket]);
   const [date, setDate] = useState(() => isoDay(new Date(Date.now() + 86_400_000)));
   const [time, setTime] = useState('08:00');
   const [arrive, setArrive] = useState(false);
@@ -283,8 +288,8 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
   return (
     <div style={{ marginTop: '14px' }}>
       <fieldset style={{ border: 'none', margin: '0 0 12px', padding: 0 }}>
-        <legend style={{ ...label, marginBottom: '6px' }}>{t('När', 'When')}</legend>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+        <legend style={{ ...label, marginBottom: '6px' }}>{ticketMode ? t('Din biljett', 'Your ticket') : t('När', 'When')}</legend>
+        <div style={{ display: ticketMode ? 'none' : 'flex', flexWrap: 'wrap', gap: '6px' }}>
           <button type="button" aria-pressed={whenMode === 'now'} onClick={() => setWhenMode('now')} style={chip(whenMode === 'now')}>
             {t('Nu', 'Now')}
           </button>
@@ -306,9 +311,6 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
             style={chip(whenMode === 'later' && date !== tomorrow)}
           >
             {t('Annan dag', 'Other day')}
-          </button>
-          <button type="button" aria-pressed={ticketMode} onClick={() => setWhenMode('ticket')} style={chip(ticketMode)}>
-            {t('Jag har en biljett', 'I have a ticket')}
           </button>
         </div>
         {ticketMode ? <TicketPicker goal={target} onAnchor={(a) => setAnchor(a)} /> : null}

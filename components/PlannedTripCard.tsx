@@ -166,7 +166,17 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
       );
     if (step.walk && step.leaveIn < 0) {
       hurry = true;
-      sub = t(`Bråttom: den går om ${step.departsIn} min`, `Hurry: it leaves in ${step.departsIn} min`);
+      // "Gå nu" och "den går om 23 min" ska inte se ut att säga emot varandra: säg varför det är bråttom.
+      sub =
+        step.departsIn < step.walkMinutes
+          ? t(
+              `Det blir tight: promenaden tar ${step.walkMinutes} min och den går om ${step.departsIn} min. Sök en ny resa om du inte hinner.`,
+              `It's tight: the walk takes ${step.walkMinutes} min and it leaves in ${step.departsIn} min. Find a new trip if you can't make it.`
+            )
+          : t(
+              `Bråttom: promenaden tar ${step.walkMinutes} min och den går om ${step.departsIn} min`,
+              `Hurry: the walk takes ${step.walkMinutes} min and it leaves in ${step.departsIn} min`
+            );
     }
   } else if (step.kind === 'riding' && step.ride.anchor && step.ride.mode === 'flight') {
     big = t('Trevlig resa', 'Have a good flight');
@@ -200,6 +210,7 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
   const backup = planned.backup && step.kind === 'before' && at(trip.depDate, planned.backup.dep) > now ? planned.backup : null;
   const later = step.kind === 'done' ? [] : step.later;
   const time = (p: { time: string; rtTime: string }) => p.rtTime || p.time;
+  const place = (name: string) => shortPlace(name);
   const trackOf = (l: Ride, p: { track: string }) => (p.track ? capital(trackText(l.mode, p.track, t)) : '');
   const line = (l: Ride) => {
     const name = lineLabel(rideLabel({ ...l, agency: '' }), lang);
@@ -208,14 +219,15 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
   };
   // Bredvid linjerutan står numret redan: "Buss mot Fruängen".
   const kind = (l: Ride) => line(l).replace(/\s+\S+$/, '') || line(l);
-  const toward = (l: Ride) => (l.direction ? ` ${t('mot', 'to')} ${l.direction}` : '');
+  const toward = (l: Ride) => (l.direction ? ` ${t('mot', 'to')} ${place(l.direction)}` : '');
   const row: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px' };
 
   return (
     <section
       className="invert"
       aria-label={t(`Min resa till ${planned.to}`, `My trip to ${planned.to}`)}
-      style={{ marginBottom: '18px', padding: '14px 18px 16px', maxWidth: '40rem' }}
+      // Proportionella siffror: tabulära ger glapp runt kolon och bindestreck ("08 : 55", "T - bana").
+      style={{ marginBottom: '18px', padding: '14px 18px 16px', maxWidth: '40rem', fontVariantNumeric: 'proportional-nums' }}
     >
       <div style={{ ...row, gap: '12px' }}>
         <span style={{ ...label, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -280,11 +292,20 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
               {toward(ride)}
             </strong>
           </div>
+          {step.kind === 'before' && step.walk ? (
+            // Först promenaden, så att det syns var du kliver på (och att det inte är en buss dit).
+            <div style={{ ...row, marginTop: '8px', fontSize: '0.875rem', color: colors.textDim }}>
+              <span style={{ minWidth: 0 }}>
+                {t('Gå till', 'Walk to')} {place(ride.from.name)}
+              </span>
+              <span>{step.walkMinutes} min</span>
+            </div>
+          ) : null}
           {ride.cancelled ? <p style={{ margin: '4px 0 0', color: colors.amber, fontWeight: 700, fontSize: '0.875rem' }}>{t('Inställd', 'Cancelled')}</p> : null}
           {step.kind !== 'riding' ? (
             <div style={{ ...row, marginTop: '8px', fontSize: '0.9375rem' }}>
               <span style={{ minWidth: 0 }}>
-                {ride.from.name}
+                {place(ride.from.name)}
                 {ride.from.track ? ` · ${trackOf(ride, ride.from)}` : ''}
               </span>
               <strong style={{ fontFamily: fonts.display, fontSize: '1.0625rem' }}>{time(ride.from)}</strong>
@@ -292,7 +313,7 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
           ) : null}
           <div style={{ ...row, marginTop: '4px', fontSize: step.kind === 'riding' ? '0.9375rem' : '0.875rem', color: step.kind === 'riding' ? colors.text : colors.textDim }}>
             <span style={{ minWidth: 0 }}>
-              {t('Kliv av', 'Get off at')} {ride.to.name}
+              {t('Kliv av', 'Get off at')} {place(ride.to.name)}
               {ride.to.track ? ` · ${trackOf(ride, ride.to)}` : ''}
             </span>
             <span style={{ fontWeight: step.kind === 'riding' ? 700 : 400 }}>{time(ride.to)}</span>
@@ -315,7 +336,7 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
                 ) : null}
               </span>
               <span style={{ display: 'block', color: colors.textDim }}>
-                {time(l.from)} {l.from.name} – {time(l.to)} {l.to.name}
+                {time(l.from)} {place(l.from.name)} – {time(l.to)} {place(l.to.name)}
               </span>
             </li>
           ))}
@@ -369,6 +390,18 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
       </p>
     </section>
   );
+}
+
+/**
+ * Kortare namn i kortet: "Mörby centrum T-bana" → "Mörby centrum", "Stockholm Centralstation" →
+ * "Stockholm C". Linjen säger redan att det är T-bana.
+ */
+export function shortPlace(name: string): string {
+  return name
+    .replace(/\s+T-bana$/i, '')
+    .replace(/\s+\(T-bana\)$/i, '')
+    .replace(/\bCentralstation\b/, 'C')
+    .trim();
 }
 
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
