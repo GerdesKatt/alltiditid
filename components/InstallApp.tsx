@@ -7,6 +7,7 @@ import { track } from '../lib/track';
 /** Chrome/Android: webbläsarens egen installationsfråga, sparad tills man trycker. */
 type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }> };
 
+const VISITS_KEY = 'alltiditid:besok';
 const DISMISS_KEY = 'alltiditid:hemskarm-nej';
 
 /**
@@ -33,7 +34,20 @@ export default function InstallApp() {
     } catch {
       dismissed = false;
     }
-    if (standalone || dismissed) return;
+    // Först vid tredje besöket (olika dagar): den som är ny ska se avgångar, inte en uppmaning.
+    let visits = 0;
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const raw = JSON.parse(window.localStorage.getItem(VISITS_KEY) || '{}') as { n?: number; last?: string };
+      visits = raw.n || 0;
+      if (raw.last !== today) {
+        visits += 1;
+        window.localStorage.setItem(VISITS_KEY, JSON.stringify({ n: visits, last: today }));
+      }
+    } catch {
+      visits = 0;
+    }
+    if (standalone || dismissed || visits < 3) return;
     const ua = navigator.userAgent;
     const isIos = /iPhone|iPad|iPod/.test(ua) || (ua.includes('Macintosh') && navigator.maxTouchPoints > 1);
     setIos(isIos);

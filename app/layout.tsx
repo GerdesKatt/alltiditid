@@ -11,9 +11,9 @@ export const metadata: Metadata = {
   description: 'Koll på avgångar, ankomster och förseningar i realtid.',
   icons: {
     icon: [
-      { url: '/favicon-v6.svg', type: 'image/svg+xml' },
+      { url: '/favicon-v7.svg', type: 'image/svg+xml' },
     ],
-    shortcut: '/favicon-v6.svg',
+    shortcut: '/favicon-v7.svg',
     apple: '/apple-touch-icon-v6.png',
   },
   manifest: '/manifest.webmanifest',

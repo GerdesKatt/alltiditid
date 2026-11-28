@@ -64,8 +64,7 @@ export default function DepartureRow({
   const isDelayed = item.status === 'delayed';
   const isCancelled = item.status === 'cancelled';
   const onlySchedule = !isCancelled && !isDelayed && item.hasRealtime === false;
-  // Hallonpricken betyder realtid (brand guiden). Ingen prick: tidtabell eller okänt.
-  const realtime = !stale && !isCancelled && item.hasRealtime === true;
+  // Realtid är normalfallet och får inget märke. Bara undantaget syns: tidtabellstider är grå med "tidtabell".
   const newTime = isDelayed ? item.newTime || item.estimatedTime : '';
   // Väntad klocktid: ny tid om försenad, annars prognosen (kan vara en minut eller två från tidtabellen).
   const clock = newTime || (!isCancelled && item.estimatedTime) || item.scheduledTime;
@@ -118,12 +117,8 @@ export default function DepartureRow({
   const compensation =
     isCancelled || (isDelayed && (item.delayMinutes || 0) >= COMPENSATION_DELAY_MIN);
 
-  // Tidtabellstider är ungefärliga: "~12 min".
-  const shownBig = booked
-    ? item.scheduledTime
-    : onlySchedule && /min$/.test(bigTime)
-    ? `~${bigTime}`
-    : bigTime;
+  // Tidtabellstider: grå siffra och ordet "tidtabell" under, inget tilde.
+  const shownBig = booked ? item.scheduledTime : bigTime;
   // Sent bokat tåg med känd ny tid som skiljer sig från den ordinarie.
   const lateBooked = booked && isDelayed && !!newTime && newTime !== item.scheduledTime;
   const timeColor = isCancelled
@@ -156,7 +151,7 @@ export default function DepartureRow({
   // Knappens namn: ett kort namn som börjar med det som syns först på raden (linjemärke och mål,
   // så att röststyrning hittar den, WCAG 2.5.3) och läses en gång, utan den synliga texten två gånger.
   const badgeText = lineLabel(badge, lang);
-  const spokenTime = isCancelled ? '' : String(shownBig || '').replace(/^~/, t('cirka ', 'about '));
+  const spokenTime = isCancelled ? '' : String(shownBig || '');
   const ariaLabel = [
     `${badgeText} ${towards}`,
     line && line !== badgeText ? line : '',
@@ -314,7 +309,6 @@ export default function DepartureRow({
               gap: '6px',
             }}
           >
-            {realtime ? <span key={item.expectedAt} className="rt-dot" aria-hidden="true" /> : null}
             {lateBooked ? (
               // Sent bokat tåg: ordinarie tid står kvar överstruken, den nya tiden är lika stor.
               <>

@@ -537,27 +537,13 @@ function FlightRow({
             {arrivals ? `${t('Från', 'From')} ` : ''}
             {f.place || f.flightId}
           </span>
-          <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim, marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {f.terminal ? (
-              <span
-                style={{
-                  display: 'inline-block',
-                  marginRight: '6px',
-                  padding: '0 5px',
-                  borderRadius: 'var(--radius-badge)',
-                  border: `1.5px solid ${colors.text}`,
-                  color: colors.text,
-                  fontWeight: 800,
-                  fontFamily: fonts.display,
-                  lineHeight: 1.35,
-                }}
-                aria-label={`Terminal ${f.terminal}`}
-              >
-                T{f.terminal}
-              </span>
-            ) : null}
-            {[where, shortAirline(f.airline)].filter(Boolean).join(' · ')}
+          {/* En bricka per rad (flightnumret). Terminal och gate som text, flygbolaget på egen rad, aldrig avklippt. */}
+          <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.text, fontWeight: 600, marginTop: '2px', overflowWrap: 'anywhere' }}>
+            {[f.terminal ? `T${f.terminal}` : '', where].filter(Boolean).join(' · ')}
           </span>
+          {shortAirline(f.airline) ? (
+            <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim, overflowWrap: 'anywhere' }}>{shortAirline(f.airline)}</span>
+          ) : null}
         </span>
         <span style={{ flexShrink: 0, textAlign: 'right' }}>
           <span

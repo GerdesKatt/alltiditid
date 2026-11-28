@@ -86,8 +86,8 @@ export default function MyTripCard({
         'from'
       )} ${trip.stopName}`}
       style={{
-        marginBottom: '18px',
-        padding: '14px 18px 16px',
+        marginBottom: '14px',
+        padding: '12px 16px 12px',
         maxWidth: '40rem',
       }}
     >
@@ -140,26 +140,20 @@ export default function MyTripCard({
               gap: '10px',
               marginTop: '6px',
               fontFamily: fonts.display,
-              fontSize: 'clamp(3rem, 16vw, 4.5rem)',
+              fontSize: 'clamp(2.75rem, 13vw, 4rem)',
               fontStretch: 'var(--stretch-head)',
               fontWeight: 800,
               // Proportionella siffror: fast bredd ger luft runt kolonet i den här storleken.
               fontVariantNumeric: 'proportional-nums',
               lineHeight: 0.95,
               letterSpacing: '-0.015em',
-              color: headCancelled || headDelayed ? colors.amber : colors.text,
+              // Siffran är alltid svart (ljust) eller ljus (mörkt): signalfärg bara i raden under strecket.
+              color: headSchedule ? colors.textDim : colors.text,
               textDecoration: headCancelled ? 'line-through' : 'none',
               overflowWrap: 'anywhere',
             }}
           >
             <span style={{ flex: 1, minWidth: 0 }}>
-              {headSchedule && /min$/.test(headBig) ? (
-                // "ungefär": ett litet, lugnt tecken, inte ett snett streck i jättestil.
-                <span aria-hidden="true" style={{ fontFamily: fonts.text, fontWeight: 500, fontSize: '0.45em', verticalAlign: '0.35em', marginRight: '0.12em', letterSpacing: 0 }}>
-                  ca
-                </span>
-              ) : null}
-              {headSchedule && /min$/.test(headBig) ? <span className="sr-only">{t('ungefär ', 'about ')}</span> : null}
               {/* Siffran rullar upp när den byts (av vid "minska rörelse"). */}
               <span key={headBig} className="tick-in">
                 {headBig}
@@ -198,8 +192,8 @@ export default function MyTripCard({
               flexWrap: 'wrap',
               justifyContent: 'space-between',
               gap: '4px 12px',
-              marginTop: '12px',
-              paddingTop: '10px',
+              marginTop: '8px',
+              paddingTop: '8px',
               borderTop: `1px solid ${colors.text}`,
               fontSize: '0.875rem',
             }}
@@ -208,7 +202,7 @@ export default function MyTripCard({
               {headCancelled
                 ? t('Inställd', 'Cancelled')
                 : headDelayed
-                ? `${t('Försenad', 'Delayed')}${head.delayMinutes ? ` +${head.delayMinutes}` : ''} · ${clockFor(head)}`
+                ? `⚠ ${t('Försenad', 'Delayed')}${head.delayMinutes ? ` +${head.delayMinutes}` : ''} · ${t('ny tid', 'new time')} ${clockFor(head)}`
                 : headSchedule
                 ? `${t('Enligt tidtabell', 'Scheduled')} · ${clockFor(head)}`
                 : `${t('I tid', 'On time')} · ${clockFor(head)}`}
@@ -250,9 +244,14 @@ export default function MyTripCard({
       ) : null}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '0 12px', marginTop: '6px', marginBottom: '-10px' }}>
-        <span style={{ display: 'flex', alignItems: 'center', fontSize: '0.8125rem', color: colors.textDim }}>
-          {t('från', 'from')} {trip.stopName}
-        </span>
+        {/* På hållplatsens egen tavla står namnet redan under kortet. */}
+        {showingStop ? (
+          <span />
+        ) : (
+          <span style={{ display: 'flex', alignItems: 'center', fontSize: '0.8125rem', color: colors.textDim }}>
+            {t('från', 'from')} {trip.stopName}
+          </span>
+        )}
         <span style={{ display: 'flex' }}>
           {!showingStop ? (
             <button type="button" onClick={onShowStop} style={textButton}>

@@ -311,23 +311,58 @@ export default function DepartureBoard({
           gap: '8px',
         }}
       >
+        {/* En rad överst: vad tavlan visar och när den uppdaterades, och de två verktygen till höger.
+            Öppnade tar verktygen hela bredden. Så får tavlan plats högre upp på skärmen. */}
+        <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', columnGap: '2px', rowGap: '6px', flexWrap: 'wrap', marginBottom: '-6px' }}>
+          <span
+            style={{
+              marginRight: 'auto',
+              display: 'inline-flex',
+              alignItems: 'baseline',
+              flexWrap: 'wrap',
+              gap: '0 6px',
+              fontFamily: 'var(--font-display)',
+              fontStretch: 'var(--stretch-wide)',
+              fontSize: '0.6875rem',
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: colors.textDim,
+            }}
+          >
+            <span>{direction === 'arrivals' ? t('Ankomster', 'Arrivals') : t('Avgångar', 'Departures')}</span>
+            {updatedAt && !stale && !offline ? (
+              <span style={{ color: limited ? colors.amber : colors.textDim, letterSpacing: '0.04em' }}>
+                · {limited ? t('Begränsad realtid', 'Limited real-time') : updatedLabel}
+              </span>
+            ) : null}
+            {view === 'lines' ? (
+              <button
+                type="button"
+                onClick={() => onViewChange('list')}
+                aria-label={t('Per linje är på. Visa som lista', 'By line is on. Show as a list')}
+                style={{ ...chipOff, textTransform: 'none', letterSpacing: 0, fontFamily: 'var(--font-text)' }}
+              >
+                {t('Per linje', 'By line')} ✕
+              </button>
+            ) : null}
+          </span>
+          {direction === 'departures' && !errorMsg ? (
+            <>
+              <WalkBar
+                stopName={stopName}
+                state={walk.state}
+                pace={walk.pace}
+                onTurnOn={walk.turnOn}
+                onTurnOff={walk.turnOff}
+                onPace={walk.setPace}
+              />
+              <FindTrip stop={{ id: stopId, name: stopName }} mode={mode} onShowTrain={onShowTrain} onShowTrip={onShowTrip} />
+            </>
+          ) : null}
+        </div>
         <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'flex-end', gap: '6px' }}>
           <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-            <span
-              style={{
-                display: 'block',
-                marginBottom: '4px',
-                fontFamily: 'var(--font-display)',
-                fontStretch: 'var(--stretch-wide)',
-                fontSize: '0.6875rem',
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: colors.textDim,
-              }}
-            >
-              {direction === 'arrivals' ? t('Ankomster till', 'Arrivals at') : t('Avgångar från', 'Departures from')}
-            </span>
             <h1 style={{ fontSize: stopName.length > 20 ? 'clamp(1.375rem, 6vw, 1.875rem)' : stopName.length > 16 ? 'clamp(1.5rem, 6.5vw, 2rem)' : stopName.length > 10 ? 'clamp(1.75rem, 7.5vw, 2.5rem)' : 'clamp(2rem, 9vw, 2.75rem)', fontWeight: 800, fontStretch: 'var(--stretch-head)', lineHeight: 1, letterSpacing: '-0.015em', margin: 0, color: colors.text, overflowWrap: 'break-word', hyphens: 'auto' }}>
               {/* Ord med bindestreck (T-Centralen) bryts aldrig vid strecket, bara mellan orden. */}
               {stopName.split(' ').map((word, i) => (
@@ -477,51 +512,6 @@ export default function DepartureBoard({
           </div>
         ) : null}
 
-        {/* En rad: när tavlan uppdaterades, och de två verktygen. Öppnade tar de hela bredden. */}
-        <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', columnGap: '4px', rowGap: '6px', flexWrap: 'wrap' }}>
-          {updatedAt && !stale && !offline ? (
-            // Ingen färgad bricka: bara avvikelser får färg. Pricken betyder realtid.
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                marginRight: 'auto',
-                fontSize: '0.8125rem',
-                fontWeight: 500,
-                color: limited ? colors.amber : colors.textDim,
-              }}
-            >
-              {limited ? null : <span className="rt-dot" aria-hidden="true" />}
-              {limited ? t('Begränsad realtid', 'Limited real-time') : `${t('Realtid', 'Real-time')} · ${updatedLabel}`}
-              {view === 'lines' ? (
-                <button
-                  type="button"
-                  onClick={() => onViewChange('list')}
-                  aria-label={t('Per linje är på. Visa som lista', 'By line is on. Show as a list')}
-                  style={{ ...chipOff }}
-                >
-                  {t('Per linje', 'By line')} ✕
-                </button>
-              ) : null}
-            </span>
-          ) : (
-            <span style={{ marginRight: 'auto' }} />
-          )}
-          {direction === 'departures' && !errorMsg ? (
-            <>
-              <WalkBar
-                stopName={stopName}
-                state={walk.state}
-                pace={walk.pace}
-                onTurnOn={walk.turnOn}
-                onTurnOff={walk.turnOff}
-                onPace={walk.setPace}
-              />
-              <FindTrip stop={{ id: stopId, name: stopName }} mode={mode} onShowTrain={onShowTrain} onShowTrip={onShowTrip} />
-            </>
-          ) : null}
-        </div>
       </div>
 
       {updatedAt && (stale || offline) ? (
@@ -693,8 +683,8 @@ export default function DepartureBoard({
           Trafiklab.se
         </a>
         {t(
-          ', Trafikverket, SL och Västtrafik. Pricken betyder realtid. Tider med ~ och "tidtabell" är inte i realtid.',
-          ', Trafikverket, SL and Västtrafik. The dot means real-time. Times with ~ and "timetable" are not live.'
+          ', Trafikverket, SL och Västtrafik. Alla tider är i realtid utom grå tider märkta "tidtabell".',
+          ', Trafikverket, SL and Västtrafik. All times are live except grey times marked "timetable".'
         )}
       </p>
     </section>
