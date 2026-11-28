@@ -12,6 +12,7 @@ import { useLiveNow } from '../lib/useLiveNow';
 import { useWakeLock } from '../lib/wakeLock';
 import Icon from './Icon';
 import { useTrivia } from '../lib/useTrivia';
+import { useRain } from '../lib/useRain';
 
 type Props = {
   trip: MyTrip;
@@ -31,6 +32,8 @@ type Props = {
   autoMode?: Departure['transportMode'];
   /** Gångtid till hållplatsen i minuter, när "Gångtid" är på. */
   walkMinutes?: number | null;
+  /** Hållplatsens läge när gångtiden är på: för regnet (idé 17). */
+  stopAt?: { lat: number; lon: number } | null;
 };
 
 /**
@@ -50,6 +53,7 @@ export default function MyTripCard({
   autoMode,
   onSave,
   walkMinutes = null,
+  stopAt = null,
 }: Props) {
   const { lang, t } = useLang();
   const badge = lineBadge(trip.line);
@@ -128,6 +132,16 @@ export default function MyTripCard({
     : calm && minutesLeft !== null && minutesLeft >= 1
     ? t('Lugnt. Inga förseningar här.', 'Calm. No delays here.')
     : '';
+  // Vädret när det spelar roll: regn inom en timme, bara med gångtid och när man ännu hinner (idé 17).
+  const rain = useRain(walkMinutes !== null ? stopAt : null);
+  const rainLine =
+    rain?.wet && verdict && verdict.kind !== 'missed'
+      ? rain.snow
+        ? t('Snö på väg. Gå i god tid.', 'Snow on the way. Leave in good time.')
+        : verdict.kind === 'go'
+        ? t('Regn på väg. Gå nu så är du torr.', "Rain on the way. Leave now and stay dry.")
+        : t('Regn inom en timme. Ta paraplyet.', 'Rain within the hour. Bring an umbrella.')
+      : '';
   // Väntan får innehåll: kuriosan om platsen, bara när det dröjer (idé 9).
   const waitLong = minutesLeft !== null && minutesLeft > 8 && !headCancelled;
   const trivia = useTrivia(trip.stopName, null, lang, waitLong);
@@ -358,6 +372,12 @@ export default function MyTripCard({
         // En torr replik i annonsernas röst, under strecket (Apple-juryn, punkt 9; Vägen till 10, idé 10).
         <p style={{ margin: '8px 0 0', fontSize: 'var(--fs-2)', fontWeight: 700, color: verdict?.kind === 'missed' ? colors.amber : colors.text }}>
           {line}
+        </p>
+      ) : null}
+
+      {rainLine ? (
+        <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-2)', color: colors.text }}>
+          {rainLine} <span style={{ color: colors.textDim }}>· SMHI</span>
         </p>
       ) : null}
 

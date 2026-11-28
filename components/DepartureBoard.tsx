@@ -13,6 +13,7 @@ import NightAnswer from './NightAnswer';
 import { flyStar } from '../lib/flyStar';
 import { BYTE_MARGIN_EVENT, byteRowText, currentByteMargin, type ByteMargin } from '../lib/byte';
 import { sameAsBoard } from '../lib/nextPick.mjs';
+import { usePunctuality } from '../lib/usePunctuality';
 import ModeFilter from './ModeFilter';
 import { sparseBoard } from '../lib/mobility.mjs';
 import type { Walk } from '../lib/useWalk';
@@ -301,6 +302,8 @@ export default function DepartureBoard({
     byteMargin && direction === 'departures' && (sameAsBoard(byteMargin.station, stopName) || sameAsBoard(stopName, byteMargin.station))
       ? byteMargin
       : null;
+  // Brukar vara sen: vår egen förseningshistorik för hållplatsen vid den här timmen (idé 12).
+  const usuallyLate = usePunctuality(stopId, now, direction === 'departures', lang);
   const byteNoteFor = (item: Departure) =>
     byteHere && item.line === byteHere.line && item.scheduledTime === byteHere.scheduledTime ? byteRowText(byteHere, lang) : null;
 
@@ -741,6 +744,7 @@ export default function DepartureBoard({
                   clockFirst={mode === 'train'}
                   boardName={stopName}
                   transferNote={byteNoteFor(item)}
+                  usuallyLate={item.status === 'cancelled' ? '' : usuallyLate(item.line, item.destination)}
                 />
               ))}
             </div>

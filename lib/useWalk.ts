@@ -123,6 +123,8 @@ export function useWalk(stopId: string) {
 
   return {
     state,
+    /** Hållplatsens läge, när gångtiden är på (för regnet i Nästa-kortet). */
+    stopAt: saved.on ? stop : null,
     pace: saved.pace,
     turnOn: () => update({ ...saved, on: true }),
     turnOff: () => update({ ...saved, on: false }),
