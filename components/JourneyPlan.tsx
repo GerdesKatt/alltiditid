@@ -108,7 +108,7 @@ function position(): Promise<{ lat: number; lon: number } | null> {
 export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, startAt, onSave, savedKey, onClear, ticket = false }: Props) {
   const { t, lang } = useLang();
   // Tid: nu, eller ett valt datum och klockslag, som avgång eller senaste ankomst.
-  const [whenMode, setWhenMode] = useState<'now' | 'later' | 'ticket'>('now');
+  const [whenMode, setWhenMode] = useState<'now' | 'later' | 'ticket'>(ticket ? 'ticket' : 'now');
   // "Jag har en biljett": den fasta avgången som resten byggs runt.
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const ticketMode = whenMode === 'ticket';
@@ -334,7 +334,10 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  if (target.length < 2) return null;
+  // Med biljett syns rutan för numret direkt, även innan målet är skrivet,
+  // så att man kan börja med biljetten (det man har i handen). Resten väntar på målet.
+  if (target.length < 2 && !ticketMode) return null;
+  const hasGoal = target.length >= 2;
 
   // Med en biljett: en förbindelse med god marginal, och den sista som hinner som reserv.
   // Ingen resa dit (redan på tåget, eller redan vid stationen): bara tåget och resan vidare.
@@ -432,6 +435,8 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
           </div>
         ) : null}
       </fieldset>
+      {hasGoal ? (
+      <>
       {/* Sitter man redan på tåget behövs ingen start. */}
       <fieldset style={{ border: 'none', margin: '0 0 14px', padding: 0, display: ticketMode && anchor?.onboard ? 'none' : undefined }}>
         <legend style={{ ...label, marginBottom: '6px' }}>{t('Från', 'From')}</legend>
@@ -744,6 +749,8 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
           </section>
         ) : null}
       </div>
+      </>
+      ) : null}
     </div>
   );
 }
