@@ -41,7 +41,10 @@ export type PlannedTrip = {
   /** Resan byggd runt en bokad biljett. */
   anchor?: Anchor;
   backup?: TicketBackup | null;
+  /** Ett annat sätt att börja: bussen i stället för en lång promenad. */
+  startAlt?: StartAlt | null;
 };
+export type StartAlt = { line: string; direction: string; from: string; dep: string; walk: number; mode: string };
 
 const KEY = 'alltiditid:planerad-resa';
 

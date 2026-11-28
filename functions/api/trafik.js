@@ -9,7 +9,8 @@ import { locateOnRoute, vehiclePositions } from '../../lib/gtfsrt.mjs';
 import { FERRY_PREFIX, ferryBoard, ferryHarbors, searchFerryHarbors } from '../../lib/ferries.mjs';
 import { stopsAfter } from '../../lib/transferMatch.mjs';
 import { pickSearchHits, rankSearchHits } from '../../lib/searchHits.mjs';
-import { destinationCandidates, mapTrips, pickDestination } from '../../lib/plan.mjs';
+import { destinationCandidates, longFirstWalk, mapTrips, mergeStarts, minusMinutes, pickDestination, withStartWalk } from '../../lib/plan.mjs';
+import { stockholmClock, stockholmDay } from '../../lib/sweTime.mjs';
 import { SURE, geoapifyPlaces, kmBetween, photonPlaces, placeScore, rankPlaces, splitAddress } from '../../lib/places.mjs';
 import { trafficForCounty } from '../../lib/countyTraffic.mjs';
 import { foldPlace } from '../../lib/transferMatch.mjs';
@@ -2152,6 +2153,39 @@ async function handlePlan(request, keys, context) {
     }
   }
   if (trips.length === 0) return jsonResponse({ error: `Hittade ingen resa till ${dest.name}.`, to: dest.name }, 404);
+
+  // Lång promenad till första hållplatsen (Fruängen i stället för bussen från Herrängens gård):
+  // sök också från närmaste hållplats, med promenaden dit först. Vilken som står först beror på
+  // när bussen går: samma tåg och senare hemifrån, eller kortare promenad, vinner.
+  const longWalk = fromCoord && !farStart && !ticket ? trips.map((tr) => longFirstWalk(tr)).find(Boolean) : null;
+  if (longWalk) {
+    try {
+      const near = await rr(`location.nearbystops?originCoordLat=${lat.toFixed(5)}&originCoordLong=${lon.toFixed(5)}&r=800&maxNo=3`);
+      const list = Array.isArray(near.stopLocationOrCoordLocation)
+        ? near.stopLocationOrCoordLocation.map((i) => i && i.StopLocation).filter((x) => x && x.extId)
+        : [];
+      const farName = foldPlace(longWalk.to.name);
+      const stop = list.find((st) => foldPlace(cleanPlaceName(st.name) || st.name) !== farName);
+      if (stop) {
+        const meters = Number.isFinite(Number(stop.dist)) ? Math.round(Number(stop.dist)) : Math.round(distanceMeters(lat, lon, Number(stop.lat), Number(stop.lon)));
+        // Samma räkning som mapTrips: omväg på gatan och ungefär 80 m i minuten.
+        const minutes = Math.max(1, Math.ceil((meters * 1.25) / 80));
+        if (minutes < longWalk.minutes) {
+          const nowMs = Date.now();
+          const busWhen = arrive
+            ? when
+            : time
+              ? `${date ? `&date=${date}` : ''}&time=${minusMinutes(time, -minutes)}`
+              : `&date=${stockholmDay(nowMs + minutes * 60_000)}&time=${stockholmClock(nowMs + minutes * 60_000)}`;
+          const bus = mapTrips(await rr(`trip?originId=${stop.extId}&${destPart}${busWhen}&numF=3&passlist=0`), { clean: (n) => cleanPlaceName(n) || n });
+          const stopName = cleanPlaceName(stop.name) || stop.name;
+          trips = mergeStarts(trips, withStartWalk(bus, { from: longWalk.from, stopName, meters, minutes }));
+        }
+      }
+    } catch {
+      // Då blir det resorna där man går hela vägen.
+    }
+  }
 
   const data = {
     ...(farStart ? { farStart } : {}),

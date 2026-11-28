@@ -207,6 +207,8 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
           `to make ${anchor.label}${anchorTrack ? `, ${anchorTrack}` : ''}, ${anchorRide.from.rtTime || anchorRide.from.time}`
         )
       : '';
+  const startAlt =
+    planned.startAlt && step.kind === 'before' && step.walk && at(trip.depDate, planned.startAlt.dep) > now ? planned.startAlt : null;
   const backup = planned.backup && step.kind === 'before' && at(trip.depDate, planned.backup.dep) > now ? planned.backup : null;
   const later = step.kind === 'done' ? [] : step.later;
   const time = (p: { time: string; rtTime: string }) => p.rtTime || p.time;
@@ -273,6 +275,14 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
                 `${anchor.label} är ${late} min sen. Håll tiden ändå: förseningar kan krympa.`,
                 `${anchor.label} is ${late} min late. Keep to the plan anyway: delays can shrink.`
               )}
+        </p>
+      ) : null}
+      {startAlt ? (
+        // Lång promenad, men bussen från närmaste hållplats hinner samma resa.
+        <p style={{ margin: '4px 0 0', fontSize: '0.875rem' }}>
+          {t('Eller', 'Or')} <strong>{line({ ...startAlt, kind: 'ride', from: { name: startAlt.from, time: startAlt.dep, rtTime: '', track: '' }, to: { name: '', time: '', rtTime: '', track: '' }, minutes: 0, cancelled: false } as Ride)}</strong>
+          {startAlt.direction ? ` ${t('mot', 'to')} ${place(startAlt.direction)}` : ''} {t('från', 'from')} {place(startAlt.from)} {startAlt.dep}
+          {startAlt.walk ? t(`, ${startAlt.walk} min att gå dit`, `, ${startAlt.walk} min walk there`) : ''}
         </p>
       ) : null}
       {backup ? (
