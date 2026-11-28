@@ -16,6 +16,7 @@ import { useRain } from '../lib/useRain';
 import { morphTransition } from '../lib/motion';
 import { playChime } from '../lib/chime';
 import { drawPoster, sharePoster } from '../lib/poster';
+import { BYTE_MARGIN_EVENT, byteRowText, currentByteMargin, type ByteMargin } from '../lib/byte';
 
 type Props = {
   trip: MyTrip;
@@ -182,6 +183,18 @@ export default function MyTripCard({
   // Väntan får innehåll: kuriosan om platsen, bara när det dröjer (idé 9).
   const waitLong = minutesLeft !== null && minutesLeft > 8 && !headCancelled && !verdict;
   const trivia = useTrivia(trip.stopName, null, lang, waitLong);
+
+  // Bytet i storläget (del 2, idé 13): är avgången den som Mitt tåg-kortet byter till står
+  // marginalen i kortet och i storläget, så att båda stegen syns på ett ställe.
+  const [byteMargin, setByteMargin] = useState<ByteMargin | null>(null);
+  useEffect(() => {
+    const sync = () => setByteMargin(currentByteMargin());
+    sync();
+    window.addEventListener(BYTE_MARGIN_EVENT, sync);
+    return () => window.removeEventListener(BYTE_MARGIN_EVENT, sync);
+  }, []);
+  const byteNote =
+    shown && byteMargin && shown.line === byteMargin.line && shown.scheduledTime === byteMargin.scheduledTime ? byteRowText(byteMargin, lang) : null;
 
   // Storläge: bara siffran, så stor det går (idé 21). Skärmen hålls tänd där och vid "Gå nu" (idé 15).
   const [big, setBig] = useState(false);
@@ -505,6 +518,11 @@ export default function MyTripCard({
       )}
 
       {note && !verdict ? <p style={{ margin: '8px 0 0', fontSize: 'var(--fs-2)' }}>{note}</p> : null}
+      {byteNote ? (
+        <p style={{ margin: '6px 0 0', fontSize: 'var(--fs-2)', fontWeight: 700, color: byteNote.urgent ? colors.amber : colors.text }}>
+          {t('Ditt byte:', 'Your connection:')} {byteNote.text}
+        </p>
+      ) : null}
 
       {trivia && waitLong ? (
         // Väntan får innehåll: en rad om platsen när det är mer än åtta minuter kvar (idé 9).
@@ -584,6 +602,8 @@ export default function MyTripCard({
           onSpeak={canSpeak ? speak : undefined}
           speakLabel={t('Läs upp', 'Read aloud')}
           shareLabel={t('Dela som bild', 'Share as image')}
+          byte={byteNote ? `${t('Ditt byte:', 'Your connection:')} ${byteNote.text}` : ''}
+          byteUrgent={Boolean(byteNote?.urgent)}
           cancelled={headCancelled}
           status={
             headCancelled
@@ -642,6 +662,8 @@ function BigView(props: {
   onSpeak?: () => void;
   speakLabel: string;
   shareLabel: string;
+  byte: string;
+  byteUrgent: boolean;
   cancelled: boolean;
   status: string;
   verdict: string;
@@ -710,6 +732,9 @@ function BigView(props: {
         ) : null}
         {props.verdict ? <strong style={{ display: 'block', marginBottom: '6px', fontSize: 'var(--fs-5)' }}>{props.verdict}</strong> : null}
         {props.status}
+        {props.byte ? (
+          <strong style={{ display: 'block', marginTop: '6px', color: props.byteUrgent ? colors.amber : colors.text }}>{props.byte}</strong>
+        ) : null}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 20px' }}>
       {props.onSpeak ? (

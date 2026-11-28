@@ -11,6 +11,11 @@ export function distanceTo(
   position: { lat: number; lon: number } | null | undefined,
   stop: { lat: number; lon: number } | null | undefined
 ): number | null;
-export function walkMinutes(meters: number, pace?: WalkPace): number;
+export function walkMinutes(meters: number, pace?: WalkPace, factor?: number): number;
+export const PACE_FACTOR_MIN: number;
+export const PACE_FACTOR_MAX: number;
+export function clampFactor(f: number): number;
+export function paceSample(a: { meters: number; t: number } | null, b: { meters: number; t: number } | null, pace?: WalkPace): number | null;
+export function blendFactor(old: number, sample: number | null): number;
 export function platformMinutes(mode: string | undefined): number;
 export function walkVerdict(minutesLeft: number, walk: number, platform?: number): WalkVerdict;
