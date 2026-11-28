@@ -10,6 +10,9 @@ import type { TransportMode } from '../lib/types';
 import { dayLabel, type PlanLeg, type PlanPoint, type PlanTrip } from '../lib/plannedTrip';
 import PlaceSuggest, { placeDetail, type ChosenPlace } from './PlaceSuggest';
 import { stockholmDay } from '../lib/sweTime.mjs';
+import TicketPicker from './TicketPicker';
+import { AIRPORT_PLACES, at as ticketAt, clockOf, deadline, goalIsStation, onwardMargin, pickFeeder, pickOnward, ticketTrip, type Anchor } from '../lib/ticket.mjs';
+import type { TicketBackup } from '../lib/plannedTrip';
 
 type Point = PlanPoint;
 type Leg = PlanLeg;
@@ -46,10 +49,12 @@ type Props = {
   fromName: string;
   /** Platsen man skrev in under Avgångar när positionen är avstängd: används i stället för positionen. */
   startAt?: { name: string; lat: number; lon: number } | null;
-  /** Spara en resa som Min resa. */
-  onSave: (to: string, from: string, trip: Trip) => void;
+  /** Spara en resa som Min resa. Med en bokad biljett följer biljetten och reserven med. */
+  onSave: (to: string, from: string, trip: Trip, ticket?: { anchor: Anchor; backup: TicketBackup | null }) => void;
   /** Rensa: tömmer Vart ska du? och resultaten. */
   onClear?: () => void;
+  /** Planera kring en bokad biljett (valet står överst i Ny resa). */
+  ticket?: boolean;
   /** Avgångstiden för den resa som redan är sparad, så att knappen visar Sparad. */
   savedKey: string;
 };
@@ -67,6 +72,14 @@ export function rideLabel(leg: Leg): string {
   }
   if (!leg.agency || leg.line.toLowerCase().startsWith(leg.agency.toLowerCase())) return leg.line;
   return `${leg.agency} ${leg.line.charAt(0).toLowerCase()}${leg.line.slice(1)}`;
+}
+
+/** "spår 2" för tåg och T-bana, "läge A" för buss och spårvagn. */
+export function trackText(mode: string, value: string, t: (sv: string, en: string) => string): string {
+  if (/^(spår|läge|track|stand)\b/i.test(value)) return value;
+  // Flyg: terminalen står redan med ord ("terminal 5").
+  if (mode === 'flight') return value;
+  return mode === 'bus' || mode === 'tram' ? `${t('läge', 'stand')} ${value}` : `${t('spår', 'track')} ${value}`;
 }
 
 /** Datumet i svensk tid, så att "i dag" och "i morgon" stämmer även på en telefon i en annan tidszon. */
@@ -91,10 +104,18 @@ function position(): Promise<{ lat: number; lon: number } | null> {
  * Hela resan dit man ska, med byten och gång: buss till Fruängen, T-bana till T-Centralen,
  * regionaltåg till Karlstad. Startar där man står (positionen) eller vid tavlans hållplats.
  */
-export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, startAt, onSave, savedKey, onClear }: Props) {
+export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, startAt, onSave, savedKey, onClear, ticket = false }: Props) {
   const { t, lang } = useLang();
   // Tid: nu, eller ett valt datum och klockslag, som avgång eller senaste ankomst.
-  const [whenMode, setWhenMode] = useState<'now' | 'later'>('now');
+  const [whenMode, setWhenMode] = useState<'now' | 'later' | 'ticket'>('now');
+  // "Jag har en biljett": den fasta avgången som resten byggs runt.
+  const [anchor, setAnchor] = useState<Anchor | null>(null);
+  const ticketMode = whenMode === 'ticket';
+  // Resan vidare från tågets sista station till målet (Stockholm C → Härnösand).
+  const [onward, setOnward] = useState<Trip[] | null>(null);
+  useEffect(() => {
+    setWhenMode((m) => (ticket ? 'ticket' : m === 'ticket' ? 'now' : m));
+  }, [ticket]);
   const [date, setDate] = useState(() => isoDay(new Date(Date.now() + 86_400_000)));
   const [time, setTime] = useState('08:00');
   const [arrive, setArrive] = useState(false);
@@ -135,13 +156,99 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
 
   const target = goal.trim();
   const placeKey = place ? place.id || `${place.lat},${place.lon}` : '';
-  const query = `${target}|${whenMode}|${date}|${time}|${arrive}|${useOther ? `other:${fromKey}` : useStop ? fromId : startAt ? `${startAt.lat},${startAt.lon}` : 'here'}|${placeKey}`;
+  const anchorKey = ticketMode && anchor ? `${anchor.number}/${anchor.date}/${anchor.dep}/${anchor.from}/${anchor.to}/${anchor.margin}/${anchor.onboard ? 'ombord' : ''}` : '';
+  const query = `${target}|${whenMode}|${anchorKey}|${date}|${time}|${arrive}|${useOther ? `other:${fromKey}` : useStop ? fromId : startAt ? `${startAt.lat},${startAt.lon}` : 'here'}|${placeKey}`;
   const hereName = startAt ? startAt.name : '';
   const stale = plan !== null && asked !== query;
+
+  /** POST till reseplaneraren. Kastar med serverns felmeddelande. */
+  async function planRequest(body: object): Promise<Plan> {
+    const res = await fetch('/api/trafik?action=plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const err = new Error(data.error || '') as Error & { status?: number; to?: string };
+      err.status = res.status;
+      err.to = data.to;
+      throw err;
+    }
+    return data as Plan;
+  }
+
+  /**
+   * Biljetten: resan till stationen (baklänges från avgången, om man inte redan sitter på
+   * tåget) och resan vidare från där man kliver av till målet, om målet inte är stationen.
+   */
+  async function findTicket(a: Anchor) {
+    const needOnward = a.kind === 'train' && Boolean(a.arr) && !goalIsStation(a.to, target);
+    const fromPosition = !useStop && !useOther;
+    try {
+      // Vidare: från avstigningen, tidigast ankomsten plus bytet.
+      const onwardJob = needOnward
+        ? (() => {
+            const after = clockOf(ticketAt(a.arrDate || a.date, a.arr || a.dep) + onwardMargin(a.to) * 60_000);
+            return planRequest({ to: target, ...(place ? { place } : {}), from: a.to, date: after.date, time: after.time }).catch(() => null);
+          })()
+        : Promise.resolve(null);
+
+      let feeder: Plan | null = null;
+      if (!a.onboard) {
+        const pos = fromPosition ? (startAt ? { lat: startAt.lat, lon: startAt.lon } : await position()) : null;
+        setLastPos(pos);
+        if (fromPosition && !pos && !fromId) {
+          setFromMode('other');
+          setError(t('Kunde inte få din position. Skriv var du startar under Från.', 'Could not get your location. Type where you start under From.'));
+          focusFrom();
+          return;
+        }
+        const start = useOther
+          ? fromPick
+            ? fromPick.kind === 'stop' && fromPick.id
+              ? { fromId: fromPick.id, fromName: fromPick.name }
+              : { lat: fromPick.lat, lon: fromPick.lon, fromName: fromPick.name }
+            : { from: fromText.trim() }
+          : pos || { fromId, fromName };
+        const by = clockOf(deadline(a));
+        try {
+          feeder = await planRequest({ ...ticketTarget(a), ...start, date: by.date, time: by.time, arrive: true, ticket: true });
+        } catch (e) {
+          const err = e as Error & { status?: number; samePlace?: boolean };
+          // Redan vid stationen: ingen resa dit behövs.
+          if (err.status === 409) feeder = null;
+          else throw e;
+        }
+      }
+      const onwardPlan = await onwardJob;
+      setOnward(onwardPlan ? onwardPlan.trips : needOnward ? [] : null);
+      setPlan(
+        feeder || {
+          to: a.to,
+          fromHere: false,
+          from: a.from,
+          date: a.date,
+          time: '',
+          arrive: false,
+          trips: [],
+        }
+      );
+      track('funktion', 0, a.onboard ? 'reseplan_biljett_ombord' : 'reseplan_biljett');
+    } catch (e) {
+      setError((e as Error).message || t('Hittade ingen resa just nu. Prova en annan tid eller ett mål i närheten.', 'No trip found right now. Try another time or a destination nearby.'));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function find() {
     const fromPosition = !useStop && !useOther;
     if (target.length < 2) return;
+    if (ticketMode && !anchor) {
+      setError(t('Skriv numret på biljetten först.', 'Type the number on your ticket first.'));
+      return;
+    }
     if (useOther && fromText.trim().length < 2) {
       setError(t('Skriv var du startar.', 'Type where you start.'));
       focusFrom();
@@ -151,8 +258,13 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
     setError('');
     setNoTrip(false);
     setPlan(null);
+    setOnward(null);
     setOpen(0);
     setAsked(query);
+    if (ticketMode && anchor) {
+      await findTicket(anchor);
+      return;
+    }
     const pos = fromPosition ? (startAt ? { lat: startAt.lat, lon: startAt.lon } : await position()) : null;
     setLastPos(pos ? { lat: pos.lat, lon: pos.lon } : null);
     if (fromPosition && !pos && !fromId) {
@@ -208,19 +320,55 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
 
   // Valt ett förslag: sök resan dit direkt.
   useEffect(() => {
-    if (place && !loading && asked !== query) find();
+    if (place && !loading && asked !== query && !(ticketMode && !anchor)) find();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [placeKey]);
 
   // Har man redan sökt och byter tid eller start: sök om av sig själv (samma mål).
   useEffect(() => {
     if (!asked || loading || asked === query || asked.split('|')[0] !== target) return;
+    if (ticketMode && !anchor) return;
     const timer = setTimeout(() => find(), 500);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   if (target.length < 2) return null;
+
+  // Med en biljett: en förbindelse med god marginal, och den sista som hinner som reserv.
+  // Ingen resa dit (redan på tåget, eller redan vid stationen): bara tåget och resan vidare.
+  const noFeeder = Boolean(ticketMode && anchor && plan && (anchor.onboard || plan.trips.length === 0));
+  const ticketPick =
+    ticketMode && anchor && plan && !noFeeder ? pickFeeder(plan.trips, deadline(anchor), ticketAt(anchor.date, anchor.dep), Date.now()) : null;
+  // Resan vidare från avstigningen, tidigast när tåget är framme plus bytet.
+  const onwardTrip =
+    ticketMode && anchor && onward && anchor.arr
+      ? pickOnward(onward, ticketAt(anchor.arrDate || anchor.date, anchor.arr) + onwardMargin(anchor.to) * 60_000)
+      : null;
+  const onwardMissing = Boolean(ticketMode && anchor && onward && !onwardTrip);
+  type Shown = { trip: Trip; feeder: Trip | null; tag?: string };
+  const shown: Shown[] =
+    ticketMode && anchor && plan
+      ? noFeeder
+        ? [{ trip: ticketTrip(null, anchor, onwardTrip), feeder: null }]
+        : ticketPick && ticketPick.main
+          ? [
+              {
+                trip: ticketTrip(ticketPick.main, anchor, onwardTrip),
+                feeder: ticketPick.main,
+                tag: ticketPick.tight ? t('Snålt, men först fram', 'Tight, but earliest') : t('Rekommenderas', 'Recommended'),
+              },
+              ...(ticketPick.backup
+                ? [{ trip: ticketTrip(ticketPick.backup, anchor, onwardTrip), feeder: ticketPick.backup, tag: t('Reserv om du missar den', 'Backup if you miss it') }]
+                : []),
+            ]
+          : []
+      : (plan?.trips || []).map((trip) => ({ trip, feeder: null }));
+  const backupOf = (feeder: Trip | null): TicketBackup | null => {
+    if (!ticketPick || !ticketPick.backup || !feeder || feeder !== ticketPick.main) return null;
+    const first = ticketPick.backup.legs.find((l) => l.kind === 'ride');
+    return first && first.kind === 'ride' ? { dep: first.from.time, line: rideLabel(first), from: first.from.name } : null;
+  };
 
   const tomorrow = isoDay(new Date(Date.now() + 86_400_000));
   const chip = (on: boolean): React.CSSProperties => ({
@@ -237,8 +385,8 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
   return (
     <div style={{ marginTop: '14px' }}>
       <fieldset style={{ border: 'none', margin: '0 0 12px', padding: 0 }}>
-        <legend style={{ ...label, marginBottom: '6px' }}>{t('När', 'When')}</legend>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+        <legend style={{ ...label, marginBottom: '6px' }}>{ticketMode ? t('Din biljett', 'Your ticket') : t('När', 'When')}</legend>
+        <div style={{ display: ticketMode ? 'none' : 'flex', flexWrap: 'wrap', gap: '6px' }}>
           <button type="button" aria-pressed={whenMode === 'now'} onClick={() => setWhenMode('now')} style={chip(whenMode === 'now')}>
             {t('Nu', 'Now')}
           </button>
@@ -262,6 +410,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
             {t('Annan dag', 'Other day')}
           </button>
         </div>
+        {ticketMode ? <TicketPicker goal={target} near={startAt ? { lat: startAt.lat, lon: startAt.lon } : null} onAnchor={(a) => setAnchor(a)} /> : null}
         {whenMode === 'later' ? (
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '8px', marginTop: '10px' }}>
             <label style={fieldLabel}>
@@ -282,7 +431,8 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
           </div>
         ) : null}
       </fieldset>
-      <fieldset style={{ border: 'none', margin: '0 0 14px', padding: 0 }}>
+      {/* Sitter man redan på tåget behövs ingen start. */}
+      <fieldset style={{ border: 'none', margin: '0 0 14px', padding: 0, display: ticketMode && anchor?.onboard ? 'none' : undefined }}>
         <legend style={{ ...label, marginBottom: '6px' }}>{t('Från', 'From')}</legend>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
           <button type="button" aria-pressed={fromMode === 'here'} onClick={() => setFromMode('here')} style={chip(fromMode === 'here')}>
@@ -362,7 +512,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
       >
         {loading ? t('Söker resa…', 'Finding a trip…') : `${t('Sök resa', 'Find trip')} →`}
       </button>
-      {fromMode === 'here' ? (
+      {fromMode === 'here' && !(ticketMode && anchor?.onboard) ? (
         <p style={{ margin: '6px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
           {hereName
             ? t(`Startar vid ${hereName}, som du skrev under Avgångar.`, `Starts at ${hereName}, as you typed under Departures.`)
@@ -384,9 +534,13 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
               {/* Vad texten tolkades som, tydligt, så att man ser om det blev fel mål. */}
               <p style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>
                 <span style={{ fontWeight: 400, color: colors.textDim }}>{t('Till', 'To')} </span>
-                {plan.to}
+                {ticketMode && anchor ? (onwardTrip ? target : anchor.to || target) : plan.to}
               </p>
-              {plan.toKind ? (
+              {ticketMode && anchor ? (
+                <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
+                  {t(`Via ${anchor.from}, med din biljett`, `Via ${anchor.from}, with your ticket`)}
+                </p>
+              ) : plan.toKind ? (
                 <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
                   {placeDetail({ kind: plan.toKind, name: plan.to, detail: plan.toDetail, type: plan.toType || place?.type }, lang)}
                 </p>
@@ -456,8 +610,57 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
                 ) : null}
               </div>
             ) : null}
+            {ticketMode && anchor ? (
+              // Biljetten är ankaret: allt annat räknas baklänges från den.
+              <div style={{ margin: '10px 0 4px', padding: '10px 12px', border: `2px solid ${colors.text}` }}>
+                <strong style={{ display: 'block', fontSize: '0.9375rem' }}>
+                  {anchor.label}
+                  {anchor.to ? ` ${t('till', 'to')} ${anchor.to}` : ''} · {anchor.dep}
+                  {anchor.track ? `, ${anchor.kind === 'train' ? trackText('train', anchor.track, t) : anchor.track}` : ''}
+                </strong>
+                {anchor.onboard ? (
+                  <span style={{ display: 'block', marginTop: '2px', fontSize: '0.875rem' }}>
+                    {t(`Du sitter på tåget och kliver av i ${anchor.to}`, `You are on the train and get off at ${anchor.to}`)} {anchor.arr}
+                  </span>
+                ) : (
+                  <span style={{ display: 'block', marginTop: '2px', fontSize: '0.875rem' }}>
+                    {t(`Var på ${anchor.from} senast`, `Be at ${anchor.from} by`)} <strong>{clockOf(deadline(anchor)).time}</strong>
+                    <span style={{ color: colors.textDim }}> · {t(`${anchor.margin} min marginal`, `${anchor.margin} min to spare`)}</span>
+                  </span>
+                )}
+                {ticketPick?.none ? (
+                  // Ingen resa hinner till påstigningen: säg det, och föreslå ingenting.
+                  <span style={{ display: 'block', marginTop: '6px', fontSize: '0.9375rem', color: colors.amber, fontWeight: 700, lineHeight: 1.4 }}>
+                    {t(
+                      `Du hinner inte till ${anchor.from} före ${anchor.dep} härifrån. Kliver du på någon annanstans, eller sitter du redan på tåget? Ändra under Din biljett.`,
+                      `You can't get to ${anchor.from} before ${anchor.dep} from here. Boarding somewhere else, or already on the train? Change it under Your ticket.`
+                    )}
+                  </span>
+                ) : ticketPick?.tight ? (
+                  <span style={{ display: 'block', marginTop: '4px', fontSize: '0.875rem', color: colors.amber, fontWeight: 700 }}>
+                    {t('Ingen resa hinner fram med hela marginalen. Åk så tidigt du kan.', 'No trip gets you there with the full margin. Leave as early as you can.')}
+                  </span>
+                ) : ticketPick && !ticketPick.backup ? (
+                  <span style={{ display: 'block', marginTop: '4px', fontSize: '0.8125rem', color: colors.textDim }}>
+                    {t('Det går glest härifrån, så det finns ingen senare som hinner.', 'Departures are sparse here, so there is no later one that makes it.')}
+                  </span>
+                ) : null}
+                {onwardTrip ? (
+                  <span style={{ display: 'block', marginTop: '4px', fontSize: '0.8125rem', color: colors.textDim }}>
+                    {t(`Sedan vidare från ${anchor.to} till ${target}, framme ${onwardTrip.arr}.`, `Then on from ${anchor.to} to ${target}, arriving ${onwardTrip.arr}.`)}
+                  </span>
+                ) : onwardMissing ? (
+                  <span style={{ display: 'block', marginTop: '4px', fontSize: '0.8125rem', color: colors.amber }}>
+                    {t(
+                      `Hittade ingen resa vidare från ${anchor.to} till ${target} efter ${anchor.arr}. Resan nedan slutar i ${anchor.to}.`,
+                      `Found no trip on from ${anchor.to} to ${target} after ${anchor.arr}. The trip below ends at ${anchor.to}.`
+                    )}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
             <ol style={{ listStyle: 'none', margin: '6px 0 0', padding: 0 }}>
-              {plan.trips.map((trip, i) => {
+              {shown.map(({ trip, feeder, tag }, i) => {
                 const expanded = open === i;
                 const rides = trip.legs.filter((l) => l.kind === 'ride');
                 return (
@@ -497,6 +700,12 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
                       <span style={{ flexBasis: '100%', fontSize: '0.8125rem', color: colors.textDim }}>
                         {rides.map(rideLabel).join(' → ')}
                       </span>
+                      {tag ? (
+                        <span style={{ ...label, flexBasis: '100%', marginTop: '2px', color: i === 0 ? colors.text : colors.textDim }}>
+                          {tag}
+                          {anchor && feeder ? ` · ${t(`på ${anchor.from}`, `at ${anchor.from}`)} ${feeder.arr}` : ''}
+                        </span>
+                      ) : null}
                     </button>
                     {expanded ? (
                       <>
@@ -512,7 +721,11 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
                             <button
                               type="button"
                               onClick={() => {
-                                onSave(plan.to, plan.fromHere ? hereName || t('din position', 'your location') : plan.from || fromName, trip);
+                                const from = plan.fromHere ? hereName || t('din position', 'your location') : plan.from || fromName;
+                                if (ticketMode && anchor) {
+                                  // Hela resan: dit, bytet med marginal och biljetten sist.
+                                  onSave(onwardTrip ? target : anchor.to || target, anchor.onboard ? anchor.label : from, trip, { anchor, backup: backupOf(feeder) });
+                                } else onSave(plan.to, from, trip);
                                 track('funktion', 0, 'reseplan_spara');
                               }}
                               style={primary}
@@ -531,6 +744,41 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** Vart förbindelsen ska: stationen (sökt på namnet) eller flygplatsens terminal. */
+function ticketTarget(anchor: Anchor): { to: string; place?: { kind: 'poi'; name: string; lat: number; lon: number } } {
+  const air = anchor.kind === 'flight' && anchor.airport ? AIRPORT_PLACES[anchor.airport] : null;
+  if (air) return { to: air.name, place: { kind: 'poi', name: air.name, lat: air.lat, lon: air.lon } };
+  return { to: anchor.from };
+}
+
+/** Linjenumret i en ruta med linjens färg i kanten, som på tavlan. */
+export function LineBadge({ leg, large = false }: { leg: Leg; large?: boolean }) {
+  if (leg.kind !== 'ride') return null;
+  const tint = lineColor({ line: leg.line, transportMode: leg.mode as TransportMode });
+  const num = leg.line.match(/\S+$/)?.[0] || leg.line;
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        flexShrink: 0,
+        alignSelf: large ? 'center' : 'flex-start',
+        minWidth: large ? '52px' : '44px',
+        padding: large ? '4px 8px' : '3px 6px',
+        paddingLeft: tint ? (large ? '13px' : '10px') : large ? '8px' : '6px',
+        boxSizing: 'border-box',
+        border: `1.5px solid ${colors.badgeBorder}`,
+        boxShadow: tint ? `inset ${large ? 6 : 5}px 0 0 ${tint}` : 'none',
+        fontFamily: fonts.display,
+        fontWeight: 800,
+        fontSize: large ? '1.125rem' : '0.875rem',
+        textAlign: 'center',
+      }}
+    >
+      {num}
+    </span>
   );
 }
 
@@ -561,33 +809,13 @@ export function LegRow({ leg }: { leg: Leg }) {
       </li>
     );
   }
-  const tint = lineColor({ line: leg.line, transportMode: leg.mode as TransportMode });
-  const num = leg.line.match(/\S+$/)?.[0] || leg.line;
   const late = (p: Point) => p.rtTime && p.rtTime !== p.time;
   const time = (p: Point) => (
     <span style={{ fontWeight: 700, color: late(p) ? colors.amber : colors.text }}>{p.rtTime || p.time}</span>
   );
   return (
     <li style={{ display: 'flex', gap: '12px', padding: '8px 0', borderTop: `1px solid ${colors.border}` }}>
-      <span
-        aria-hidden="true"
-        style={{
-          flexShrink: 0,
-          alignSelf: 'flex-start',
-          minWidth: '44px',
-          padding: '3px 6px',
-          paddingLeft: tint ? '10px' : '6px',
-          boxSizing: 'border-box',
-          border: `1.5px solid ${colors.badgeBorder}`,
-          boxShadow: tint ? `inset 5px 0 0 ${tint}` : 'none',
-          fontFamily: fonts.display,
-          fontWeight: 800,
-          fontSize: '0.875rem',
-          textAlign: 'center',
-        }}
-      >
-        {num}
-      </span>
+      <LineBadge leg={leg} />
       <span style={{ flex: 1, minWidth: 0, fontSize: '0.875rem', lineHeight: 1.45 }}>
         <strong style={{ display: 'block', fontSize: '0.9375rem', textDecoration: leg.cancelled ? 'line-through' : 'none' }}>
           {rideLabel(leg)}
@@ -596,7 +824,7 @@ export function LegRow({ leg }: { leg: Leg }) {
         {leg.cancelled ? <span style={{ display: 'block', color: colors.amber, fontWeight: 700 }}>{t('Inställd', 'Cancelled')}</span> : null}
         <span style={{ display: 'block' }}>
           {time(leg.from)} {leg.from.name}
-          {leg.from.track ? `, ${t('spår', 'track')} ${leg.from.track}` : ''}
+          {leg.from.track ? `, ${trackText(leg.mode, leg.from.track, t)}` : ''}
         </span>
         <span style={{ display: 'block' }}>
           {time(leg.to)} {leg.to.name}

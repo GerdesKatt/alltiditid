@@ -20,7 +20,7 @@ import { loadMyFlight, MY_FLIGHT_EVENT, storeMyFlight, type MyFlight } from '../
 import SheetBackdrop from './SheetBackdrop';
 import { colors, textInput } from './styles';
 import ModeTabs, { type AppTab, type MenuKey } from './ModeTabs';
-import { loadModeFor, storeModeFor } from '../lib/modeMemory';
+import { loadModeFor, MODE_CHOICES, storeModeFor } from '../lib/modeMemory';
 import { pickNextDeparture } from '../lib/nextPick.mjs';
 import { habitFor, recordOpen } from '../lib/habits';
 import { useWalk } from '../lib/useWalk';
@@ -86,6 +86,16 @@ const CLOCK_TICK_MS = 15_000;
 /** Avgångar vars förväntade tid passerats med mer än så här döljs (ms). */
 const DEPARTED_GRACE_MS = 60_000;
 
+/** Små versaler över delarna i Min resa: Sparad, Ny resa. */
+const sectionLabel: React.CSSProperties = {
+  margin: '0 0 8px',
+  fontSize: '0.6875rem',
+  fontWeight: 600,
+  letterSpacing: '0.16em',
+  textTransform: 'uppercase',
+  color: colors.textDim,
+};
+
 
 let firstBoardMarked = false;
 
@@ -121,14 +131,7 @@ type AppProps = {
 };
 
 /** Trafikslagen som kan väljas på tavlan, i den ordning de visas. */
-const BOARD_MODES: { key: Exclude<TransportMode, 'all'>; label: string }[] = [
-  { key: 'train', label: 'Tåg' },
-  { key: 'commuter', label: 'Pendel' },
-  { key: 'subway', label: 'T-bana' },
-  { key: 'tram', label: 'Spårvagn' },
-  { key: 'bus', label: 'Buss' },
-  { key: 'ferry', label: 'Båt' },
-];
+const BOARD_MODES = MODE_CHOICES;
 
 export default function App({ initialStop, page, intro }: AppProps) {
   const { lang, t } = useLang();
@@ -163,7 +166,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
   /** Hållplatsens läge enligt tavlans svar (saknas när tavlan är tom). */
   const [stopCoords, setStopCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const [activeInfoTab, setActiveInfoTab] = useState<InfoTab>('about');
+  const [activeInfoTab, setActiveInfoTab] = useState<InfoTab | null>(null);
 
   const [onBoardTrip, setOnBoardTrip] = useState<Departure | null>(null);
   // Hållplatslistan (för stationsbladet och adresser som /slussen-t-bana), hämtas i efterhand.
@@ -717,6 +720,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
   // Var man är, inskrivet på Hem när positionen är avstängd. Sparas inte.
   const [startAt, setStartAt] = useState<{ name: string; lat: number; lon: number } | null>(null);
   const [goal, setGoal] = useState('');
+  // Ny resa: vanlig sökning eller kring en bokad biljett.
+  const [ticketPlan, setTicketPlan] = useState(false);
   // Ett valt förslag (hållplats, plats eller adress), och om förslagen visas just nu.
   const [goalPlace, setGoalPlace] = useState<ChosenPlace | null>(null);
   const [suggestOpen, setSuggestOpen] = useState(false);
@@ -764,7 +769,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
           }}
         />
       ) : null}
-      {myTrip ? (
+      {/* En sparad resa i taget: med en planerad resa visas inte en sparad avgång bredvid. */}
+      {myTrip && !planned ? (
         <MyTripCard
           walkMinutes={myTrip.stopId === selectedStop.id ? walkMin : null}
           trip={myTrip}
@@ -869,16 +875,49 @@ export default function App({ initialStop, page, intro }: AppProps) {
       {tab === 'flyg' ? <FlightView initialAirport={flightAirport} /> : null}
       {tab === 'resa' ? (
         <section aria-label={t('Min resa', 'My trip')} style={{ marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '1.375rem', fontWeight: 800, margin: '0 0 12px' }}>{t('Planera och följ din resa', 'Plan and follow your trip')}</h1>
-      {journeyCards}
+          <h1 style={{ fontSize: '1.375rem', fontWeight: 800, margin: '0 0 14px' }}>{t('Min resa', 'My trip')}</h1>
+          {myFlight || myTrain || myTrip || planned ? (
+            <>
+              <h2 style={sectionLabel}>{t('Sparad', 'Saved')}</h2>
+              {journeyCards}
+            </>
+          ) : null}
+            <h2 style={{ ...sectionLabel, marginTop: myFlight || myTrain || myTrip || planned ? '22px' : 0 }}>{t('Ny resa', 'New trip')}</h2>
             <div
               style={{
-                padding: '20px',
+                padding: '16px 18px 20px',
                 borderRadius: 'var(--radius-card)',
                 border: `1px solid ${colors.border}`,
                 backgroundColor: colors.surface,
               }}
             >
+              {/* Två sätt att planera, lika synliga: res när du vill, eller bygg resan kring en bokad biljett. */}
+              <div role="group" aria-label={t('Hur vill du planera?', 'How do you want to plan?')} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', border: `1px solid ${colors.text}`, marginBottom: '16px' }}>
+                {([
+                  [false, t('Sök resa', 'Find a trip'), t('nu eller senare', 'now or later')],
+                  [true, t('Jag har en biljett', 'I have a ticket'), t('tåg eller flyg', 'train or flight')],
+                ] as const).map(([on, title, hint]) => (
+                  <button
+                    key={String(on)}
+                    type="button"
+                    aria-pressed={ticketPlan === on}
+                    onClick={() => setTicketPlan(on)}
+                    style={{
+                      minHeight: '56px',
+                      padding: '8px 10px',
+                      border: 'none',
+                      borderLeft: on ? `1px solid ${colors.text}` : 'none',
+                      backgroundColor: ticketPlan === on ? colors.text : 'transparent',
+                      color: ticketPlan === on ? colors.bg : colors.text,
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span style={{ display: 'block', fontSize: '0.9375rem', fontWeight: 700 }}>{title}</span>
+                    <span style={{ display: 'block', fontSize: '0.75rem', opacity: 0.75 }}>{hint}</span>
+                  </button>
+                ))}
+              </div>
               <label htmlFor="vart-ska-du" style={{ display: 'block', fontSize: '0.9375rem', fontWeight: 700 }}>
                 {t('Vart ska du?', 'Where are you going?')}
               </label>
@@ -938,6 +977,14 @@ export default function App({ initialStop, page, intro }: AppProps) {
                   </button>
                 ) : null}
               </div>
+              {ticketPlan && goal.trim().length < 2 ? (
+                <p style={{ margin: '8px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
+                  {t(
+                    'Skriv vart du ska. Sedan tåg- eller flightnumret, så räknar vi baklänges när du ska gå.',
+                    'Type where you are going. Then the train or flight number, and we work back to when you should leave.'
+                  )}
+                </p>
+              ) : null}
               {suggestOpen ? (
                 <PlaceSuggest text={goal} nearStopId={hasStop ? selectedStop.id : undefined} onPick={pickGoal} />
               ) : null}
@@ -952,11 +999,15 @@ export default function App({ initialStop, page, intro }: AppProps) {
                 fromId={hasStop ? selectedStop.id : ''}
                 fromName={hasStop ? selectedStop.name : ''}
                 startAt={startAt}
+                ticket={ticketPlan}
                 savedKey={planned ? `${planned.trip.depDate} ${planned.trip.dep}` : ''}
-                onSave={(to, from, trip) => {
-                  const next = { to, from, trip, savedAt: Date.now() };
+                onSave={(to, from, trip, ticket) => {
+                  const next = { to, from, trip, savedAt: Date.now(), ...(ticket ? { anchor: ticket.anchor, backup: ticket.backup } : {}) };
                   setPlanned(next);
                   storePlannedTrip(next);
+                  // En sparad resa i taget: den planerade ersätter en sparad avgång, så att det inte blir två kort.
+                  setMyTrip(null);
+                  storeMyTrip(null);
                 }}
               />
               {goal.trim().length >= 2 && hasStop && goalHits.length > 0 ? (
@@ -1024,9 +1075,11 @@ export default function App({ initialStop, page, intro }: AppProps) {
                   </ul>
                 )
               ) : null}
-              <p style={{ margin: '18px 0 8px', fontSize: '0.875rem', fontWeight: 600, color: colors.textDim }}>
-                {t('Har du ett tågnummer?', 'Do you have a train number?')}
-              </p>
+              {/* Bara följa ett tåg (utan resa dit): undanplockat, så att planeringen står först. */}
+              <details style={{ marginTop: '20px', paddingTop: '12px', borderTop: `1px solid ${colors.border}` }}>
+              <summary style={{ minHeight: '44px', display: 'flex', alignItems: 'center', fontSize: '0.875rem', fontWeight: 600, color: colors.textDim, cursor: 'pointer' }}>
+                {t('Följ bara ett tåg', 'Just follow a train')}
+              </summary>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -1075,6 +1128,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
                   'The train number is on your ticket. Save a bus or metro line from the board: tap the departure and choose Save as my trip.'
                 )}
               </p>
+              </details>
             </div>
         </section>
       ) : null}
@@ -1409,7 +1463,6 @@ export default function App({ initialStop, page, intro }: AppProps) {
           onDecline={declineAnalytics}
           onReadMore={() => {
             setActiveInfoTab('privacy');
-            document.getElementById('sidfot')?.scrollIntoView({ block: 'start' });
           }}
         />
       ) : null}

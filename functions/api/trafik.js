@@ -1,5 +1,6 @@
 import { historyRows, saveHistory } from '../../lib/history.mjs';
 import { airportByIata, datesToFetch, flightBoard, normalizeFlight, pick as pickField, waitTimes } from '../../lib/flights.mjs';
+import { AVINOR_AIRLINE_NAMES, AVINOR_AIRPORT_NAMES, AVINOR_FLIGHTS, avinorBoard, parseNames } from '../../lib/avinor.mjs';
 import { countDepartures, departuresByHour, typicalDay } from '../../lib/queueForecast.mjs';
 import { departureRows, latestQueues, logDepartures, logQueues, queueRows } from '../../lib/queueLog.mjs';
 import { missingTrains, trainJourney } from '../../lib/trains.mjs';
@@ -278,9 +279,18 @@ function trackLabelFor(value, mode) {
 // Trafikverket (tåg): spår, förseningar, inställda och avvikelser
 // ---------------------------------------------------------------------------
 
+/** "POINT (18.0583 59.3301)" → { lat, lon }, annars inget. */
+function wgsPoint(wkt) {
+  const m = /POINT\s*\(\s*(-?[\d.]+)\s+(-?[\d.]+)\s*\)/i.exec(String(wkt || ''));
+  if (!m) return {};
+  const lon = Number(m[1]);
+  const lat = Number(m[2]);
+  return Number.isFinite(lat) && Number.isFinite(lon) ? { lat: Math.round(lat * 1e4) / 1e4, lon: Math.round(lon * 1e4) / 1e4 } : {};
+}
+
 /** Hämtar alla annonserade stationer (namn + signatur), cachat ett dygn. */
 async function fetchTrafikverketStations(trafikverketKey, context) {
-  const cacheKey = new Request('https://cache.alltiditid.se/trafikverket/stations-v2');
+  const cacheKey = new Request('https://cache.alltiditid.se/trafikverket/stations-v3');
   const cached = await cacheGet(cacheKey);
   if (cached) {
     try {
@@ -299,6 +309,7 @@ async function fetchTrafikverketStations(trafikverketKey, context) {
     <INCLUDE>LocationSignature</INCLUDE>
     <INCLUDE>AdvertisedLocationName</INCLUDE>
     <INCLUDE>AdvertisedShortLocationName</INCLUDE>
+    <INCLUDE>Geometry.WGS84</INCLUDE>
   </QUERY>
 </REQUEST>`;
 
@@ -316,6 +327,8 @@ async function fetchTrafikverketStations(trafikverketKey, context) {
         signature: String(st.LocationSignature).trim(),
         name: String(st.AdvertisedLocationName || ''),
         shortName: String(st.AdvertisedShortLocationName || ''),
+        // "POINT (18.0583 59.3301)": var stationen ligger, för att välja påstigning närmast en.
+        ...wgsPoint(st.Geometry && st.Geometry.WGS84),
       }));
 
     if (stations.length > 0) {
@@ -564,9 +577,14 @@ async function handleTrain(url, keys, context) {
   const nameOf = stationNamer(stations);
   const nowIso = new Date().toISOString();
   const today = swedishDateTime(nowIso).slice(0, 10);
-  const dates = [today];
-  const y = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-  dates.push(swedishDateTime(y).slice(0, 10));
+  // Ett bokat tåg en annan dag ("Jag har en biljett"): bara den dagen, högst en månad fram.
+  const asked = String(url.searchParams.get('date') || '');
+  const askedOk = /^\d{4}-\d{2}-\d{2}$/.test(asked) && asked >= today && Date.parse(`${asked}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`) <= 31 * 86_400_000;
+  const dates = askedOk ? [asked] : [today];
+  if (!askedOk) {
+    const y = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    dates.push(swedishDateTime(y).slice(0, 10));
+  }
   for (const date of dates) {
     const filter = `<AND>
         <EQ name="AdvertisedTrainIdent" value="${number}" />
@@ -580,6 +598,15 @@ async function handleTrain(url, keys, context) {
     }
     const journey = trainJourney(anns, nameOf, swedishDateTime(nowIso));
     if (journey.stops.length === 0) continue;
+    // Stationernas läge, så att appen kan föreslå påstigning närmast där man är.
+    const where = new Map((stations || []).filter((st) => Number.isFinite(st.lat)).map((st) => [st.signature, st]));
+    for (const st of journey.stops) {
+      const w = where.get(st.signature);
+      if (w) {
+        st.lat = w.lat;
+        st.lon = w.lon;
+      }
+    }
     // Gårdagens tåg bara om det fortfarande är på väg.
     if (date !== today && journey.stops.every((st) => st.passed)) continue;
     return jsonResponse(
@@ -588,7 +615,7 @@ async function handleTrain(url, keys, context) {
       { 'Cache-Control': 'public, max-age=30' }
     );
   }
-  return jsonResponse({ error: `Hittade inget tåg ${number} i dag.` }, 404);
+  return jsonResponse({ error: askedOk && asked !== today ? `Hittade inget tåg ${number} den dagen.` : `Hittade inget tåg ${number} i dag.` }, 404);
 }
 
 /**
@@ -2059,6 +2086,9 @@ async function handlePlan(request, keys, context) {
   const date = /^\d{4}-\d{2}-\d{2}$/.test(String(body && body.date)) ? String(body.date) : '';
   const time = /^\d{2}:\d{2}$/.test(String(body && body.time)) ? String(body.time) : '';
   const arrive = Boolean(body && body.arrive) && Boolean(time);
+  // En bokad biljett: flera resor som kommer fram före tiden, så att appen kan välja en med
+  // marginal och visa en reserv.
+  const ticket = arrive && Boolean(body && body.ticket);
   const when = `${date ? `&date=${date}` : ''}${time ? `&time=${time}` : ''}${arrive ? '&searchForArrival=1' : ''}`;
   if (to.length < 2) return jsonResponse({ error: 'Skriv vart du ska.' }, 400);
   if (!fromCoord && !/^\d{6,12}$/.test(fromId) && typedFrom.length < 2) return jsonResponse({ error: 'Skriv var du startar.' }, 400);
@@ -2070,7 +2100,7 @@ async function handlePlan(request, keys, context) {
   const origin = typedFrom ? `t${encodeURIComponent(foldPlace(typedFrom))}` : fromCoord ? `c${lat.toFixed(3)},${lon.toFixed(3)}` : `s${fromId}`;
   const target = chosen ? (chosen.kind === 'stop' ? `id${chosen.id}` : `c${chosen.lat.toFixed(4)},${chosen.lon.toFixed(4)}`) : to.toLowerCase();
   const cacheKey = new Request(
-    `https://cache.alltiditid.se/plan-v4/${origin}/${encodeURIComponent(target)}/${date || 'idag'}/${time || 'nu'}/${arrive ? 'framme' : 'avgang'}`
+    `https://cache.alltiditid.se/plan-v4/${origin}/${encodeURIComponent(target)}/${date || 'idag'}/${time || 'nu'}/${ticket ? 'biljett' : arrive ? 'framme' : 'avgang'}`
   );
   const cached = await cacheGet(cacheKey);
   if (cached) {
@@ -2144,7 +2174,7 @@ async function handlePlan(request, keys, context) {
   const destPart = dest.kind === 'stop' ? `destId=${dest.id}` : `destCoordLat=${dest.lat}&destCoordLong=${dest.lon}`;
   const originPart = (id) =>
     fromCoord ? `originCoordLat=${lat.toFixed(5)}&originCoordLong=${lon.toFixed(5)}` : `originId=${id}`;
-  const tripFrom = async (id) => mapTrips(await rr(`trip?${originPart(id)}&${destPart}${when}&numF=4&passlist=0`), { clean: (n) => cleanPlaceName(n) || n });
+  const tripFrom = async (id) => mapTrips(await rr(`trip?${originPart(id)}&${destPart}${when}&${ticket ? 'numB=4&numF=1' : 'numF=4'}&passlist=0`), { clean: (n) => cleanPlaceName(n) || n });
 
   let trips = [];
   try {
@@ -2171,7 +2201,7 @@ async function handlePlan(request, keys, context) {
         ? near.stopLocationOrCoordLocation.map((i) => i && i.StopLocation).filter((x) => x && x.extId)
         : [];
       for (const st of list) {
-        const t = mapTrips(await rr(`trip?originId=${st.extId}&${destPart}${when}&numF=4&passlist=0`), { clean: (n) => cleanPlaceName(n) || n });
+        const t = mapTrips(await rr(`trip?originId=${st.extId}&${destPart}${when}&${ticket ? 'numB=4&numF=1' : 'numF=4'}&passlist=0`), { clean: (n) => cleanPlaceName(n) || n });
         if (t.length) {
           trips = t;
           farStart = {
@@ -3203,6 +3233,7 @@ async function handleFlights(url, env, context) {
   const airport = airportByIata(url.searchParams.get('airport'));
   if (!airport) return jsonResponse({ error: 'Okänd flygplats.' }, 400);
   const direction = url.searchParams.get('direction') === 'arrivals' ? 'arrivals' : 'departures';
+  if (airport.source === 'avinor') return handleAvinorFlights(airport, direction, context);
   const key = env && env.SWEDAVIA_FLIGHTINFO_KEY;
   if (!key) return jsonResponse({ error: 'Flyg är inte påslaget (nyckel saknas i Cloudflare).' }, 503);
 
@@ -3250,6 +3281,83 @@ async function handleFlights(url, env, context) {
     jsonResponse(body, 200, { 'Cache-Control': `public, max-age=${FLIGHT_STALE_SECONDS}` }),
     context
   );
+  return response;
+}
+
+// Avinor: ingen nyckel och ingen kvot, men villkoren ber om högst ett anrop var 3:e
+// minut och att vi cachar, så att besökarna aldrig frågar Avinor direkt.
+const AVINOR_CACHE_SECONDS = 180;
+const AVINOR_NAMES_SECONDS = 24 * 3600;
+
+async function avinorText(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const res = await upstreamFetch(url, { headers: { Accept: 'application/xml' }, signal: controller.signal });
+    if (!res.ok) throw new Error(`Avinor ${res.status}`);
+    // Flödet är ofta iso-8859-1 (æ, ø, å); läs teckenkodningen från svaret eller XML-huvudet.
+    const buf = await res.arrayBuffer();
+    const head = new TextDecoder('latin1').decode(buf.slice(0, 200));
+    const declared = /charset=([\w-]+)/i.exec(res.headers.get('content-type') || '') || /encoding="([\w-]+)"/i.exec(head);
+    const enc = declared ? declared[1].toLowerCase() : 'utf-8';
+    try {
+      return new TextDecoder(enc).decode(buf);
+    } catch {
+      return new TextDecoder('utf-8').decode(buf);
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Flygplats- och flygbolagsnamn från Avinor, cachade ett dygn. */
+async function avinorNames(context) {
+  const key = cacheKeyFor('avinor-namn-v1');
+  const cached = await cacheGet(key);
+  if (cached) {
+    try {
+      return await cached.json();
+    } catch {
+      // Läs om.
+    }
+  }
+  const [airportsXml, airlinesXml] = await Promise.all([
+    avinorText(`${AVINOR_AIRPORT_NAMES}?shortname=Y`).catch(() => ''),
+    avinorText(AVINOR_AIRLINE_NAMES).catch(() => ''),
+  ]);
+  const names = { airports: parseNames(airportsXml, 'airportName'), airlines: parseNames(airlinesXml, 'airlineName') };
+  if (Object.keys(names.airports).length) {
+    await cachePut(key, new Response(JSON.stringify(names), { headers: { 'Cache-Control': `max-age=${AVINOR_NAMES_SECONDS}` } }), context);
+  }
+  return names;
+}
+
+async function handleAvinorFlights(airport, direction, context) {
+  const freshKey = cacheKeyFor('flyg', airport.iata, direction);
+  const staleKey = cacheKeyFor('flyg-sparad', airport.iata, direction);
+  const fresh = await cacheGet(freshKey);
+  if (fresh) return fresh;
+  let xml;
+  let names;
+  try {
+    [xml, names] = await Promise.all([
+      avinorText(`${AVINOR_FLIGHTS}?airport=${airport.iata}&direction=${direction === 'arrivals' ? 'A' : 'D'}&TimeFrom=1&TimeTo=24`),
+      avinorNames(context),
+    ]);
+  } catch {
+    return staleOr(staleKey, { error: 'Kunde inte hämta flygen från Avinor just nu.' }, 502);
+  }
+  const body = {
+    airport: airport.iata,
+    airportName: airport.name,
+    direction,
+    flights: avinorBoard(xml, direction, swedishDateTime(new Date().toISOString()), names),
+    source: 'avinor',
+    updatedAt: new Date().toISOString(),
+  };
+  const response = jsonResponse(body, 200, { 'Cache-Control': `public, max-age=${AVINOR_CACHE_SECONDS}` });
+  await cachePut(freshKey, response.clone(), context);
+  await cachePut(staleKey, jsonResponse(body, 200, { 'Cache-Control': `public, max-age=${FLIGHT_STALE_SECONDS}` }), context);
   return response;
 }
 

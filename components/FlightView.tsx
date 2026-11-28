@@ -364,9 +364,22 @@ export default function FlightView({ initialAirport }: Props) {
       )}
 
       <p style={{ fontSize: '0.8125rem', color: colors.textDim, marginTop: '14px' }}>
-        {t(
-          'Flyginformation från Swedavia. Kontrollera alltid tider och gate med ditt flygbolag.',
-          'Flight information from Swedavia. Always check times and gate with your airline.'
+        {airportByIata(airport)?.source === 'avinor' ? (
+          <>
+            {t('Flygdata från ', 'Flight data from ')}
+            <a href="https://www.avinor.no" target="_blank" rel="noopener noreferrer" style={{ color: colors.accent }}>
+              Avinor
+            </a>
+            {t(
+              ' (Flydata fra Avinor). Kontrollera alltid tider och gate med ditt flygbolag.',
+              ' (Flydata fra Avinor). Always check times and gate with your airline.'
+            )}
+          </>
+        ) : (
+          t(
+            'Flyginformation från Swedavia. Kontrollera alltid tider och gate med ditt flygbolag.',
+            'Flight information from Swedavia. Always check times and gate with your airline.'
+          )
         )}
       </p>
     </section>

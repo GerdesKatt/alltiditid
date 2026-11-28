@@ -7,6 +7,7 @@ import WalkBar from './WalkBar';
 import FindTrip from './FindTrip';
 import FallbackRow from './FallbackRow';
 import WaitTrivia from './WaitTrivia';
+import ModeFilter from './ModeFilter';
 import { sparseBoard } from '../lib/mobility.mjs';
 import type { Walk } from '../lib/useWalk';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
@@ -15,7 +16,7 @@ import { groupKey } from '../lib/lineFormat';
 import { alternativeFor } from '../lib/alternative.mjs';
 import { colors, emptyState } from './styles';
 import { isMyTrip, type MyTrip } from '../lib/myTrip';
-import { modeLabel, useLang } from '../lib/i18n';
+import { useLang } from '../lib/i18n';
 
 type Props = {
   stopName: string;
@@ -429,40 +430,7 @@ export default function DepartureBoard({
         {/* Trafikslag direkt på tavlan: vid Stockholm C ska man kunna se bara tågen
             utan att öppna sökpanelen. Visas bara när hållplatsen har mer än ett slag. */}
         {modes.length > 1 || mode !== 'all' ? (
-          <div
-            role="group"
-            aria-label={t('Trafikslag', 'Mode of transport')}
-            // Ingen scrollbar rad: Safari ritar ibland inte om en sådan efter ett tryck (trasiga bokstäver).
-            style={{ flexBasis: '100%', display: 'flex', flexWrap: 'wrap', columnGap: '18px', borderBottom: `1px solid ${colors.border}` }}
-          >
-            {[{ key: 'all' as TransportMode, label: 'Alla' }, ...modes].map((m) => {
-              const active = mode === m.key;
-              return (
-                <button
-                  key={m.key}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => onModeChange(m.key)}
-                  style={{
-                    // Ett lätt reglage: text, och en linje under det valda.
-                    flexShrink: 0,
-                    minHeight: '44px',
-                    padding: '0 2px',
-                    border: 'none',
-                    borderBottom: `2px solid ${active ? colors.text : 'transparent'}`,
-                    backgroundColor: 'transparent',
-                    color: active ? colors.text : colors.textDim,
-                    fontWeight: active ? 700 : 600,
-                    fontSize: '0.875rem',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {modeLabel(m.label, lang)}
-                </button>
-              );
-            })}
-          </div>
+          <ModeFilter modes={modes} mode={mode} onChange={onModeChange} style={{ flexBasis: '100%' }} />
         ) : null}
 
         {direction === 'arrivals' ? (
