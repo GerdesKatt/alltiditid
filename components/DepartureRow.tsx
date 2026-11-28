@@ -9,8 +9,6 @@ import { lineLabel, trackLabel, useLang } from '../lib/i18n';
 import { trackText } from '../lib/lineNames.mjs';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { sameAsBoard } from '../lib/nextPick.mjs';
-import { secondsLabel } from '../lib/countdown.mjs';
-import { useLiveNow } from '../lib/useLiveNow';
 import { doorRange } from '../lib/punctuality.mjs';
 
 type Props = {
@@ -103,17 +101,13 @@ export default function DepartureRow({
   const early = !isCancelled && !isDelayed ? item.earlyMinutes || 0 : 0;
 
   const expected = parseLocal(item.expectedAt);
-  // De sista två minuterna tickar raden varje sekund och visar tiotal sekunder (Vägen till 10, idé 2).
-  const liveNow = useLiveNow(nowProp, isCancelled || item.pending ? null : expected);
-  const now = liveNow;
+  // Raderna räknar i hela minuter: källorna ger inte sekunder (Apple-juryn, runda 2, punkt 1).
+  const now = nowProp;
   const minutesLeft = expected !== null ? Math.floor((expected - now) / 60000) : null;
-  const seconds = !isCancelled && !item.pending && expected !== null ? secondsLabel(expected - now) : null;
   const bigTime = isCancelled
     ? item.scheduledTime
     : minutesLeft === null || minutesLeft >= COUNTDOWN_MAX_MIN
     ? clock
-    : seconds
-    ? seconds
     : minutesLeft <= 0
     ? t('Nu', 'Now')
     : `${minutesLeft} min`;
