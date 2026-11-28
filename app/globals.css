@@ -605,7 +605,18 @@ html {
   position: relative;
   display: inline-flex;
 }
+/* "Tyck till" ligger fast i nederkant, så att det alltid går att lämna synpunkter. */
+.feedback-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 34;
+  box-shadow: 0 0 0 100vmax var(--c-bg);
+  clip-path: inset(0 -100vmax);
+}
 @media (max-width: 767px) {
+  .feedback-bar {
+    bottom: calc(65px + env(safe-area-inset-bottom));
+  }
   .app-tabs {
     position: fixed;
     left: 0;
@@ -653,7 +664,7 @@ html {
     padding-bottom: calc(68px + env(safe-area-inset-bottom));
   }
   .switch-stop--bottom {
-    bottom: calc(72px + env(safe-area-inset-bottom));
+    bottom: calc(116px + env(safe-area-inset-bottom));
   }
   .consent-banner {
     bottom: calc(68px + env(safe-area-inset-bottom)) !important;

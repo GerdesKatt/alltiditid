@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useLang } from '../lib/i18n';
 import { colors } from './styles';
 
@@ -9,7 +9,7 @@ type State = 'closed' | 'open' | 'sending' | 'sent' | 'error';
 const MAX = 1000;
 
 /**
- * "Tyck till": en rad längst ned på varje flik som fälls ut till en textruta. Synpunkten
+ * "Tyck till": en smal rad som ligger fast längst ned (ovanför flikarna i mobilen) och fälls ut till en textruta. Synpunkten
  * sparas anonymt (action=feedback) och tas med i morgonkollen. Inget konto, ingen e-post.
  */
 export default function FeedbackBox({ tab }: { tab: 'trafik' | 'resa' | 'flyg' }) {
@@ -17,6 +17,13 @@ export default function FeedbackBox({ tab }: { tab: 'trafik' | 'resa' | 'flyg' }
   const [state, setState] = useState<State>('closed');
   const [text, setText] = useState('');
   const ready = text.trim().length >= 3 && text.length <= MAX;
+  const boxRef = useRef<HTMLElement>(null);
+
+  // Raden ligger fast i nederkant; formuläret öppnas på sin plats sist på sidan, så dit skrollar vi.
+  function open() {
+    setState('open');
+    requestAnimationFrame(() => boxRef.current?.scrollIntoView({ block: 'center' }));
+  }
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
@@ -47,29 +54,44 @@ export default function FeedbackBox({ tab }: { tab: 'trafik' | 'resa' | 'flyg' }
 
   return (
     <section
+      ref={boxRef}
       aria-label={t('Tyck till', 'Give feedback')}
-      style={{ margin: '8px 0 24px', padding: '16px 0 0', borderTop: `1px solid ${colors.border}` }}
+      className={state === 'closed' ? 'feedback-bar' : undefined}
+      style={
+        state === 'closed'
+          ? { margin: '8px 0 0', padding: '4px 0', borderTop: `1px solid ${colors.border}`, backgroundColor: colors.bg }
+          : { margin: '8px 0 24px', padding: '16px 0 0', borderTop: `1px solid ${colors.border}` }
+      }
     >
       {state === 'sent' ? (
         <p role="status" style={{ margin: 0, fontSize: '0.9375rem', color: colors.text }}>
           {t('Tack! Vi läser allt som kommer in.', 'Thanks! We read everything that comes in.')}{' '}
           <button
             type="button"
-            onClick={() => setState('open')}
+            onClick={open}
             style={{ border: 'none', background: 'none', padding: 0, color: colors.accent, textDecoration: 'underline', font: 'inherit', cursor: 'pointer' }}
           >
             {t('Skriv en till', 'Write another')}
           </button>
         </p>
       ) : state === 'closed' ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.9375rem', color: colors.textDim }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+          <span style={{ fontSize: '0.8125rem', color: colors.textDim }}>
             {t('Saknar du något, eller är något fel?', 'Missing something, or is something wrong?')}
           </span>
           <button
             type="button"
-            onClick={() => setState('open')}
-            style={{ ...button, border: `1px solid ${colors.borderStrong}`, backgroundColor: colors.surface, color: colors.text }}
+            onClick={open}
+            style={{
+              ...button,
+              minHeight: '36px',
+              padding: '0 12px',
+              fontSize: '0.8125rem',
+              flexShrink: 0,
+              border: `1px solid ${colors.borderStrong}`,
+              backgroundColor: colors.surface,
+              color: colors.text,
+            }}
           >
             {t('Tyck till', 'Give feedback')}
           </button>

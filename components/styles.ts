@@ -134,10 +134,17 @@ export function badgeLook(
   }
   const swatch = lineSwatch(item);
   if (swatch) {
-    // Vit och svart bricka (Göteborgs linje 1 och 11) får en kant i textfärgen, så att de syns mot både ljus och mörk yta.
+    // Linjens färg som ett diskret streck i brickans vänstra kant (tunnelbana, pendeltåg, spårvagn i Göteborg).
+    // Vit och svart linjefärg (Göteborgs 1 och 11) syns inte mot alla ytor, så de får textfärgen som streck.
     const neutral = ['#ffffff', '#111111'].includes(swatch.bg.toLowerCase());
-    const edge = neutral ? colors.badgeBorder : swatch.bg;
-    return { backgroundColor: swatch.bg, color: swatch.fg, border: `1.5px solid ${edge}` };
+    const stripe = neutral ? colors.badgeBorder : swatch.bg;
+    return {
+      backgroundColor: opts.mine ? 'var(--rose)' : colors.badgeBg,
+      color: opts.mine ? 'var(--rose-ink)' : colors.badgeText,
+      border: `1.5px solid ${opts.mine ? 'var(--rose)' : colors.badgeBorder}`,
+      boxShadow: `inset 5px 0 0 ${stripe}`,
+      paddingLeft: '11px',
+    };
   }
   if (opts.mine) return { backgroundColor: 'var(--rose)', color: 'var(--rose-ink)', border: '1.5px solid var(--rose)' };
   if (isRailMode(item.transportMode)) {
