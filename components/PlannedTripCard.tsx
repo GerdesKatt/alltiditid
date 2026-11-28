@@ -7,6 +7,7 @@ import { nextStep } from '../lib/tripStep.mjs';
 import { LegRow, LineBadge, rideLabel, trackText } from './JourneyPlan';
 import { at, lateMinutes, withAnchorLive, type Anchor } from '../lib/ticket.mjs';
 import type { Flight } from '../lib/types';
+import { spotName } from '../lib/stopText';
 
 type Ride = Extract<PlanLeg, { kind: 'ride' }>;
 
@@ -212,7 +213,7 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
   const backup = planned.backup && step.kind === 'before' && at(trip.depDate, planned.backup.dep) > now ? planned.backup : null;
   const later = step.kind === 'done' ? [] : step.later;
   const time = (p: { time: string; rtTime: string }) => p.rtTime || p.time;
-  const place = (name: string) => shortPlace(name);
+  const place = (name: string) => shortPlace(spotName(name, t('målet', 'your destination')));
   const trackOf = (l: Ride, p: { track: string }) => (p.track ? capital(trackText(l.mode, p.track, t)) : '');
   const line = (l: Ride) => {
     const name = lineLabel(rideLabel({ ...l, agency: '' }), lang);

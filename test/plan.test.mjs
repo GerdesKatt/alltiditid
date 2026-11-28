@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { onRequest } from '../functions/api/trafik.js';
-import { agencyName, isoMinutes, mapTrips, pickDestination } from '../lib/plan.mjs';
+import { agencyName, isCoordName, isoMinutes, mapTrips, nameEnds, pickDestination } from '../lib/plan.mjs';
 
 const leg = (type, from, dep, to, arr, product, extra = {}) => ({
   type,
@@ -143,7 +143,7 @@ test('action=plan: en gatuadress söks bland adresser först och planeras till k
 });
 
 test('namn: SL i stället för Länstrafik, pendeltåg, regionaltåg och expressbuss utan dubbelord', () => {
-  const ride = (product) => ({ type: 'JNY', Origin: { name: 'A', time: '08:00:00' }, Destination: { name: 'B', time: '08:10:00' }, Product: [product], duration: 'PT10M' });
+  const ride = (product) => ({ type: 'JNY', Origin: { name: 'A', time: '08:00' }, Destination: { name: 'B', time: '08:10' }, Product: [product], duration: 'PT10M' });
   const [trip] = mapTrips({
     Trip: [{ duration: 'PT1H', LegList: { Leg: [
       ride({ catCode: '7', catOutL: 'Länstrafik - Buss', displayNumber: '144', operator: 'SL' }),
@@ -204,4 +204,34 @@ test('mapTrips: väntan i gångsträckan visas som väntan, inte gångtid', () =
   assert.equal(walks[0].wait, 13);
   // Sista sträckan: ingen avgång att vänta på.
   assert.equal(walks[1].wait, undefined);
+});
+
+test('sista promenaden till ett område får målets namn, inte koordinater', () => {
+  const data = {
+    Trip: [
+      {
+        duration: 'PT31M',
+        LegList: {
+          Leg: [
+            leg('WALK', '59.272000, 17.920000', '12:52', 'Skärholmen T-bana', '13:06', null, { duration: 'PT14M', dist: 1164 }),
+            leg('JNY', 'Skärholmen T-bana', '13:06', 'Liljeholmen T-bana', '13:18', { name: 'Länstrafik - Tunnelbana 13', catOutL: 'Tunnelbana', displayNumber: '13' }),
+            leg('WALK', 'Liljeholmen T-bana', '13:18', '59.310049, 18.022752', '13:23', null, { duration: 'PT5M', dist: 392 }),
+          ],
+        },
+      },
+    ],
+  };
+  const trips = nameEnds(mapTrips(data), { from: '', to: 'Liljeholmen' });
+  const legs = trips[0].legs;
+  assert.equal(legs[2].to.name, 'Liljeholmen');
+  assert.equal(legs[0].from.name, '');
+  assert.equal(legs[0].to.name, 'Skärholmen T-bana');
+  assert.ok(!JSON.stringify(trips).match(/\d+\.\d{4,}, \d+\.\d{4,}/));
+  // Starttid + promenad = avgång: 12:52 + 14 min = 13:06.
+  assert.equal(trips[0].dep, '12:52');
+  assert.equal(legs[0].minutes, 14);
+  assert.equal(legs[1].from.time, '13:06');
+  assert.equal(trips[0].arr, '13:23');
+  assert.equal(isCoordName('Liljeholmen'), false);
+  assert.equal(isCoordName('Gamla vägen 12, Sjöbo'), false);
 });

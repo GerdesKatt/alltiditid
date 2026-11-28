@@ -9,7 +9,7 @@ import { locateOnRoute, vehiclePositions } from '../../lib/gtfsrt.mjs';
 import { FERRY_PREFIX, ferryBoard, ferryHarbors, searchFerryHarbors } from '../../lib/ferries.mjs';
 import { stopsAfter } from '../../lib/transferMatch.mjs';
 import { pickSearchHits, rankSearchHits } from '../../lib/searchHits.mjs';
-import { destinationCandidates, longFirstWalk, mapTrips, mergeStarts, minusMinutes, pickDestination, withStartWalk } from '../../lib/plan.mjs';
+import { destinationCandidates, longFirstWalk, mapTrips, mergeStarts, minusMinutes, nameEnds, pickDestination, withStartWalk } from '../../lib/plan.mjs';
 import { stockholmClock, stockholmDay } from '../../lib/sweTime.mjs';
 import { SURE, geoapifyPlaces, kmBetween, photonPlaces, placeScore, rankPlaces, splitAddress } from '../../lib/places.mjs';
 import { findInShard, shardKey } from '../../lib/addressBook.mjs';
@@ -2104,7 +2104,7 @@ async function handlePlan(request, keys, context) {
   const origin = typedFrom ? `t${encodeURIComponent(foldPlace(typedFrom))}` : fromCoord ? `c${lat.toFixed(3)},${lon.toFixed(3)}` : `s${fromId}`;
   const target = chosen ? (chosen.kind === 'stop' ? `id${chosen.id}` : `c${chosen.lat.toFixed(4)},${chosen.lon.toFixed(4)}`) : to.toLowerCase();
   const cacheKey = new Request(
-    `https://cache.alltiditid.se/plan-v4/${origin}/${encodeURIComponent(target)}/${date || 'idag'}/${time || 'nu'}/${ticket ? 'biljett' : arrive ? 'framme' : 'avgang'}`
+    `https://cache.alltiditid.se/plan-v5/${origin}/${encodeURIComponent(target)}/${date || 'idag'}/${time || 'nu'}/${ticket ? 'biljett' : arrive ? 'framme' : 'avgang'}`
   );
   const cached = await cacheGet(cacheKey);
   if (cached) {
@@ -2253,6 +2253,9 @@ async function handlePlan(request, keys, context) {
       // Då blir det resorna där man går hela vägen.
     }
   }
+
+  // Sista promenaden till ett område eller en adress: målets namn, aldrig koordinater.
+  trips = nameEnds(trips, { from: fromLabel, to: destName });
 
   const data = {
     ...(farStart ? { farStart } : {}),
