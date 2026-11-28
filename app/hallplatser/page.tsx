@@ -27,7 +27,7 @@ export default function AllStopsPage() {
     <div className="app-shell" style={{ maxWidth: '860px', margin: '0 auto' }}>
       <Header linkBase="/" />
       <main id="innehall">
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '8px 0 6px' }}>
+        <h1 style={{ fontSize: 'clamp(1.75rem, 7vw, 2.5rem)', fontWeight: 800, lineHeight: 1.05, margin: '8px 0 10px' }}>
           <Tr sv="Alla hållplatser" en="All stops" />
         </h1>
         <p style={{ color: colors.textDim, margin: '0 0 18px', fontSize: '0.9375rem' }}>
@@ -54,7 +54,7 @@ export default function AllStopsPage() {
         </p>
         {CITY_PAGES.length ? (
           <section style={{ marginBottom: '18px' }}>
-            <h2 style={{ fontSize: '1.125rem', fontWeight: 800, margin: '0 0 8px' }}>
+            <h2 style={{ fontSize: '1.125rem', fontWeight: 800, margin: '0 0 8px', paddingTop: '10px', borderTop: '1px solid var(--c-text)' }}>
               <Tr sv="Städer" en="Cities" />
             </h2>
             <ul style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', listStyle: 'none', margin: 0, padding: 0 }}>
@@ -70,7 +70,7 @@ export default function AllStopsPage() {
         ) : null}
         {places.map((place) => (
           <section key={place} style={{ marginBottom: '18px' }}>
-            <h2 style={{ fontSize: '1.125rem', fontWeight: 800, margin: '0 0 8px' }}>
+            <h2 style={{ fontSize: '1.125rem', fontWeight: 800, margin: '0 0 8px', paddingTop: '10px', borderTop: '1px solid var(--c-text)' }}>
               {place === 'Övriga' ? (
                 <Tr sv="Övriga" en="Other" />
               ) : cityBySlug(placeSlug(place)) ? (

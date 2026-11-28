@@ -18,7 +18,7 @@ type Params = { params: Promise<{ ort: string }> };
 
 function description(city: CityPage): string {
   const names = city.stops.slice(0, 4).map((s) => s.name).join(', ');
-  return `Avgångar i realtid från ${city.stops.length} hållplatser i ${city.place}, bland annat ${names}. Nästa avgång, förseningar, inställda turer och spår. Gratis, utan konto.`;
+  return `Avgångar i realtid från ${city.stops.length} hållplatser i ${city.place}, bland annat ${names}. Nästa avgång, förseningar, inställda turer och spår.`;
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       url,
       title,
       description: description(city),
-      images: [{ url: '/og-v3.png', width: 1200, height: 630, alt: 'alltid i tid: nästa avgång, i realtid' }],
+      images: [{ url: '/og-v4.png', width: 1200, height: 630, alt: 'alltid i tid: nästa avgång, i realtid' }],
     },
   };
 }
@@ -64,7 +64,7 @@ export default async function CityPageRoute({ params }: Params) {
       />
       <Header linkBase="/" />
       <main id="innehall">
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '8px 0 6px' }}>
+        <h1 style={{ fontSize: 'clamp(1.75rem, 7vw, 2.5rem)', fontWeight: 800, lineHeight: 1.05, margin: '8px 0 10px' }}>
           <Tr sv={`Avgångar i ${city.place}`} en={`Departures in ${city.place}`} />
         </h1>
         <p style={{ color: colors.textDim, margin: '0 0 18px', fontSize: '0.9375rem' }}>
@@ -90,7 +90,7 @@ export default async function CityPageRoute({ params }: Params) {
             }
           />
         </p>
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, borderTop: `1px solid ${colors.text}` }}>
           {city.stops.map((s) => (
             <li key={s.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
               <a

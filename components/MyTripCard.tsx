@@ -160,7 +160,10 @@ export default function MyTripCard({
                 </span>
               ) : null}
               {headSchedule && /min$/.test(headBig) ? <span className="sr-only">{t('ungefär ', 'about ')}</span> : null}
-              {headBig}
+              {/* Siffran rullar upp när den byts (av vid "minska rörelse"). */}
+              <span key={headBig} className="tick-in">
+                {headBig}
+              </span>
             </span>
             {verdict ? (
               <span

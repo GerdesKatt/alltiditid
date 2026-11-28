@@ -31,6 +31,8 @@
   --rose-ink: #111111;
   --rose-muted: #4a4744;
   --rose-night: #2a2120; /* Nästa-kortet i mörkt läge */
+  /* Strecket överst och valt läge: natt på dagen, rosé på natten (varumärket syns även i mörkt). */
+  --accent-line: var(--ink);
 
   /* En familj i tre bredder: bred för namn och rubriker, normal för text, smal för täta rader. */
   --font-display: 'Archivo Variable', 'Helvetica Neue', Arial, system-ui, sans-serif;
@@ -119,6 +121,7 @@
     --signal-bg: #2a1810;
     --signal-ink: #ff7a4f;
     --rose-muted: #b9afad;
+    --accent-line: var(--rose);
 
     --c-border-strong: #6d6d68; /* 3,5:1 */
     --c-border-muted: #6d6d68;
@@ -142,6 +145,7 @@
   --signal-bg: #2a1810;
   --signal-ink: #ff7a4f;
   --rose-muted: #b9afad;
+  --accent-line: var(--rose);
 
   --c-border-strong: #6d6d68; /* 3,5:1 */
   --c-border-muted: #6d6d68;
@@ -252,6 +256,22 @@
   background-color: var(--rose-night);
   color: var(--ink);
   border-top: 2px solid var(--rose);
+}
+
+/* Nedräkningen i Nästa-kortet: den nya siffran glider upp när den byts. */
+.tick-in {
+  display: inline-block;
+  animation: tick-in 380ms var(--ease-out) 1;
+}
+@keyframes tick-in {
+  from {
+    transform: translateY(18%);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
 }
 
 /* "Minska rörelse" i telefonen stänger av animationer. */
@@ -382,8 +402,17 @@ input[type='search']::-webkit-search-decoration {
 body {
   overflow-x: clip;
 }
+/* Sidhuvudet ligger kvar i överkant när man skrollar, så att loggan alltid är med på en skärmdump.
+   Skuggan förlänger den täta bakgrunden ut till skärmkanterna. */
 .site-header {
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  box-shadow: 0 0 0 100vmax var(--c-header-bg);
+  clip-path: inset(0 -100vmax);
+}
+html {
+  scroll-padding-top: 88px;
 }
 .site-header::before {
   content: '';
@@ -393,13 +422,23 @@ body {
   width: 100vw;
   height: 1px;
   transform: translateX(-50%);
-  background-color: var(--c-text);
+  background-color: var(--accent-line);
+}
+
+/* Sidfoten längst ned även när sidan är kort (t.ex. Flyg utan data): ingen tom yta under den. */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - 40px);
+}
+.app-shell > #sidfot {
+  margin-top: auto;
 }
 
 /* Kompakt sidhuvud på mobilen, så att tavlan kommer högre upp. */
 @media (max-width: 600px) {
   .site-header {
-    padding: 2px 12px !important;
+    padding: 2px 0 !important;
     margin-bottom: 10px !important;
     /* Får radbrytas: vid stor text hamnar språkväljaren under loggan. */
     gap: 2px 12px !important;
@@ -409,8 +448,17 @@ body {
   .site-nav-board {
     display: none !important;
   }
+  /* Strecket ligger direkt i överkant och loggan tätt under, utan tom yta runt. */
+  body {
+    padding-top: 0 !important;
+  }
+  html {
+    scroll-padding-top: 64px;
+  }
   .site-header {
-    padding-top: 12px !important;
+    padding-top: 8px !important;
+    padding-bottom: 4px !important;
+    margin-bottom: 14px !important;
   }
 }
 
@@ -442,7 +490,7 @@ body {
   }
   .layout-side {
     position: sticky;
-    top: 12px;
+    top: 96px;
   }
   .layout-side .switch-stop {
     display: none;
@@ -544,7 +592,7 @@ body {
 .app-tab--active {
   color: var(--c-text);
   font-weight: 700;
-  box-shadow: inset 0 2px 0 var(--c-text);
+  box-shadow: inset 0 2px 0 var(--accent-line);
 }
 .app-tab-icon {
   flex-shrink: 0;
@@ -557,7 +605,18 @@ body {
   position: relative;
   display: inline-flex;
 }
+/* "Tyck till" ligger fast i nederkant, så att det alltid går att lämna synpunkter. */
+.feedback-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 34;
+  box-shadow: 0 0 0 100vmax var(--c-bg);
+  clip-path: inset(0 -100vmax);
+}
 @media (max-width: 767px) {
+  .feedback-bar {
+    bottom: calc(65px + env(safe-area-inset-bottom));
+  }
   .app-tabs {
     position: fixed;
     left: 0;
@@ -598,14 +657,14 @@ body {
     left: 22%;
     right: 22%;
     height: 2px;
-    background-color: var(--c-text);
+    background-color: var(--accent-line);
   }
   /* Plats för menyn, så att sidfoten och sista raden går att nå. */
   .app-shell {
     padding-bottom: calc(68px + env(safe-area-inset-bottom));
   }
   .switch-stop--bottom {
-    bottom: calc(72px + env(safe-area-inset-bottom));
+    bottom: calc(116px + env(safe-area-inset-bottom));
   }
   .consent-banner {
     bottom: calc(68px + env(safe-area-inset-bottom)) !important;

@@ -3269,7 +3269,7 @@ async function handleFlights(url, env, context) {
   const direction = url.searchParams.get('direction') === 'arrivals' ? 'arrivals' : 'departures';
   if (airport.source === 'avinor') return handleAvinorFlights(airport, direction, context);
   const key = env && env.SWEDAVIA_FLIGHTINFO_KEY;
-  if (!key) return jsonResponse({ error: 'Flyg är inte påslaget (nyckel saknas i Cloudflare).' }, 503);
+  if (!key) return jsonResponse({ error: 'Flygtiderna går inte att hämta just nu. Försök igen om en stund.' }, 503);
 
   const freshKey = cacheKeyFor('flyg', airport.iata, direction);
   const staleKey = cacheKeyFor('flyg-sparad', airport.iata, direction);

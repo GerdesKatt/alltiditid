@@ -212,8 +212,8 @@ export default function DepartureRow({
             padding: '4px 6px',
             boxSizing: 'border-box',
             borderRadius: 'var(--radius-badge)',
-            // Linjens färg fyller brickan (tunnelbana, pendeltåg, spårvagn i Göteborg); annan spårtrafik
-            // fylld med natt, buss och båt med kontur. Inställda är grå.
+            // Tunnelbana, pendeltåg och spårvagn i Göteborg: kontur med linjens färg som streck till vänster.
+            // Annan spårtrafik fylld, buss och båt med kontur. Inställda är grå.
             ...badgeLook(item, { cancelled: isCancelled }),
             fontFamily: fonts.display,
             fontWeight: 800,

@@ -226,13 +226,14 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
 
   return (
     <section
-      className="invert"
+      // Samma rosa kort som Nästa avgång: ett stort nästa steg, resten under strecket.
+      className="invert hero-card"
       aria-label={t(`Min resa till ${planned.to}`, `My trip to ${planned.to}`)}
       // Proportionella siffror: tabulära ger glapp runt kolon och bindestreck ("08 : 55", "T - bana").
       style={{ marginBottom: '18px', padding: '14px 18px 16px', maxWidth: '40rem', fontVariantNumeric: 'proportional-nums' }}
     >
       <div style={{ ...row, gap: '12px' }}>
-        <span style={{ ...label, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <span style={{ ...label, fontStretch: '100%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {t('Till', 'To')} {planned.to}
           {today ? '' : ` · ${day}`}
         </span>
@@ -247,7 +248,8 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
           marginTop: '6px',
           fontFamily: fonts.display,
           fontSize: 'clamp(2.25rem, 11vw, 3.5rem)',
-          fontWeight: 900,
+          fontStretch: 'var(--stretch-head)',
+          fontWeight: 800,
           // Proportionella siffror: fast bredd ger luft runt kolonet i den här storleken.
           fontVariantNumeric: 'proportional-nums',
           lineHeight: 1,
@@ -293,7 +295,7 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
 
       {ride ? (
         // Exakt vad du kliver på härnäst: linjen som på tavlan, åt vilket håll, läge eller spår.
-        <div style={{ marginTop: '14px', padding: '10px 12px', border: `2px solid ${colors.text}` }}>
+        <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: `1px solid ${colors.text}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <LineBadge leg={ride} large />
             <strong style={{ fontSize: '1.125rem', lineHeight: 1.25, textDecoration: ride.cancelled ? 'line-through' : 'none' }}>
