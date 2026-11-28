@@ -10,6 +10,7 @@ import { startAlternative } from '../lib/plan.mjs';
 import { dayLabel, type StartAlt, type PlanLeg, type PlanPoint, type PlanTrip } from '../lib/plannedTrip';
 import PlaceSuggest, { placeDetail, type ChosenPlace } from './PlaceSuggest';
 import { stockholmDay } from '../lib/sweTime.mjs';
+import { spotName } from '../lib/stopText';
 import TicketPicker from './TicketPicker';
 import { AIRPORT_PLACES, at as ticketAt, clockOf, deadline, goalIsStation, onwardMargin, pickFeeder, pickOnward, ticketTrip, type Anchor } from '../lib/ticket.mjs';
 import type { TicketBackup } from '../lib/plannedTrip';
@@ -793,12 +794,12 @@ export function LegRow({ leg }: { leg: Leg }) {
             <>
               {/* Bytestiden räknar med rulltrappor, spärrar och marginal. Sträckan från ResRobot är
                   ofta ett standardvärde (100 m), så den visas inte. */}
-              {t('Byte till', 'Change to')} {leg.to.name}
+              {t('Byte till', 'Change to')} {spotName(leg.to.name, t('målet', 'your destination'))}
               {leg.minutes ? ` · ${t('räkna med', 'allow')} ${leg.minutes} min` : ''}
             </>
           ) : (
             <>
-              {t('Gå', 'Walk')} {leg.minutes} min{leg.meters ? ` (${leg.meters} m)` : ''} {t('till', 'to')} {leg.to.name}
+              {t('Gå', 'Walk')} {leg.minutes} min{leg.meters ? ` (${leg.meters} m)` : ''} {t('till', 'to')} {spotName(leg.to.name, t('målet', 'your destination'))}
               {leg.wait ? `, ${t('sedan', 'then')} ${leg.wait} min ${t('till avgång', 'until departure')}` : ''}
             </>
           )}
@@ -820,11 +821,11 @@ export function LegRow({ leg }: { leg: Leg }) {
         </strong>
         {leg.cancelled ? <span style={{ display: 'block', color: colors.amber, fontWeight: 700 }}>{t('Inställd', 'Cancelled')}</span> : null}
         <span style={{ display: 'block' }}>
-          {time(leg.from)} {leg.from.name}
+          {time(leg.from)} {spotName(leg.from.name, t('start', 'start'))}
           {leg.from.track ? `, ${trackText(leg.mode, leg.from.track, t)}` : ''}
         </span>
         <span style={{ display: 'block' }}>
-          {time(leg.to)} {leg.to.name}
+          {time(leg.to)} {spotName(leg.to.name, t('målet', 'your destination'))}
         </span>
       </span>
       {/* Hur länge man åker på just den här delen. */}
