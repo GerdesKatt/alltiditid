@@ -394,6 +394,24 @@ input[type='search']::-webkit-search-decoration {
   top: 12px;
 }
 
+/* Strecket överst: från kant till kant på skärmen, ordmärket står under det. */
+body {
+  overflow-x: clip;
+}
+.site-header {
+  position: relative;
+}
+.site-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 100vw;
+  height: 1px;
+  transform: translateX(-50%);
+  background-color: var(--c-text);
+}
+
 /* Kompakt sidhuvud på mobilen, så att tavlan kommer högre upp. */
 @media (max-width: 600px) {
   .site-header {
@@ -407,7 +425,7 @@ input[type='search']::-webkit-search-decoration {
     display: none !important;
   }
   .site-header {
-    padding-top: 8px !important;
+    padding-top: 12px !important;
   }
 }
 

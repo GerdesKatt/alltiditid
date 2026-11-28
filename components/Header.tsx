@@ -56,10 +56,10 @@ export default function Header({ onContactClick, onHome, linkBase = '' }: Props)
           maxWidth: '100%',
         }}
       >
-        {/* Ordmärket: ALLTID I TID i bred versal under ett tunt streck, sloganen under. */}
+        {/* Ordmärket: ALLTID I TID i bred versal under strecket (över hela skärmen, se .site-header), sloganen under. */}
         <span
           className="wordmark"
-          style={{ display: 'flex', flexDirection: 'column', minWidth: 0, borderTop: `1px solid ${colors.text}`, paddingTop: '8px' }}
+          style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}
         >
           <span
             style={{
