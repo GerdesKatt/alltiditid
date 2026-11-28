@@ -6,6 +6,8 @@ import { lineLabel, useLang, type Lang } from '../lib/i18n';
 
 type Props = {
   disruptions: Disruption[];
+  /** Som en kort länk i tavlans överrad ("⚠ 1 störning"); texterna öppnas på en egen rad under. */
+  inline?: boolean;
 };
 
 /** "Gröna linjen 17", "Gröna linjen 19", "Buss 4" → "Gröna linjen 17, 19 · Buss 4". */
@@ -54,7 +56,7 @@ function loadDismissed(): string[] {
   }
 }
 
-export default function DisruptionBox({ disruptions }: Props) {
+export default function DisruptionBox({ disruptions, inline = false }: Props) {
   const { lang, t } = useLang();
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState<string[]>([]);
@@ -98,6 +100,65 @@ export default function DisruptionBox({ disruptions }: Props) {
     active.length === 1 ? t('störning', 'disruption') : t('störningar', 'disruptions')
   }`;
 
+  const list = open ? (
+    <ul style={{ listStyle: 'none', margin: 0, padding: inline ? '0 0 4px 12px' : '0 12px 4px', ...(inline ? { flexBasis: '100%', order: 10, borderLeft: `3px solid ${colors.delayedBorder}`, marginBottom: '6px' } : {}) }}>
+      {active.map((d) => (
+        <li key={d.text} style={{ padding: '8px 0 0', borderTop: `1px solid ${colors.delayedBorder}` }}>
+          <strong style={{ display: 'block', fontSize: '0.875rem', color: colors.delayedText }}>
+            {formatLines(d.lines, lang)}
+          </strong>
+          <p style={{ margin: '2px 0 0', fontSize: '0.875rem', lineHeight: 1.5, color: colors.textSoft }}>{d.text}</p>
+          {d.from ? (
+            // Texten är trafikbolagets egen ("vår trygghetscentral" är SL:s), så avsändaren står under.
+            <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: colors.textSoft }}>
+              {t(`Meddelande från ${d.from}`, `Message from ${d.from}`)}
+            </p>
+          ) : null}
+          <button type="button" onClick={() => dismiss(d.text)} style={{ ...linkButton, padding: 0 }}>
+            {t('Visa inte den här igen', "Don't show this again")}
+          </button>
+        </li>
+      ))}
+    </ul>
+  ) : null;
+
+  if (inline) {
+    // En länk i överraden i stället för en egen rad: tavlan börjar 55 px högre upp.
+    return (
+      <>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-label={`${count}${allLines ? `, ${allLines}` : ''}. ${open ? t('Dölj', 'Hide') : t('Visa', 'Show')}`}
+          onClick={() => setOpen((v) => !v)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            minHeight: '44px',
+            padding: '0 6px',
+            border: 'none',
+            background: 'none',
+            color: colors.delayedText,
+            fontFamily: 'var(--font-text)',
+            fontStretch: '100%',
+            fontSize: '0.8125rem',
+            fontWeight: 700,
+            letterSpacing: 0,
+            textTransform: 'none',
+            textDecoration: 'underline',
+            textUnderlineOffset: '3px',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <Icon name="alert" size={14} /> {count}
+        </button>
+        {list}
+      </>
+    );
+  }
+
   return (
     <section
       aria-label={t('Störningar', 'Disruptions')}
@@ -136,27 +197,7 @@ export default function DisruptionBox({ disruptions }: Props) {
         </span>
         <span style={{ flexShrink: 0, textDecoration: 'underline' }}>{open ? t('Dölj', 'Hide') : t('Visa', 'Show')}</span>
       </button>
-      {open ? (
-        <ul style={{ listStyle: 'none', margin: 0, padding: '0 12px 4px' }}>
-          {active.map((d) => (
-            <li key={d.text} style={{ padding: '8px 0 0', borderTop: `1px solid ${colors.delayedBorder}` }}>
-              <strong style={{ display: 'block', fontSize: '0.875rem', color: colors.delayedText }}>
-                {formatLines(d.lines, lang)}
-              </strong>
-              <p style={{ margin: '2px 0 0', fontSize: '0.875rem', lineHeight: 1.5, color: colors.textSoft }}>{d.text}</p>
-              {d.from ? (
-                // Texten är trafikbolagets egen ("vår trygghetscentral" är SL:s), så avsändaren står under.
-                <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: colors.textSoft }}>
-                  {t(`Meddelande från ${d.from}`, `Message from ${d.from}`)}
-                </p>
-              ) : null}
-              <button type="button" onClick={() => dismiss(d.text)} style={{ ...linkButton, padding: 0 }}>
-                {t('Visa inte den här igen', "Don't show this again")}
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      {list}
     </section>
   );
 }

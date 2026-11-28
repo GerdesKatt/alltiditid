@@ -4,7 +4,8 @@ import type { MyTrip } from '../lib/myTrip';
 import { clockFor, countdownFor, lineBadge, lineName, parseLocal } from '../lib/lineFormat';
 import { badgeLook, colors, fonts, labelStyle } from './styles';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
-import { lineLabel, useLang } from '../lib/i18n';
+import { lineLabel, trackLabel, useLang } from '../lib/i18n';
+import { trackText } from '../lib/lineNames.mjs';
 
 type Props = {
   trip: MyTrip;
@@ -86,9 +87,10 @@ export default function MyTripCard({
         'from'
       )} ${trip.stopName}`}
       style={{
-        marginBottom: '14px',
+        marginBottom: '8px',
         padding: '12px 16px 12px',
-        maxWidth: '40rem',
+        // På tavlan lika brett som tavlan under; annars en lagom läsbredd.
+        maxWidth: showingStop ? undefined : '40rem',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
@@ -132,7 +134,7 @@ export default function MyTripCard({
           {loading ? t('Hämtar avgångar…', 'Loading departures…') : t('Inga avgångar den närmaste tiden.', 'No departures in the near future.')}
         </p>
       ) : (
-        <div aria-hidden="true">
+        <div>
           <div
             style={{
               display: 'flex',
@@ -153,14 +155,22 @@ export default function MyTripCard({
               overflowWrap: 'anywhere',
             }}
           >
-            <span style={{ flex: 1, minWidth: 0 }}>
+            <span aria-hidden="true" style={{ flex: 1, minWidth: 0, whiteSpace: !verdict && auto && showingStop ? 'nowrap' : undefined }}>
               {/* Siffran rullar upp när den byts (av vid "minska rörelse"). */}
               <span key={headBig} className="tick-in">
                 {headBig}
               </span>
             </span>
+            {!verdict && auto && showingStop ? (
+              // Spara står bredvid siffran i stället för på en egen rad: kortet blir en rad lägre
+              // och tavlan får plats högre upp.
+              <button type="button" onClick={onSave} style={{ ...textButton, alignSelf: 'flex-end', marginBottom: '-10px', fontFamily: 'var(--font-text)', fontStretch: '100%', letterSpacing: 0, lineHeight: 1.2, fontVariantNumeric: 'normal', flexShrink: 1, maxWidth: '8.5rem', textAlign: 'right' }}>
+                {t('Spara som min resa', 'Save as my trip')}
+              </button>
+            ) : null}
             {verdict ? (
               <span
+                aria-hidden="true"
                 style={{
                   flexShrink: 0,
                   alignSelf: 'flex-end',
@@ -187,6 +197,7 @@ export default function MyTripCard({
             ) : null}
           </div>
           <div
+            aria-hidden="true"
             style={{
               display: 'flex',
               flexWrap: 'wrap',
@@ -206,7 +217,7 @@ export default function MyTripCard({
                 : headSchedule
                 ? `${t('Enligt tidtabell', 'Scheduled')} · ${clockFor(head)}`
                 : `${t('I tid', 'On time')} · ${clockFor(head)}`}
-              {head.track ? ` · ${head.track}` : ''}
+              {head.track ? ` · ${trackLabel(trackText(head.track, head.transportMode), lang)}` : ''}
             </span>
             {rest.length ? (
               <span style={{ color: colors.textDim }}>
@@ -243,6 +254,7 @@ export default function MyTripCard({
         </p>
       ) : null}
 
+      {!verdict && auto && showingStop && head ? null : (
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '0 12px', marginTop: '6px', marginBottom: '-10px' }}>
         {/* På hållplatsens egen tavla står namnet redan under kortet. */}
         {showingStop ? (
@@ -270,6 +282,7 @@ export default function MyTripCard({
           )}
         </span>
       </div>
+      )}
 
     </section>
   );

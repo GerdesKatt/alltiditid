@@ -195,8 +195,16 @@ export default function FlightView({ initialAirport }: Props) {
         })}
       </div>
 
+      {/* Samma överrad som tavlan: "Avgångar · 11:52 · var 10:e min". */}
       <span style={{ ...labelStyle, display: 'block', marginBottom: '4px' }}>
-        {arrivals ? t('Ankomster till', 'Arrivals at') : t('Avgångar från', 'Departures from')}
+        {arrivals ? t('Ankomster', 'Arrivals') : t('Avgångar', 'Departures')}
+        {updatedAt ? (
+          <span style={{ color: stale ? colors.amber : undefined, letterSpacing: '0.04em' }}>
+            {' · '}
+            {stale ? `${t('senast hämtad', 'last fetched')} ` : ''}
+            {clock(updatedAt)} · {t('var 10:e min', 'every 10 min')}
+          </span>
+        ) : null}
       </span>
       <h1 id="flyg-rubrik" style={{ fontSize: 'clamp(1.5rem, 6.5vw, 2rem)', fontStretch: 'var(--stretch-head)', fontWeight: 800, lineHeight: 1.05, margin: '0 0 12px', color: colors.text }}>
         {airportObj.name}
@@ -223,32 +231,15 @@ export default function FlightView({ initialAirport }: Props) {
         />
       </div>
 
-      {/* Samma statusrad som tavlan: små versaler, en rad. Ingen prick: flygtiderna är inte realtid. */}
-      <p
-        style={{
-          margin: '0 0 12px',
-          fontSize: '0.8125rem',
-          fontWeight: 500,
-          color: stale ? colors.amber : colors.textDim,
-        }}
-      >
-        {updatedAt
-          ? `${stale ? t('Senast hämtad', 'Last fetched') : t('Uppdaterad', 'Updated')} ${clock(updatedAt)} · ${t(
-              'var 10:e min',
-              'every 10 min'
-            )}`
-          : ''}
-      </p>
-
       {queues.length ? (
         <div
           aria-label={t('Kötider i säkerhetskontrollen', 'Security queue times')}
           style={{
+            // Under ett streck, som resten av appen: ingen ruta.
             marginBottom: '12px',
-            padding: '12px 14px',
-            borderRadius: 'var(--radius-card)',
-            backgroundColor: colors.surface,
-            border: `1px solid ${colors.border}`,
+            padding: '2px 0 0',
+            borderTop: `1px solid ${colors.text}`,
+            backgroundColor: 'transparent',
           }}
         >
           {/* Hopfälld som standard: tavlan är det man oftast är ute efter. Raden visar väntetiden nu. */}

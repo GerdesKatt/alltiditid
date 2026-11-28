@@ -6,6 +6,7 @@ import Icon from './Icon';
 import { badgeLook, colors, fonts } from './styles';
 import { COUNTDOWN_MAX_MIN, lineBadge, lineName, parseLocal, splitProduct } from '../lib/lineFormat';
 import { lineLabel, trackLabel, useLang } from '../lib/i18n';
+import { trackText } from '../lib/lineNames.mjs';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 
 type Props = {
@@ -113,7 +114,8 @@ export default function DepartureRow({
   const { product, place } = splitProduct(item.destination);
   const name = product || lineLabel(lineName(item.line, badge), lang);
   const towards = direction === 'arrivals' ? `${t('Från', 'From')} ${place}` : place;
-  const details = [item.stopLabel, trackLabel(item.track, lang)].filter(Boolean).join(' · ');
+  // Alltid "Spår 2" eller "Läge D", aldrig en ensam siffra.
+  const details = [item.stopLabel, trackLabel(trackText(item.track, item.transportMode), lang)].filter(Boolean).join(' · ');
   const compensation =
     isCancelled || (isDelayed && (item.delayMinutes || 0) >= COMPENSATION_DELAY_MIN);
 

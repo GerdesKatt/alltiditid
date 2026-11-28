@@ -83,7 +83,7 @@ export default function Header({ onContactClick, onHome, linkBase = '' }: Props)
               marginTop: '5px',
             }}
           >
-            {t('För oss som inte kommer sent', 'For those of us who are never late')}
+            {t('För oss som inte kommer sent.', 'For those of us who are never late.')}
           </span>
         </span>
       </a>

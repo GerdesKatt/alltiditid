@@ -27,13 +27,13 @@ export const metadata: Metadata = {
     url: 'https://alltiditid.se/',
     title: 'alltid i tid – nästa avgång, i realtid',
     description: 'Realtid för hela Sverige: lokalt, regionalt och flyg. Avgångar, ankomster och förseningar.',
-    images: [{ url: '/og-v4.png', width: 1200, height: 630, alt: 'alltid i tid: nästa avgång, i realtid' }],
+    images: [{ url: '/og-v5.png', width: 1200, height: 630, alt: 'alltid i tid: nästa avgång, i realtid' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'alltid i tid – nästa avgång, i realtid',
     description: 'Avgångar, ankomster och förseningar i realtid för hela Sverige.',
-    images: ['/og-v4.png'],
+    images: ['/og-v5.png'],
   },
   appleWebApp: {
     capable: true,

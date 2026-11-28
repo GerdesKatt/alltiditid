@@ -82,6 +82,7 @@ export default function FeedbackBox({ tab }: { tab: 'trafik' | 'resa' | 'flyg' }
           <button
             type="button"
             onClick={open}
+            className="tap-44"
             style={{
               ...button,
               minHeight: '36px',

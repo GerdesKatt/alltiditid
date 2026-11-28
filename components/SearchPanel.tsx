@@ -222,27 +222,14 @@ export default function SearchPanel({
               <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim, marginBottom: '6px' }}>
                 {t('Senast', 'Recent')}
               </span>
-              <ul style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', listStyle: 'none', margin: 0, padding: 0 }}>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, borderTop: `1px solid ${colors.border}` }}>
                 {recentStops
                   .filter((s) => s.id !== selectedStop.id)
                   .map((stop) => (
-                    <li key={stop.id}>
-                      <button
-                        type="button"
-                        onClick={() => onSuggestionSelect(stop)}
-                        style={{
-                          minHeight: '40px',
-                          padding: '0 14px',
-                          borderRadius: 'var(--radius-control)',
-                          border: 'none',
-                          backgroundColor: colors.surfaceRaised,
-                          color: colors.text,
-                          fontSize: '0.875rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {stop.name}
+                    <li key={stop.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
+                      <button type="button" onClick={() => onSuggestionSelect(stop)} style={quickRow(false)}>
+                        <span>{stop.name}</span>
+                        <span aria-hidden="true" style={{ color: colors.textDim }}>→</span>
                       </button>
                     </li>
                   ))}
@@ -365,62 +352,39 @@ export default function SearchPanel({
         }
       />
 
-      {/* Snabbval av station: bryts till flera rader i stället för att klippas i kanten. */}
-      <div
-        role="group"
+      {/* Snabbval av station som en lista under strecket, som i resten av appen: inga chips. */}
+      <ul
         aria-label={t('Snabbval', 'Quick picks')}
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '6px',
-        }}
+        style={{ listStyle: 'none', margin: 0, padding: 0, borderTop: `1px solid ${colors.text}` }}
       >
         {currentRegion.stations.map((stop) => {
           const active = selectedStop.id === stop.id;
           return (
-            <button
-              key={stop.id}
-              type="button"
-              aria-pressed={active}
-              onClick={() => onQuickStopSelect(stop)}
-              style={{
-                flexShrink: 0,
-                minHeight: '44px',
-                padding: '0 12px',
-                borderRadius: 'var(--radius-control)',
-                border: active ? `1px solid ${colors.accentStrong}` : 'none',
-                backgroundColor: active ? colors.accentStrong : colors.surfaceRaised,
-                color: active ? colors.onAccent : colors.text,
-                fontWeight: 600,
-                fontSize: '0.8125rem',
-                cursor: 'pointer',
-              }}
-            >
-              {stop.shortName || stop.name}
-            </button>
+            <li key={stop.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
+              <button
+                type="button"
+                aria-pressed={active}
+                onClick={() => onQuickStopSelect(stop)}
+                style={quickRow(active)}
+              >
+                <span>{stop.shortName || stop.name}</span>
+                <span aria-hidden="true" style={{ color: colors.textDim }}>{active ? t('Visas', 'Showing') : '→'}</span>
+              </button>
+            </li>
           );
         })}
         {onOpenFlights ? (
-          <button
-            type="button"
-            onClick={onOpenFlights}
-            style={{
-              flexShrink: 0,
-              minHeight: '44px',
-              padding: '0 12px',
-              borderRadius: 'var(--radius-control)',
-              border: `1px solid ${colors.borderStrong}`,
-              backgroundColor: 'transparent',
-              color: colors.text,
-              fontWeight: 600,
-              fontSize: '0.8125rem',
-              cursor: 'pointer',
-            }}
-          >
-            {t('Flyg', 'Flights')}
-          </button>
+          <li style={{ borderBottom: `1px solid ${colors.border}` }}>
+            <button type="button" onClick={onOpenFlights} style={quickRow(false)}>
+              <span>
+                <span aria-hidden="true">✈ </span>
+                {t('Flyg', 'Flights')}
+              </span>
+              <span aria-hidden="true" style={{ color: colors.textDim }}>→</span>
+            </button>
+          </li>
         ) : null}
-      </div>
+      </ul>
 
       {/* Filtret gäller tavlan, så det visas först när en hållplats är vald, och bara när man ber om det. */}
       {selectedStop.id ? (
@@ -537,4 +501,24 @@ export default function SearchPanel({
       ) : null}
     </section>
   );
+}
+
+/** En rad i snabbvalen: hela bredden, minst 44 px, valt läge i fet stil. */
+function quickRow(active: boolean): React.CSSProperties {
+  return {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '12px',
+    width: '100%',
+    minHeight: '44px',
+    padding: '0',
+    border: 'none',
+    background: 'none',
+    color: colors.text,
+    fontWeight: active ? 700 : 500,
+    fontSize: '0.9375rem',
+    textAlign: 'left',
+    cursor: 'pointer',
+  };
 }
