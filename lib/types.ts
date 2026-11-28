@@ -58,6 +58,8 @@ export type Region = {
 export type Disruption = {
   text: string;
   lines: string[];
+  /** Vem som skrivit texten, t.ex. "SL" eller "Västtrafik". Texten visas som de skickar den. */
+  from?: string;
 };
 
 export type BoardSource = 'trafiklab-realtime' | 'resrobot' | '';

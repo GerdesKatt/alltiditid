@@ -1002,7 +1002,10 @@ function applyTrafikverket(departure, tvUpdates, trainNumberCandidates) {
     }
   }
   if (match.track) result.track = trackLabelFor(match.track, departure.transportMode);
-  if (match.deviation) result.deviation = match.deviation;
+  if (match.deviation) {
+    result.deviation = match.deviation;
+    result._deviationFrom = 'Trafikverket';
+  }
   return result;
 }
 
@@ -2494,6 +2497,13 @@ const SL_BASE = 'https://transport.integration.sl.se/v1';
 const SL_SITE_MAX_METERS = 400;
 const SL_FORECAST_MIN = 60;
 
+/** Trafikbolagets namn som avsändare av en text: "Storstockholms Lokaltrafik" → "SL". */
+function senderLabel(agency) {
+  const name = String(agency || '').trim();
+  if (/^sl$|storstockholms lokaltrafik/i.test(name)) return 'SL';
+  return name;
+}
+
 function isSlDeparture(d) {
   if (/^sl$|storstockholms lokaltrafik/i.test(String(d._agency || '').trim())) return true;
   // Okänd operatör men inom Stockholms län: prova också. Matchningen kräver ändå samma
@@ -2627,11 +2637,16 @@ function applySl(departure, updates) {
   if (!match) return departure;
   // Har Trafiklab redan realtid behålls deras tider; SL bidrar bara med avvikelsetext.
   if (departure.hasRealtime) {
-    return match.deviation && !departure.deviation ? { ...departure, deviation: match.deviation } : departure;
+    return match.deviation && !departure.deviation
+      ? { ...departure, deviation: match.deviation, _deviationFrom: 'SL' }
+      : departure;
   }
 
   const result = { ...departure };
-  if (match.deviation && !result.deviation) result.deviation = match.deviation;
+  if (match.deviation && !result.deviation) {
+    result.deviation = match.deviation;
+    result._deviationFrom = 'SL';
+  }
   if (match.platform && !result.track) result.track = trackLabelFor(match.platform, departure.transportMode);
   if (match.cancelled) {
     result.status = 'cancelled';
@@ -2674,6 +2689,7 @@ async function overlaySl(board, fallbackName, direction, context) {
     const disruptions = (updates.disruptions || [])
       .map((dev) => ({
         text: dev.text,
+        from: 'SL',
         importance: dev.importance,
         lines: Array.from(
           new Set(
@@ -2799,15 +2815,17 @@ function groupDisruptions(departures, stopDisruptions = []) {
   for (const d of departures) {
     for (const part of String(d.deviation || '').split(' • ').map((x) => x.trim()).filter(Boolean)) {
       if (ROW_ONLY_DEVIATION.test(part)) continue;
-      const entry = byText.get(part) || { text: part, lines: new Set(), rows: 0, importance: 5, onRows: true };
+      const entry = byText.get(part) || { text: part, lines: new Set(), from: new Set(), rows: 0, importance: 5, onRows: true };
       entry.lines.add(d.line);
+      if (d._from) entry.from.add(d._from);
       entry.rows += 1;
       byText.set(part, entry);
     }
   }
   for (const dev of stopDisruptions) {
-    const entry = byText.get(dev.text) || { text: dev.text, lines: new Set(), rows: 2, importance: dev.importance, onRows: false };
+    const entry = byText.get(dev.text) || { text: dev.text, lines: new Set(), from: new Set(), rows: 2, importance: dev.importance, onRows: false };
     for (const line of dev.lines) entry.lines.add(line);
+    if (dev.from) entry.from.add(dev.from);
     entry.rows = Math.max(entry.rows, 2);
     entry.importance = Math.min(entry.importance, dev.importance);
     byText.set(dev.text, entry);
@@ -2818,8 +2836,13 @@ function groupDisruptions(departures, stopDisruptions = []) {
     // Det som syns på avgångarna just nu först, sedan hållplatsens allmänna information.
     .sort((a, b) => Number(b.onRows) - Number(a.onRows) || a.importance - b.importance || b.rows - a.rows)
     .slice(0, MAX_DISRUPTIONS)
-    .map((e) => ({ text: e.text, lines: Array.from(e.lines).sort(compareLines) }));
-  const outDepartures = departures.map((d) => {
+    .map((e) => ({
+      text: e.text,
+      lines: Array.from(e.lines).sort(compareLines),
+      // Vem som skrivit texten ("SL", "Västtrafik"), så att "vår trygghetscentral" inte läses som vår.
+      ...(e.from.size ? { from: Array.from(e.from).join(', ') } : {}),
+    }));
+  const outDepartures = departures.map(({ _from, ...d }) => {
     if (!d.deviation) return d;
     const rest = String(d.deviation)
       .split(' • ')
@@ -2997,8 +3020,12 @@ async function handleBoard(url, keys, context) {
 
   const departures = timed
     .map(
-      ({ _trainCandidates, _scheduledLocal, _agency, _designation, _coords, _tvStation, _offsetMin, ...rest }) =>
-        compactDeparture(rest.track ? { ...rest, track: trackText(rest.track, rest.transportMode) } : rest)
+      ({ _trainCandidates, _scheduledLocal, _agency, _designation, _coords, _tvStation, _offsetMin, _deviationFrom, ...rest }) => {
+        const out = compactDeparture(rest.track ? { ...rest, track: trackText(rest.track, rest.transportMode) } : rest);
+        // Avsändaren av avvikelsetexten, bara för störningsrutan (tas bort i groupDisruptions).
+        const from = out.deviation ? _deviationFrom || senderLabel(_agency) : '';
+        return from ? { ...out, _from: from } : out;
+      }
     );
 
   const grouped = groupDisruptions(departures, stopDisruptions);
