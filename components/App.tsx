@@ -163,7 +163,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
   /** Hållplatsens läge enligt tavlans svar (saknas när tavlan är tom). */
   const [stopCoords, setStopCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const [activeInfoTab, setActiveInfoTab] = useState<InfoTab>('about');
+  const [activeInfoTab, setActiveInfoTab] = useState<InfoTab | null>(null);
 
   const [onBoardTrip, setOnBoardTrip] = useState<Departure | null>(null);
   // Hållplatslistan (för stationsbladet och adresser som /slussen-t-bana), hämtas i efterhand.
@@ -1409,7 +1409,6 @@ export default function App({ initialStop, page, intro }: AppProps) {
           onDecline={declineAnalytics}
           onReadMore={() => {
             setActiveInfoTab('privacy');
-            document.getElementById('sidfot')?.scrollIntoView({ block: 'start' });
           }}
         />
       ) : null}
