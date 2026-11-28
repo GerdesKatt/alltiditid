@@ -46,6 +46,10 @@ test('samma text på flera rader blir en störning med linjerna', async () => {
   // Hållplatsens egen störning från SL, bara för linjer som går här.
   assert.ok(texts.includes('Skärmarbrink: hissen är avstängd.'));
   assert.ok(!texts.includes('Gäller en linje som inte går här.'));
+  // Avsändaren står med, så att SL:s "vår trygghetscentral" inte läses som appens.
+  assert.equal(generic.from, 'SL');
+  assert.equal(body.disruptions.find((d) => d.text === 'Skärmarbrink: hissen är avstängd.').from, 'SL');
+  assert.ok(body.departures.every((d) => !('_from' in d)));
   // Raderna har inte kvar den gemensamma texten, men det som bara gäller en tur står kvar.
   const rows = body.departures.map((d) => d.deviation).filter(Boolean);
   assert.deepEqual(rows, ['Kort tåg']);

@@ -62,7 +62,7 @@ test('tavlan: ordningsregler visas inte, text på alla avgångar visas en gång 
     toLocal
   );
   assert.deepEqual(board.departures.map((d) => d.deviation), ['', 'Farligt gods', '']);
-  assert.deepEqual(board.disruptions, [{ text: 'Begränsad vikt 20 ton', lines: ['Hönöleden'] }]);
+  assert.deepEqual(board.disruptions, [{ text: 'Begränsad vikt 20 ton', lines: ['Hönöleden'], from: 'Trafikverket' }]);
   // Få avgångar: texten står kvar på raden, ordningsregeln visas ändå inte.
   const few = ferryBoard([ann(1, '16:05', [rule, 'Extratur'])], toLocal);
   assert.deepEqual(few.departures.map((d) => d.deviation), ['Extratur']);

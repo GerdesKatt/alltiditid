@@ -144,6 +144,12 @@ export default function DisruptionBox({ disruptions }: Props) {
                 {formatLines(d.lines, lang)}
               </strong>
               <p style={{ margin: '2px 0 0', fontSize: '0.875rem', lineHeight: 1.5, color: colors.textSoft }}>{d.text}</p>
+              {d.from ? (
+                // Texten är trafikbolagets egen ("vår trygghetscentral" är SL:s), så avsändaren står under.
+                <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: colors.textSoft }}>
+                  {t(`Meddelande från ${d.from}`, `Message from ${d.from}`)}
+                </p>
+              ) : null}
               <button type="button" onClick={() => dismiss(d.text)} style={{ ...linkButton, padding: 0 }}>
                 {t('Visa inte den här igen', "Don't show this again")}
               </button>
