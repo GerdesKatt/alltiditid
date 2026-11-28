@@ -196,6 +196,14 @@ export default function App({ initialStop, page, intro }: AppProps) {
   // Kollektivtrafik eller flyg, och flygplatsen som sökningen pekade på.
   // Appen startar alltid på Avgångar (Nils 2026-11-28): senaste fliken sparas inte längre.
   const [tab, setTab] = useState<AppTab>('trafik');
+  // Genvägar på hemskärmen (manifestets shortcuts, Vägen till 10, idé 16): /?flik=resa eller /?flik=flyg.
+  useEffect(() => {
+    const flik = new URLSearchParams(window.location.search).get('flik');
+    if (flik === 'resa' || flik === 'flyg') {
+      setTab(flik);
+      track('funktion', 0, `genvag_${flik}`);
+    }
+  }, []);
   // Hur stor del av besöken som öppnar Flyg (planen: flytta Flyg ur menyn om under 5 %).
   // Räknas en gång per sidvisning, oavsett om man kom dit via menyn eller sök.
   useEffect(() => {

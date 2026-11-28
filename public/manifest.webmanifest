@@ -33,5 +33,46 @@
       "type": "image/svg+xml",
       "purpose": "any"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Avgångar",
+      "short_name": "Avgångar",
+      "description": "Avgångar i realtid",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/icon-192-v6.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Min resa",
+      "short_name": "Min resa",
+      "description": "Din sparade resa och nästa avgång",
+      "url": "/?flik=resa",
+      "icons": [
+        {
+          "src": "/icon-192-v6.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Flyg",
+      "short_name": "Flyg",
+      "description": "Avgångar och säkerhetskö på flygplatsen",
+      "url": "/?flik=flyg",
+      "icons": [
+        {
+          "src": "/icon-192-v6.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
   ]
 }
