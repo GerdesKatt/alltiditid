@@ -995,6 +995,53 @@ export default function App({ initialStop, page, intro }: AppProps) {
                   )}
                 </p>
               ) : null}
+              {!goal.trim() && !ticketPlan && !(myFlight || myTrain || myTrip || planned) ? (
+                // Tom Min resa: visa vad man får innan man skriver, och de senaste hållplatserna som genvägar.
+                <div style={{ marginTop: '18px' }}>
+                  {recentStops.length ? (
+                    <>
+                      <h2 style={sectionLabel}>{t('Senast', 'Recent')}</h2>
+                      <ul style={{ listStyle: 'none', margin: '0 0 18px', padding: 0, borderTop: `1px solid ${colors.text}` }}>
+                        {recentStops.slice(0, 3).map((stop) => (
+                          <li key={stop.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setGoal(stop.name);
+                                setGoalPlace(null);
+                                setSuggestOpen(true);
+                              }}
+                              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', minHeight: '44px', padding: 0, border: 'none', background: 'none', color: colors.text, fontSize: '0.9375rem', fontWeight: 500, textAlign: 'left', cursor: 'pointer' }}
+                            >
+                              <span>{t(`Till ${stop.name}`, `To ${stop.name}`)}</span>
+                              <span aria-hidden="true" style={{ color: colors.textDim }}>→</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+                  <h2 style={sectionLabel}>{t('Exempel på en resa', 'Example trip')}</h2>
+                  <ol aria-label={t('Exempel på en resa', 'Example trip')} style={{ listStyle: 'none', margin: 0, padding: 0, borderTop: `1px solid ${colors.text}`, color: colors.textDim, fontSize: '0.875rem' }}>
+                    {[
+                      [t('Gå 11:32', 'Leave 11:32'), t('4 min till Odenplan', '4 min to Odenplan')],
+                      [t('Pendeltåg 41 · 11:38', 'Commuter train 41 · 11:38'), t('Spår 2 · mot Märsta', 'Track 2 · to Märsta')],
+                      [t('Framme 11:44', 'Arrive 11:44'), t('T-Centralen · 3 min marginal', 'T-Centralen · 3 min margin')],
+                    ].map(([a, b]) => (
+                      <li key={a} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', padding: '10px 0', borderBottom: `1px solid ${colors.border}` }}>
+                        <strong style={{ color: colors.text, fontWeight: 650 }}>{a}</strong>
+                        <span style={{ textAlign: 'right' }}>{b}</span>
+                      </li>
+                    ))}
+                  </ol>
+                  <p style={{ margin: '8px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
+                    {t(
+                      'Skriv vart du ska, så räknar vi när du ska gå och följer resan i realtid. Har du en biljett räknar vi baklänges från den.',
+                      'Type where you are going and we work out when to leave and follow the trip in real time. With a ticket we work back from it.'
+                    )}
+                  </p>
+                </div>
+              ) : null}
               {suggestOpen ? (
                 <PlaceSuggest text={goal} nearStopId={hasStop ? selectedStop.id : undefined} onPick={pickGoal} />
               ) : null}
@@ -1302,7 +1349,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
         <>
       {tab === 'trafik' ? (
         <button type="button" onClick={goHome} className="back-home">
-          <span aria-hidden="true">←</span> {t('Avgångar', 'Departures')}
+          {/* Bara på dator (dold i mobilen, där fliken Avgångar gör samma sak). Inte "Avgångar" igen. */}
+          <span aria-hidden="true">←</span> {t('Start', 'Home')}
         </button>
       ) : null}
       {tab === 'trafik' ? autoCard : null}
@@ -1330,6 +1378,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
       ) : null}
       <div hidden={!hasStop}>
       <DepartureBoard
+        compactTitle={tab === 'trafik' && Boolean(autoTrip)}
         isFavorite={isFavorite}
         favoritesFull={!isFavorite && favorites.length >= MAX_FAVORITES}
         onToggleFavorite={() => {

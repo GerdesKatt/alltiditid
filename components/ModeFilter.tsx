@@ -26,11 +26,13 @@ export default function ModeFilter({
     <div
       role="group"
       aria-label={t('Trafikslag', 'Mode of transport')}
+      className="mode-filter"
       style={{
         display: 'flex',
         flexWrap: 'wrap',
-        columnGap: many ? '10px' : '18px',
-        justifyContent: many ? 'space-between' : 'flex-start',
+        // På dator (bred tavla) fast avstånd och vänsterställt; i mobilen fördelas många slag över bredden.
+        columnGap: many ? 'var(--mf-gap, 10px)' : '18px',
+        justifyContent: many ? 'var(--mf-justify, space-between)' : 'flex-start',
         borderBottom: `1px solid ${colors.border}`,
         ...style,
       }}

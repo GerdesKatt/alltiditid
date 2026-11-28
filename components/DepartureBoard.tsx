@@ -20,6 +20,8 @@ import { useLang } from '../lib/i18n';
 
 type Props = {
   stopName: string;
+  /** Nästa-kortet står ovanför: mindre rubrik, så att tavlan börjar högre upp. */
+  compactTitle?: boolean;
   direction: BoardDirection;
   onDirectionChange: (direction: BoardDirection) => void;
   /** Trafikslagen som går från hållplatsen (svenska etiketter), och det valda. */
@@ -151,6 +153,7 @@ const emptyButton = {
 
 export default function DepartureBoard({
   stopName,
+  compactTitle = false,
   direction,
   onDirectionChange,
   modes,
@@ -296,6 +299,14 @@ export default function DepartureBoard({
       </>
     ) : null;
 
+  // Störningarna för valt trafikslag. De står som en länk i överraden, inte som en egen rad.
+  const shownDisruptions = errorMsg
+    ? []
+    : mode === 'all'
+    ? disruptions
+    : disruptions.filter((d) => d.lines.length === 0 || d.lines.some((l) => lineMode(l) === mode));
+  const hasDisruption = shownDisruptions.length > 0;
+
   return (
     <section id="avgangstavla" style={{ marginBottom: '36px', scrollMarginTop: '12px' }}>
       <div className="sr-only" aria-live="polite" aria-atomic="true">
@@ -306,9 +317,9 @@ export default function DepartureBoard({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '12px',
+          marginBottom: '6px',
           flexWrap: 'wrap',
-          gap: '8px',
+          gap: '4px 8px',
         }}
       >
         {/* En rad överst: vad tavlan visar och när den uppdaterades, och de två verktygen till höger.
@@ -316,7 +327,7 @@ export default function DepartureBoard({
         <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', columnGap: '2px', rowGap: '6px', flexWrap: 'wrap', marginBottom: '-6px' }}>
           <span
             style={{
-              marginRight: 'auto',
+              marginRight: hasDisruption ? 0 : 'auto',
               display: 'inline-flex',
               alignItems: 'baseline',
               flexWrap: 'wrap',
@@ -330,10 +341,14 @@ export default function DepartureBoard({
               color: colors.textDim,
             }}
           >
-            <span>{direction === 'arrivals' ? t('Ankomster', 'Arrivals') : t('Avgångar', 'Departures')}</span>
+            {/* Med en störning i mobilen räcker klockslaget: fliken säger redan Avgångar. */}
+            <span className={hasDisruption && direction !== 'arrivals' ? 'eyebrow-word' : undefined}>
+              {direction === 'arrivals' ? t('Ankomster', 'Arrivals') : t('Avgångar', 'Departures')}
+            </span>
             {updatedAt && !stale && !offline ? (
               <span style={{ color: limited ? colors.amber : colors.textDim, letterSpacing: '0.04em' }}>
-                · {limited ? t('Begränsad realtid', 'Limited real-time') : updatedLabel}
+                <span className={hasDisruption && direction !== 'arrivals' ? 'eyebrow-word' : undefined}>· </span>
+                {limited ? t('Begränsad realtid', 'Limited real-time') : updatedLabel}
               </span>
             ) : null}
             {view === 'lines' ? (
@@ -347,6 +362,10 @@ export default function DepartureBoard({
               </button>
             ) : null}
           </span>
+          {hasDisruption ? (
+            <DisruptionBox disruptions={shownDisruptions} inline />
+          ) : null}
+          {hasDisruption ? <span aria-hidden="true" style={{ marginRight: 'auto' }} /> : null}
           {direction === 'departures' && !errorMsg ? (
             <>
               <WalkBar
@@ -363,7 +382,7 @@ export default function DepartureBoard({
         </div>
         <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'flex-end', gap: '6px' }}>
           <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-            <h1 style={{ fontSize: stopName.length > 20 ? 'clamp(1.375rem, 6vw, 1.875rem)' : stopName.length > 16 ? 'clamp(1.5rem, 6.5vw, 2rem)' : stopName.length > 10 ? 'clamp(1.75rem, 7.5vw, 2.5rem)' : 'clamp(2rem, 9vw, 2.75rem)', fontWeight: 800, fontStretch: 'var(--stretch-head)', lineHeight: 1, letterSpacing: '-0.015em', margin: 0, color: colors.text, overflowWrap: 'break-word', hyphens: 'auto' }}>
+            <h1 className={compactTitle ? 'board-title-compact' : undefined} style={{ fontSize: stopName.length > 20 ? 'clamp(1.375rem, 6vw, 1.875rem)' : stopName.length > 16 ? 'clamp(1.5rem, 6.5vw, 2rem)' : stopName.length > 10 ? 'clamp(1.75rem, 7.5vw, 2.5rem)' : 'clamp(2rem, 9vw, 2.75rem)', fontWeight: 800, fontStretch: 'var(--stretch-head)', lineHeight: 1, letterSpacing: '-0.015em', margin: 0, color: colors.text, overflowWrap: 'break-word', hyphens: 'auto' }}>
               {/* Ord med bindestreck (T-Centralen) bryts aldrig vid strecket, bara mellan orden. */}
               {stopName.split(' ').map((word, i) => (
                 <React.Fragment key={i}>
@@ -545,11 +564,6 @@ export default function DepartureBoard({
         </div>
       ) : null}
 
-      {!errorMsg ? (
-        <DisruptionBox
-          disruptions={mode === 'all' ? disruptions : disruptions.filter((d) => d.lines.length === 0 || d.lines.some((l) => lineMode(l) === mode))}
-        />
-      ) : null}
 
       {errorMsg ? (
         <div
@@ -678,6 +692,7 @@ export default function DepartureBoard({
           href="https://www.trafiklab.se"
           target="_blank"
           rel="noopener noreferrer"
+          className="tap-44"
           style={{ color: colors.textDim }}
         >
           Trafiklab.se
