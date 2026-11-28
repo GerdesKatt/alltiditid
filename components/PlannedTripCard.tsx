@@ -7,6 +7,7 @@ import { nextStep } from '../lib/tripStep.mjs';
 import { LegRow, LineBadge, rideLabel, trackText } from './JourneyPlan';
 import { at, lateMinutes, withAnchorLive, type Anchor } from '../lib/ticket.mjs';
 import type { Flight } from '../lib/types';
+import { spotName } from '../lib/stopText';
 
 type Ride = Extract<PlanLeg, { kind: 'ride' }>;
 
