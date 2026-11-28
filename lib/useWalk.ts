@@ -3,11 +3,21 @@
  * till hållplatsen på tavlan. Positionen stannar i webbläsaren och sparas inte.
  * Bara valet (på/av och takt) sparas i local storage.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { loadStopIndex, stopPageFor } from './stopIndex';
-import { distanceTo, MAX_WALK_METERS, walkMinutes, type WalkPace } from './walk.mjs';
+import { blendFactor, clampFactor, distanceTo, MAX_WALK_METERS, paceSample, walkMinutes, type WalkPace } from './walk.mjs';
 
 const KEY = 'alltiditid:walk';
+/** Din egen takt mot den valda (del 2, idé 12). Bara ett tal, aldrig en position. */
+const FACTOR_KEY = 'alltiditid:gangtakt';
+
+function loadFactor(): number {
+  try {
+    return clampFactor(Number(window.localStorage.getItem(FACTOR_KEY) || '1'));
+  } catch {
+    return 1;
+  }
+}
 
 type Saved = { on: boolean; pace: WalkPace };
 
@@ -85,6 +95,40 @@ export function useWalk(stopId: string) {
     };
   }, [saved.on, stopId]);
 
+  const [factor, setFactor] = useState(1);
+  useEffect(() => setFactor(loadFactor()), []);
+  // Takten lär sig av hur fort du faktiskt närmar dig hållplatsen (del 2, idé 12).
+  const lastSample = useRef<{ meters: number; t: number } | null>(null);
+  useEffect(() => {
+    lastSample.current = null;
+  }, [stopId, saved.on]);
+  useEffect(() => {
+    if (!position || !stop) return;
+    const meters = distanceTo(position, stop);
+    if (meters === null) return;
+    const now = Date.now();
+    const before = lastSample.current;
+    if (!before) {
+      lastSample.current = { meters, t: now };
+      return;
+    }
+    const sample = paceSample(before, { meters, t: now }, saved.pace);
+    if (sample !== null) {
+      const next = blendFactor(factor, sample);
+      setFactor(next);
+      try {
+        window.localStorage.setItem(FACTOR_KEY, next.toFixed(3));
+      } catch {
+        // Takten gäller tills sidan laddas om.
+      }
+      lastSample.current = { meters, t: now };
+    } else if (now - before.t > 10 * 60_000 || meters > before.meters + 50) {
+      // Gamla eller bakåt: börja om från här.
+      lastSample.current = { meters, t: now };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [position, stop]);
+
   // Följ positionen medan funktionen är på.
   useEffect(() => {
     if (!saved.on) return;
@@ -118,7 +162,7 @@ export function useWalk(stopId: string) {
     const meters = distanceTo(position, stop);
     if (meters === null) state = { kind: 'error' };
     else if (meters > MAX_WALK_METERS) state = { kind: 'far', meters };
-    else state = { kind: 'ready', meters, minutes: walkMinutes(meters, saved.pace) };
+    else state = { kind: 'ready', meters, minutes: walkMinutes(meters, saved.pace, factor) };
   }
 
   return {

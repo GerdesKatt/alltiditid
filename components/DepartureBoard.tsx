@@ -303,6 +303,7 @@ export default function DepartureBoard({
   // Hur gammal den visade tavlan är, i hela minuter (minst 1).
   const ageMin = updatedAt ? Math.max(1, Math.floor((now - updatedAt.getTime()) / 60000)) : 0;
   const limited = source === 'resrobot';
+  const [showSource, setShowSource] = useState(false);
 
   // Bytet räknas på raden (Vägen till 10, idé 18): på bytesstationen visar anslutningen marginalen.
   const [byteMargin, setByteMargin] = useState<ByteMargin | null>(null);
@@ -400,10 +401,27 @@ export default function DepartureBoard({
                   t('Begränsad realtid', 'Limited real-time')
                 ) : (
                   // Klockslaget lyser kort i rosé när färsk data har kommit (Vägen till 10, idé 4).
-                  <span key={updatedAt.getTime()} className="fresh-flash" style={{ padding: '0 2px', margin: '0 -2px' }}>
-                    {updatedLabel}
-                  </span>
+                  // Ett tryck på klockslaget visar varifrån tiderna kommer och när de hämtades (del 2, idé 14).
+                  <button
+                    type="button"
+                    className="source-toggle"
+                    aria-expanded={showSource}
+                    aria-label={t(`Uppdaterad ${updatedLabel}. Visa källa`, `Updated ${updatedLabel}. Show source`)}
+                    onClick={() => setShowSource((v) => !v)}
+                  >
+                    <span key={updatedAt.getTime()} className="fresh-flash" style={{ padding: '0 2px', margin: '0 -2px' }}>
+                      {updatedLabel}
+                    </span>
+                  </button>
                 )}
+              </span>
+            ) : null}
+            {showSource && updatedAt ? (
+              <span role="status" style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400, fontFamily: 'var(--font-text)', fontSize: 'var(--fs-2)', color: colors.textDim }}>
+                {source === 'resrobot' ? t('Resrobot, tidtabell', 'Resrobot, timetable') : t('Trafiklab och Trafikverket, realtid', 'Trafiklab and Trafikverket, real time')}
+                {' · '}
+                {t('hämtad', 'fetched')}{' '}
+                {updatedAt.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Europe/Stockholm' })}
               </span>
             ) : null}
             {view === 'lines' ? (

@@ -1267,3 +1267,23 @@ html[data-skylt] .app-shell {
     background-color: var(--signal-bg);
   }
 }
+
+/* Klockslaget i tavlans rubrik är en knapp: källan och åldern (idé 14). Ser ut som texten. */
+.source-toggle {
+  position: relative;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.source-toggle::after {
+  content: '';
+  position: absolute;
+  inset: -12px -6px;
+}
