@@ -5,6 +5,7 @@ import LineGroupRow from './LineGroupRow';
 import DisruptionBox from './DisruptionBox';
 import WalkBar from './WalkBar';
 import FindTrip from './FindTrip';
+import { stockholmHour } from '../lib/sweTime.mjs';
 import FallbackRow from './FallbackRow';
 import WaitTrivia from './WaitTrivia';
 import ModeFilter from './ModeFilter';
@@ -28,10 +29,14 @@ type Props = {
   modes: { key: TransportMode; label: string }[];
   mode: TransportMode;
   onModeChange: (mode: TransportMode) => void;
+  /** Avgångar som döljs av valt trafikslag (sparat från förra gången). */
+  hiddenByMode?: number;
   departures: Departure[];
   disruptions: Disruption[];
   loading: boolean;
   errorMsg: string | null;
+  /** Hämta tavlan igen nu (knappen i felrutan). */
+  onRetry?: () => void;
   updatedAt: Date | null;
   /** Ingen uppkoppling: tavlan är den som service workern sparade senast. */
   offline: boolean;
@@ -158,10 +163,12 @@ export default function DepartureBoard({
   modes,
   mode,
   onModeChange,
+  hiddenByMode = 0,
   departures,
   disruptions,
   loading,
   errorMsg,
+  onRetry,
   updatedAt,
   offline,
   now,
@@ -288,10 +295,15 @@ export default function DepartureBoard({
     direction === 'departures' && !loading && !errorMsg && !stale && !offline && updatedAt && !filterText.trim()
       ? sparseBoard(departures, now, parseLocal, WAIT_TRIVIA_AFTER_MIN)
       : null;
+  // Helt tom tavla dagtid betyder oftast att en källa svarar fel, inte att inget går. Då
+  // föreslås ingen taxi, utan tavlan säger att datan kan saknas (UX-revisionen, fynd 8).
+  const hourNow = stockholmHour(now);
+  const daytimeEmpty = departures.length === 0 && hourNow >= 5 && hourNow < 23;
+  const showTaxi = sparse && !(sparse.kind === 'none' && daytimeEmpty);
   const fallback =
-    sparse || waiting?.kind === 'wait' ? (
+    showTaxi || waiting?.kind === 'wait' ? (
       <>
-        {sparse ? <FallbackRow stopId={stopId} stopName={stopName} coords={stopCoords} sparse={sparse} /> : null}
+        {showTaxi && sparse ? <FallbackRow stopId={stopId} stopName={stopName} coords={stopCoords} sparse={sparse} /> : null}
         {waiting?.kind === 'wait' ? (
           <WaitTrivia stopName={stopName} coords={stopCoords} onOpen={onOpenStation} first={!sparse} />
         ) : null}
@@ -494,6 +506,20 @@ export default function DepartureBoard({
         {modes.length > 1 || mode !== 'all' ? (
           <ModeFilter modes={modes} mode={mode} onChange={onModeChange} style={{ flexBasis: '100%' }} />
         ) : null}
+        {/* Valt trafikslag sparas mellan hållplatser. Säg det, så att ingen tror att bussarna saknas (UX-revisionen, fynd 15). */}
+        {mode !== 'all' && hiddenByMode > 0 && !errorMsg ? (
+          <p style={{ flexBasis: '100%', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0 10px', margin: '2px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
+            <span>
+              {t(
+                `Bara ${(modes.find((m) => m.key === mode)?.label || '').toLowerCase()} visas. ${hiddenByMode} andra avgångar är dolda.`,
+                `Showing one mode only. ${hiddenByMode} other departures are hidden.`
+              )}
+            </span>
+            <button type="button" className="tap-44" onClick={() => onModeChange('all')} style={{ border: 'none', background: 'none', padding: 0, color: colors.text, fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: '3px', cursor: 'pointer', font: 'inherit' }}>
+              {t('Visa alla', 'Show all')}
+            </button>
+          </p>
+        ) : null}
 
         {direction === 'arrivals' ? (
           // Ankomster är ett sällanval: alltid en tydlig väg tillbaka till avgångar.
@@ -574,7 +600,18 @@ export default function DepartureBoard({
             fontSize: '0.875rem',
           }}
         >
-          {errorMsg}
+          <strong style={{ display: 'block', fontSize: '0.9375rem' }}>{errorMsg}</strong>
+          <span style={{ display: 'block', marginTop: '4px' }}>
+            {t(
+              'Det är oftast tillfälligt, särskilt under jord. Vi försöker igen automatiskt var 30:e sekund.',
+              'It is usually temporary, especially underground. We retry automatically every 30 seconds.'
+            )}
+          </span>
+          {onRetry ? (
+            <button type="button" onClick={onRetry} style={{ ...emptyButton, marginTop: '12px' }}>
+              {t('Försök igen', 'Try again')}
+            </button>
+          ) : null}
         </div>
       ) : loading ? (
         <div role="status" aria-label={t('Hämtar tidtabell i realtid', 'Loading real-time timetable')} className="board-list" style={listStyle(SKELETON_ROWS)}>
@@ -609,6 +646,20 @@ export default function DepartureBoard({
                   {t('Rensa filtret', 'Clear filter')}
                 </button>
               </span>
+            </>
+          ) : mode === 'all' && daytimeEmpty ? (
+            <>
+              {t(
+                'Vi ser inga avgångar härifrån just nu. Det kan vara ett fel hos oss eller hos trafikbolaget, så titta gärna på deras egen tavla också.',
+                "We can't see any departures from here right now. It may be a fault on our side or the operator's, so check their own board too."
+              )}
+              {onRetry ? (
+                <span style={{ display: 'flex', justifyContent: 'center', marginTop: '10px' }}>
+                  <button type="button" onClick={onRetry} style={emptyButton}>
+                    {t('Hämta igen', 'Load again')}
+                  </button>
+                </span>
+              ) : null}
             </>
           ) : mode === 'all' ? (
             t(

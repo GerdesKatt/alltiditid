@@ -6,7 +6,8 @@ import { AIRPORTS, airportByIata, flightMatches } from '../lib/flights.mjs';
 import { parseLocal } from '../lib/lineFormat';
 import DirectionToggle from './DirectionToggle';
 import QueueForecast from './QueueForecast';
-import { gatePlan, queueNowFor, typicalQueueFor } from '../lib/gateTime.mjs';
+import { gatePlan, gateStage, queueNowFor, typicalQueueFor } from '../lib/gateTime.mjs';
+import { stockholmMinute } from '../lib/sweTime.mjs';
 import { isMyFlight, loadMyFlight, MY_FLIGHT_EVENT, storeMyFlight, type MyFlight } from '../lib/myFlight';
 import { flightStatus, translator, useLang, type Lang } from '../lib/i18n';
 import { colors, emptyState, fonts, labelStyle } from './styles';
@@ -68,6 +69,7 @@ export default function FlightView({ initialAirport }: Props) {
   const [filter, setFilter] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [retryTick, setRetryTick] = useState(0);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -101,7 +103,8 @@ export default function FlightView({ initialAirport }: Props) {
         .then(({ ok, data }) => {
           if (!active) return;
           if (!ok && !Array.isArray(data.flights)) {
-            setError(t(data.error || 'Kunde inte hämta flygen.', 'Could not load flights.'));
+            // Egen text, aldrig serverns feltext rakt av (UX-revisionen, fynd 3).
+            setError(t('Flygen gick inte att hämta just nu.', 'The flights could not be loaded right now.'));
           } else {
             setFlights(Array.isArray(data.flights) ? data.flights : []);
             setUpdatedAt(data.updatedAt || null);
@@ -112,7 +115,7 @@ export default function FlightView({ initialAirport }: Props) {
         })
         .catch(() => {
           if (!active) return;
-          setError(t('Kunde inte hämta flygen. Kontrollera uppkopplingen.', 'Could not load flights. Check your connection.'));
+          setError(t('Flygen gick inte att hämta just nu. Kontrollera uppkopplingen.', 'The flights could not be loaded right now. Check your connection.'));
           setLoading(false);
         });
     }
@@ -124,7 +127,7 @@ export default function FlightView({ initialAirport }: Props) {
       active = false;
       clearInterval(timer);
     };
-  }, [ready, airport, direction]);
+  }, [ready, airport, direction, retryTick]);
 
   const hasQueues = Boolean(airportByIata(airport)?.waitTimes);
   useEffect(() => {
@@ -329,7 +332,17 @@ export default function FlightView({ initialAirport }: Props) {
 
       {error && flights.length === 0 ? (
         <div role="alert" style={{ ...emptyState, color: colors.errorText, backgroundColor: colors.errorBg }}>
-          {error}
+          <strong style={{ display: 'block' }}>{error}</strong>
+          <span style={{ display: 'block', marginTop: '4px' }}>
+            {t('Vi försöker igen automatiskt om två minuter.', 'We retry automatically in two minutes.')}
+          </span>
+          <button
+            type="button"
+            onClick={() => setRetryTick((n) => n + 1)}
+            style={{ marginTop: '12px', minHeight: '44px', padding: '0 14px', border: `1px solid ${colors.borderStrong}`, borderRadius: 'var(--radius-control)', backgroundColor: colors.surface, color: colors.text, fontWeight: 700, cursor: 'pointer', font: 'inherit' }}
+          >
+            {t('Försök igen', 'Try again')}
+          </button>
         </div>
       ) : loading && flights.length === 0 ? (
         <div style={emptyState}>{t('Hämtar flyg…', 'Loading flights…')}</div>
@@ -423,6 +436,10 @@ function FlightRow({
   }, [needTypical, airport, day, f.terminal]);
   const usingTypical = queueNow === null && !soon && typical !== null;
   const plan = arrivals ? null : gatePlan(f, airport, queueNow ?? (usingTypical ? typical : null));
+  // För sent för planen? Då säger kortet det i stället för en tid som redan passerat (UX-revisionen, fynd 1).
+  const stage = gateStage(f, plan, stockholmMinute(now));
+  // Gaten stängd och avgångstiden passerad: flyget räknas som avgånget, nedtonat.
+  const gone = !arrivals && !f.done && !cancelled && stage === 'closed' && departsAt !== null && departsAt <= now;
   const [mine, setMine] = useState<MyFlight | null>(null);
   useEffect(() => {
     const sync = () => setMine(loadMyFlight());
@@ -433,12 +450,16 @@ function FlightRow({
   const saved = isMyFlight(mine, airport, f.flightId, f.scheduledAt);
   const statusLine = cancelled
     ? t('Inställt', 'Cancelled')
+    : gone
+    ? t('Gate stängd', 'Gate closed')
     : delayed
     ? `${t('Ny tid', 'New time')} ${f.newTime} · +${f.delayMinutes}`
     : f.done
     ? arrivals
       ? t('Landat', 'Landed')
       : t('Har lyft', 'Departed')
+    : stage === 'closed'
+    ? t('Gate stängd', 'Gate closed')
     : flightStatus(f.gateText, lang) || statusText || (plan ? `${t('Boarding ca', 'Boarding ~')} ${plan.boarding}` : left);
 
   // Status och anmärkningar utan upprepning ("Startat" och "Startat 17:40" blir en rad).
@@ -456,7 +477,7 @@ function FlightRow({
     })
     .join(', ');
   const details: [string, string][] = [];
-  if (plan) {
+  if (plan && stage === 'ok') {
     details.push([t('Boarding', 'Boarding'), `${t('ca', '~')} ${plan.boarding}`]);
     details.push([t('Gaten stänger', 'Gate closes'), `${t('ca', '~')} ${plan.gateCloses}`]);
   }
@@ -489,7 +510,7 @@ function FlightRow({
           textAlign: 'left',
           cursor: 'pointer',
           font: 'inherit',
-          opacity: f.done ? 0.7 : 1,
+          opacity: f.done || gone ? 0.7 : 1,
         }}
       >
         <span
@@ -570,7 +591,23 @@ function FlightRow({
         // Utfälld rad blir ett eget kort (samma tonade bakgrund som raden): först svaret, när du ska
         // vara vid säkerheten, sedan fakta som etikett och värde, sist knappen över hela bredden.
         <div style={{ padding: '0 14px 16px', borderBottom: `1px solid ${colors.border}`, fontSize: '0.875rem', lineHeight: 1.45 }}>
-          {plan ? (
+          {plan && stage !== 'ok' ? (
+            <div style={{ padding: '12px 0 14px', borderTop: `1px solid ${colors.border}` }}>
+              <div style={labelStyle}>{stage === 'closed' ? t('Gaten är stängd', 'The gate is closed') : t('Security-tiden har passerat', 'Security time has passed')}</div>
+              <div style={{ fontFamily: fonts.display, fontStretch: 'var(--stretch-head)', fontSize: '1.5rem', fontWeight: 800, lineHeight: 1.15, marginTop: '4px', color: colors.text }}>
+                {stage === 'closed'
+                  ? t('Fråga flygbolaget om du inte hunnit fram', 'Ask the airline if you have not made it')
+                  : f.gate
+                  ? t(`Gå direkt till gate ${f.gate}`, `Go straight to gate ${f.gate}`)
+                  : t('Gå direkt till gaten', 'Go straight to the gate')}
+              </div>
+              <div style={{ color: colors.textDim, marginTop: '4px', fontSize: '0.8125rem' }}>
+                {stage === 'closed'
+                  ? t(`Gaten stänger ca ${plan.gateCloses}, enligt flygbolagets vanliga regler eller flygplatsen.`, `The gate closes around ${plan.gateCloses}, by the airline's usual rules or the airport.`)
+                  : t(`Gaten stänger ca ${plan.gateCloses}. Uppskattat.`, `The gate closes around ${plan.gateCloses}. Estimated.`)}
+              </div>
+            </div>
+          ) : plan ? (
             <div style={{ padding: '12px 0 14px', borderTop: `1px solid ${colors.border}` }}>
               <div style={labelStyle}>{t('Var vid security senast', 'Be at security by')}</div>
               <div style={{ fontFamily: fonts.display, fontStretch: 'var(--stretch-head)', fontSize: '2.5rem', fontWeight: 800, lineHeight: 1.05, marginTop: '4px', fontVariantNumeric: 'tabular-nums', color: colors.text }}>

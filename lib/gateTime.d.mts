@@ -7,7 +7,13 @@ export type GatePlan = {
   queue: number | null;
   atSecurity: string;
   atSecurityBefore: number;
+  atSecurityAt: string;
+  gateClosesAt: string;
 };
+export type GateStage = 'ok' | 'late' | 'closed';
+export function localMinus(localIso: string, minutes: number): string;
+export function gateClosedByAirport(flight: Flight): boolean;
+export function gateStage(flight: Flight, plan: GatePlan | null, nowLocal: string): GateStage;
 export function clockMinus(localIso: string, minutes: number): string;
 export function gateRules(airlineIata?: string, domestic?: boolean): { boardingBefore: number; closeBefore: number };
 export function walkMinutes(airport: string, terminal?: string): [number, number];

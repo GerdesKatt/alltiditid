@@ -300,7 +300,13 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
         </section>
       ) : null}
       <SmartSearch onOpenStop={onOpenStop} onGoal={onGoal} onOpenTrain={onOpenTrain} onOpenAirport={onOpenAirport} />
-      {modeChoices.length > 1 && !editing ? <ModeFilter modes={modeChoices} mode={mode} onChange={chooseMode} style={{ margin: '-4px 0 18px' }} /> : null}
+      {modeChoices.length > 1 && !editing ? (
+        <>
+          {/* Säger vad flikarna gör: de gäller listorna nedanför (UX-revisionen, fynd 16). */}
+          <h2 style={{ ...label, margin: '0 0 0' }}>{t('Trafikslag i listorna nedan', 'Modes in the lists below')}</h2>
+          <ModeFilter modes={modeChoices} mode={mode} onChange={chooseMode} style={{ margin: '0 0 18px' }} />
+        </>
+      ) : null}
       {nearFirst ? nearSection : null}
       {/* Ny och utan position: svaret direkt, utan ett tryck. Tre stora stationer med nästa avgångar. */}
       {ready && fresh && nearby === null && !locating ? (

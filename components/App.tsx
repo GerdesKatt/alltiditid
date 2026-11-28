@@ -21,6 +21,8 @@ import SheetBackdrop from './SheetBackdrop';
 import { colors, textInput } from './styles';
 import ModeTabs, { type AppTab, type MenuKey } from './ModeTabs';
 import { loadModeFor, MODE_CHOICES, storeModeFor } from '../lib/modeMemory';
+import { loadLastBoard, saveLastBoard } from '../lib/lastBoard';
+import { fuzzyStops } from '../lib/fuzzyStops.mjs';
 import { goesToStop, pickNextDeparture } from '../lib/nextPick.mjs';
 import { habitFor, recordOpen } from '../lib/habits';
 import { useWalk } from '../lib/useWalk';
@@ -162,6 +164,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
   const [departures, setDepartures] = useState<Departure[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // Ökar när någon trycker på Försök igen, så att tavlan hämtas på nytt direkt.
+  const [retryTick, setRetryTick] = useState(0);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [source, setSource] = useState<BoardSource>('');
   const [disruptions, setDisruptions] = useState<Disruption[]>([]);
@@ -460,8 +464,14 @@ export default function App({ initialStop, page, intro }: AppProps) {
       setSearchingStops(true);
       fetch(`/api/trafik?action=search&q=${encodeURIComponent(q)}`)
         .then((res) => res.json())
-        .then((data) => {
-          setSuggestions(mergeStops(data.stops || []));
+        .then(async (data) => {
+          const found = mergeStops(data.stops || []);
+          // Inga träffar: förslag för stavfel från hållplatslistan, samma som sökfältet på startsidan.
+          if (!found.length) {
+            const index = await loadStopIndex();
+            if (index) found.push(...fuzzyStops(q, index.list, 3).map((p) => ({ id: p.id, name: p.name, place: p.place, modes: p.modes })));
+          }
+          setSuggestions(found);
           setSearchingStops(false);
         })
         .catch(() => {
@@ -506,6 +516,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
           if (!hasData) markFirstBoard(list.length);
           hasData = true;
           setDepartures(list);
+          if (data.savedAt === 0) saveLastBoard(url, list, Array.isArray(data.disruptions) ? data.disruptions : []);
           setErrorMsg(null);
           setLoading(false);
           setUpdatedAt(data.savedAt > 0 ? new Date(data.savedAt) : new Date());
@@ -523,12 +534,22 @@ export default function App({ initialStop, page, intro }: AppProps) {
             return match || { ...prev, gone: true };
           });
         })
-        .catch((err) => {
+        .catch(() => {
           if (!active) return;
           if (typeof navigator !== 'undefined' && navigator.onLine === false) setOffline(true);
           // Vid en misslyckad automatisk uppdatering behålls den senaste tavlan.
           if (!hasData) {
-            setErrorMsg(err.message || t('Kunde inte hämta trafikinformation just nu.', 'Could not load traffic information right now.'));
+            // Första hämtningen misslyckades: visa den senast sparade tavlan nedtonad om den finns,
+            // annars ett fel med "Försök igen". Serverns feltext visas aldrig rakt av.
+            const last = loadLastBoard(url);
+            if (last) {
+              setDepartures(last.departures);
+              setDisruptions(last.disruptions || []);
+              setUpdatedAt(new Date(last.at));
+              setErrorMsg(null);
+            } else {
+              setErrorMsg(t('Tavlan gick inte att hämta just nu.', 'The board could not be loaded right now.'));
+            }
           }
           setLoading(false);
         });
@@ -550,7 +571,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [restored, hasStop, selectedStop, direction]);
+  }, [restored, hasStop, selectedStop, direction, retryTick]);
 
   // Min resa på en annan hållplats än tavlan: hämta den hållplatsen också, lika ofta.
   const tripOnBoard = Boolean(myTrip && myTrip.stopId === selectedStop.id && direction === 'departures');
@@ -595,6 +616,9 @@ export default function App({ initialStop, page, intro }: AppProps) {
     [departures, mode]
   );
 
+  // Namnen på hållplatsen man tittar på. Sidans egen hållplats bara när det är den som visas,
+  // annars skulle tåg mot den förra hållplatsen försvinna när man byter i appen.
+  const ownStopNames = [selectedStop.name, selectedStop.shortName, initialStop && initialStop.id === selectedStop.id ? initialStop.name : ''];
   const queryLower = filterText.trim().toLowerCase();
   const filtered = departures.filter((d) => {
     const expected = parseLocal(d.expectedAt);
@@ -604,6 +628,12 @@ export default function App({ initialStop, page, intro }: AppProps) {
     }
 
     if (mode !== 'all' && d.transportMode !== mode) {
+      return false;
+    }
+
+    // Ett tåg som slutar här är ingen avgång härifrån, även om källan listar det som avgång
+    // ("2024 mot Stockholm C" överst på Stockholm C, UX-revisionen, fynd 2).
+    if (direction === 'departures' && goesToStop(d.destination, ownStopNames)) {
       return false;
     }
 
@@ -803,7 +833,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
       const at = parseLocal(d.expectedAt);
       if (d.status === 'cancelled' || at === null) return false;
       // Ett tåg mot stationen man står på (slutar här) är aldrig svaret.
-      if (goesToStop(d.destination, [selectedStop.name, selectedStop.shortName, initialStop?.name])) return false;
+      if (goesToStop(d.destination, ownStopNames)) return false;
       // Samma trafikslag som tavlan visar.
       if (mode !== 'all' && d.transportMode !== mode) return false;
       // En avgång som går nu hinner man inte: minst en minut kvar.
@@ -1399,9 +1429,15 @@ export default function App({ initialStop, page, intro }: AppProps) {
         mode={mode}
         onModeChange={setMode}
         departures={filtered}
+        hiddenByMode={
+          mode === 'all'
+            ? 0
+            : departures.filter((d) => d.transportMode !== mode && (d.pending || (parseLocal(d.expectedAt) ?? 0) >= now - DEPARTED_GRACE_MS)).length
+        }
         disruptions={disruptions}
         loading={loading}
         errorMsg={errorMsg}
+        onRetry={() => setRetryTick((n) => n + 1)}
         updatedAt={updatedAt}
         offline={offline}
         view={viewChosen ? view : 'list'}

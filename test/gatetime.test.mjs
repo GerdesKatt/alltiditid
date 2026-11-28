@@ -64,3 +64,18 @@ test('typisk kötid timmen före avgång i rätt terminal', () => {
   assert.equal(typicalQueueFor({ ...forecast, date: '2026-12-01' }, flight()), null);
   assert.equal(typicalQueueFor(null, flight()), null);
 });
+
+// UX-revisionen, fynd 1: ingen security-tid som redan passerat.
+import { gateClosedByAirport, gateStage, localMinus } from '../lib/gateTime.mjs';
+test('gateStage säger late eller closed när tiden passerat', () => {
+  const f = flight({ expectedAt: '2026-11-28T12:35', status: 'delayed' });
+  const p = gatePlan(f, 'ARN', 2);
+  assert.equal(p.atSecurityAt, '2026-11-28T11:43');
+  assert.equal(gateStage(f, p, '2026-11-28T11:30'), 'ok');
+  assert.equal(gateStage(f, p, '2026-11-28T11:50'), 'late');
+  assert.equal(gateStage(f, p, '2026-11-28T12:48'), 'closed');
+  assert.equal(gateStage({ ...f, gateText: 'Gate stängd' }, p, '2026-11-28T11:30'), 'closed');
+  assert.equal(gateClosedByAirport({ remarks: ['Utgång stängd'] }), true);
+  assert.equal(gateClosedByAirport({ gateText: 'Gå till gate' }), false);
+  assert.equal(localMinus('2026-11-29T00:10', 30), '2026-11-28T23:40');
+});

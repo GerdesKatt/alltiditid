@@ -435,6 +435,21 @@ html {
   margin-top: auto;
 }
 
+/* Mobilen: sidhuvudet glider undan när man scrollar nedåt (components/Header.tsx). */
+@media (max-width: 600px) {
+  .site-header {
+    transition: transform 0.2s ease;
+  }
+  html[data-header-hidden] .site-header {
+    transform: translateY(-110%);
+  }
+}
+@media (max-width: 600px) and (prefers-reduced-motion: reduce) {
+  .site-header {
+    transition: none;
+  }
+}
+
 /* Kompakt sidhuvud på mobilen, så att tavlan kommer högre upp. */
 @media (max-width: 600px) {
   .site-header {
