@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import SheetBackdrop from './SheetBackdrop';
 import type { InfoTab } from '../lib/types';
-import { colors } from './styles';
+import { colors, fonts } from './styles';
 import { ANALYTICS_ENABLED } from '../lib/analytics';
 import { useLang } from '../lib/i18n';
 
 type Props = {
-  activeTab: InfoTab;
+  activeTab: InfoTab | null;
   onChangeAnalyticsChoice: () => void;
-  onTabChange: (tab: InfoTab) => void;
+  onTabChange: (tab: InfoTab | null) => void;
 };
 
 const TABS: { key: InfoTab; label: string; labelEn: string }[] = [
@@ -316,47 +317,120 @@ function TabContent({ tab, onChangeAnalyticsChoice }: { tab: InfoTab; onChangeAn
   }
 }
 
+/** Om, Integritet, Ansvarsfriskrivning och Kontakt i ett blad nerifrån, som stationsbladet. */
+function InfoSheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const { t } = useLang();
+  const sheetRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    sheetRef.current?.focus({ preventScroll: true });
+  }, [title]);
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <>
+      <SheetBackdrop onClose={onClose} />
+      <section
+        ref={sheetRef}
+        className="onboard-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="infoblad-rubrik"
+        tabIndex={-1}
+        style={{
+          padding: '18px',
+          borderRadius: 0,
+          outline: 'none',
+          backgroundColor: colors.surface,
+          border: `1px solid ${colors.border}`,
+          boxShadow: `0 -8px 28px ${colors.shadow}`,
+          color: colors.textDim,
+          fontSize: '0.9375rem',
+          // Över samtyckesrutan, så att "Läs mer" där visar integritetstexten ovanpå.
+          zIndex: 60,
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+          <h2 id="infoblad-rubrik" style={{ fontFamily: fonts.display, fontSize: '1.375rem', fontWeight: 800, margin: 0, color: colors.text }}>
+            {title}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              flexShrink: 0,
+              minHeight: '44px',
+              padding: '0 12px',
+              borderRadius: 'var(--radius-control)',
+              border: `1px solid ${colors.borderStrong}`,
+              backgroundColor: colors.surface,
+              color: colors.text,
+              fontSize: '0.8125rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            {t('Stäng', 'Close')}
+          </button>
+        </div>
+        {children}
+      </section>
+    </>
+  );
+}
+
 export default function InfoFooter({ activeTab, onTabChange, onChangeAnalyticsChoice }: Props) {
   const { lang, t } = useLang();
   const Content = lang === 'en' ? TabContentEn : TabContent;
+  const open = activeTab ? TABS.find((x) => x.key === activeTab) : undefined;
   return (
     <footer
       id="sidfot"
       style={{
         borderTop: `1px solid ${colors.border}`,
-        paddingTop: '20px',
+        paddingTop: '12px',
         paddingBottom: '24px',
         color: colors.textDim,
         fontSize: '0.8125rem',
       }}
     >
-      {/* Sidfoten väger lätt: samma understrukna flikar som tavlans filter, inga inramade knappar. */}
-      <div style={{ display: 'flex', columnGap: '18px', marginBottom: '14px', flexWrap: 'wrap' }}>
+      {/* Sidfoten väger lätt: en rad länkar. Texterna öppnas i ett blad, så att sidan inte växer nedåt. */}
+      <nav aria-label={t('Om tjänsten', 'About the service')} style={{ display: 'flex', columnGap: '18px', flexWrap: 'wrap' }}>
         {TABS.map((tab) => (
           <button
             key={tab.key}
             type="button"
-            aria-pressed={activeTab === tab.key}
+            aria-haspopup="dialog"
+            aria-expanded={activeTab === tab.key}
             onClick={() => onTabChange(tab.key)}
             style={{
               minHeight: '44px',
               padding: '0 2px',
               border: 'none',
-              borderBottom: `2px solid ${activeTab === tab.key ? colors.text : 'transparent'}`,
               borderRadius: 0,
               backgroundColor: 'transparent',
-              color: activeTab === tab.key ? colors.text : colors.textDim,
+              color: colors.textDim,
               cursor: 'pointer',
               fontSize: '0.8125rem',
               fontWeight: 600,
+              textDecoration: 'underline',
+              textUnderlineOffset: '3px',
             }}
           >
             {t(tab.label, tab.labelEn)}
           </button>
         ))}
-      </div>
+      </nav>
 
-      <Content tab={activeTab} onChangeAnalyticsChoice={onChangeAnalyticsChoice} />
+      {open ? (
+        <InfoSheet title={t(open.label, open.labelEn)} onClose={() => onTabChange(null)}>
+          <Content tab={open.key} onChangeAnalyticsChoice={onChangeAnalyticsChoice} />
+        </InfoSheet>
+      ) : null}
 
       <div
         style={{
