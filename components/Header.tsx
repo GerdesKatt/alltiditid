@@ -56,7 +56,7 @@ export default function Header({ onContactClick, onHome, linkBase = '' }: Props)
           maxWidth: '100%',
         }}
       >
-        {/* Ordmärket: ALLTID I TID i bred versal under strecket (över hela skärmen, se .site-header), sloganen under. */}
+        {/* Ordmärket: alltid i tid i gemener, Archivo 800, under strecket (över hela skärmen, se .site-header), sloganen under. */}
         <span
           className="wordmark"
           style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}
@@ -64,11 +64,9 @@ export default function Header({ onContactClick, onHome, linkBase = '' }: Props)
           <span
             style={{
               fontFamily: fonts.display,
-              fontStretch: 'var(--stretch-wide)',
-              fontSize: '1.125rem',
-              fontWeight: 700,
-              letterSpacing: '0.02em',
-              textTransform: 'uppercase',
+              fontSize: '1.375rem',
+              fontWeight: 800,
+              letterSpacing: '-0.035em',
               lineHeight: 1,
               color: colors.text,
             }}
