@@ -4,10 +4,11 @@ import { COMPENSATION_DELAY_MIN } from '../lib/byte';
 import { compensationLink } from '../lib/compensation';
 import Icon from './Icon';
 import { badgeLook, colors, fonts } from './styles';
-import { COUNTDOWN_MAX_MIN, lineBadge, parseLocal, isAlarmDelay, rowLineName, shownDeviation, splitProduct } from '../lib/lineFormat';
+import { COUNTDOWN_MAX_MIN, lineBadge, operatorShort, parseLocal, isAlarmDelay, rowLineName, shownDeviation, splitProduct } from '../lib/lineFormat';
 import { lineLabel, trackLabel, useLang } from '../lib/i18n';
 import { trackText } from '../lib/lineNames.mjs';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
+import { sameAsBoard } from '../lib/nextPick.mjs';
 
 type Props = {
   item: Departure;
@@ -32,6 +33,22 @@ type Props = {
   onOpen?: (item: Departure) => void;
   /** Filtret Tåg: fjärr- och regionaltåg med klockslaget stort, som på biljetten. */
   clockFirst?: boolean;
+  /** Tavlans namn, så att delhållplatsen inte upprepas när den är samma plats. */
+  boardName?: string;
+};
+
+/** Länkarna under strecket i en utfälld rad: text med understrykning, som i Nästa-kortet. */
+const rowLink: React.CSSProperties = {
+  minHeight: '44px',
+  padding: 0,
+  border: 'none',
+  background: 'none',
+  color: colors.text,
+  fontSize: 'var(--fs-2)',
+  fontWeight: 700,
+  textDecoration: 'underline',
+  textUnderlineOffset: '3px',
+  cursor: 'pointer',
 };
 
 /** Beskedet visas bara för avgångar inom den här tiden; längre fram spelar gångtiden ingen roll än. */
@@ -58,6 +75,7 @@ export default function DepartureRow({
   alternative = null,
   onOpen,
   clockFirst = false,
+  boardName = '',
 }: Props) {
   const [open, setOpen] = useState(false);
   const { lang, t } = useLang();
@@ -119,7 +137,16 @@ export default function DepartureRow({
   const details = [item.stopLabel, trackLabel(trackText(item.track, item.transportMode), lang)].filter(Boolean).join(' · ');
   // Spåret först i undertexten, så att det aldrig är det som klipps bort på en smal telefon
   // ("Spår 3 · Röda linjen · T-Centralen", UX-revisionen, fynd 4).
-  const subline = [trackLabel(trackText(item.track, item.transportMode), lang), name, item.stopLabel].filter(Boolean).join(' · ');
+  // Delhållplatsen bara när den är en annan plats än tavlan ("City", inte "T-Centralen" på Stockholm C).
+  const ownLabel = item.stopLabel && !sameAsBoard(item.stopLabel, boardName) ? item.stopLabel : '';
+  const subline = [trackLabel(trackText(item.track, item.transportMode), lang), name, ownLabel].filter(Boolean).join(' · ');
+  // Utfälld rad: linjen med det namn raden redan använder ("SJ 574", inte "Tåg 574 · SJ AB"),
+  // och bolaget bara om det inte redan står där ("Arlanda Express 7934", en gång).
+  const fullLine = name && badge && !line.toLowerCase().includes(name.toLowerCase()) ? `${name} ${badge}` : line;
+  const company = operatorShort(item.operator);
+  const openInfo = [fullLine, company && !fullLine.toLowerCase().includes(company.toLowerCase()) ? item.operator : '']
+    .filter(Boolean)
+    .join(' · ');
   // "Ny tid saknas" betyder bara något för ett tåg som står kvar, och där säger tidskolumnen det redan.
   const deviation = shownDeviation(item);
   const compensation =
@@ -131,13 +158,16 @@ export default function DepartureRow({
   const shownBig = booked || item.pending ? item.scheduledTime : bigTime;
   // Sent bokat tåg med känd ny tid som skiljer sig från den ordinarie.
   const lateBooked = booked && isDelayed && !!newTime && newTime !== item.scheduledTime;
+  // "Nu" är rätt men går inte att hinna: mindre och i sten, så att den stora siffran
+  // står på det man kan hinna med (Apple-juryn, punkt 3).
+  const goingNow = !isCancelled && !item.pending && !booked && minutesLeft !== null && minutesLeft <= 0;
   const timeColor = isCancelled
     ? colors.textDim
     : isDelayed && booked
     ? colors.text // den ordinarie tiden står kvar; "Ny tid" är orange under
     : isDelayed
     ? colors.amber
-    : onlySchedule || stale
+    : onlySchedule || stale || goingNow
     ? colors.textDim
     : colors.text;
 
@@ -177,6 +207,8 @@ export default function DepartureRow({
   return (
     <div
       style={{
+        // Raderna glider till sin nya plats när listan ändras (View Transitions, lib/motion.ts).
+        viewTransitionName: `dep-${item.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`,
         // En rad i listan: tunn avdelare i stället för ett eget kort.
         backgroundColor: isSelectedTrip ? colors.selectedRowBg : colors.surface,
         borderBottom: `1px solid ${colors.border}`,
@@ -185,6 +217,7 @@ export default function DepartureRow({
     >
       <button
         type="button"
+        className="press"
         aria-expanded={open}
         aria-label={ariaLabel}
         onClick={() => {
@@ -222,7 +255,7 @@ export default function DepartureRow({
             ...badgeLook(item, { cancelled: isCancelled }),
             fontFamily: fonts.display,
             fontWeight: 800,
-            fontSize: '0.875rem',
+            fontSize: 'var(--fs-2)',
             textAlign: 'center',
             fontVariantNumeric: 'tabular-nums',
           }}
@@ -235,7 +268,7 @@ export default function DepartureRow({
         <span style={{ flex: '1 1 clamp(5rem, (1rem - 16px) * 1000, 7rem)', minWidth: 0 }}>
           <span
             style={{
-              fontSize: '1rem',
+              fontSize: 'var(--fs-3)',
               fontWeight: 700,
               color: isCancelled ? colors.textDim : colors.text,
               textDecoration: isCancelled ? 'line-through' : 'none',
@@ -253,7 +286,9 @@ export default function DepartureRow({
           <span
             style={{
               display: 'block',
-              fontSize: '0.8125rem',
+              fontSize: 'var(--fs-2)',
+              // Smal Archivo i täta rader: "Spår 3 · Röda linjen" ryms utan att klippas.
+              fontStretch: 'var(--stretch-tight)',
               color: colors.textDim,
               marginTop: '2px',
               overflow: 'hidden',
@@ -290,10 +325,10 @@ export default function DepartureRow({
                 WebkitBoxOrient: 'vertical',
                 overflow: 'hidden',
                 marginTop: '2px',
-                fontSize: '0.8125rem',
+                fontSize: 'var(--fs-2)',
                 lineHeight: 1.3,
                 color: colors.amber,
-                fontWeight: 600,
+                fontWeight: 700,
               }}
             >
               {deviation}
@@ -306,9 +341,10 @@ export default function DepartureRow({
           <span
             style={{
               fontFamily: fonts.display,
-              fontSize: '1.375rem',
-              fontWeight: 800,
-              letterSpacing: '-0.015em',
+              fontSize: goingNow ? 'var(--fs-3)' : 'var(--fs-5)',
+              fontWeight: goingNow ? 700 : 800,
+              letterSpacing: goingNow ? 0 : '-0.015em',
+              lineHeight: goingNow ? '1.75rem' : undefined,
               fontVariantNumeric: 'tabular-nums',
               color: timeColor,
               textDecoration: isCancelled ? 'line-through' : 'none',
@@ -322,7 +358,7 @@ export default function DepartureRow({
             {lateBooked ? (
               // Sent bokat tåg: ordinarie tid står kvar överstruken, den nya tiden är lika stor.
               <>
-                <s style={{ color: colors.textDim, fontWeight: 600 }}>{item.scheduledTime}</s>
+                <s style={{ color: colors.textDim, fontWeight: 700 }}>{item.scheduledTime}</s>
                 <span style={{ color: colors.amber }}>{newTime}</span>
               </>
             ) : (
@@ -332,8 +368,8 @@ export default function DepartureRow({
           <span
             style={{
               display: 'block',
-              fontSize: '0.8125rem',
-              fontWeight: 500,
+              fontSize: 'var(--fs-2)',
+              fontWeight: 400,
               fontVariantNumeric: 'tabular-nums',
               color: isCancelled ? colors.cancelledText : isDelayed ? colors.amber : colors.textDim,
               whiteSpace: 'nowrap',
@@ -342,7 +378,7 @@ export default function DepartureRow({
             {isCancelled ? (
               t('Inställd', 'Cancelled')
             ) : item.pending ? (
-              <span style={{ color: colors.amber, fontWeight: 600 }}>{t('Väntar på ny tid', 'Awaiting new time')}</span>
+              <span style={{ color: colors.amber, fontWeight: 700 }}>{t('Väntar på ny tid', 'Awaiting new time')}</span>
             ) : booked ? (
               // Bokat tåg: ordinarie tid står stort ovanför.
               <>
@@ -390,7 +426,7 @@ export default function DepartureRow({
             padding: '8px 10px',
             borderRadius: 'var(--radius-control)',
             backgroundColor: colors.surfaceRaised,
-            fontSize: '0.875rem',
+            fontSize: 'var(--fs-2)',
             lineHeight: 1.35,
             color: colors.text,
           }}
@@ -402,68 +438,26 @@ export default function DepartureRow({
         </p>
       ) : null}
       {open ? (
+        // Utfälld rad: en knapp (spara), två länkar. Namnet sägs en gång (Apple-juryn, punkt 6).
         <div
+          className="expand-in"
           style={{
             display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '0 14px 12px 70px',
-            fontSize: '0.8125rem',
+            flexDirection: 'column',
+            gap: '8px',
+            padding: '0 14px 14px 78px',
+            fontSize: 'var(--fs-2)',
             color: colors.textDim,
           }}
         >
-          <span style={{ flexBasis: '100%' }}>
-            {line} · {item.operator}
+          <span>
+            {openInfo}
             {onlySchedule ? t(' · Realtid kommer när avgången närmar sig.', ' · Real-time appears as departure approaches.') : ''}
           </span>
-          <button
-            type="button"
-            aria-pressed={isSelectedTrip}
-            aria-label={`${isSelectedTrip ? t('Vald resa', 'Selected trip') : t('Jag är ombord', "I'm on board")}: ${line} ${
-              direction === 'arrivals' ? t('från', 'from') : t('mot', 'to')
-            } ${item.destination} ${item.scheduledTime}`}
-            onClick={() => onSelectOnBoard(item)}
-            style={{
-              minHeight: '44px',
-              padding: '0 14px',
-              borderRadius: 'var(--radius-control)',
-              border: isSelectedTrip ? `1px solid ${colors.accentStrong}` : `1px solid ${colors.borderStrong}`,
-              backgroundColor: isSelectedTrip ? colors.accentStrong : colors.surfaceRaised,
-              color: isSelectedTrip ? colors.onAccent : colors.text,
-              fontSize: '0.8125rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            {isSelectedTrip ? t('Vald resa', 'Selected trip') : t('Jag är ombord', "I'm on board")}
-          </button>
-          {showsTrain || showsTrip ? (
-            <button
-              type="button"
-              onClick={() =>
-                showsTrain
-                  ? onShowTrain!(item.trainNumber!)
-                  : onShowTrip!({ id: item.tripId!, date: item.tripDate! })
-              }
-              style={{
-                minHeight: '44px',
-                padding: '0 14px',
-                borderRadius: 'var(--radius-control)',
-                border: `1px solid ${colors.borderStrong}`,
-                backgroundColor: colors.surface,
-                color: colors.text,
-                fontSize: '0.8125rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {t('Hela resan', 'Whole journey')}
-            </button>
-          ) : null}
           {onToggleMyTrip ? (
             <button
               type="button"
+              className="press-fill"
               aria-pressed={isMyTrip}
               aria-label={`${isMyTrip ? t('Min resa', 'My trip') : t('Spara som min resa', 'Save as my trip')}: ${line} ${t(
                 'mot',
@@ -471,13 +465,15 @@ export default function DepartureRow({
               )} ${item.destination}`}
               onClick={() => onToggleMyTrip(item)}
               style={{
-                minHeight: '44px',
+                width: '100%',
+                minHeight: '48px',
                 padding: '0 14px',
                 borderRadius: 'var(--radius-control)',
-                border: `1px solid ${isMyTrip ? colors.accentStrong : colors.borderStrong}`,
-                backgroundColor: isMyTrip ? colors.accentStrong : colors.surface,
-                color: isMyTrip ? colors.onAccent : colors.text,
-                fontSize: '0.8125rem',
+                // Sparad är rosé (det som är mitt), osparad är natt: den enda knappen i raden.
+                border: 'none',
+                backgroundColor: isMyTrip ? 'var(--rose)' : colors.accentStrong,
+                color: isMyTrip ? 'var(--rose-ink)' : colors.onAccent,
+                fontSize: 'var(--fs-3)',
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
@@ -485,12 +481,40 @@ export default function DepartureRow({
               {isMyTrip ? `✓ ${t('Min resa', 'My trip')}` : t('Spara som min resa', 'Save as my trip')}
             </button>
           ) : null}
+          <span style={{ display: 'flex', flexWrap: 'wrap', gap: '0 20px', borderTop: `1px solid ${colors.border}` }}>
+            <button
+              type="button"
+              className="tap-44 row-link"
+              aria-pressed={isSelectedTrip}
+              aria-label={`${isSelectedTrip ? t('Vald resa', 'Selected trip') : t('Jag är ombord', "I'm on board")}: ${line} ${
+                direction === 'arrivals' ? t('från', 'from') : t('mot', 'to')
+              } ${item.destination} ${item.scheduledTime}`}
+              onClick={() => onSelectOnBoard(item)}
+              style={rowLink}
+            >
+              {isSelectedTrip ? `✓ ${t('Vald resa', 'Selected trip')}` : t('Jag är ombord', "I'm on board")}
+            </button>
+            {showsTrain || showsTrip ? (
+              <button
+                type="button"
+                className="tap-44 row-link"
+                onClick={() =>
+                  showsTrain
+                    ? onShowTrain!(item.trainNumber!)
+                    : onShowTrip!({ id: item.tripId!, date: item.tripDate! })
+                }
+                style={rowLink}
+              >
+                {t('Hela resan', 'Whole journey')}
+              </button>
+            ) : null}
+          </span>
           {compensation ? (
             <a
               href={compensationLink(item.operator, item.line).url}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.amber }}
+              style={{ fontSize: 'var(--fs-2)', fontWeight: 700, color: colors.amber }}
             >
               {compensationLink(item.operator, item.line).name
                 ? t(

@@ -35,7 +35,7 @@ export default function SwitchStopButton({ onClick, activeFilter }: Props) {
         backgroundColor: colors.surface,
         color: colors.text,
         fontWeight: 700,
-        fontSize: '0.9375rem',
+        fontSize: 'var(--fs-3)',
         cursor: 'pointer',
         boxShadow: `0 6px 18px ${colors.shadow}`,
       }}
@@ -53,7 +53,7 @@ export default function SwitchStopButton({ onClick, activeFilter }: Props) {
             borderRadius: 0,
             backgroundColor: colors.surfaceRaised,
             color: colors.textDim,
-            fontSize: '0.8125rem',
+            fontSize: 'var(--fs-2)',
             fontWeight: 700,
           }}
         >

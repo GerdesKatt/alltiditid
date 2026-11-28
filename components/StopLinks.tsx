@@ -22,7 +22,7 @@ export default function StopLinks({
   const title = t(titleSv, titleEn || titleSv);
   return (
     <nav aria-label={title} style={{ marginTop: '18px' }}>
-      <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, margin: '0 0 8px 0', color: colors.text }}>{title}</h3>
+      <h3 style={{ fontSize: 'var(--fs-3)', fontWeight: 700, margin: '0 0 8px 0', color: colors.text }}>{title}</h3>
       {/* En lista under ett streck, inga grå chips: namn till vänster, avstånd till höger. */}
       <ul style={{ listStyle: 'none', margin: 0, padding: 0, borderTop: `1px solid ${colors.text}` }}>
         {links.map((l) => (
@@ -36,14 +36,14 @@ export default function StopLinks({
                 gap: '12px',
                 minHeight: '44px',
                 color: colors.text,
-                fontSize: '0.9375rem',
-                fontWeight: 600,
+                fontSize: 'var(--fs-3)',
+                fontWeight: 700,
                 textDecoration: 'none',
               }}
             >
               {l.name}
               {l.note ? (
-                <span style={{ color: colors.textDim, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+                <span style={{ color: colors.textDim, fontWeight: 400, fontVariantNumeric: 'tabular-nums' }}>
                   {t(l.note, l.note.replace(/(\d),(\d)/, '$1.$2'))}
                 </span>
               ) : null}

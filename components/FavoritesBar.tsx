@@ -1,4 +1,5 @@
 import React from 'react';
+import { StarIcon } from './Icon';
 import type { StopOption } from '../lib/types';
 import { colors } from './styles';
 import { useLang } from '../lib/i18n';
@@ -44,14 +45,14 @@ export default function FavoritesBar({ favorites, currentId, onSelect }: Props) 
                   textDecoration: current ? 'underline' : 'none',
                   textUnderlineOffset: '5px',
                   textDecorationThickness: '2px',
-                  fontSize: '0.875rem',
-                  fontWeight: current ? 700 : 600,
+                  fontSize: 'var(--fs-2)',
+                  fontWeight: current ? 800 : 700,
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                 }}
               >
-                <span aria-hidden="true" style={{ color: 'inherit', marginRight: '6px' }}>
-                  ★
+                <span aria-hidden="true" style={{ display: 'inline-flex', color: 'inherit', marginRight: '6px' }}>
+                  <StarIcon filled size={14} />
                 </span>
                 {stop.shortName || stop.name}
               </button>

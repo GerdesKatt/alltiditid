@@ -110,7 +110,7 @@ export default function QueueForecast({ airport }: { airport: string }) {
 
   return (
     <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${colors.border}` }}>
-      <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim, marginBottom: '8px' }}>
+      <div style={{ fontSize: 'var(--fs-2)', fontWeight: 700, color: colors.textDim, marginBottom: '8px' }}>
         {t('Brukar vara', 'Usually')}
       </div>
       <div role="tablist" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
@@ -126,7 +126,7 @@ export default function QueueForecast({ airport }: { airport: string }) {
             style={{
               padding: '4px 10px',
               borderRadius: '999px',
-              fontSize: '0.8125rem',
+              fontSize: 'var(--fs-2)',
               cursor: 'pointer',
               border: `1px solid ${d === date ? colors.accent : colors.borderMuted}`,
               backgroundColor: d === date ? colors.accentTint : 'transparent',
@@ -137,12 +137,12 @@ export default function QueueForecast({ airport }: { airport: string }) {
           </button>
         ))}
       </div>
-      {dayNote ? <div style={{ fontSize: '0.8125rem', color: colors.amber, marginBottom: '8px' }}>{dayNote}</div> : null}
+      {dayNote ? <div style={{ fontSize: 'var(--fs-2)', color: colors.amber, marginBottom: '8px' }}>{dayNote}</div> : null}
 
-      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: '2px', alignItems: 'center', fontSize: '0.75rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: '2px', alignItems: 'center', fontSize: 'var(--fs-1)' }}>
         <span />
         {hours.map((h) => (
-          <span key={h} style={{ textAlign: 'center', color: colors.textFaint, fontSize: '0.625rem' }}>
+          <span key={h} style={{ textAlign: 'center', color: colors.textFaint, fontSize: 'var(--fs-1)' }}>
             {h % 3 === 0 ? pad(h) : ''}
           </span>
         ))}
@@ -201,7 +201,7 @@ export default function QueueForecast({ airport }: { airport: string }) {
         ) : null}
       </div>
 
-      <p style={{ fontSize: '0.8125rem', color: colors.text, margin: '10px 0 0' }}>
+      <p style={{ fontSize: 'var(--fs-2)', color: colors.text, margin: '10px 0 0' }}>
         <strong style={{ fontFamily: fonts.display }}>
           {t('Kl.', 'At')} {pad(selected)}–{pad(selected + 1)}
         </strong>
@@ -226,7 +226,7 @@ export default function QueueForecast({ airport }: { airport: string }) {
           </span>
         ) : null}
       </p>
-      <p style={{ fontSize: '0.75rem', color: colors.textDim, margin: '4px 0 0' }}>
+      <p style={{ fontSize: 'var(--fs-1)', color: colors.textDim, margin: '4px 0 0' }}>
         {hasHistory
           ? (() => {
               const c = queues.map((q) => q.hours.find((x) => x.hour === selected)).find((x) => x && x.typical !== null);

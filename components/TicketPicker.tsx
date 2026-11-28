@@ -287,7 +287,7 @@ export default function TicketPicker({ goal, onAnchor, near = null }: Props) {
           enterKeyHint="done"
           onChange={(e) => setText(e.target.value)}
           placeholder={t('T.ex. 7063 eller SK1415', 'E.g. 7063 or SK1415')}
-          style={{ ...textInput(colors.borderStrong), display: 'block', width: '100%', minHeight: '48px', fontSize: '1rem', fontWeight: 400, color: colors.text }}
+          style={{ ...textInput(colors.borderStrong), display: 'block', width: '100%', minHeight: '48px', fontSize: 'var(--fs-3)', fontWeight: 400, color: colors.text }}
         />
       </label>
       {text.trim().length >= 2 && !parsed ? (
@@ -326,12 +326,12 @@ export default function TicketPicker({ goal, onAnchor, near = null }: Props) {
 
         {train && departing.length > 0 ? (
           <div style={box}>
-            <strong style={{ display: 'block', fontSize: '0.9375rem' }}>
+            <strong style={{ display: 'block', fontSize: 'var(--fs-3)' }}>
               {t('Tåg', 'Train')} {train.number}
               {train.to ? ` ${t('mot', 'to')} ${train.to}` : ''}
             </strong>
             {train.operator || train.product ? (
-              <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim }}>{[train.operator, train.product].filter(Boolean).join(' · ')}</span>
+              <span style={{ display: 'block', fontSize: 'var(--fs-2)', color: colors.textDim }}>{[train.operator, train.product].filter(Boolean).join(' · ')}</span>
             ) : null}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
               <label style={{ ...fieldLabel, flex: '1 1 10rem' }}>
@@ -371,7 +371,7 @@ export default function TicketPicker({ goal, onAnchor, near = null }: Props) {
             {far && away?.meters ? (
               // Påstigningen ligger långt bort: sitter man redan på tåget, eller ska man dit?
               <div style={{ marginTop: '10px' }}>
-                <p style={{ margin: 0, fontSize: '0.875rem', lineHeight: 1.45 }}>
+                <p style={{ margin: 0, fontSize: 'var(--fs-2)', lineHeight: 1.45 }}>
                   {t(
                     `${train.stops[board].name} ligger ${Math.round(away.meters / 1000)} km härifrån. Är du redan på tåget?`,
                     `${train.stops[board].name} is ${Math.round(away.meters / 1000)} km from here. Are you already on the train?`
@@ -395,11 +395,11 @@ export default function TicketPicker({ goal, onAnchor, near = null }: Props) {
 
         {flight ? (
           <div style={box}>
-            <strong style={{ display: 'block', fontSize: '0.9375rem' }}>
+            <strong style={{ display: 'block', fontSize: 'var(--fs-3)' }}>
               {t('Flyg', 'Flight')} {flight.flightId}
               {flight.place ? ` ${t('till', 'to')} ${flight.place}` : ''} · {flight.scheduledTime}
             </strong>
-            <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim }}>
+            <span style={{ display: 'block', fontSize: 'var(--fs-2)', color: colors.textDim }}>
               {[flight.airline, flight.terminal ? `${t('Terminal', 'Terminal')} ${flight.terminal}` : '', flight.newTime ? `${t('ny tid', 'new time')} ${flight.newTime}` : '']
                 .filter(Boolean)
                 .join(' · ')}
@@ -429,7 +429,7 @@ export default function TicketPicker({ goal, onAnchor, near = null }: Props) {
         ) : null}
 
         {isFlight && (flight || manual) ? (
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', minHeight: '44px', marginTop: '6px', fontSize: '0.875rem' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', minHeight: '44px', marginTop: '6px', fontSize: 'var(--fs-2)' }}>
             <input type="checkbox" checked={bags} onChange={(e) => setBags(e.target.checked)} style={{ width: '20px', height: '20px' }} />
             {t('Jag lämnar in bagage', 'I am checking a bag')}
           </label>
@@ -474,12 +474,12 @@ const chip = (on: boolean): React.CSSProperties => ({
   border: `1px solid ${on ? colors.text : colors.borderStrong}`,
   backgroundColor: on ? colors.accentStrong : 'transparent',
   color: on ? colors.onAccent : colors.text,
-  fontSize: '0.8125rem',
-  fontWeight: 600,
+  fontSize: 'var(--fs-2)',
+  fontWeight: 700,
   cursor: 'pointer',
 });
 
-const note: React.CSSProperties = { margin: '8px 0 0', fontSize: '0.875rem', lineHeight: 1.45, color: colors.textDim };
+const note: React.CSSProperties = { margin: '8px 0 0', fontSize: 'var(--fs-2)', lineHeight: 1.45, color: colors.textDim };
 
 const box: React.CSSProperties = { marginTop: '10px', padding: '10px 12px', border: `1px solid ${colors.borderStrong}` };
 
@@ -487,8 +487,8 @@ const fieldLabel: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: '4px',
-  fontSize: '0.8125rem',
-  fontWeight: 600,
+  fontSize: 'var(--fs-2)',
+  fontWeight: 700,
   color: colors.textDim,
 };
 
@@ -499,6 +499,6 @@ const field: React.CSSProperties = {
   borderRadius: 0,
   backgroundColor: colors.surface,
   color: colors.text,
-  fontSize: '1rem',
+  fontSize: 'var(--fs-3)',
   fontFamily: 'inherit',
 };

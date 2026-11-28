@@ -27,7 +27,7 @@ const pill = {
   backgroundColor: colors.surface,
   color: colors.text,
   fontFamily: 'inherit',
-  fontSize: '0.875rem',
+  fontSize: 'var(--fs-2)',
   fontWeight: 700,
   cursor: 'pointer',
 } as const;
@@ -124,7 +124,7 @@ export default function FindTrip({ stop, mode, onShowTrain, onShowTrip }: Props)
           color: colors.accent,
           fontFamily: 'inherit',
           fontWeight: 700,
-          fontSize: '0.875rem',
+          fontSize: 'var(--fs-2)',
           cursor: 'pointer',
         }}
       >
@@ -151,11 +151,11 @@ export default function FindTrip({ stop, mode, onShowTrain, onShowTrip }: Props)
         borderRadius: 'var(--radius-card)',
         border: `1px solid ${colors.border}`,
         backgroundColor: colors.surface,
-        fontSize: '0.875rem',
+        fontSize: 'var(--fs-2)',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '8px' }}>
-        <h2 style={{ flex: 1, minWidth: 0, fontSize: '0.9375rem', fontWeight: 800, margin: 0 }}>
+        <h2 style={{ flex: 1, minWidth: 0, fontSize: 'var(--fs-3)', fontWeight: 800, margin: 0 }}>
           <Icon name="train" /> 
           {heading}
         </h2>
@@ -204,7 +204,7 @@ export default function FindTrip({ stop, mode, onShowTrain, onShowTrip }: Props)
                     alignItems: 'center',
                     gap: '10px',
                     textAlign: 'left',
-                    fontWeight: 600,
+                    fontWeight: 700,
                   }}
                 >
                   <span
@@ -224,7 +224,7 @@ export default function FindTrip({ stop, mode, onShowTrain, onShowTrip }: Props)
                   </span>
                   <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {t('mot', 'to')} {d.destination}
-                    <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim, fontWeight: 500 }}>
+                    <span style={{ display: 'block', fontSize: 'var(--fs-2)', color: colors.textDim, fontWeight: 400 }}>
                       {d.minutesAgo > 0
                         ? t(`gick ${d.estimatedTime || d.scheduledTime}, för ${d.minutesAgo} min sedan`, `left ${d.estimatedTime || d.scheduledTime}, ${d.minutesAgo} min ago`)
                         : d.minutesAgo === 0

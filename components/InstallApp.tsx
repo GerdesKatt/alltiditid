@@ -109,7 +109,7 @@ export default function InstallApp() {
             border: `1px solid ${colors.text}`,
             background: 'transparent',
             color: colors.text,
-            fontSize: '0.9375rem',
+            fontSize: 'var(--fs-3)',
             fontWeight: 700,
             textAlign: 'left',
             cursor: 'pointer',
@@ -119,7 +119,7 @@ export default function InstallApp() {
           <img src="/icon-192-v6.png" alt="" width={40} height={40} style={{ flexShrink: 0, display: 'block' }} />
           <span>
             {t('Lägg', 'Add')}{' '}
-            <span style={{ fontFamily: fonts.display, fontWeight: 800, letterSpacing: '-0.015em', fontSize: '1.0625rem' }}>alltid i tid</span>{' '}
+            <span style={{ fontFamily: fonts.display, fontWeight: 800, letterSpacing: '-0.015em', fontSize: 'var(--fs-4)' }}>alltid i tid</span>{' '}
             {t('på hemskärmen', 'to your home screen')}
           </span>
         </button>
@@ -127,19 +127,19 @@ export default function InstallApp() {
           type="button"
           onClick={dismiss}
           aria-label={t('Inte nu', 'Not now')}
-          style={{ minWidth: '44px', minHeight: '48px', border: 'none', background: 'none', color: colors.textDim, fontSize: '1.25rem', cursor: 'pointer' }}
+          style={{ minWidth: '44px', minHeight: '48px', border: 'none', background: 'none', color: colors.textDim, fontSize: 'var(--fs-5)', cursor: 'pointer' }}
         >
           ×
         </button>
       </div>
-      <p style={{ margin: '6px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
+      <p style={{ margin: '6px 0 0', fontSize: 'var(--fs-2)', color: colors.textDim }}>
         {t(
           'Öppnas som en app, och det du sparat ligger kvar.',
           'Opens like an app, and what you saved stays put.'
         )}
       </p>
       {ios && showSteps ? (
-        <ol style={{ margin: '10px 0 0', paddingLeft: '1.25rem', fontSize: '0.9375rem', lineHeight: 1.6 }}>
+        <ol style={{ margin: '10px 0 0', paddingLeft: '1.25rem', fontSize: 'var(--fs-3)', lineHeight: 1.6 }}>
           <li>
             {t('Tryck på', 'Tap')}{' '}
             <strong>

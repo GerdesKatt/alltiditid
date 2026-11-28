@@ -42,3 +42,13 @@ test('realtid före tidtabell när de går nästan samtidigt', () => {
   ];
   assert.equal(pickNextDeparture(far, at), far[0]);
 });
+
+test('sameAsBoard: delhållplatsen upprepas inte när den är tavlans egen plats', async () => {
+  const { sameAsBoard } = await import('../lib/nextPick.mjs');
+  const board = 'Stockholm C / T-Centralen';
+  assert.equal(sameAsBoard('T-Centralen', board), true);
+  assert.equal(sameAsBoard('Centralstation', board), true);
+  assert.equal(sameAsBoard('City', board), false);
+  assert.equal(sameAsBoard('Cityterminalen', board), false);
+  assert.equal(sameAsBoard('', board), false);
+});

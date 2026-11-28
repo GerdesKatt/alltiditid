@@ -95,7 +95,7 @@ export default function MyTripCard({
       }}
     >
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
-        <span style={{ minWidth: 0, fontSize: '0.9375rem', fontWeight: 600, display: 'inline-flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px 8px' }}>
+        <span style={{ minWidth: 0, fontSize: 'var(--fs-3)', fontWeight: 700, display: 'inline-flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px 8px' }}>
           {/* Linjebrickan i linjens färg, samma som på tavlan. */}
           <span
             style={{
@@ -106,7 +106,7 @@ export default function MyTripCard({
               boxSizing: 'border-box',
               fontFamily: fonts.display,
               fontWeight: 800,
-              fontSize: '0.8125rem',
+              fontSize: 'var(--fs-2)',
               textAlign: 'center',
             }}
           >
@@ -131,7 +131,7 @@ export default function MyTripCard({
       </p>
 
       {!head ? (
-        <p style={{ margin: '14px 0 4px', fontSize: '0.9375rem', color: colors.textDim }}>
+        <p style={{ margin: '14px 0 4px', fontSize: 'var(--fs-3)', color: colors.textDim }}>
           {loading ? t('Hämtar avgångar…', 'Loading departures…') : t('Inga avgångar den närmaste tiden.', 'No departures in the near future.')}
         </p>
       ) : (
@@ -143,7 +143,7 @@ export default function MyTripCard({
               gap: '10px',
               marginTop: '6px',
               fontFamily: fonts.display,
-              fontSize: 'clamp(2.75rem, 13vw, 4rem)',
+              fontSize: 'var(--fs-6)',
               fontStretch: 'var(--stretch-head)',
               fontWeight: 800,
               // Proportionella siffror: fast bredd ger luft runt kolonet i den här storleken.
@@ -165,7 +165,7 @@ export default function MyTripCard({
             {!verdict && auto && showingStop ? (
               // Spara står bredvid siffran i stället för på en egen rad: kortet blir en rad lägre
               // och tavlan får plats högre upp.
-              <button type="button" onClick={onSave} style={{ ...textButton, alignSelf: 'flex-end', marginBottom: '-10px', fontFamily: 'var(--font-text)', fontStretch: '100%', letterSpacing: 0, lineHeight: 1.2, fontVariantNumeric: 'normal', flexShrink: 1, maxWidth: '8.5rem', textAlign: 'right' }}>
+              <button type="button" onClick={onSave} style={{ ...textButton, alignSelf: 'flex-end', marginBottom: '-10px', fontFamily: 'var(--font-text)', fontStretch: '100%', letterSpacing: 0, lineHeight: 1.2, fontVariantNumeric: 'normal', flexShrink: 1, maxWidth: '10rem', textAlign: 'right' }}>
                 {t('Spara som min resa', 'Save as my trip')}
               </button>
             ) : null}
@@ -181,7 +181,7 @@ export default function MyTripCard({
                   border: verdict.kind === 'missed' ? `1px solid ${colors.amber}` : 'none',
                   fontFamily: fonts.display,
                   fontStretch: 'var(--stretch-wide)',
-                  fontSize: '0.75rem',
+                  fontSize: 'var(--fs-1)',
                   fontWeight: 700,
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
@@ -207,10 +207,10 @@ export default function MyTripCard({
               marginTop: '8px',
               paddingTop: '8px',
               borderTop: `1px solid ${colors.text}`,
-              fontSize: '0.875rem',
+              fontSize: 'var(--fs-2)',
             }}
           >
-            <span style={{ color: headCancelled || headDelayed ? colors.amber : colors.text, fontWeight: headCancelled ? 700 : 500 }}>
+            <span style={{ color: headCancelled || headDelayed ? colors.amber : colors.text, fontWeight: headCancelled ? 700 : 400 }}>
               {headCancelled
                 ? t('Inställd', 'Cancelled')
                 : headDelayed
@@ -235,9 +235,22 @@ export default function MyTripCard({
         </div>
       )}
 
+      {verdict && !headCancelled ? (
+        // En torr replik i annonsernas röst, under strecket (Apple-juryn, punkt 9).
+        <p style={{ margin: '8px 0 0', fontSize: 'var(--fs-2)', fontWeight: 700, color: verdict.kind === 'missed' ? colors.amber : colors.text }}>
+          {verdict.kind === 'relax'
+            ? t('Du hinner. Gå, spring inte.', "You'll make it. Walk, don't run.")
+            : verdict.kind === 'go'
+            ? t('Gå nu, så hinner du.', "Leave now and you'll make it.")
+            : rest.length
+            ? t('Den hinner du inte. Ta nästa.', "You won't make that one. Take the next.")
+            : t('Den hinner du inte.', "You won't make that one.")}
+        </p>
+      ) : null}
+
       {next[0]?.status === 'cancelled' && alternative ? (
         // Inställt: alltid ett nästa steg.
-        <p style={{ margin: '10px 0 0', fontSize: '0.9375rem', color: colors.amber }}>
+        <p style={{ margin: '10px 0 0', fontSize: 'var(--fs-3)', color: colors.amber }}>
           <strong>{t('Ta istället:', 'Take instead:')}</strong>{' '}
           {lineLabel(alternative.line, lang)} {t('mot', 'to')} {alternative.destination} ·{' '}
           {alternative.newTime || alternative.estimatedTime || alternative.scheduledTime}
@@ -249,7 +262,7 @@ export default function MyTripCard({
           style={{
             margin: '10px 0 0',
             color: colors.delayedText,
-            fontSize: '0.8125rem',
+            fontSize: 'var(--fs-2)',
           }}
         >
           <span aria-hidden="true">⚠ </span>
@@ -263,7 +276,7 @@ export default function MyTripCard({
         {showingStop ? (
           <span />
         ) : (
-          <span style={{ display: 'flex', alignItems: 'center', fontSize: '0.8125rem', color: colors.textDim }}>
+          <span style={{ display: 'flex', alignItems: 'center', fontSize: 'var(--fs-2)', color: colors.textDim }}>
             {t('från', 'from')} {trip.stopName}
           </span>
         )}
@@ -297,8 +310,8 @@ const textButton: React.CSSProperties = {
   border: 'none',
   background: 'none',
   color: colors.text,
-  fontSize: '0.8125rem',
-  fontWeight: 600,
+  fontSize: 'var(--fs-2)',
+  fontWeight: 700,
   textDecoration: 'underline',
   textUnderlineOffset: '3px',
   cursor: 'pointer',

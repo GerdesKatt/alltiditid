@@ -40,8 +40,8 @@ const label: React.CSSProperties = {
   margin: '0 0 6px',
   fontFamily: 'var(--font-display)',
   fontStretch: 'var(--stretch-wide)',
-  fontSize: '0.6875rem',
-  fontWeight: 600,
+  fontSize: 'var(--fs-1)',
+  fontWeight: 700,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
   color: colors.textDim,
@@ -231,7 +231,7 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
             {here ? <StrandedTips lat={here.lat} lon={here.lon} /> : null}
           </>
         ) : (
-          <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textDim }}>
+          <p style={{ margin: 0, fontSize: 'var(--fs-2)', color: colors.textDim }}>
             {t('Dina hållplatser är de närmaste.', 'Your stops are the nearest ones.')}
           </p>
         )
@@ -247,7 +247,7 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
           onShowAll={() => chooseMode('all')}
         />
       )}
-      {posError ? <p style={{ margin: '8px 0 0', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 }}>{posError}</p> : null}
+      {posError ? <p style={{ margin: '8px 0 0', fontSize: 'var(--fs-2)', color: colors.textSoft, lineHeight: 1.5 }}>{posError}</p> : null}
       {denied && !manualPlace ? (
         <form
           onSubmit={(e) => {
@@ -267,12 +267,12 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
             value={whereText}
             onChange={(e) => setWhereText(e.target.value)}
             placeholder={t('Var är du? Hållplats eller adress', 'Where are you? Stop or address')}
-            style={{ flex: 1, minWidth: 0, minHeight: '48px', padding: '0 12px', border: `1px solid ${colors.text}`, borderRight: 'none', borderRadius: 0, background: 'transparent', color: colors.text, fontSize: '1rem', fontFamily: 'inherit' }}
+            style={{ flex: 1, minWidth: 0, minHeight: '48px', padding: '0 12px', border: `1px solid ${colors.text}`, borderRight: 'none', borderRadius: 0, background: 'transparent', color: colors.text, fontSize: 'var(--fs-3)', fontFamily: 'inherit' }}
           />
           <button
             type="submit"
             disabled={locating || whereText.trim().length < 2}
-            style={{ minHeight: '48px', padding: '0 16px', border: `1px solid ${colors.text}`, borderRadius: 0, background: colors.text, color: colors.bg, fontWeight: 700, fontSize: '0.9375rem', cursor: 'pointer' }}
+            style={{ minHeight: '48px', padding: '0 16px', border: `1px solid ${colors.text}`, borderRadius: 0, background: colors.text, color: colors.bg, fontWeight: 700, fontSize: 'var(--fs-3)', cursor: 'pointer' }}
           >
             {locating ? t('Söker…', 'Searching…') : t('Visa', 'Show')}
           </button>
@@ -285,13 +285,13 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
     <div>
       {ready && fresh ? (
         <section aria-label={t('Om appen', 'About the app')} style={{ margin: '0 0 16px' }}>
-          <p style={{ margin: 0, fontWeight: 700, fontSize: '1.1875rem', lineHeight: 1.25, color: colors.text }}>
+          <p style={{ margin: 0, fontWeight: 700, fontSize: 'var(--fs-5)', lineHeight: 1.25, color: colors.text }}>
             {t(
               'Nästa avgång, förseningar och om du hinner bytet.',
               'Your next departure, delays and whether you make the connection.'
             )}
           </p>
-          <p style={{ margin: '6px 0 0', fontSize: '0.875rem', lineHeight: 1.5, color: colors.textDim }}>
+          <p style={{ margin: '6px 0 0', fontSize: 'var(--fs-2)', lineHeight: 1.5, color: colors.textDim }}>
             {t(
               'Realtid för hela Sverige: lokalt, regionalt och flyg. Hållplatser du tittar på hamnar här, så att de syns direkt nästa gång.',
               "Real time for all of Sweden: local, regional and flights. Stops you look at appear here, so they show right away next time."
@@ -345,14 +345,14 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
                       type="button"
                       onClick={() => onForget?.(s.id)}
                       aria-label={t(`Ta bort ${s.name}`, `Remove ${s.name}`)}
-                      style={{ minHeight: '40px', padding: '0 14px', border: `1px solid ${colors.text}`, borderRadius: 0, background: 'transparent', color: colors.text, fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer' }}
+                      style={{ minHeight: '40px', padding: '0 14px', border: `1px solid ${colors.text}`, borderRadius: 0, background: 'transparent', color: colors.text, fontWeight: 700, fontSize: 'var(--fs-2)', cursor: 'pointer' }}
                     >
                       {t('Ta bort', 'Remove')}
                     </button>
                   </li>
                 ))}
               </ul>
-              <p style={{ margin: '10px 0 0', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 }}>
+              <p style={{ margin: '10px 0 0', fontSize: 'var(--fs-2)', color: colors.textSoft, lineHeight: 1.5 }}>
                 {t('Borttagna hållplatser glöms helt, även stjärnan och sökningarna. ', 'Removed stops are forgotten completely, including the star and searches. ')}
                 <button
                   type="button"
@@ -384,7 +384,7 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
             ))}
           </ul>
           {mode !== 'all' && mine.every((s) => present[s.id] && !present[s.id].includes(mode)) ? (
-            <p style={{ margin: '10px 0 0', fontSize: '0.875rem', color: colors.textDim }}>
+            <p style={{ margin: '10px 0 0', fontSize: 'var(--fs-2)', color: colors.textDim }}>
               {t(`Inga avgångar med ${modeName(mode)} från dina hållplatser just nu. `, `No ${modeName(mode)} departures from your stops right now. `)}
               <button type="button" onClick={() => chooseMode('all')} style={{ border: 'none', background: 'none', padding: 0, color: colors.text, font: 'inherit', textDecoration: 'underline', cursor: 'pointer' }}>
                 {t('Visa alla', 'Show all')}
@@ -496,12 +496,12 @@ function NearbyLines({
   const shown = more ? rows : rows.slice(0, 6);
   const nu = (x: string) => (x === 'Nu' ? t('Nu', 'Now') : x);
 
-  if (!loaded) return <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textDim }}>{t('Hämtar…', 'Loading…')}</p>;
+  if (!loaded) return <p style={{ margin: 0, fontSize: 'var(--fs-2)', color: colors.textDim }}>{t('Hämtar…', 'Loading…')}</p>;
   // Ett trafikslag är valt men inget av det går här snart: säg det, och en väg tillbaka till allt.
   if (rows.length === 0 && mode !== 'all') {
     const name = modeWord(MODE_CHOICES.find((c) => c.key === mode)?.label || '', lang);
     return (
-      <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textDim }}>
+      <p style={{ margin: 0, fontSize: 'var(--fs-2)', color: colors.textDim }}>
         {t(`Inga avgångar med ${name} nära dig just nu. `, `No ${name} departures near you right now. `)}
         {onShowAll ? (
           <button type="button" onClick={onShowAll} style={{ border: 'none', background: 'none', padding: 0, color: colors.text, font: 'inherit', textDecoration: 'underline', cursor: 'pointer' }}>
@@ -515,7 +515,7 @@ function NearbyLines({
   // när nästa går, och erbjud att planera resan. Appen ska alltid föreslå en väg framåt.
   if (rows.length === 0 && alreadyShown > 0)
     return (
-      <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textDim }}>
+      <p style={{ margin: 0, fontSize: 'var(--fs-2)', color: colors.textDim }}>
         {t('Allt här i närheten har du redan ovanför.', 'Everything nearby is already above.')}
       </p>
     );
@@ -524,7 +524,7 @@ function NearbyLines({
   if (rows.length === 0)
     return (
       <>
-        <p style={{ margin: '0 0 6px', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 }}>
+        <p style={{ margin: '0 0 6px', fontSize: 'var(--fs-2)', color: colors.textSoft, lineHeight: 1.5 }}>
           {t('Tyst på linjerna en stund. Nästa går härifrån:', 'Quiet on the lines for a while. The next one leaves from here:')}
         </p>
         <ul style={list}>
@@ -535,7 +535,7 @@ function NearbyLines({
               <li key={s.id} style={rowItem}>
                 <button type="button" onClick={() => onOpenStop(s)} style={{ ...rowButton, padding: '12px 0' }}>
                   <span style={{ flex: 1, minWidth: 0, fontWeight: 700 }}>{s.name}</span>
-                  <span style={{ flexShrink: 0, fontSize: '0.875rem', color: colors.textDim }}>
+                  <span style={{ flexShrink: 0, fontSize: 'var(--fs-2)', color: colors.textDim }}>
                     {formatDistance(s.distance)} →
                   </span>
                 </button>
@@ -567,19 +567,19 @@ function NearbyLines({
                     ...badgeLook(d),
                     fontFamily: fonts.display,
                     fontWeight: 800,
-                    fontSize: '0.875rem',
+                    fontSize: 'var(--fs-2)',
                     textAlign: 'center',
                   }}
                 >
                   {lineLabel(lineBadge(d.line), lang)}
                 </span>
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: '0.9375rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ display: 'block', fontSize: 'var(--fs-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     <span className="sr-only">{lineLabel(d.line, lang)} </span>
                     <span style={{ color: colors.textDim }}>{t('mot', 'to')} </span>
                     {splitProduct(d.destination).place}
                   </span>
-                  <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim }}>
+                  <span style={{ display: 'block', fontSize: 'var(--fs-2)', color: colors.textDim }}>
                     {stop.name} · {formatDistance(stop.distance)}
                   </span>
                 </span>
@@ -678,27 +678,27 @@ function StopRow({
     <li style={rowItem}>
       <button type="button" onClick={onOpen} style={{ ...rowButton, flexDirection: 'column', alignItems: 'stretch', gap: '8px', padding: '12px 0' }}>
         <span style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
-          <span style={{ flex: 1, minWidth: 0, fontFamily: fonts.display, fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.015em' }}>
+          <span style={{ flex: 1, minWidth: 0, fontFamily: fonts.display, fontSize: 'var(--fs-5)', fontWeight: 800, letterSpacing: '-0.015em' }}>
             {stop.name}
           </span>
           {Number.isFinite(distance) ? (
-            <span style={{ fontSize: '0.8125rem', color: colors.textDim }}>{Math.round(distance)} m</span>
+            <span style={{ fontSize: 'var(--fs-2)', color: colors.textDim }}>{Math.round(distance)} m</span>
           ) : null}
           <span aria-hidden="true" style={{ color: colors.textDim }}>
             →
           </span>
         </span>
         {deps === null ? (
-          <span style={{ fontSize: '0.875rem', color: colors.textDim }}>{t('Hämtar…', 'Loading…')}</span>
+          <span style={{ fontSize: 'var(--fs-2)', color: colors.textDim }}>{t('Hämtar…', 'Loading…')}</span>
         ) : next.length === 0 ? (
-          <span style={{ fontSize: '0.875rem', color: colors.textDim }}>{t('Tomt på tavlan just nu.', 'Nothing on the board right now.')}</span>
+          <span style={{ fontSize: 'var(--fs-2)', color: colors.textDim }}>{t('Tomt på tavlan just nu.', 'Nothing on the board right now.')}</span>
         ) : (
           <span style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {next.map((d) => {
               const late = d.status === 'delayed';
               const cancelled = d.status === 'cancelled';
               return (
-                <span key={d.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9375rem' }}>
+                <span key={d.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: 'var(--fs-3)' }}>
                   <span
                     aria-hidden="true"
                     style={{
@@ -708,7 +708,7 @@ function StopRow({
                       ...badgeLook(d, { cancelled }),
                       fontFamily: fonts.display,
                       fontWeight: 800,
-                      fontSize: '0.8125rem',
+                      fontSize: 'var(--fs-2)',
                       textAlign: 'center',
                     }}
                   >
@@ -752,7 +752,7 @@ const rowButton: React.CSSProperties = {
   border: 'none',
   background: 'none',
   color: colors.text,
-  fontSize: '1rem',
+  fontSize: 'var(--fs-3)',
   textAlign: 'left',
   cursor: 'pointer',
 };
@@ -762,7 +762,7 @@ const outlineButton: React.CSSProperties = {
   border: `1px solid ${colors.text}`,
   background: 'transparent',
   color: colors.text,
-  fontSize: '0.9375rem',
+  fontSize: 'var(--fs-3)',
   fontWeight: 700,
   cursor: 'pointer',
 };
@@ -772,7 +772,7 @@ const textLink: React.CSSProperties = {
   border: 'none',
   background: 'none',
   color: colors.text,
-  fontSize: '0.9375rem',
+  fontSize: 'var(--fs-3)',
   fontWeight: 700,
   textDecoration: 'underline',
   textUnderlineOffset: '4px',
@@ -786,14 +786,14 @@ function WayForward({ text }: { text: string }) {
   const { t } = useLang();
   return (
     <div style={{ marginTop: '10px' }}>
-      <p style={{ margin: '0 0 10px', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 }}>{text}</p>
+      <p style={{ margin: '0 0 10px', fontSize: 'var(--fs-2)', color: colors.textSoft, lineHeight: 1.5 }}>{text}</p>
       <button
         type="button"
         onClick={() => {
           window.scrollTo({ top: 0, behavior: 'smooth' });
           document.getElementById('sok-allt')?.focus();
         }}
-        style={{ minHeight: '44px', padding: '0 16px', border: `1px solid ${colors.text}`, borderRadius: 0, background: 'transparent', color: colors.text, fontWeight: 700, fontSize: '0.9375rem', cursor: 'pointer' }}
+        style={{ minHeight: '44px', padding: '0 16px', border: `1px solid ${colors.text}`, borderRadius: 0, background: 'transparent', color: colors.text, fontWeight: 700, fontSize: 'var(--fs-3)', cursor: 'pointer' }}
       >
         {t('Planera en resa', 'Plan a trip')}
       </button>

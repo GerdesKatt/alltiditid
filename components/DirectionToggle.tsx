@@ -42,8 +42,8 @@ export default function DirectionToggle({ direction, onChange }: Props) {
               borderRadius: 0,
               backgroundColor: 'transparent',
               color: active ? colors.text : colors.textDim,
-              fontWeight: active ? 700 : 600,
-              fontSize: '0.875rem',
+              fontWeight: active ? 800 : 700,
+              fontSize: 'var(--fs-2)',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
             }}

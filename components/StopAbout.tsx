@@ -8,7 +8,7 @@ import { modesText } from '../lib/stopText';
 import { distanceKm } from '../lib/stopList.mjs';
 import { groupFor, sameStation } from '../lib/stationGroups.mjs';
 
-const paragraph = { color: colors.textDim, fontSize: '0.9375rem', lineHeight: 1.6, margin: '0 0 12px 0' } as const;
+const paragraph = { color: colors.textDim, fontSize: 'var(--fs-3)', lineHeight: 1.6, margin: '0 0 12px 0' } as const;
 
 function roughDaily(n: number, lang: Lang = 'sv'): string {
   const r = n >= 1000 ? Math.round(n / 100) * 100 : Math.round(n / 10) * 10;
@@ -63,7 +63,7 @@ export default function StopAbout({ stop, pages }: { stop: StopPage; pages: Stop
         margin: '28px 0 18px',
       }}
     >
-      <h2 id="om-hallplatsen" style={{ fontSize: '1.125rem', fontWeight: 800, margin: '0 0 10px 0', color: colors.text }}>
+      <h2 id="om-hallplatsen" style={{ fontSize: 'var(--fs-4)', fontWeight: 800, margin: '0 0 10px 0', color: colors.text }}>
         <Tr sv={`Om ${stop.name}`} en={`About ${stop.name}`} />
       </h2>
       <p style={paragraph}>

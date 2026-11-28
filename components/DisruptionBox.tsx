@@ -39,7 +39,7 @@ const linkButton = {
   border: 'none',
   background: 'none',
   color: colors.delayedText,
-  fontSize: '0.8125rem',
+  fontSize: 'var(--fs-2)',
   fontWeight: 700,
   cursor: 'pointer',
   textDecoration: 'underline',
@@ -105,13 +105,13 @@ export default function DisruptionBox({ disruptions, inline = false }: Props) {
     <ul style={{ listStyle: 'none', margin: 0, padding: inline ? '0 0 4px 12px' : '0 12px 4px', ...(inline ? { flexBasis: '100%', order: 10, borderLeft: `3px solid ${colors.delayedBorder}`, marginBottom: '6px' } : {}) }}>
       {active.map((d) => (
         <li key={d.text} style={{ padding: '8px 0 0', borderTop: `1px solid ${colors.delayedBorder}` }}>
-          <strong style={{ display: 'block', fontSize: '0.875rem', color: colors.delayedText }}>
+          <strong style={{ display: 'block', fontSize: 'var(--fs-2)', color: colors.delayedText }}>
             {formatLines(d.lines, lang)}
           </strong>
-          <p style={{ margin: '2px 0 0', fontSize: '0.875rem', lineHeight: 1.5, color: colors.textSoft }}>{textInLanguage(d.text, lang)}</p>
+          <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-2)', lineHeight: 1.5, color: colors.textSoft }}>{textInLanguage(d.text, lang)}</p>
           {d.from ? (
             // Texten är trafikbolagets egen ("vår trygghetscentral" är SL:s), så avsändaren står under.
-            <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: colors.textSoft }}>
+            <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-1)', color: colors.textSoft }}>
               {t(`Meddelande från ${d.from}`, `Message from ${d.from}`)}
             </p>
           ) : null}
@@ -143,7 +143,7 @@ export default function DisruptionBox({ disruptions, inline = false }: Props) {
             color: colors.delayedText,
             fontFamily: 'var(--font-text)',
             fontStretch: '100%',
-            fontSize: '0.8125rem',
+            fontSize: 'var(--fs-2)',
             fontWeight: 700,
             letterSpacing: 0,
             textTransform: 'none',
@@ -186,7 +186,7 @@ export default function DisruptionBox({ disruptions, inline = false }: Props) {
           border: 'none',
           background: 'none',
           color: colors.delayedText,
-          fontSize: '0.875rem',
+          fontSize: 'var(--fs-2)',
           fontWeight: 700,
           textAlign: 'left',
           cursor: 'pointer',

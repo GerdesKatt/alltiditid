@@ -41,6 +41,16 @@
   --stretch-head: 112%;
   --stretch-tight: 80%;
 
+  /* Typskalan: sex steg, inga andra storlekar (Apple-juryn, punkt 4).
+     1 etikett, 2 undertext, 3 brödtext, 4 rubrik i kort, 5 tid i raden och sidrubrik, 6 den stora siffran.
+     Tre vikter: 400 text, 700 betoning, 800 rubrik och siffra. */
+  --fs-1: 0.75rem;
+  --fs-2: 0.875rem;
+  --fs-3: 1rem;
+  --fs-4: 1.125rem;
+  --fs-5: 1.375rem;
+  --fs-6: clamp(2.75rem, 13vw, 4rem);
+
   /* Skarpa hörn överallt. */
   --radius-card: 0;
   --radius-control: 0;
@@ -274,6 +284,61 @@
   }
 }
 
+/* Rörelse med ett syfte (Apple-juryn, punkt 2). Allt är kort, går ut mjukt och stängs av
+   med "minska rörelse" nedan. */
+
+/* En rad som fälls ut glider fram i stället för att hoppa in. */
+.expand-in {
+  animation: expand-in 200ms var(--ease-out) 1;
+}
+@keyframes expand-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Stjärnan studsar en gång när man sparar. */
+.star-pop {
+  animation: star-pop 320ms var(--ease-out) 1;
+  transform-origin: 50% 55%;
+}
+@keyframes star-pop {
+  0% { transform: scale(0.6); }
+  60% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+/* Svar på tryck: raden och knappar mörknar i det ögonblick man trycker. */
+.press {
+  transition: background-color 120ms var(--ease-out);
+}
+.press:active {
+  background-color: var(--c-surface-raised) !important;
+}
+.press-fill:active {
+  filter: brightness(0.9);
+}
+.app-tab:active,
+.row-link:active {
+  opacity: 0.7;
+}
+
+/* View Transitions: flikbyten tonar över, rader glider till sin nya plats och de som gått tonar ut. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 180ms;
+  animation-timing-function: var(--ease-out);
+}
+::view-transition-group(*) {
+  animation-duration: 260ms;
+  animation-timing-function: var(--ease-out);
+}
+
 /* "Minska rörelse" i telefonen stänger av animationer. */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -282,6 +347,11 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }
 
@@ -357,10 +427,15 @@ input::placeholder {
 
 /* Tydlig fokusmarkering vid tangentbordsnavigering (WCAG 2.4.7). */
 button:focus-visible,
-a:focus-visible,
-input:focus-visible {
+a:focus-visible {
   outline: 2px solid var(--c-focus);
   outline-offset: 2px;
+}
+/* Fält har redan en ram: fokus gör den tjockare i stället för att lägga en andra ram utanför. */
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--c-focus);
 }
 
 /* Sökfält ska se ut som övriga fält även i Safari. */
@@ -581,7 +656,7 @@ html {
   padding: 0;
   margin: 0 0 18px;
   border-radius: 0;
-  border-top: 1px solid var(--c-border);
+  /* Bara en linje under: sidhuvudets streck ovanför räcker (Apple-juryn, punkt 12). */
   border-bottom: 1px solid var(--c-border);
   background-color: var(--c-bg);
 }
@@ -597,8 +672,8 @@ html {
   background: transparent;
   color: var(--c-text-dim);
   font: inherit;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: var(--fs-1);
+  font-weight: 700;
   font-stretch: var(--stretch-wide);
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -652,7 +727,7 @@ html {
     padding: 6px 2px 4px;
     flex-direction: column;
     gap: 4px;
-    font-size: 0.71875rem;
+    font-size: var(--fs-1);
     letter-spacing: 0.03em;
     overflow-wrap: normal;
     word-break: keep-all;
@@ -712,7 +787,7 @@ html {
   background: none;
   color: var(--c-text);
   font: inherit;
-  font-size: 0.875rem;
+  font-size: var(--fs-2);
   font-weight: 700;
   cursor: pointer;
 }

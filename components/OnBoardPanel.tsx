@@ -72,10 +72,10 @@ export default function OnBoardPanel({
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '14px' }}>
         <div style={{ minWidth: 0 }}>
-          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>{t('Jag är ombord', "I'm on board")}</span>
+          <span style={{ fontSize: 'var(--fs-2)', fontWeight: 700, color: colors.textDim }}>{t('Jag är ombord', "I'm on board")}</span>
           <h2
             id="resenar-lage-rubrik"
-            style={{ fontFamily: fonts.display, fontSize: '1.25rem', fontWeight: 800, margin: '2px 0 0', color: colors.text, lineHeight: 1.2, fontVariantNumeric: 'normal' }}
+            style={{ fontFamily: fonts.display, fontSize: 'var(--fs-5)', fontWeight: 800, margin: '2px 0 0', color: colors.text, lineHeight: 1.2, fontVariantNumeric: 'normal' }}
           >
             {isArrival ? `${t('Ankomst', 'Arriving')} ${stopName}` : `${t('Mot', 'To')} ${trip.destination}`}{' '}
             {trip.scheduledTime}
@@ -87,7 +87,7 @@ export default function OnBoardPanel({
               </span>
             ) : null}
           </h2>
-          <div style={{ fontSize: '0.8125rem', color: colors.textDim, marginTop: '4px' }}>
+          <div style={{ fontSize: 'var(--fs-2)', color: colors.textDim, marginTop: '4px' }}>
             {[
               `${t('Från', 'From')} ${isArrival ? trip.destination : stopName}`,
               lineLabel(trip.line, lang),
@@ -111,7 +111,7 @@ export default function OnBoardPanel({
             border: `1px solid ${colors.borderStrong}`,
             backgroundColor: colors.surface,
             color: colors.text,
-            fontSize: '0.8125rem',
+            fontSize: 'var(--fs-2)',
             fontWeight: 700,
             cursor: 'pointer',
           }}
@@ -130,7 +130,7 @@ export default function OnBoardPanel({
             border: `1px solid ${colors.delayedBorder}`,
             backgroundColor: colors.noticeBg,
             color: colors.noticeText,
-            fontSize: '0.8125rem',
+            fontSize: 'var(--fs-2)',
             lineHeight: 1.45,
           }}
         >
@@ -157,7 +157,7 @@ export default function OnBoardPanel({
                 border: `1px solid ${active ? colors.accentStrong : colors.borderStrong}`,
                 backgroundColor: active ? colors.accentStrong : colors.surface,
                 color: active ? colors.onAccent : colors.text,
-                fontSize: '0.8125rem',
+                fontSize: 'var(--fs-2)',
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
@@ -186,7 +186,7 @@ export default function OnBoardPanel({
           border: `1px solid ${colors.borderStrong}`,
           backgroundColor: colors.surface,
           color: colors.text,
-          fontSize: '1rem',
+          fontSize: 'var(--fs-3)',
           marginBottom: '12px',
         }}
       />
@@ -197,7 +197,7 @@ export default function OnBoardPanel({
           borderRadius: 'var(--radius-control)',
           backgroundColor: colors.surfaceRaised,
           border: 'none',
-          fontSize: '0.9375rem',
+          fontSize: 'var(--fs-3)',
           color: colors.text,
           marginBottom: '12px',
           lineHeight: 1.5,
@@ -207,8 +207,8 @@ export default function OnBoardPanel({
           style={{
             color: colors.textDim,
             display: 'block',
-            fontSize: '0.8125rem',
-            fontWeight: 600,
+            fontSize: 'var(--fs-2)',
+            fontWeight: 700,
             marginBottom: '4px',
           }}
         >
@@ -229,7 +229,7 @@ export default function OnBoardPanel({
             backgroundColor: colors.accentStrong,
             color: colors.onAccent,
             fontWeight: 700,
-            fontSize: '0.9375rem',
+            fontSize: 'var(--fs-3)',
             cursor: 'pointer',
           }}
         >
@@ -237,7 +237,7 @@ export default function OnBoardPanel({
         </button>
 
         {copied ? (
-          <span role="status" style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>
+          <span role="status" style={{ fontSize: 'var(--fs-2)', fontWeight: 700, color: colors.textDim }}>
             {t('Meddelandet är kopierat.', 'Message copied.')}
           </span>
         ) : null}

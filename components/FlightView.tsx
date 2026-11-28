@@ -55,6 +55,11 @@ type Props = {
  * Flygfliken: avgångar och ankomster på Swedavias flygplatser, och kötiderna i
  * säkerhetskontrollen på Arlanda, Landvetter och Bromma.
  */
+/** Kötid som text: "Ingen kö" i stället för "0 min", som läses som ett fel. */
+function queueLabel(minutes: number, t: (sv: string, en: string) => string): string {
+  return minutes <= 0 ? t('Ingen kö', 'No queue') : `${minutes} min`;
+}
+
 export default function FlightView({ initialAirport }: Props) {
   const { lang, t } = useLang();
   const [airport, setAirport] = useState('ARN');
@@ -153,9 +158,11 @@ export default function FlightView({ initialAirport }: Props) {
   }, [ready, airport, direction, hasQueues]);
 
   const shown = useMemo(() => {
-    if (!filter.trim()) return flights;
-    return flights.filter((f) => flightMatches(f, filter));
-  }, [flights, filter]);
+    const list = filter.trim() ? flights.filter((f) => flightMatches(f, filter)) : flights;
+    // Flyg som har lyft viker undan: sist, så att det man kan hinna med står överst (Apple-juryn, punkt 11).
+    if (direction === 'arrivals') return list;
+    return [...list.filter((f) => !f.done), ...list.filter((f) => f.done)];
+  }, [flights, filter, direction]);
 
   const airportObj = airportByIata(airport)!;
   const arrivals = direction === 'arrivals';
@@ -186,8 +193,8 @@ export default function FlightView({ initialAirport }: Props) {
                 color: active ? colors.text : colors.textDim,
                 boxShadow: active ? `inset 0 -2px 0 ${colors.text}` : 'none',
                 fontFamily: 'inherit',
-                fontSize: '0.9375rem',
-                fontWeight: active ? 700 : 600,
+                fontSize: 'var(--fs-3)',
+                fontWeight: active ? 800 : 700,
                 cursor: 'pointer',
                 flexShrink: 0,
               }}
@@ -209,7 +216,7 @@ export default function FlightView({ initialAirport }: Props) {
           </span>
         ) : null}
       </span>
-      <h1 id="flyg-rubrik" style={{ fontSize: 'clamp(1.5rem, 6.5vw, 2rem)', fontStretch: 'var(--stretch-head)', fontWeight: 800, lineHeight: 1.05, margin: '0 0 12px', color: colors.text }}>
+      <h1 id="flyg-rubrik" style={{ fontSize: 'var(--fs-5)', fontStretch: 'var(--stretch-head)', fontWeight: 800, lineHeight: 1.05, margin: '0 0 12px', color: colors.text }}>
         {airportObj.name}
       </h1>
 
@@ -229,7 +236,7 @@ export default function FlightView({ initialAirport }: Props) {
             border: `1px solid ${colors.borderStrong}`,
             backgroundColor: colors.surface,
             color: colors.text,
-            fontSize: '0.9375rem',
+            fontSize: 'var(--fs-3)',
           }}
         />
       </div>
@@ -260,18 +267,18 @@ export default function FlightView({ initialAirport }: Props) {
               background: 'transparent',
               cursor: 'pointer',
               color: colors.text,
-              fontSize: '0.875rem',
+              fontSize: 'var(--fs-2)',
               textAlign: 'left',
             }}
           >
-            <span style={{ fontWeight: 600, color: colors.textDim, whiteSpace: 'nowrap' }}>{t('Säkerhetskontroll', 'Security')}</span>
+            <span style={{ fontWeight: 700, color: colors.textDim, whiteSpace: 'nowrap' }}>{t('Säkerhetskontroll', 'Security')}</span>
             <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {queues
                 .filter((q) => !q.fastTrack)
                 .map((q) => (
                   <span key={q.name} style={{ marginRight: '12px' }}>
                     {q.name.replace(/^Terminal\s*/i, 'T')}{' '}
-                    <strong style={{ fontFamily: fonts.display, color: q.minutes >= 20 ? colors.amber : colors.text }}>{q.minutes} min</strong>
+                    <strong style={{ fontFamily: fonts.display, color: q.minutes >= 20 ? colors.amber : colors.text }}>{queueLabel(q.minutes, t)}</strong>
                   </span>
                 ))}
             </span>
@@ -279,21 +286,21 @@ export default function FlightView({ initialAirport }: Props) {
           </button>
           {securityOpen ? (
           <div style={{ marginTop: '10px' }}>
-          <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim, marginBottom: '8px' }}>
+          <div style={{ fontSize: 'var(--fs-2)', fontWeight: 700, color: colors.textDim, marginBottom: '8px' }}>
             {t('Väntetid nu', 'Current wait')}
           </div>
           {/* En rad per terminal: vanlig kö och FastTrack bredvid varandra, så att samma terminal inte syns två gånger. */}
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-2)' }}>
             {queues.some((q) => q.fastTrack) ? (
               <thead>
-                <tr style={{ color: colors.textDim, fontSize: '0.75rem' }}>
-                  <th scope="col" style={{ textAlign: 'left', fontWeight: 600, padding: '0 0 4px' }}>
+                <tr style={{ color: colors.textDim, fontSize: 'var(--fs-1)' }}>
+                  <th scope="col" style={{ textAlign: 'left', fontWeight: 700, padding: '0 0 4px' }}>
                     <span className="sr-only">{t('Terminal', 'Terminal')}</span>
                   </th>
-                  <th scope="col" style={{ textAlign: 'right', fontWeight: 600, padding: '0 0 4px' }}>
+                  <th scope="col" style={{ textAlign: 'right', fontWeight: 700, padding: '0 0 4px' }}>
                     {t('Vanlig', 'Regular')}
                   </th>
-                  <th scope="col" style={{ textAlign: 'right', fontWeight: 600, padding: '0 0 4px 16px' }}>
+                  <th scope="col" style={{ textAlign: 'right', fontWeight: 700, padding: '0 0 4px 16px' }}>
                     FastTrack
                   </th>
                 </tr>
@@ -306,7 +313,7 @@ export default function FlightView({ initialAirport }: Props) {
                 const cell = (q: typeof regular, pad: string) => (
                   <td style={{ textAlign: 'right', padding: pad, whiteSpace: 'nowrap' }}>
                     {q ? (
-                      <strong style={{ fontFamily: fonts.display, color: q.minutes >= 20 ? colors.amber : colors.text }}>{q.minutes} min</strong>
+                      <strong style={{ fontFamily: fonts.display, color: q.minutes >= 20 ? colors.amber : colors.text }}>{queueLabel(q.minutes, t)}</strong>
                     ) : (
                       <span style={{ color: colors.textDim }}>–</span>
                     )}
@@ -368,7 +375,7 @@ export default function FlightView({ initialAirport }: Props) {
         </ul>
       )}
 
-      <p style={{ fontSize: '0.8125rem', color: colors.textDim, marginTop: '14px' }}>
+      <p style={{ fontSize: 'var(--fs-2)', color: colors.textDim, marginTop: '14px' }}>
         {airportByIata(airport)?.source === 'avinor' ? (
           <>
             {t('Flygdata från ', 'Flight data from ')}
@@ -471,7 +478,7 @@ function FlightRow({
     .map((name) => {
       const regular = queues.find((q) => q.name === name && !q.fastTrack);
       const fast = queues.find((q) => q.name === name && q.fastTrack);
-      return `${name}: ${[regular ? `${regular.minutes} min` : '', fast ? `FastTrack ${fast.minutes} min` : '']
+      return `${name}: ${[regular ? queueLabel(regular.minutes, t) : '', fast ? `FastTrack ${queueLabel(fast.minutes, t)}` : '']
         .filter(Boolean)
         .join(' · ')}`;
     })
@@ -526,7 +533,7 @@ function FlightRow({
             color: cancelled ? colors.textDim : saved ? 'var(--rose-ink)' : colors.badgeText,
             fontFamily: fonts.display,
             fontWeight: 800,
-            fontSize: '0.8125rem',
+            fontSize: 'var(--fs-2)',
             textAlign: 'center',
             whiteSpace: 'nowrap',
           }}
@@ -537,7 +544,7 @@ function FlightRow({
           <span
             style={{
               display: 'block',
-              fontSize: '1rem',
+              fontSize: 'var(--fs-3)',
               fontWeight: 700,
               color: cancelled ? colors.textDim : colors.text,
               textDecoration: cancelled ? 'line-through' : 'none',
@@ -550,11 +557,11 @@ function FlightRow({
             {f.place || f.flightId}
           </span>
           {/* En bricka per rad (flightnumret). Terminal och gate som text, flygbolaget på egen rad, aldrig avklippt. */}
-          <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.text, fontWeight: 600, marginTop: '2px', overflowWrap: 'anywhere' }}>
+          <span style={{ display: 'block', fontSize: 'var(--fs-2)', color: colors.text, fontWeight: 700, marginTop: '2px', overflowWrap: 'anywhere' }}>
             {[f.terminal ? `T${f.terminal}` : '', where].filter(Boolean).join(' · ')}
           </span>
           {shortAirline(f.airline) ? (
-            <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim, overflowWrap: 'anywhere' }}>{shortAirline(f.airline)}</span>
+            <span style={{ display: 'block', fontSize: 'var(--fs-2)', color: colors.textDim, overflowWrap: 'anywhere' }}>{shortAirline(f.airline)}</span>
           ) : null}
         </span>
         <span style={{ flexShrink: 0, textAlign: 'right' }}>
@@ -562,7 +569,7 @@ function FlightRow({
             style={{
               display: 'block',
               fontFamily: fonts.display,
-              fontSize: '1.375rem',
+              fontSize: 'var(--fs-5)',
               fontWeight: 800,
               letterSpacing: '-0.015em',
               color: cancelled ? colors.textDim : colors.text,
@@ -575,8 +582,8 @@ function FlightRow({
             <span
               style={{
                 display: 'block',
-                fontSize: '0.8125rem',
-                fontWeight: cancelled || delayed ? 600 : 500,
+                fontSize: 'var(--fs-2)',
+                fontWeight: cancelled || delayed ? 700 : 400,
                 color: cancelled ? colors.cancelledText : delayed ? colors.amber : colors.textDim,
                 whiteSpace: 'nowrap',
               }}
@@ -590,18 +597,18 @@ function FlightRow({
       {open ? (
         // Utfälld rad blir ett eget kort (samma tonade bakgrund som raden): först svaret, när du ska
         // vara vid säkerheten, sedan fakta som etikett och värde, sist knappen över hela bredden.
-        <div style={{ padding: '0 14px 16px', borderBottom: `1px solid ${colors.border}`, fontSize: '0.875rem', lineHeight: 1.45 }}>
+        <div style={{ padding: '0 14px 16px', borderBottom: `1px solid ${colors.border}`, fontSize: 'var(--fs-2)', lineHeight: 1.45 }}>
           {plan && stage !== 'ok' ? (
             <div style={{ padding: '12px 0 14px', borderTop: `1px solid ${colors.border}` }}>
               <div style={labelStyle}>{stage === 'closed' ? t('Gaten är stängd', 'The gate is closed') : t('Security-tiden har passerat', 'Security time has passed')}</div>
-              <div style={{ fontFamily: fonts.display, fontStretch: 'var(--stretch-head)', fontSize: '1.5rem', fontWeight: 800, lineHeight: 1.15, marginTop: '4px', color: colors.text }}>
+              <div style={{ fontFamily: fonts.display, fontStretch: 'var(--stretch-head)', fontSize: 'var(--fs-5)', fontWeight: 800, lineHeight: 1.15, marginTop: '4px', color: colors.text }}>
                 {stage === 'closed'
                   ? t('Fråga flygbolaget om du inte hunnit fram', 'Ask the airline if you have not made it')
                   : f.gate
                   ? t(`Gå direkt till gate ${f.gate}`, `Go straight to gate ${f.gate}`)
                   : t('Gå direkt till gaten', 'Go straight to the gate')}
               </div>
-              <div style={{ color: colors.textDim, marginTop: '4px', fontSize: '0.8125rem' }}>
+              <div style={{ color: colors.textDim, marginTop: '4px', fontSize: 'var(--fs-2)' }}>
                 {stage === 'closed'
                   ? t(`Gaten stänger ca ${plan.gateCloses}, enligt flygbolagets vanliga regler eller flygplatsen.`, `The gate closes around ${plan.gateCloses}, by the airline's usual rules or the airport.`)
                   : t(`Gaten stänger ca ${plan.gateCloses}. Uppskattat.`, `The gate closes around ${plan.gateCloses}. Estimated.`)}
@@ -610,10 +617,10 @@ function FlightRow({
           ) : plan ? (
             <div style={{ padding: '12px 0 14px', borderTop: `1px solid ${colors.border}` }}>
               <div style={labelStyle}>{t('Var vid security senast', 'Be at security by')}</div>
-              <div style={{ fontFamily: fonts.display, fontStretch: 'var(--stretch-head)', fontSize: '2.5rem', fontWeight: 800, lineHeight: 1.05, marginTop: '4px', fontVariantNumeric: 'tabular-nums', color: colors.text }}>
+              <div style={{ fontFamily: fonts.display, fontStretch: 'var(--stretch-head)', fontSize: 'var(--fs-6)', fontWeight: 800, lineHeight: 1.05, marginTop: '4px', fontVariantNumeric: 'tabular-nums', color: colors.text }}>
                 {plan.atSecurity}
               </div>
-              <div style={{ color: colors.textDim, marginTop: '4px', fontSize: '0.8125rem' }}>
+              <div style={{ color: colors.textDim, marginTop: '4px', fontSize: 'var(--fs-2)' }}>
                 {plan.queue !== null && usingTypical
                   ? t(
                       `Med ${plan.queue} min kötid, som det brukar vara då, och ${plan.walkMin}–${plan.walkMax} min till gaten. Uppskattat.`,
@@ -646,7 +653,7 @@ function FlightRow({
               {details.map(([label, value]) => (
                 <React.Fragment key={label}>
                   <dt style={{ color: colors.textDim }}>{label}</dt>
-                  <dd style={{ margin: 0, color: colors.text, fontWeight: 600 }}>{value}</dd>
+                  <dd style={{ margin: 0, color: colors.text, fontWeight: 700 }}>{value}</dd>
                 </React.Fragment>
               ))}
             </dl>
@@ -666,14 +673,14 @@ function FlightRow({
                   border: `1px solid ${colors.text}`,
                   backgroundColor: saved ? 'transparent' : colors.text,
                   color: saved ? colors.text : colors.bg,
-                  fontSize: '0.9375rem',
+                  fontSize: 'var(--fs-3)',
                   fontWeight: 700,
                   cursor: 'pointer',
                 }}
               >
                 {saved ? t('✓ Sparat under Min resa', '✓ Saved under My trip') : t('Spara som mitt flyg', 'Save as my flight')}
               </button>
-              <div style={{ color: colors.textDim, marginTop: '6px', fontSize: '0.8125rem', textAlign: 'center' }}>
+              <div style={{ color: colors.textDim, marginTop: '6px', fontSize: 'var(--fs-2)', textAlign: 'center' }}>
                 {saved
                   ? t('Tryck igen för att ta bort. Ligger kvar tills planet lyft.', 'Tap again to remove. Stays until the plane has left.')
                   : t('Hamnar under Min resa med gate och tider.', 'Goes under My trip with gate and times.')}

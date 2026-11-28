@@ -378,8 +378,8 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
     border: `1px solid ${on ? colors.text : colors.borderStrong}`,
     backgroundColor: on ? colors.accentStrong : 'transparent',
     color: on ? colors.onAccent : colors.text,
-    fontSize: '0.8125rem',
-    fontWeight: 600,
+    fontSize: 'var(--fs-2)',
+    fontWeight: 700,
     cursor: 'pointer',
   });
 
@@ -487,7 +487,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
                 }
               }}
               placeholder={t('Var startar du? Hållplats eller adress', 'Where do you start? Stop or address')}
-              style={{ ...textInput(colors.borderStrong), display: 'block', width: '100%', minHeight: '48px', fontSize: '1rem' }}
+              style={{ ...textInput(colors.borderStrong), display: 'block', width: '100%', minHeight: '48px', fontSize: 'var(--fs-3)' }}
             />
             {fromOpen ? (
               <PlaceSuggest
@@ -509,12 +509,12 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
         type="button"
         onClick={() => find()}
         disabled={loading}
-        style={{ ...primary, width: '100%', minHeight: '52px', fontSize: '1rem', opacity: loading ? 0.7 : 1 }}
+        style={{ ...primary, width: '100%', minHeight: '52px', fontSize: 'var(--fs-3)', opacity: loading ? 0.7 : 1 }}
       >
         {loading ? t('Söker resa…', 'Finding a trip…') : `${t('Sök resa', 'Find trip')} →`}
       </button>
       {fromMode === 'here' && !(ticketMode && anchor?.onboard) ? (
-        <p style={{ margin: '6px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
+        <p style={{ margin: '6px 0 0', fontSize: 'var(--fs-2)', color: colors.textDim }}>
           {hereName
             ? t(`Startar vid ${hereName}, som du skrev under Avgångar.`, `Starts at ${hereName}, as you typed under Departures.`)
             : t(
@@ -525,7 +525,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
       ) : null}
 
       <div aria-live="polite">
-        {error ? <p style={{ margin: '12px 0 0', fontSize: '0.9375rem', color: colors.textSoft }}>{error}</p> : null}
+        {error ? <p style={{ margin: '12px 0 0', fontSize: 'var(--fs-3)', color: colors.textSoft }}>{error}</p> : null}
         {error && noTrip && lastPos ? <StrandedTips lat={lastPos.lat} lon={lastPos.lon} /> : null}
 
         {plan && !stale ? (
@@ -533,16 +533,16 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               {/* Vad texten tolkades som, tydligt, så att man ser om det blev fel mål. */}
-              <p style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>
+              <p style={{ margin: 0, fontSize: 'var(--fs-3)', fontWeight: 700 }}>
                 <span style={{ fontWeight: 400, color: colors.textDim }}>{t('Till', 'To')} </span>
                 {ticketMode && anchor ? (onwardTrip ? target : anchor.to || target) : plan.to}
               </p>
               {ticketMode && anchor ? (
-                <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
+                <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-2)', color: colors.textDim }}>
                   {t(`Via ${anchor.from}, med din biljett`, `Via ${anchor.from}, with your ticket`)}
                 </p>
               ) : plan.toKind ? (
-                <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
+                <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-2)', color: colors.textDim }}>
                   {placeDetail({ kind: plan.toKind, name: plan.to, detail: plan.toDetail, type: plan.toType || place?.type }, lang)}
                 </p>
               ) : null}
@@ -568,7 +568,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
                   border: 'none',
                   background: 'none',
                   color: colors.text,
-                  fontSize: '0.8125rem',
+                  fontSize: 'var(--fs-2)',
                   fontWeight: 700,
                   textDecoration: 'underline',
                   textUnderlineOffset: '3px',
@@ -580,7 +580,7 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
             ) : null}
             </div>
             {plan.farStart ? (
-              <p style={{ margin: '10px 0 4px', fontSize: '0.875rem', color: colors.textSoft, lineHeight: 1.5 }}>
+              <p style={{ margin: '10px 0 4px', fontSize: 'var(--fs-2)', color: colors.textSoft, lineHeight: 1.5 }}>
                 {t(
                   `Härifrån går inget. Från ${plan.farStart.name}, ${(plan.farStart.meters / 1000).toFixed(1).replace('.', ',')} km bort, kommer du hela vägen. Resorna nedan går därifrån.`,
                   `Nothing leaves from here. From ${plan.farStart.name}, ${(plan.farStart.meters / 1000).toFixed(1)} km away, you can go all the way. The trips below start there.`
@@ -590,19 +590,19 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
             {plan.farStart && lastPos ? <StrandedTips lat={lastPos.lat} lon={lastPos.lon} /> : null}
             {plan.sure === false ? (
               <div style={{ margin: '10px 0 4px' }}>
-                <p style={{ margin: '0 0 6px', fontSize: '0.875rem', color: colors.amber }}>
+                <p style={{ margin: '0 0 6px', fontSize: 'var(--fs-2)', color: colors.amber }}>
                   {t(`Hittade inget som heter exakt ”${target}”. Stämmer målet?`, `Found nothing named exactly “${target}”. Is this the right place?`)}
                 </p>
                 {plan.alternatives?.length && onPlace ? (
                   <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '0.8125rem', color: colors.textDim }}>{t('Menade du', 'Did you mean')}</span>
+                    <span style={{ fontSize: 'var(--fs-2)', color: colors.textDim }}>{t('Menade du', 'Did you mean')}</span>
                     {plan.alternatives.map((a, i) => (
                       <button
                         key={`${a.name}-${i}`}
                         type="button"
                         onClick={() => onPlace(a)}
                         title={placeDetail(a, lang)}
-                        style={{ ...chip(false), minHeight: '36px', fontWeight: 600 }}
+                        style={{ ...chip(false), minHeight: '36px', fontWeight: 700 }}
                       >
                         {a.name}
                       </button>
@@ -614,44 +614,44 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
             {ticketMode && anchor ? (
               // Biljetten är ankaret: allt annat räknas baklänges från den.
               <div style={{ margin: '10px 0 4px', padding: '10px 12px', border: `2px solid ${colors.text}` }}>
-                <strong style={{ display: 'block', fontSize: '0.9375rem' }}>
+                <strong style={{ display: 'block', fontSize: 'var(--fs-3)' }}>
                   {anchor.label}
                   {anchor.to ? ` ${t('till', 'to')} ${anchor.to}` : ''} · {anchor.dep}
                   {anchor.track ? `, ${anchor.kind === 'train' ? trackText('train', anchor.track, t) : anchor.track}` : ''}
                 </strong>
                 {anchor.onboard ? (
-                  <span style={{ display: 'block', marginTop: '2px', fontSize: '0.875rem' }}>
+                  <span style={{ display: 'block', marginTop: '2px', fontSize: 'var(--fs-2)' }}>
                     {t(`Du sitter på tåget och kliver av i ${anchor.to}`, `You are on the train and get off at ${anchor.to}`)} {anchor.arr}
                   </span>
                 ) : (
-                  <span style={{ display: 'block', marginTop: '2px', fontSize: '0.875rem' }}>
+                  <span style={{ display: 'block', marginTop: '2px', fontSize: 'var(--fs-2)' }}>
                     {t(`Var på ${anchor.from} senast`, `Be at ${anchor.from} by`)} <strong>{clockOf(deadline(anchor)).time}</strong>
                     <span style={{ color: colors.textDim }}> · {t(`${anchor.margin} min marginal`, `${anchor.margin} min to spare`)}</span>
                   </span>
                 )}
                 {ticketPick?.none ? (
                   // Ingen resa hinner till påstigningen: säg det, och föreslå ingenting.
-                  <span style={{ display: 'block', marginTop: '6px', fontSize: '0.9375rem', color: colors.amber, fontWeight: 700, lineHeight: 1.4 }}>
+                  <span style={{ display: 'block', marginTop: '6px', fontSize: 'var(--fs-3)', color: colors.amber, fontWeight: 700, lineHeight: 1.4 }}>
                     {t(
                       `Du hinner inte till ${anchor.from} före ${anchor.dep} härifrån. Kliver du på någon annanstans, eller sitter du redan på tåget? Ändra under Din biljett.`,
                       `You can't get to ${anchor.from} before ${anchor.dep} from here. Boarding somewhere else, or already on the train? Change it under Your ticket.`
                     )}
                   </span>
                 ) : ticketPick?.tight ? (
-                  <span style={{ display: 'block', marginTop: '4px', fontSize: '0.875rem', color: colors.amber, fontWeight: 700 }}>
+                  <span style={{ display: 'block', marginTop: '4px', fontSize: 'var(--fs-2)', color: colors.amber, fontWeight: 700 }}>
                     {t('Ingen resa hinner fram med hela marginalen. Åk så tidigt du kan.', 'No trip gets you there with the full margin. Leave as early as you can.')}
                   </span>
                 ) : ticketPick && !ticketPick.backup ? (
-                  <span style={{ display: 'block', marginTop: '4px', fontSize: '0.8125rem', color: colors.textDim }}>
+                  <span style={{ display: 'block', marginTop: '4px', fontSize: 'var(--fs-2)', color: colors.textDim }}>
                     {t('Det går glest härifrån, så det finns ingen senare som hinner.', 'Departures are sparse here, so there is no later one that makes it.')}
                   </span>
                 ) : null}
                 {onwardTrip ? (
-                  <span style={{ display: 'block', marginTop: '4px', fontSize: '0.8125rem', color: colors.textDim }}>
+                  <span style={{ display: 'block', marginTop: '4px', fontSize: 'var(--fs-2)', color: colors.textDim }}>
                     {t(`Sedan vidare från ${anchor.to} till ${target}, framme ${onwardTrip.arr}.`, `Then on from ${anchor.to} to ${target}, arriving ${onwardTrip.arr}.`)}
                   </span>
                 ) : onwardMissing ? (
-                  <span style={{ display: 'block', marginTop: '4px', fontSize: '0.8125rem', color: colors.amber }}>
+                  <span style={{ display: 'block', marginTop: '4px', fontSize: 'var(--fs-2)', color: colors.amber }}>
                     {t(
                       `Hittade ingen resa vidare från ${anchor.to} till ${target} efter ${anchor.arr}. Resan nedan slutar i ${anchor.to}.`,
                       `Found no trip on from ${anchor.to} to ${target} after ${anchor.arr}. The trip below ends at ${anchor.to}.`
@@ -686,19 +686,19 @@ export default function JourneyPlan({ goal, place, onPlace, fromId, fromName, st
                         cursor: 'pointer',
                       }}
                     >
-                      <span style={{ fontFamily: fonts.display, fontSize: '1.375rem', fontWeight: 800, letterSpacing: '-0.015em' }}>
+                      <span style={{ fontFamily: fonts.display, fontSize: 'var(--fs-5)', fontWeight: 800, letterSpacing: '-0.015em' }}>
                         {trip.dep}–{trip.arr}
                         {trip.arrDate && trip.depDate && trip.arrDate !== trip.depDate ? (
-                          <sup style={{ fontSize: '0.75rem', marginLeft: '2px' }}>+1</sup>
+                          <sup style={{ fontSize: 'var(--fs-1)', marginLeft: '2px' }}>+1</sup>
                         ) : null}
                       </span>
-                      <span style={{ fontSize: '0.875rem', color: colors.textDim }}>
+                      <span style={{ fontSize: 'var(--fs-2)', color: colors.textDim }}>
                         {duration(trip.minutes)} ·{' '}
                         {trip.changes === 0
                           ? t('inga byten', 'direct')
                           : t(`${trip.changes} byte${trip.changes > 1 ? 'n' : ''}`, `${trip.changes} change${trip.changes > 1 ? 's' : ''}`)}
                       </span>
-                      <span style={{ flexBasis: '100%', fontSize: '0.8125rem', color: colors.textDim }}>
+                      <span style={{ flexBasis: '100%', fontSize: 'var(--fs-2)', color: colors.textDim }}>
                         {rides.map(rideLabel).join(' → ')}
                       </span>
                       {tag ? (
@@ -771,7 +771,7 @@ export function LineBadge({ leg, large = false }: { leg: Leg; large?: boolean })
         ...badgeLook({ line: leg.line, transportMode: leg.mode as TransportMode }),
         fontFamily: fonts.display,
         fontWeight: 800,
-        fontSize: large ? '1.125rem' : '0.875rem',
+        fontSize: large ? 'var(--fs-4)' : 'var(--fs-2)',
         textAlign: 'center',
       }}
     >
@@ -784,7 +784,7 @@ export function LegRow({ leg }: { leg: Leg }) {
   const { t } = useLang();
   if (leg.kind === 'walk') {
     return (
-      <li style={{ display: 'flex', gap: '12px', padding: '8px 0', fontSize: '0.875rem', color: colors.textDim }}>
+      <li style={{ display: 'flex', gap: '12px', padding: '8px 0', fontSize: 'var(--fs-2)', color: colors.textDim }}>
         <span aria-hidden="true" style={{ width: '44px', flexShrink: 0, textAlign: 'center' }}>
           <Icon name="walk" />
         </span>
@@ -814,8 +814,8 @@ export function LegRow({ leg }: { leg: Leg }) {
   return (
     <li style={{ display: 'flex', gap: '12px', padding: '8px 0', borderTop: `1px solid ${colors.border}` }}>
       <LineBadge leg={leg} />
-      <span style={{ flex: 1, minWidth: 0, fontSize: '0.875rem', lineHeight: 1.45 }}>
-        <strong style={{ display: 'block', fontSize: '0.9375rem', textDecoration: leg.cancelled ? 'line-through' : 'none' }}>
+      <span style={{ flex: 1, minWidth: 0, fontSize: 'var(--fs-2)', lineHeight: 1.45 }}>
+        <strong style={{ display: 'block', fontSize: 'var(--fs-3)', textDecoration: leg.cancelled ? 'line-through' : 'none' }}>
           {rideLabel(leg)}
           {leg.direction ? ` ${t('mot', 'to')} ${leg.direction}` : ''}
         </strong>
@@ -830,7 +830,7 @@ export function LegRow({ leg }: { leg: Leg }) {
       </span>
       {/* Hur länge man åker på just den här delen. */}
       {leg.minutes > 0 ? (
-        <span style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim, whiteSpace: 'nowrap' }}>
+        <span style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: 'var(--fs-2)', fontWeight: 700, color: colors.textDim, whiteSpace: 'nowrap' }}>
           <span className="sr-only">{t('Restid', 'Travel time')} </span>
           {duration(leg.minutes)}
         </span>
@@ -843,8 +843,8 @@ const label: React.CSSProperties = {
   margin: 0,
   fontFamily: 'var(--font-display)',
   fontStretch: 'var(--stretch-wide)',
-  fontSize: '0.6875rem',
-  fontWeight: 600,
+  fontSize: 'var(--fs-1)',
+  fontWeight: 700,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
   color: colors.textDim,
@@ -854,8 +854,8 @@ const fieldLabel: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: '4px',
-  fontSize: '0.8125rem',
-  fontWeight: 600,
+  fontSize: 'var(--fs-2)',
+  fontWeight: 700,
   color: colors.textDim,
 };
 
@@ -866,7 +866,7 @@ const field: React.CSSProperties = {
   borderRadius: 0,
   backgroundColor: colors.surface,
   color: colors.text,
-  fontSize: '1rem',
+  fontSize: 'var(--fs-3)',
   fontFamily: 'inherit',
 };
 
@@ -876,7 +876,7 @@ const primary: React.CSSProperties = {
   border: 'none',
   backgroundColor: colors.accentStrong,
   color: colors.onAccent,
-  fontSize: '0.9375rem',
+  fontSize: 'var(--fs-3)',
   fontWeight: 700,
   cursor: 'pointer',
 };
@@ -887,7 +887,7 @@ const secondary: React.CSSProperties = {
   border: `1px solid ${colors.borderStrong}`,
   background: 'transparent',
   color: colors.text,
-  fontSize: '0.875rem',
-  fontWeight: 600,
+  fontSize: 'var(--fs-2)',
+  fontWeight: 700,
   cursor: 'pointer',
 };

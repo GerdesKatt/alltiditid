@@ -142,10 +142,10 @@ export default function PlaceSuggest({ text, nearStopId, onPick, listId = 'vart-
                 cursor: 'pointer',
               }}
             >
-              <span style={{ display: 'block', fontSize: '1rem', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ display: 'block', fontSize: 'var(--fs-3)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {r.name}
               </span>
-              <span style={{ display: 'block', fontSize: '0.8125rem', color: colors.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ display: 'block', fontSize: 'var(--fs-2)', color: colors.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {placeDetail(r, lang)}
               </span>
             </button>
@@ -153,7 +153,7 @@ export default function PlaceSuggest({ text, nearStopId, onPick, listId = 'vart-
         ))}
       </ul>
       {fromMap ? (
-        <p style={{ margin: '4px 0 0', fontSize: '0.6875rem', color: colors.textDim, textAlign: 'right' }}>
+        <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-1)', color: colors.textDim, textAlign: 'right' }}>
           {source === 'geoapify' ? (
             <>
               Powered by <a href="https://www.geoapify.com/" style={{ color: 'inherit' }}>Geoapify</a> ·{' '}
