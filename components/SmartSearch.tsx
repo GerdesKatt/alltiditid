@@ -163,7 +163,7 @@ export default function SmartSearch({ onOpenStop, onGoal, onOpenTrain, onOpenAir
               setQ('');
             }
           }}
-          placeholder={t('Vart ska du? Hållplats, adress, tåg', 'Where to? Stop, address, train')}
+          placeholder={t('Vart ska du? Hållplats, adress eller tåg', 'Where to? Stop, address or train')}
           style={{
             width: '100%',
             boxSizing: 'border-box',

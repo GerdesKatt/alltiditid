@@ -11,6 +11,10 @@ import SmartSearch from './SmartSearch';
 import StrandedTips from './StrandedTips';
 import { track } from '../lib/track';
 import ModeFilter from './ModeFilter';
+import { REGIONS } from '../lib/regions';
+
+/** Tre stora stationer för den som är ny och inte har delat position: något att se direkt. */
+const BIG_STATIONS: StopOption[] = REGIONS[0].stations.slice(0, 3);
 import { loadHomeMode, MODE_CHOICES, storeHomeMode } from '../lib/modeMemory';
 
 type Nearby = StopOption & { distance: number; modes?: string[] };
@@ -298,6 +302,17 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
       <SmartSearch onOpenStop={onOpenStop} onGoal={onGoal} onOpenTrain={onOpenTrain} onOpenAirport={onOpenAirport} />
       {modeChoices.length > 1 && !editing ? <ModeFilter modes={modeChoices} mode={mode} onChange={chooseMode} style={{ margin: '-4px 0 18px' }} /> : null}
       {nearFirst ? nearSection : null}
+      {/* Ny och utan position: svaret direkt, utan ett tryck. Tre stora stationer med nästa avgångar. */}
+      {ready && fresh && nearby === null && !locating ? (
+        <section aria-label={t('Stora stationer', 'Major stations')} style={{ marginBottom: '22px' }}>
+          <h2 style={label}>{t('Stora stationer just nu', 'Major stations right now')}</h2>
+          <ul style={list}>
+            {BIG_STATIONS.map((s) => (
+              <StopRow key={s.id} stop={s} now={now} distance={Infinity} onOpen={() => onOpenStop(s)} mode={mode} onModes={(m) => reportModes(s.id, m)} />
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {!fresh ? (
         <section aria-label={t('Dina hållplatser', 'Your stops')} style={{ marginBottom: '22px' }}>

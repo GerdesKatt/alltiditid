@@ -56,12 +56,11 @@ export default function StopAbout({ stop, pages }: { stop: StopPage; pages: Stop
   return (
     <section
       aria-labelledby="om-hallplatsen"
+      // Strecket ersätter ramen: en linje i full bredd, sedan rubriken.
       style={{
-        backgroundColor: colors.surface,
-        border: `1px solid ${colors.border}`,
-        borderRadius: 'var(--radius-card)',
-        padding: '20px',
-        margin: '18px 0',
+        borderTop: `1px solid ${colors.text}`,
+        paddingTop: '14px',
+        margin: '28px 0 18px',
       }}
     >
       <h2 id="om-hallplatsen" style={{ fontSize: '1.125rem', fontWeight: 800, margin: '0 0 10px 0', color: colors.text }}>

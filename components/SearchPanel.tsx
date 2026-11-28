@@ -103,11 +103,11 @@ export default function SearchPanel({
       id="sok-och-filter"
       style={{
         marginBottom: '20px',
-        padding: '18px 20px',
+        padding: '14px 0 0',
         borderRadius: 0,
-        background: `linear-gradient(180deg, ${colors.panelTop} 0%, ${colors.panelBottom} 100%)`,
-        border: `1px solid ${colors.borderStrong}`,
-        boxShadow: `0 14px 35px ${colors.shadow}`,
+        // Ingen skugga och ingen låda: strecket överst, som resten av Rosa betong.
+        background: 'transparent',
+        borderTop: `1px solid ${colors.text}`,
       }}
     >
       {onClose ? (
@@ -160,7 +160,7 @@ export default function SearchPanel({
             value={stationQuery}
             onKeyDown={onSearchKeyDown}
             onChange={(e) => onStationQueryChange(e.target.value)}
-            placeholder={t('Sök hållplats eller tågnummer', 'Search stop or train number')}
+            placeholder={t('Hållplats eller tåg', 'Stop or train')}
             style={{ ...textInput(colors.text), minHeight: '52px', fontSize: '1rem', borderWidth: '2px' }}
           />
 
@@ -365,18 +365,14 @@ export default function SearchPanel({
         }
       />
 
-      {/* Snabbval av station: en rad som rullar i sidled i stället för flera rader. */}
+      {/* Snabbval av station: bryts till flera rader i stället för att klippas i kanten. */}
       <div
         role="group"
         aria-label={t('Snabbval', 'Quick picks')}
-        className="chip-scroll"
         style={{
           display: 'flex',
+          flexWrap: 'wrap',
           gap: '6px',
-          overflowX: 'auto',
-          margin: '0 -20px',
-          padding: '0 20px 2px',
-          scrollPaddingInline: '20px',
         }}
       >
         {currentRegion.stations.map((stop) => {
@@ -389,7 +385,7 @@ export default function SearchPanel({
               onClick={() => onQuickStopSelect(stop)}
               style={{
                 flexShrink: 0,
-                minHeight: '36px',
+                minHeight: '44px',
                 padding: '0 12px',
                 borderRadius: 'var(--radius-control)',
                 border: active ? `1px solid ${colors.accentStrong}` : 'none',
@@ -410,7 +406,7 @@ export default function SearchPanel({
             onClick={onOpenFlights}
             style={{
               flexShrink: 0,
-              minHeight: '36px',
+              minHeight: '44px',
               padding: '0 12px',
               borderRadius: 'var(--radius-control)',
               border: `1px solid ${colors.borderStrong}`,

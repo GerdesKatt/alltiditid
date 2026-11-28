@@ -18,3 +18,27 @@ test('bara bussar: första bussen', () => {
   assert.equal(pickNextDeparture(list, at), list[0]);
   assert.equal(pickNextDeparture([], at), undefined);
 });
+
+import { goesToStop } from '../lib/nextPick.mjs';
+
+test('tåg mot stationen man står på räknas bort', () => {
+  assert.equal(goesToStop('Stockholm Centralstation', ['Stockholm C / T-Centralen']), true);
+  assert.equal(goesToStop('Stockholm C', ['Stockholm Centralstation']), true);
+  assert.equal(goesToStop('Göteborg Centralstation', ['Göteborg C']), true);
+  assert.equal(goesToStop('Hallsberg station', ['Stockholm C / T-Centralen']), false);
+  assert.equal(goesToStop('Malmö Central', ['Stockholm C / T-Centralen']), false);
+  assert.equal(goesToStop('', ['Stockholm C']), false);
+});
+
+test('realtid före tidtabell när de går nästan samtidigt', () => {
+  const list = [
+    { transportMode: 'train', at: 4 * 60_000, hasRealtime: false },
+    { transportMode: 'train', at: 6 * 60_000, hasRealtime: true },
+  ];
+  assert.equal(pickNextDeparture(list, at), list[1]);
+  const far = [
+    { transportMode: 'train', at: 4 * 60_000, hasRealtime: false },
+    { transportMode: 'train', at: 12 * 60_000, hasRealtime: true },
+  ];
+  assert.equal(pickNextDeparture(far, at), far[0]);
+});

@@ -141,7 +141,7 @@ export default function LineGroupRow({ items, direction, now }: Props) {
                 <span style={{ textDecoration: cancelled ? 'line-through' : 'none' }}>
                   {trainNumber
                     ? d.scheduledTime
-                    : `${schedule && /min$/.test(countdownFor(d, now)) ? '~' : ''}${now_(countdownFor(d, now))}`}
+                    : now_(countdownFor(d, now))}
                 </span>
                 <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>
                   {trainNumber

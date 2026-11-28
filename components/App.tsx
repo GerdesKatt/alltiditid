@@ -21,7 +21,7 @@ import SheetBackdrop from './SheetBackdrop';
 import { colors, textInput } from './styles';
 import ModeTabs, { type AppTab, type MenuKey } from './ModeTabs';
 import { loadModeFor, MODE_CHOICES, storeModeFor } from '../lib/modeMemory';
-import { pickNextDeparture } from '../lib/nextPick.mjs';
+import { goesToStop, pickNextDeparture } from '../lib/nextPick.mjs';
 import { habitFor, recordOpen } from '../lib/habits';
 import { useWalk } from '../lib/useWalk';
 import Home from './Home';
@@ -190,7 +190,6 @@ export default function App({ initialStop, page, intro }: AppProps) {
   }, []);
   // Kollektivtrafik eller flyg, och flygplatsen som sökningen pekade på.
   const [tab, setTab] = useState<AppTab>('trafik');
-  const [journeyQuery, setJourneyQuery] = useState('');
   // Hur stor del av besöken som öppnar Flyg (planen: flytta Flyg ur menyn om under 5 %).
   // Räknas en gång per sidvisning, oavsett om man kom dit via menyn, sök eller en sparad flik.
   useEffect(() => {
@@ -816,6 +815,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
     const upcoming = departures.filter((d) => {
       const at = parseLocal(d.expectedAt);
       if (d.status === 'cancelled' || at === null) return false;
+      // Ett tåg mot stationen man står på (slutar här) är aldrig svaret.
+      if (goesToStop(d.destination, [selectedStop.name, selectedStop.shortName, initialStop?.name])) return false;
       // Samma trafikslag som tavlan visar.
       if (mode !== 'all' && d.transportMode !== mode) return false;
       // En avgång som går nu hinner man inte: minst en minut kvar.
@@ -830,7 +831,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
     // Valt efter trafikslag (tåget, fast bussen går före): kortet ska säga "Nästa tåg", inte "Nästa avgång".
     const byMode = reason === 'next' && pick !== upcoming[0] ? pick.transportMode : undefined;
     return { trip: tripFrom(pick, selectedStop.id, selectedStop.name), reason, byMode };
-  }, [restored, hasStop, direction, departures, myTrain, planned, myTrip, selectedStop.id, selectedStop.name, habit, walkMin, now, mode]);
+  }, [restored, hasStop, direction, departures, myTrain, planned, myTrip, selectedStop.id, selectedStop.name, selectedStop.shortName, initialStop?.name, habit, walkMin, now, mode]);
   // Samma regel som valet: de avgångar som går om minst en minut (gångtid av).
   const autoNext = autoTrip
     ? nextForTrip(
@@ -885,41 +886,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
             </>
           ) : null}
             <h2 style={{ ...sectionLabel, marginTop: myFlight || myTrain || myTrip || planned ? '22px' : 0 }}>{t('Ny resa', 'New trip')}</h2>
-            <div
-              style={{
-                padding: '16px 18px 20px',
-                borderRadius: 'var(--radius-card)',
-                border: `1px solid ${colors.border}`,
-                backgroundColor: colors.surface,
-              }}
-            >
-              {/* Två sätt att planera, lika synliga: res när du vill, eller bygg resan kring en bokad biljett. */}
-              <div role="group" aria-label={t('Hur vill du planera?', 'How do you want to plan?')} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', border: `1px solid ${colors.text}`, marginBottom: '16px' }}>
-                {([
-                  [false, t('Sök resa', 'Find a trip'), t('nu eller senare', 'now or later')],
-                  [true, t('Jag har en biljett', 'I have a ticket'), t('tåg eller flyg', 'train or flight')],
-                ] as const).map(([on, title, hint]) => (
-                  <button
-                    key={String(on)}
-                    type="button"
-                    aria-pressed={ticketPlan === on}
-                    onClick={() => setTicketPlan(on)}
-                    style={{
-                      minHeight: '56px',
-                      padding: '8px 10px',
-                      border: 'none',
-                      borderLeft: on ? `1px solid ${colors.text}` : 'none',
-                      backgroundColor: ticketPlan === on ? colors.text : 'transparent',
-                      color: ticketPlan === on ? colors.bg : colors.text,
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <span style={{ display: 'block', fontSize: '0.9375rem', fontWeight: 700 }}>{title}</span>
-                    <span style={{ display: 'block', fontSize: '0.75rem', opacity: 0.75 }}>{hint}</span>
-                  </button>
-                ))}
-              </div>
+            <div style={{ borderTop: `1px solid ${colors.text}`, paddingTop: '14px' }}>
               <label htmlFor="vart-ska-du" style={{ display: 'block', fontSize: '0.9375rem', fontWeight: 700 }}>
                 {t('Vart ska du?', 'Where are you going?')}
               </label>
@@ -948,7 +915,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
                       document.getElementById('sok-resa')?.click();
                     }
                   }}
-                  placeholder={t('Hållplats, adress, hotell …', 'Stop, address, hotel …')}
+                  placeholder={t('Hållplats, adress eller tåg', 'Stop, address or train')}
                   style={{ ...textInput(colors.borderStrong), display: 'block', minHeight: '48px', fontSize: '1rem', paddingRight: '48px' }}
                 />
                 {goal ? (
@@ -979,6 +946,47 @@ export default function App({ initialStop, page, intro }: AppProps) {
                   </button>
                 ) : null}
               </div>
+              {/* Ett fält först. Biljetten är ett tillval under fältet, inte en egen väg. */}
+              <button
+                type="button"
+                aria-pressed={ticketPlan}
+                onClick={() => setTicketPlan(!ticketPlan)}
+                style={{
+                  display: 'block',
+                  minHeight: '44px',
+                  padding: 0,
+                  border: 'none',
+                  background: 'none',
+                  color: colors.text,
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  textAlign: 'left',
+                  textDecoration: 'underline',
+                  textUnderlineOffset: '3px',
+                  cursor: 'pointer',
+                }}
+              >
+                {ticketPlan
+                  ? t('Planerar från din biljett · Sök utan biljett i stället', 'Planning from your ticket · Search without a ticket instead')
+                  : t('Har du redan en biljett? Ange tåg eller flyg', 'Already have a ticket? Enter the train or flight')}
+              </button>
+              {/^\d{2,5}$/.test(goal.trim()) ? (
+                // Bara siffror: ett tågnummer. Följ tåget direkt, samma som det gamla "Följ bara ett tåg".
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = myTrainFor(goal.trim());
+                    setMyTrain(next);
+                    storeMyTrain(next);
+                    setGoal('');
+                    setSuggestOpen(false);
+                    track('funktion', 0, 'mitt_tag');
+                  }}
+                  style={{ display: 'block', width: '100%', minHeight: '48px', marginTop: '4px', border: 'none', background: colors.text, color: colors.bg, fontWeight: 700, fontSize: '0.9375rem', cursor: 'pointer' }}
+                >
+                  {t(`Följ tåg ${goal.trim()}`, `Follow train ${goal.trim()}`)}
+                </button>
+              ) : null}
               {ticketPlan && goal.trim().length < 2 ? (
                 <p style={{ margin: '8px 0 0', fontSize: '0.8125rem', color: colors.textDim }}>
                   {t(
@@ -1086,60 +1094,6 @@ export default function App({ initialStop, page, intro }: AppProps) {
                   </ul>
                 )
               ) : null}
-              {/* Bara följa ett tåg (utan resa dit): undanplockat, så att planeringen står först. */}
-              <details style={{ marginTop: '20px', paddingTop: '12px', borderTop: `1px solid ${colors.border}` }}>
-              <summary style={{ minHeight: '44px', display: 'flex', alignItems: 'center', fontSize: '0.875rem', fontWeight: 600, color: colors.textDim, cursor: 'pointer' }}>
-                {t('Följ bara ett tåg', 'Just follow a train')}
-              </summary>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const n = journeyQuery.replace(/\D/g, '');
-                  if (n.length < 2) return;
-                  // Avsikten är tydlig här: följ tåget direkt, utan ett extra steg.
-                  const next = myTrainFor(n);
-                  setMyTrain(next);
-                  storeMyTrain(next);
-                  setJourneyQuery('');
-                }}
-                style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'flex-end' }}
-              >
-                <label style={{ flex: '1 1 10rem', fontSize: '0.8125rem', fontWeight: 600, color: colors.textDim }}>
-                  <span className="sr-only">{t('Tågnummer', 'Train number')}</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="off"
-                    value={journeyQuery}
-                    onChange={(e) => setJourneyQuery(e.target.value)}
-                    placeholder={t('t.ex. 532', 'e.g. 532')}
-                    style={{ ...textInput(colors.borderStrong), display: 'block', marginTop: '4px', minHeight: '48px', fontSize: '1rem' }}
-                  />
-                </label>
-                <button
-                  type="submit"
-                  style={{
-                    minHeight: '48px',
-                    padding: '0 18px',
-                    borderRadius: 'var(--radius-control)',
-                    border: 'none',
-                    backgroundColor: colors.accentStrong,
-                    color: colors.onAccent,
-                    fontSize: '0.9375rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {t('Följ tåget', 'Follow train')}
-                </button>
-              </form>
-              <p style={{ margin: '14px 0 0', fontSize: '0.875rem', lineHeight: 1.5, color: colors.textDim }}>
-                {t(
-                  'Tågnumret står på biljetten. En buss- eller tunnelbanelinje sparar du från tavlan: tryck på avgången och välj Spara som min resa.',
-                  'The train number is on your ticket. Save a bus or metro line from the board: tap the departure and choose Save as my trip.'
-                )}
-              </p>
-              </details>
             </div>
         </section>
       ) : null}
