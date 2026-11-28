@@ -4,11 +4,11 @@ import { secondsLabel, timelineFill } from '../lib/countdown.mjs';
 
 test('secondsLabel: tiotal sekunder under två minuter', () => {
   assert.equal(secondsLabel(120_000), null);
-  assert.equal(secondsLabel(119_999), '1:50');
-  assert.equal(secondsLabel(100_000), '1:40');
-  assert.equal(secondsLabel(65_000), '1:00');
-  assert.equal(secondsLabel(59_000), '0:50');
-  assert.equal(secondsLabel(10_000), '0:10');
+  assert.equal(secondsLabel(119_999), '1 min 50 s');
+  assert.equal(secondsLabel(100_000), '1 min 40 s');
+  assert.equal(secondsLabel(65_000), '1 min');
+  assert.equal(secondsLabel(59_000), '50 s');
+  assert.equal(secondsLabel(10_000), '10 s');
   assert.equal(secondsLabel(9_999), null);
   assert.equal(secondsLabel(-5_000), null);
   assert.equal(secondsLabel(NaN), null);

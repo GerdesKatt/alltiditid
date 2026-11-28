@@ -891,6 +891,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
         DEPARTED_GRACE_MS
       )
     : [];
+  // Avgången som kortet överst visar, så att tavlans Gå nu gäller samma avgång (N3).
+  const focusDepartureId = autoTrip ? autoNext[0]?.id ?? null : myTrip && !planned && myTrip.stopId === selectedStop.id ? tripNext[0]?.id ?? null : null;
   const autoCard = autoTrip ? (
     <MyTripCard
       trip={autoTrip.trip}
@@ -1429,7 +1431,9 @@ export default function App({ initialStop, page, intro }: AppProps) {
       ) : null}
       <div hidden={!hasStop}>
       <DepartureBoard
-        compactTitle={tab === 'trafik' && Boolean(autoTrip)}
+        // Samma kompakta rubrik med sparad resa som med Din avgång, så att sidan inte hoppar när man sparar (N14).
+        focusId={tab === 'trafik' ? focusDepartureId : null}
+        compactTitle={tab === 'trafik' && Boolean(autoTrip || (myTrip && !planned && myTrip.stopId === selectedStop.id))}
         isFavorite={isFavorite}
         favoritesFull={!isFavorite && favorites.length >= MAX_FAVORITES}
         onToggleFavorite={() => {

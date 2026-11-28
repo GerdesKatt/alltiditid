@@ -129,7 +129,7 @@ export default function FindTrip({ stop, mode, onShowTrain, onShowTrip }: Props)
         }}
       >
         <Icon name="train" />
-        {t('Hitta min tur', 'Find my trip')}
+        <span className="tool-text">{t('Hitta min tur', 'Find my trip')}</span>
       </button>
     );
   }

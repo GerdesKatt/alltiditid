@@ -43,6 +43,8 @@ export function lineName(line: string, badge: string): string {
 export function operatorShort(operator?: string): string {
   const o = String(operator || '').trim();
   if (!o || /^trafikoperatör$|^trafikverket$/i.test(o)) return '';
+  // SL:s entreprenörer för tunnelbanan och pendeltågen heter SL för resenären (N12).
+  if (/^connecting stockholm|^mtr (tunnelbanan|pendeltågen|tech)/i.test(o)) return 'SL';
   return o.replace(/\s+(sverige\s+)?ab$/i, '').replace(/\s+sverige$/i, '').trim();
 }
 
