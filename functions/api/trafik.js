@@ -20,6 +20,8 @@ import { allowedLicense, nearestStation, systemsNear } from '../../lib/mobility.
 import { funFact, pickTrivia, wikiArticleUrl, wikiQueryUrl } from '../../lib/trivia.mjs';
 import { evaluateHealth, isFailure, sourceOf } from '../../lib/health.mjs';
 import { shortLineName, trackText } from '../../lib/lineNames.mjs';
+import { summarize } from '../../lib/punctuality.mjs';
+import { rainSoon, smhiUrls } from '../../lib/rain.mjs';
 
 function parseTimeToMinutes(timeStr) {
   if (!timeStr || typeof timeStr !== 'string') return null;
@@ -3853,6 +3855,83 @@ export async function handleTrivia(url, context) {
   return fresh;
 }
 
+/**
+ * "Brukar vara sen" (Vägen till 10, idé 12): de linjer från en hållplats som de senaste åtta veckorna
+ * brukat gå sent vid den här timmen. Bara våra egna mätningar i D1, inget om besökaren.
+ */
+const PUNCTUALITY_CACHE_S = 3600;
+export async function handlePunctuality(url, env, context) {
+  const ids = String(url.searchParams.get('stopId') || '')
+    .split(',')
+    .map((x) => x.trim())
+    .filter((x) => /^[\w:.-]{1,40}$/.test(x))
+    .slice(0, MAX_COMBINED_STOPS);
+  const hour = String(url.searchParams.get('hour') || '');
+  const weekday = Number(url.searchParams.get('weekday'));
+  if (!ids.length || !/^\d{2}$/.test(hour) || !(weekday >= 0 && weekday <= 6)) {
+    return jsonResponse({ error: 'stopId, hour och weekday krävs' }, 400);
+  }
+  const db = env && env.HISTORY;
+  if (!db) return jsonResponse({ lines: {} }, 200, { 'Cache-Control': 'no-store' });
+  const key = new Request(`https://cache.alltiditid.se/punctuality-v1/${encodeURIComponent(ids.join(','))}/${hour}/${weekday}`);
+  const hit = await cacheGet(key);
+  if (hit) return hit;
+  const from = new Date(Date.now() - 56 * 86400_000).toISOString().slice(0, 10);
+  let lines = {};
+  try {
+    const marks = ids.map((_, i) => `?${i + 3}`).join(',');
+    const res = await db
+      .prepare(
+        `SELECT line, destination, delay_min, CAST(strftime('%w', substr(scheduled_at, 1, 10)) AS INTEGER) AS weekday
+         FROM departures
+         WHERE stop_id IN (${marks}) AND scheduled_at >= ?1 AND substr(scheduled_at, 12, 2) = ?2
+           AND status != 'cancelled' AND has_realtime = 1
+         LIMIT 5000`
+      )
+      .bind(from, hour, ...ids)
+      .all();
+    lines = summarize(res.results || [], weekday);
+  } catch {
+    return jsonResponse({ lines: {} }, 200, { 'Cache-Control': 'no-store' });
+  }
+  const body = JSON.stringify({ lines });
+  await cachePut(
+    key,
+    new Response(body, { headers: { ...JSON_HEADERS, 'Cache-Control': `public, max-age=${PUNCTUALITY_CACHE_S}` } }),
+    context
+  );
+  return new Response(body, { headers: { ...JSON_HEADERS, 'Cache-Control': `public, max-age=${PUNCTUALITY_CACHE_S}` } });
+}
+
+/**
+ * Regn inom en timme vid hållplatsen (Vägen till 10, idé 17), ur SMHI:s öppna prognos (CC BY 4.0).
+ * Läget avrundas till ungefär en kilometer och cachas i tio minuter, så SMHI får få anrop.
+ */
+const RAIN_CACHE_S = 600;
+export async function handleRain(url, context) {
+  const lat = Math.round(Number(url.searchParams.get('lat')) * 100) / 100;
+  const lon = Math.round(Number(url.searchParams.get('lon')) * 100) / 100;
+  if (!(lat >= 55 && lat <= 69.2 && lon >= 10.5 && lon <= 24.3)) return jsonResponse({ error: 'lat och lon krävs' }, 400);
+  const key = new Request(`https://cache.alltiditid.se/rain-v1/${lat},${lon}`);
+  const hit = await cacheGet(key);
+  if (hit) return hit;
+  let rain = null;
+  for (const u of smhiUrls(lat, lon)) {
+    try {
+      const res = await fetch(u, { headers: { Accept: 'application/json' }, cf: { cacheTtl: RAIN_CACHE_S } });
+      if (!res.ok) continue;
+      rain = rainSoon(await res.json(), Date.now());
+      if (rain) break;
+    } catch {
+      // Prova nästa format.
+    }
+  }
+  const body = JSON.stringify({ rain, source: 'SMHI' });
+  const headers = { ...JSON_HEADERS, 'Cache-Control': rain ? `public, max-age=${RAIN_CACHE_S}` : 'no-store' };
+  if (rain) await cachePut(key, new Response(body, { headers }), context);
+  return new Response(body, { headers });
+}
+
 export async function onRequest(context) {
   const { env } = context;
   if (new URL(context.request.url).searchParams.get('action') === 'health') return await handleHealth(env);
@@ -3886,6 +3965,8 @@ async function route(context) {
     if (action === 'places') return await handlePlaces(url, env, context);
     if (action === 'mobility') return await handleMobility(url, context);
     if (action === 'trivia') return await handleTrivia(url, context);
+    if (action === 'punctuality') return await handlePunctuality(url, env, context);
+    if (action === 'rain') return await handleRain(url, context);
   } catch {
     return jsonResponse({ error: 'Ett fel uppstod vid hämtning av flygdata.' }, 500);
   }

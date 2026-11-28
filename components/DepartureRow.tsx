@@ -11,6 +11,7 @@ import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { sameAsBoard } from '../lib/nextPick.mjs';
 import { secondsLabel } from '../lib/countdown.mjs';
 import { useLiveNow } from '../lib/useLiveNow';
+import { doorRange } from '../lib/punctuality.mjs';
 
 type Props = {
   item: Departure;
@@ -37,6 +38,8 @@ type Props = {
   clockFirst?: boolean;
   /** Tavlans namn, så att delhållplatsen inte upprepas när den är samma plats. */
   boardName?: string;
+  /** "Brukar gå 3 min sent lördagar kl. 11." ur vår egen historik. */
+  usuallyLate?: string;
   /** Marginalen för bytet från Mitt tåg, när raden är anslutningen. */
   transferNote?: { text: string; urgent: boolean } | null;
 };
@@ -81,6 +84,7 @@ export default function DepartureRow({
   clockFirst = false,
   boardName = '',
   transferNote = null,
+  usuallyLate = '',
 }: Props) {
   const [open, setOpen] = useState(false);
   const { lang, t } = useLang();
@@ -160,6 +164,7 @@ export default function DepartureRow({
     .join(' · ');
   // "Ny tid saknas" betyder bara något för ett tåg som står kvar, och där säger tidskolumnen det redan.
   const deviation = shownDeviation(item);
+  const doors = deviation ? doorRange(deviation) : null;
   const compensation =
     isCancelled || (isDelayed && (item.delayMinutes || 0) >= COMPENSATION_DELAY_MIN);
 
@@ -212,6 +217,7 @@ export default function DepartureRow({
     deviation,
     walkText ? `${t('gångtid', 'walking')}: ${walkText}` : '',
     transferNote ? `${t('ditt byte', 'your connection')}: ${transferNote.text}` : '',
+    usuallyLate,
   ]
     .filter(Boolean)
     .join(', ');
@@ -347,6 +353,10 @@ export default function DepartureRow({
             ) : null}
             {subline}
           </span>
+          {usuallyLate && !deviation ? (
+            // Tyst rad i sten under undertexten: kan jag lita på tiden? (Vägen till 10, idé 12)
+            <span style={{ display: 'block', marginTop: '2px', fontSize: 'var(--fs-1)', color: colors.textDim }}>{usuallyLate}</span>
+          ) : null}
           {deviation ? (
             // Avvikelsen är skälet att titta: egen rad, högst två, aldrig avklippt efter ett ord.
             <span
@@ -364,6 +374,25 @@ export default function DepartureRow({
             >
               {deviation}
             </span>
+          ) : null}
+          {doors ? (
+            // Perrongskiss: var det korta tåget stannar längs perrongen (Vägen till 10, idé 13).
+            <svg
+              aria-hidden="true"
+              width="120"
+              height="10"
+              viewBox="0 0 120 10"
+              style={{ display: 'block', marginTop: '4px', overflow: 'visible' }}
+            >
+              <line x1="0" y1="8" x2="120" y2="8" stroke="currentColor" strokeWidth="1" style={{ color: colors.textDim }} />
+              <rect
+                x={((doors.from - 1) / doors.total) * 120}
+                y="2"
+                width={((doors.to - doors.from + 1) / doors.total) * 120}
+                height="5"
+                fill={colors.amber}
+              />
+            </svg>
           ) : null}
         </span>
 

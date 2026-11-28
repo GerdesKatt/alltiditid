@@ -822,6 +822,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
       {myTrip && !planned ? (
         <MyTripCard
           walkMinutes={myTrip.stopId === selectedStop.id ? walkMin : null}
+          stopAt={myTrip.stopId === selectedStop.id ? walk.stopAt : null}
           trip={myTrip}
           next={tripNext}
           alternative={tripAlternative}
@@ -903,6 +904,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
       auto={autoTrip.reason}
       autoMode={autoTrip.byMode}
       walkMinutes={walkMin}
+      stopAt={walk.stopAt}
       onSave={() => {
         setMyTrip(autoTrip.trip);
         storeMyTrip(autoTrip.trip);
