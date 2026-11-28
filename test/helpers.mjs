@@ -1,5 +1,5 @@
 // Gemensamma hjälpare för API-testerna: lokala tider och ett anrop till Pages-funktionen.
-import { onRequest } from '../functions/api/trafik.js';
+import { onRequest, resetSlShared } from '../functions/api/trafik.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -17,6 +17,8 @@ export function minuteNow() {
 }
 
 export async function board(qs, env) {
+  // Varje test har egna påhittade SL-svar: inget delat svar från förra testet.
+  resetSlShared();
   const res = await onRequest({
     request: new Request(`https://alltiditid.se/api/trafik?${qs}`),
     env,

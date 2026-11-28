@@ -815,8 +815,9 @@ export default function App({ initialStop, page, intro }: AppProps) {
       (habit && upcoming.find((d) => groupKey(d) === habit.key)) || pickNextDeparture(upcoming, (d) => parseLocal(d.expectedAt));
     if (!pick) return null;
     const reason = habit && groupKey(pick) === habit.key ? ('habit' as const) : ('next' as const);
-    // Valt efter trafikslag (tåget, fast bussen går före): kortet ska säga "Nästa tåg", inte "Nästa avgång".
-    const byMode = reason === 'next' && pick !== upcoming[0] ? pick.transportMode : undefined;
+    // Kortet säger alltid vad det visar ("Nästa tåg", "Nästa buss"), oavsett filter, så att
+    // samma tåg inte heter "Nästa tåg" under Alla och "Nästa avgång" under Tåg (juryn, runda 3).
+    const byMode = reason === 'next' ? pick.transportMode : undefined;
     return { trip: tripFrom(pick, selectedStop.id, selectedStop.name), reason, byMode };
   }, [restored, hasStop, direction, departures, myTrain, planned, myTrip, selectedStop.id, selectedStop.name, selectedStop.shortName, initialStop?.name, habit, walkMin, now, mode]);
   // Samma regel som valet: de avgångar som går om minst en minut (gångtid av).

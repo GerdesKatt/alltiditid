@@ -89,7 +89,6 @@ function listStyle(count: number): React.CSSProperties {
     overflow: 'hidden',
     margin: 0,
     padding: 0,
-    ['--rows' as string]: Math.ceil(count / 2),
   };
 }
 

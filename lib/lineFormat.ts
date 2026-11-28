@@ -39,6 +39,34 @@ export function lineName(line: string, badge: string): string {
   return name === badge ? '' : name;
 }
 
+/** Bolagets namn som det står på skylten: "SJ AB" → "SJ", "FlixBus Sverige AB" → "FlixBus". */
+export function operatorShort(operator?: string): string {
+  const o = String(operator || '').trim();
+  if (!o || /^trafikoperatör$|^trafikverket$/i.test(o)) return '';
+  return o.replace(/\s+(sverige\s+)?ab$/i, '').replace(/\s+sverige$/i, '').trim();
+}
+
+/** Är namnet en sträcka ("Oslo - Arlanda - Stockholm") i stället för ett linjenamn? */
+function isRoute(name: string): boolean {
+  const parts = name.split(/\s*-\s*/);
+  return parts.length >= 2 && parts.every((p) => p.length >= 3 && /^\p{Lu}/u.test(p));
+}
+
+/**
+ * Undertiteln på en avgångsrad, samma sorts ord för samma sorts trafik: linjen
+ * ("Gröna linjen", "Pendeltåg", "SJ Regional", "Arlanda Express"). Tåg som bara heter
+ * "Tåg" och långa sträckor ("850 Oslo - Arlanda - Stockholm") får bolaget i stället,
+ * t.ex. "SJ" och "Vy bus4you" (juryn, runda 3).
+ */
+export function rowLineName(item: Pick<Departure, 'line' | 'transportMode'> & { operator?: string }, badge: string): string {
+  let name = lineName(item.line, badge);
+  if (/^Ø\s/.test(name)) return 'Öresundståg';
+  if (name.startsWith(`${badge} `)) name = name.slice(badge.length + 1).trim();
+  const vague = (item.transportMode === 'train' && /^tåg$/i.test(name)) || isRoute(name);
+  if (!vague) return name;
+  return operatorShort(item.operator) || (item.transportMode === 'bus' ? 'Buss' : 'Tåg');
+}
+
 /** Klockslaget avgången väntas gå: ny tid om försenad, annars ordinarie. */
 export function clockFor(item: Departure): string {
   if (item.status === 'cancelled') return item.scheduledTime;

@@ -3,7 +3,7 @@ import { airportByIata, datesToFetch, flightBoard, normalizeFlight, pick as pick
 import { AVINOR_AIRLINE_NAMES, AVINOR_AIRPORT_NAMES, AVINOR_FLIGHTS, avinorBoard, parseNames } from '../../lib/avinor.mjs';
 import { countDepartures, departuresByHour, typicalDay } from '../../lib/queueForecast.mjs';
 import { departureRows, latestQueues, logDepartures, logQueues, queueRows } from '../../lib/queueLog.mjs';
-import { missingTrains, trainJourney } from '../../lib/trains.mjs';
+import { mergeSameTrains, missingTrains, trainJourney } from '../../lib/trains.mjs';
 import { applyGps, tripJourney, uniqueAlerts } from '../../lib/trips.mjs';
 import { locateOnRoute, vehiclePositions } from '../../lib/gtfsrt.mjs';
 import { FERRY_PREFIX, ferryBoard, ferryHarbors, searchFerryHarbors } from '../../lib/ferries.mjs';
@@ -2618,6 +2618,43 @@ async function fetchSlUpdates(site) {
   return updates;
 }
 
+// SL nekar med 429 när samma site frågas för ofta. Stockholm C är fyra hållplatser som
+// alla pekar på samma SL-site, och flera besökare frågar samtidigt. Svaret delas därför
+// i 25 s per site (även anrop som pågår), och efter ett 429 vilar siten i 30 s med det
+// senaste svaret, om det är högst två minuter gammalt.
+const SL_SHARE_MS = 25_000;
+const SL_REST_MS = 30_000;
+const SL_STALE_MS = 120_000;
+const slShared = new Map();
+
+export async function slUpdatesCached(site, fetcher = fetchSlUpdates, now = Date.now()) {
+  const hit = slShared.get(site);
+  if (hit && hit.promise && now - hit.at < SL_SHARE_MS) return hit.promise;
+  const usable = hit && hit.value && now - hit.valueAt < SL_STALE_MS ? hit.value : null;
+  if (hit && hit.restUntil > now) {
+    if (usable) return usable;
+    throw new Error('SL vilar efter 429');
+  }
+  if (slShared.size > 400) slShared.clear();
+  const promise = fetcher(site);
+  slShared.set(site, { at: now, promise, value: hit?.value, valueAt: hit?.valueAt || 0, restUntil: 0 });
+  try {
+    const value = await promise;
+    slShared.set(site, { at: now, promise, value, valueAt: now, restUntil: 0 });
+    return value;
+  } catch (err) {
+    const rest = /\b429\b/.test(String(err && err.message));
+    slShared.set(site, { at: 0, promise: null, value: hit?.value, valueAt: hit?.valueAt || 0, restUntil: rest ? now + SL_REST_MS : 0 });
+    if (usable) return usable;
+    throw err;
+  }
+}
+
+/** Bara för tester: töm det delade SL-minnet. */
+export function resetSlShared() {
+  slShared.clear();
+}
+
 /** SL:s avvikelser på en avgång, den viktigaste först (lägre importance_level = viktigare). */
 function slDeviationText(deviations) {
   if (!Array.isArray(deviations)) return '';
@@ -2683,7 +2720,7 @@ async function overlaySl(board, fallbackName, direction, context) {
     const coords = board.departures.find((d) => isSlDeparture(d) && d._coords)?._coords || null;
     const site = await findSlSite(board.stopId, board.stopName || fallbackName, coords, context);
     if (!site) return none;
-    const updates = await fetchSlUpdates(site);
+    const updates = await slUpdatesCached(site);
     const departures = board.departures.map((d) => applySl(d, updates));
     // Hållplatsens störningar, bara för linjer som faktiskt går här.
     const disruptions = (updates.disruptions || [])
@@ -2991,10 +3028,13 @@ async function handleBoard(url, keys, context) {
     }
   }
 
-  const timed = all
-    .filter((d) => mode === 'all' || d.transportMode === mode)
-    .map((d) => applyTrafikverket(d, tvByStation.get(d._tvStation) || new Map(), d._trainCandidates || []))
-    .map(finalizeTiming)
+  // Samma tåg från två av stationens hållplatser blir en rad (lib/trains.mjs).
+  const timed = mergeSameTrains(
+    all
+      .filter((d) => mode === 'all' || d.transportMode === mode)
+      .map((d) => applyTrafikverket(d, tvByStation.get(d._tvStation) || new Map(), d._trainCandidates || []))
+      .map(finalizeTiming)
+  )
     // Det som går först står först: sortera på förväntad tid, sedan ordinarie.
     .sort(
       (a, b) =>
