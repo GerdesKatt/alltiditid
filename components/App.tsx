@@ -30,7 +30,7 @@ import { useWalk } from '../lib/useWalk';
 import Home from './Home';
 import { homeStops, markBoardShown, recordVisit, forgetStop, forgetAllVisits } from '../lib/visits';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
-import { track } from '../lib/track';
+import { track, isStandalone } from '../lib/track';
 import { alternativeFor } from '../lib/alternative.mjs';
 import { matchConnection } from '../lib/transferMatch.mjs';
 import { groupKey, isAlarmDelay, parseLocal } from '../lib/lineFormat';
@@ -332,6 +332,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
     const linked = loadLinkedState();
     // Återkommande besökare: bara om en hållplats redan var sparad (ingen ny lagring för mätningen).
     track('aterkommande', 0, saved ? 'ja' : 'nej');
+    // Varje öppning, och om den skedde från hemskärmen (installerad app) eller i webbläsaren.
+    track('oppning', 0, isStandalone() ? 'app' : 'webb');
     // Sidan öppnas på Hem (utom hållplatssidor, som öppnar sin tavla). En delad länk
     // (/?h=…&n=…) öppnar däremot den delade tavlan, med den riktning länken anger.
     if (saved) {
@@ -366,8 +368,11 @@ export default function App({ initialStop, page, intro }: AppProps) {
   useEffect(() => {
     if (!restored || screen !== 'board' || tab !== 'trafik' || !hasStop) return;
     // Trogna användare: en gång per dag, hur många dagar senaste veckan (1–7). Bara antalet skickas.
-    const days = recordVisit({ id: selectedStop.id, name: selectedStop.name });
-    if (days > 0) track('aktiva_dagar', days, String(Math.min(days, 7)));
+    const visit = recordVisit({ id: selectedStop.id, name: selectedStop.name });
+    if (visit && visit.days > 0) track('aktiva_dagar', visit.days, String(Math.min(visit.days, 7)));
+    // Aktiva och återkommande användare (lib/usage.mjs): bara etiketter, inget id.
+    if (visit && visit.usage.firstToday) track('anvandare', 0, isStandalone() ? 'dag_app' : 'dag_webb');
+    if (visit && visit.usage.firstThisWeek) track('anvandare', 0, `vecka_${visit.usage.week}`);
     markBoardShown();
     const timer = setInterval(() => markBoardShown(), 60_000);
     return () => clearInterval(timer);
@@ -1183,6 +1188,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
                               setMyTrip(next);
                               storeMyTrip(next);
                               track('funktion', 0, 'min_resa');
+                              track('nyckel', 0, 'spara_resa');
                             }
                             setGoal('');
                             setGoalPlace(null);
@@ -1515,7 +1521,10 @@ export default function App({ initialStop, page, intro }: AppProps) {
           const next = current ? null : tripFrom(item, selectedStop.id, selectedStop.name);
           setMyTrip(next);
           storeMyTrip(next);
-          if (next) track('funktion', 0, 'min_resa');
+          if (next) {
+            track('funktion', 0, 'min_resa');
+            track('nyckel', 0, 'spara_resa');
+          }
         }}
       />
       </div>

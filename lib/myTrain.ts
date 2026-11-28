@@ -6,6 +6,7 @@
 export type MyTrain = { number: string; date: string; off?: string };
 
 import { stockholmHour } from './sweTime.mjs';
+import { track } from './track';
 
 const KEY = 'alltiditid:mitt-tag';
 
@@ -30,6 +31,7 @@ export function loadMyTrain(): MyTrain | null {
 }
 
 export function storeMyTrain(t: MyTrain | null): void {
+  if (t) track('nyckel', 0, 'folj_tag');
   try {
     if (t) window.localStorage.setItem(KEY, JSON.stringify(t));
     else window.localStorage.removeItem(KEY);

@@ -22,6 +22,8 @@ import { evaluateHealth, isFailure, sourceOf } from '../../lib/health.mjs';
 import { shortLineName, trackText } from '../../lib/lineNames.mjs';
 import { summarize } from '../../lib/punctuality.mjs';
 import { rainSoon, smhiUrls } from '../../lib/rain.mjs';
+import { weeklyStats } from '../../lib/usage.mjs';
+import { statsHtml } from '../../lib/statsPage.mjs';
 
 function parseTimeToMinutes(timeStr) {
   if (!timeStr || typeof timeStr !== 'string') return null;
@@ -3577,7 +3579,7 @@ async function handleQueueForecast(url, env, context) {
 }
 
 /** Händelserna som tas emot, och etiketterna som får följa med "funktion". */
-const EVENT_NAMES = ['forsta_avgang', 'aterkommande', 'tittade_och_gick', 'byte_snabbt', 'sokavhopp', 'funktion', 'bevakning', 'flygflik', 'aktiva_dagar', 'kalla'];
+const EVENT_NAMES = ['forsta_avgang', 'aterkommande', 'tittade_och_gick', 'byte_snabbt', 'sokavhopp', 'funktion', 'bevakning', 'flygflik', 'aktiva_dagar', 'kalla', 'anvandare', 'oppning', 'nyckel'];
 const EVENT_LABELS = /^[a-z0-9_-]{0,32}$/;
 /** Ett tak per dygn, så att ett fel i appen eller en robot inte fyller databasen. */
 const EVENT_DAILY_LIMIT = 50000;
@@ -3932,6 +3934,52 @@ export async function handleRain(url, context) {
   return new Response(body, { headers });
 }
 
+
+// ---- Privat statistiksida (/statistik?k=…, action=stats) ----
+
+/**
+ * SHA-256 av nyckeln i länken. Själva nyckeln står inte i koden; Nils har länken.
+ * Byt nyckel: sätt STATS_KEY i Cloudflare Pages (gäller då i stället), eller byt hashen här.
+ */
+const STATS_KEY_SHA256 = '6f862d9eef44f20d846a353630712e0bb2d98cd50ead512724fa209c00eda652';
+
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function handleStats(url, env) {
+  const key = String(url.searchParams.get('k') || '');
+  const expected = env && env.STATS_KEY ? await sha256Hex(env.STATS_KEY) : STATS_KEY_SHA256;
+  const headers = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' };
+  if (key.length < 12 || (await sha256Hex(key)) !== expected) {
+    return new Response('<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><title>Hittades inte</title><p>Sidan finns inte.</p>', { status: 404, headers });
+  }
+  const db = env && env.HISTORY;
+  const since = new Date(Date.now() - 12 * 7 * 86400_000).toISOString().slice(0, 10);
+  let rows = [];
+  let feedback = [];
+  if (db) {
+    try {
+      const res = await db
+        .prepare("SELECT day, name, label, n FROM events WHERE name IN ('anvandare', 'oppning', 'nyckel') AND day >= ?1 AND label != 'tyck_till'")
+        .bind(since)
+        .all();
+      rows = res.results || [];
+    } catch {
+      // Ingen tabell än.
+    }
+    try {
+      const res = await db.prepare('SELECT substr(created, 1, 10) AS day, COUNT(*) AS n FROM feedback WHERE created >= ?1 GROUP BY 1').bind(since).all();
+      feedback = res.results || [];
+    } catch {
+      // Ingen tabell än.
+    }
+  }
+  const updated = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm', dateStyle: 'short', timeStyle: 'short' });
+  return new Response(statsHtml(weeklyStats(rows, feedback), updated), { status: 200, headers });
+}
+
 export async function onRequest(context) {
   const { env } = context;
   if (new URL(context.request.url).searchParams.get('action') === 'health') return await handleHealth(env);
@@ -3953,6 +4001,7 @@ async function route(context) {
 
   // Egna mätpunkter (lib/track.ts): inga kakor, inget id, bara namn och tal per dygn.
   if (action === 'event') return await handleEvent(request, env);
+  if (action === 'stats') return await handleStats(url, env);
   if (action === 'waitlist') return await handleWaitlist(request, env);
   if (action === 'feedback') return await handleFeedback(request, env);
 
