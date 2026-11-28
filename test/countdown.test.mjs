@@ -1,17 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { secondsLabel, timelineFill } from '../lib/countdown.mjs';
+import { underTwoMinutes, timelineFill } from '../lib/countdown.mjs';
 
-test('secondsLabel: tiotal sekunder under två minuter', () => {
-  assert.equal(secondsLabel(120_000), null);
-  assert.equal(secondsLabel(119_999), '1 min 50 s');
-  assert.equal(secondsLabel(100_000), '1 min 40 s');
-  assert.equal(secondsLabel(65_000), '1 min');
-  assert.equal(secondsLabel(59_000), '50 s');
-  assert.equal(secondsLabel(10_000), '10 s');
-  assert.equal(secondsLabel(9_999), null);
-  assert.equal(secondsLabel(-5_000), null);
-  assert.equal(secondsLabel(NaN), null);
+test('underTwoMinutes: mellan en och två minuter, inga sekunder', () => {
+  assert.equal(underTwoMinutes(120_000), false);
+  assert.equal(underTwoMinutes(119_999), true);
+  assert.equal(underTwoMinutes(60_000), true);
+  assert.equal(underTwoMinutes(59_999), false);
+  assert.equal(underTwoMinutes(NaN), false);
 });
 
 test('timelineFill: tom tio minuter före, full vid gå senast', () => {

@@ -7,7 +7,7 @@ import { badgeLook, colors, fonts, labelStyle } from './styles';
 import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { lineLabel, trackLabel, useLang } from '../lib/i18n';
 import { trackText } from '../lib/lineNames.mjs';
-import { secondsLabel, timelineFill } from '../lib/countdown.mjs';
+import { underTwoMinutes, timelineFill } from '../lib/countdown.mjs';
 import { useLiveNow } from '../lib/useLiveNow';
 import { useWakeLock } from '../lib/wakeLock';
 import Icon from './Icon';
@@ -32,6 +32,8 @@ type Props = {
   autoMode?: Departure['transportMode'];
   /** Gångtid till hållplatsen i minuter, när "Gångtid" är på. */
   walkMinutes?: number | null;
+  /** Något annat på tavlan är försenat eller inställt: då är "Lugnt" en nyhet. */
+  boardTrouble?: boolean;
   /** Hållplatsens läge när gångtiden är på: för regnet (idé 17). */
   stopAt?: { lat: number; lon: number } | null;
 };
@@ -54,6 +56,7 @@ export default function MyTripCard({
   onSave,
   walkMinutes = null,
   stopAt = null,
+  boardTrouble = false,
 }: Props) {
   const { lang, t } = useLang();
   const badge = lineBadge(trip.line);
@@ -82,10 +85,11 @@ export default function MyTripCard({
   const headLate = head?.status === 'delayed' && !headDelayed;
   const headSchedule = head && !headCancelled && !headDelayed && head.hasRealtime === false;
   const headAt = head ? parseLocal(head.expectedAt) : null;
-  // De sista två minuterna tickar kortet varje sekund och visar tiotal sekunder ("1:40").
+  // De sista två minuterna tickar kortet varje sekund så att tidslinjen fylls mjukt. Siffran säger
+  // "under 2 min": källorna ger hela minuter, så sekunder vore en falsk precision (juryn, runda 2).
   const liveNow = useLiveNow(now, headCancelled ? null : headAt);
-  const headSeconds = head && headAt !== null && !headCancelled && !head.pending ? secondsLabel(headAt - liveNow) : null;
-  const headBig = head ? headSeconds ?? nu(countdownFor(head, liveNow)) : '';
+  const headUnder = Boolean(head && headAt !== null && !headCancelled && !head.pending && underTwoMinutes(headAt - liveNow));
+  const headBig = head ? (headUnder ? '2 min' : nu(countdownFor(head, liveNow))) : '';
   // Gå nu / Gå om X min / Hinner inte: samma regel som på tavlan.
   const verdict =
     head && walkMinutes !== null && headAt !== null && !headCancelled
@@ -143,8 +147,10 @@ export default function MyTripCard({
       : ''
     : minutesLeft !== null && minutesLeft > 12 && minutesLeft < 60
     ? t('Du har tid för en kaffe.', 'You have time for a coffee.')
-    : calm && minutesLeft !== null && minutesLeft >= 1
-    ? t('Lugnt. Inga förseningar här.', 'Calm. No delays here.')
+    : calm && boardTrouble && minutesLeft !== null && minutesLeft >= 1
+    ? // Lugnet sägs bara när det är en nyhet: annat på tavlan är sent eller inställt, din går i tid
+      // (juryn, runda 2, punkt 2). En replik som alltid står där slutar man läsa.
+      t('Lugnt. Din avgång går i tid.', 'Calm. Yours is on time.')
     : '';
   // Väntan får innehåll: kuriosan om platsen, bara när det dröjer (idé 9).
   const waitLong = minutesLeft !== null && minutesLeft > 8 && !headCancelled && !verdict;
@@ -219,8 +225,8 @@ export default function MyTripCard({
         maxWidth: showingStop ? undefined : '40rem',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
-        <span style={{ minWidth: 0, fontSize: 'var(--fs-3)', fontWeight: 700, display: 'inline-flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px 8px' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px' }}>
+        <span style={{ flex: '0 1 auto', minWidth: '7.5rem', fontSize: 'var(--fs-3)', fontWeight: 700, display: 'inline-flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px 8px' }}>
           {/* Linjebrickan i linjens färg, samma som på tavlan. */}
           <span
             style={{
@@ -242,7 +248,8 @@ export default function MyTripCard({
           </span>
           {name ? <span className="sr-only">, {name}</span> : null}
         </span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+        {/* På smala skärmar bryts etiketten under knapparna i stället för att trycka ihop målet. */}
+        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 0, minWidth: 0 }}>
         {canSpeak && head ? (
           <button
             type="button"
@@ -252,6 +259,19 @@ export default function MyTripCard({
             style={iconButton}
           >
             <Icon name="speaker" size={18} />
+          </button>
+        ) : null}
+        {head ? (
+          // Storläget syns som en egen knapp, inte bara som en dold funktion på siffran (juryn, runda 2, punkt 4).
+          <button
+            type="button"
+            onClick={() => setBig(true)}
+            className="row-link"
+            aria-label={t('Storläge', 'Full screen')}
+            title={t('Storläge', 'Full screen')}
+            style={iconButton}
+          >
+            <Icon name="expand" size={18} />
           </button>
         ) : null}
         {label(
@@ -304,7 +324,12 @@ export default function MyTripCard({
               style={{ flex: 1, minWidth: 0, whiteSpace: inlineSave ? 'nowrap' : undefined }}
             >
               {/* Siffran rullar upp när den byts (av vid "minska rörelse"). */}
-              <span aria-hidden="true" key={headBig} className="tick-in" style={headBig.length > 6 ? { fontSize: '0.72em' } : undefined}>
+              {headUnder ? (
+                <span aria-hidden="true" className="big-under">
+                  {t('under', 'under')}{' '}
+                </span>
+              ) : null}
+              <span aria-hidden="true" key={headBig} className="tick-in" style={headBig.length > 6 || headUnder ? { fontSize: '0.8em' } : undefined}>
                 {headBig}
               </span>
             </button>
@@ -357,12 +382,18 @@ export default function MyTripCard({
               gap: '4px 12px',
               marginTop: '8px',
               paddingTop: '8px',
-              borderTop: `1px solid ${colors.text}`,
+              borderTop: deadline !== null ? '1px solid var(--timeline-track)' : `1px solid ${colors.text}`,
               fontSize: 'var(--fs-2)',
             }}
           >
             {/* Strecket som tidslinje: fylls från vänster tills det är dags att gå. */}
-            {deadline !== null ? <span className="timeline-fill" style={{ width: `${(fill * 100).toFixed(2)}%` }} /> : null}
+            {deadline !== null ? (
+              <>
+                <span className="timeline-fill" style={{ width: `${(fill * 100).toFixed(2)}%` }} />
+                {/* Målet i högerkanten: där är det dags att gå. */}
+                <span className="timeline-end" />
+              </>
+            ) : null}
             <span style={{ color: headCancelled || headDelayed ? colors.amber : colors.text, fontWeight: headCancelled ? 700 : 400 }}>
               {headCancelled
                 ? t('Inställd', 'Cancelled')
@@ -466,6 +497,10 @@ export default function MyTripCard({
           look={look}
           destination={trip.destination}
           big={headBig}
+          under={headUnder ? t('under', 'under') : ''}
+          towards={t('mot', 'to')}
+          onSpeak={canSpeak ? speak : undefined}
+          speakLabel={t('Läs upp', 'Read aloud')}
           cancelled={headCancelled}
           status={
             headCancelled
@@ -481,7 +516,13 @@ export default function MyTripCard({
                 : verdict.kind === 'missed'
                 ? t('Hinner inte', "Won't make it")
                 : t(`Gå om ${verdict.leaveIn} min`, `Leave in ${verdict.leaveIn} min`)
-              : ''
+              : headCancelled
+              ? ''
+              : headDelayed
+              ? t('Försenad', 'Delayed')
+              : headSchedule
+              ? t('Enligt tidtabell', 'Scheduled')
+              : t('I tid', 'On time')
           }
           fill={deadline !== null ? fill : null}
           closeLabel={t('Stäng', 'Close')}
@@ -497,7 +538,7 @@ function spokenWhen(at: number | null, now: number, clock: string, t: (sv: strin
   if (at === null) return `${t('klockan', 'at')} ${clock}`;
   const s = Math.floor((at - now) / 1000);
   if (s < 30) return t('går nu', 'departing now');
-  if (s < 120) return t(`om ${Math.floor(s / 10) * 10} sekunder`, `in ${Math.floor(s / 10) * 10} seconds`);
+  if (s < 120) return t('om under två minuter', 'in under two minutes');
   const m = Math.floor(s / 60);
   if (m >= 60) return `${t('klockan', 'at')} ${clock}`;
   return t(`om ${m} minuter`, `in ${m} minutes`);
@@ -513,6 +554,10 @@ function BigView(props: {
   look: React.CSSProperties;
   destination: string;
   big: string;
+  under: string;
+  towards: string;
+  onSpeak?: () => void;
+  speakLabel: string;
   cancelled: boolean;
   status: string;
   verdict: string;
@@ -557,23 +602,44 @@ function BigView(props: {
         >
           {props.badge}
         </span>
-        <span>{props.destination}</span>
+        <span>
+          {props.towards} {props.destination}
+        </span>
       </div>
       <div
         aria-live="off"
         className="big-view-number"
-        // Så stor det går: bredden räcker för texten ("1:40", "3 min", "11:42"), högst 42 % av höjden.
-        style={{ textDecoration: props.cancelled ? 'line-through' : 'none', fontSize: `min(${Math.floor(140 / Math.max(2, props.big.length))}vw, 42vh)` }}
+        // Så stor det går: bredden räcker för texten ("3 min", "11:42"), högst 42 % av höjden.
+        style={{ textDecoration: props.cancelled ? 'line-through' : 'none', fontSize: `min(${Math.floor(140 / Math.max(2, props.big.length + (props.under ? 3 : 0)))}vw, 42vh)` }}
       >
+        {props.under ? <span className="big-under">{props.under} </span> : null}
         <span key={props.big} className="tick-in">
           {props.big}
         </span>
       </div>
-      <div style={{ position: 'relative', borderTop: `1px solid ${colors.text}`, paddingTop: '12px', fontSize: 'var(--fs-4)' }}>
-        {props.fill !== null ? <span className="timeline-fill" style={{ width: `${(props.fill * 100).toFixed(2)}%`, height: '5px', top: '-3px' }} /> : null}
+      <div style={{ position: 'relative', borderTop: `1px solid ${props.fill !== null ? 'var(--timeline-track)' : colors.text}`, paddingTop: '12px', fontSize: 'var(--fs-4)' }}>
+        {props.fill !== null ? (
+          <>
+            <span className="timeline-fill" style={{ width: `${(props.fill * 100).toFixed(2)}%`, height: '6px', top: '-3.5px' }} />
+            <span className="timeline-end" style={{ height: '11px', top: '-5px' }} />
+          </>
+        ) : null}
+        {props.verdict ? <strong style={{ display: 'block', marginBottom: '6px', fontSize: 'var(--fs-5)' }}>{props.verdict}</strong> : null}
         {props.status}
-        {props.verdict ? <strong style={{ display: 'block', marginTop: '6px', fontSize: 'var(--fs-5)' }}>{props.verdict}</strong> : null}
       </div>
+      {props.onSpeak ? (
+        // Läs upp även i storläget: samma knapp som i kortet, med text (juryn, runda 2, punkt 4).
+        <button
+          type="button"
+          className="row-link big-view-speak"
+          onClick={(e) => {
+            e.stopPropagation();
+            props.onSpeak?.();
+          }}
+        >
+          <Icon name="speaker" size={22} /> {props.speakLabel}
+        </button>
+      ) : null}
     </div>,
     document.body
   );
@@ -583,7 +649,7 @@ const iconButton: React.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  width: '44px',
+  width: '40px',
   height: '44px',
   margin: '-12px 0 -12px -8px',
   padding: 0,

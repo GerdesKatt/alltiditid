@@ -33,7 +33,7 @@ import { platformMinutes, walkVerdict } from '../lib/walk.mjs';
 import { track } from '../lib/track';
 import { alternativeFor } from '../lib/alternative.mjs';
 import { matchConnection } from '../lib/transferMatch.mjs';
-import { groupKey, parseLocal } from '../lib/lineFormat';
+import { groupKey, isAlarmDelay, parseLocal } from '../lib/lineFormat';
 import JourneyPlan from './JourneyPlan';
 import PlaceSuggest, { type ChosenPlace } from './PlaceSuggest';
 import PlannedTripCard from './PlannedTripCard';
@@ -786,6 +786,8 @@ export default function App({ initialStop, page, intro }: AppProps) {
   }, [goal, departures, hasStop]);
 
   const walkMin = direction === 'departures' && walk.state.kind === 'ready' ? walk.state.minutes : null;
+  // Något på tavlan är sent eller inställt: då säger Nästa-kortet "Lugnt" om din (juryn, runda 2).
+  const boardTrouble = departures.some((d) => d.status === 'cancelled' || isAlarmDelay(d));
   const journeyCards = (
     <>
       {planned ? (
@@ -823,6 +825,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
         <MyTripCard
           walkMinutes={myTrip.stopId === selectedStop.id ? walkMin : null}
           stopAt={myTrip.stopId === selectedStop.id ? walk.stopAt : null}
+          boardTrouble={myTrip.stopId === selectedStop.id && boardTrouble}
           trip={myTrip}
           next={tripNext}
           alternative={tripAlternative}
@@ -907,6 +910,7 @@ export default function App({ initialStop, page, intro }: AppProps) {
       autoMode={autoTrip.byMode}
       walkMinutes={walkMin}
       stopAt={walk.stopAt}
+      boardTrouble={boardTrouble}
       onSave={() => {
         setMyTrip(autoTrip.trip);
         storeMyTrip(autoTrip.trip);
