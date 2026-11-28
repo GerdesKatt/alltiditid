@@ -402,8 +402,17 @@ input[type='search']::-webkit-search-decoration {
 body {
   overflow-x: clip;
 }
+/* Sidhuvudet ligger kvar i överkant när man skrollar, så att loggan alltid är med på en skärmdump.
+   Skuggan förlänger den täta bakgrunden ut till skärmkanterna. */
 .site-header {
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  box-shadow: 0 0 0 100vmax var(--c-header-bg);
+  clip-path: inset(0 -100vmax);
+}
+html {
+  scroll-padding-top: 88px;
 }
 .site-header::before {
   content: '';
@@ -429,7 +438,7 @@ body {
 /* Kompakt sidhuvud på mobilen, så att tavlan kommer högre upp. */
 @media (max-width: 600px) {
   .site-header {
-    padding: 2px 12px !important;
+    padding: 2px 0 !important;
     margin-bottom: 10px !important;
     /* Får radbrytas: vid stor text hamnar språkväljaren under loggan. */
     gap: 2px 12px !important;
@@ -439,8 +448,17 @@ body {
   .site-nav-board {
     display: none !important;
   }
+  /* Strecket ligger direkt i överkant och loggan tätt under, utan tom yta runt. */
+  body {
+    padding-top: 0 !important;
+  }
+  html {
+    scroll-padding-top: 64px;
+  }
   .site-header {
-    padding-top: 12px !important;
+    padding-top: 8px !important;
+    padding-bottom: 4px !important;
+    margin-bottom: 14px !important;
   }
 }
 
@@ -472,7 +490,7 @@ body {
   }
   .layout-side {
     position: sticky;
-    top: 12px;
+    top: 96px;
   }
   .layout-side .switch-stop {
     display: none;

@@ -18,7 +18,7 @@ type Params = { params: Promise<{ ort: string }> };
 
 function description(city: CityPage): string {
   const names = city.stops.slice(0, 4).map((s) => s.name).join(', ');
-  return `Avgångar i realtid från ${city.stops.length} hållplatser i ${city.place}, bland annat ${names}. Nästa avgång, förseningar, inställda turer och spår. Gratis, utan konto.`;
+  return `Avgångar i realtid från ${city.stops.length} hållplatser i ${city.place}, bland annat ${names}. Nästa avgång, förseningar, inställda turer och spår.`;
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       url,
       title,
       description: description(city),
-      images: [{ url: '/og-v3.png', width: 1200, height: 630, alt: 'alltid i tid: nästa avgång, i realtid' }],
+      images: [{ url: '/og-v4.png', width: 1200, height: 630, alt: 'alltid i tid: nästa avgång, i realtid' }],
     },
   };
 }

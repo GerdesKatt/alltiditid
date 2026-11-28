@@ -102,7 +102,7 @@ export default function InstallApp() {
           }}
         >
           {/* Appens egen ikon och ordmärket: det ska synas att det är just den här appen. */}
-          <img src="/icon-192-v3.png" alt="" width={40} height={40} style={{ flexShrink: 0, display: 'block' }} />
+          <img src="/icon-192-v4.png" alt="" width={40} height={40} style={{ flexShrink: 0, display: 'block' }} />
           <span>
             {t('Lägg', 'Add')}{' '}
             <span style={{ fontFamily: fonts.display, fontWeight: 800, letterSpacing: '-0.015em', fontSize: '1.0625rem' }}>alltid i tid</span>{' '}

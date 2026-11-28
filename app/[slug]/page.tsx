@@ -18,7 +18,7 @@ type Params = { params: Promise<{ slug: string }> };
 function description(stop: StopPage): string {
   const where = stop.place && !stop.name.startsWith(stop.place) ? ` i ${stop.place}` : '';
   const modes = stop.modes.length ? ` för ${modesText(stop.modes)}` : '';
-  return `Avgångar från ${stop.name}${where} i realtid${modes}. Se nästa avgång, förseningar, inställda turer och spår. Utan reklam, utan konto.`;
+  return `Avgångar från ${stop.name}${where} i realtid${modes}. Se nästa avgång, förseningar, inställda turer och spår.`;
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
@@ -37,9 +37,9 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       url,
       title,
       description: description(stop),
-      images: [{ url: '/og-v3.png', width: 1200, height: 630, alt: 'alltid i tid: nästa avgång, i realtid' }],
+      images: [{ url: '/og-v4.png', width: 1200, height: 630, alt: 'alltid i tid: nästa avgång, i realtid' }],
     },
-    twitter: { card: 'summary_large_image', title, description: description(stop), images: ['/og-v3.png'] },
+    twitter: { card: 'summary_large_image', title, description: description(stop), images: ['/og-v4.png'] },
   };
 }
 

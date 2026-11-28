@@ -11,10 +11,10 @@ export const metadata: Metadata = {
   description: 'Koll på avgångar, ankomster och förseningar i realtid.',
   icons: {
     icon: [
-      { url: '/favicon-v3.svg', type: 'image/svg+xml' },
+      { url: '/favicon-v4.svg', type: 'image/svg+xml' },
     ],
-    shortcut: '/favicon-v3.svg',
-    apple: '/apple-touch-icon-v3.png',
+    shortcut: '/favicon-v4.svg',
+    apple: '/apple-touch-icon-v4.png',
   },
   manifest: '/manifest.webmanifest',
   metadataBase: new URL('https://alltiditid.se'),
@@ -26,14 +26,14 @@ export const metadata: Metadata = {
     siteName: 'alltid i tid',
     url: 'https://alltiditid.se/',
     title: 'alltid i tid – nästa avgång, i realtid',
-    description: 'Avgångar, ankomster och förseningar i realtid för hela Sverige. Utan reklam, utan konto.',
-    images: [{ url: '/og-v3.png', width: 1200, height: 630, alt: 'alltid i tid: nästa avgång, i realtid' }],
+    description: 'Realtid för hela Sverige: lokalt, regionalt och flyg. Avgångar, ankomster och förseningar.',
+    images: [{ url: '/og-v4.png', width: 1200, height: 630, alt: 'alltid i tid: nästa avgång, i realtid' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'alltid i tid – nästa avgång, i realtid',
     description: 'Avgångar, ankomster och förseningar i realtid för hela Sverige.',
-    images: ['/og-v3.png'],
+    images: ['/og-v4.png'],
   },
   appleWebApp: {
     capable: true,

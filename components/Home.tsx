@@ -289,8 +289,8 @@ export default function Home({ stops, ready = true, now, onOpenStop, onOpenTrain
           </p>
           <p style={{ margin: '6px 0 0', fontSize: '0.875rem', lineHeight: 1.5, color: colors.textDim }}>
             {t(
-              'Hela Sveriges kollektivtrafik i realtid, utan konto och utan reklam. Hållplatser du tittar på hamnar här, så att de syns direkt nästa gång.',
-              "All of Sweden's public transport in real time, no account and no ads. Stops you look at appear here, so they show right away next time."
+              'Realtid för hela Sverige: lokalt, regionalt och flyg. Hållplatser du tittar på hamnar här, så att de syns direkt nästa gång.',
+              "Real time for all of Sweden: local, regional and flights. Stops you look at appear here, so they show right away next time."
             )}
           </p>
         </section>
