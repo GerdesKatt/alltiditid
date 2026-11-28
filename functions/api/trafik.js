@@ -564,9 +564,14 @@ async function handleTrain(url, keys, context) {
   const nameOf = stationNamer(stations);
   const nowIso = new Date().toISOString();
   const today = swedishDateTime(nowIso).slice(0, 10);
-  const dates = [today];
-  const y = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-  dates.push(swedishDateTime(y).slice(0, 10));
+  // Ett bokat tåg en annan dag ("Jag har en biljett"): bara den dagen, högst en månad fram.
+  const asked = String(url.searchParams.get('date') || '');
+  const askedOk = /^\d{4}-\d{2}-\d{2}$/.test(asked) && asked >= today && Date.parse(`${asked}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`) <= 31 * 86_400_000;
+  const dates = askedOk ? [asked] : [today];
+  if (!askedOk) {
+    const y = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    dates.push(swedishDateTime(y).slice(0, 10));
+  }
   for (const date of dates) {
     const filter = `<AND>
         <EQ name="AdvertisedTrainIdent" value="${number}" />
@@ -588,7 +593,7 @@ async function handleTrain(url, keys, context) {
       { 'Cache-Control': 'public, max-age=30' }
     );
   }
-  return jsonResponse({ error: `Hittade inget tåg ${number} i dag.` }, 404);
+  return jsonResponse({ error: askedOk && asked !== today ? `Hittade inget tåg ${number} den dagen.` : `Hittade inget tåg ${number} i dag.` }, 404);
 }
 
 /**
@@ -2017,6 +2022,9 @@ async function handlePlan(request, keys, context) {
   const date = /^\d{4}-\d{2}-\d{2}$/.test(String(body && body.date)) ? String(body.date) : '';
   const time = /^\d{2}:\d{2}$/.test(String(body && body.time)) ? String(body.time) : '';
   const arrive = Boolean(body && body.arrive) && Boolean(time);
+  // En bokad biljett: flera resor som kommer fram före tiden, så att appen kan välja en med
+  // marginal och visa en reserv.
+  const ticket = arrive && Boolean(body && body.ticket);
   const when = `${date ? `&date=${date}` : ''}${time ? `&time=${time}` : ''}${arrive ? '&searchForArrival=1' : ''}`;
   if (to.length < 2) return jsonResponse({ error: 'Skriv vart du ska.' }, 400);
   if (!fromCoord && !/^\d{6,12}$/.test(fromId) && typedFrom.length < 2) return jsonResponse({ error: 'Skriv var du startar.' }, 400);
@@ -2028,7 +2036,7 @@ async function handlePlan(request, keys, context) {
   const origin = typedFrom ? `t${encodeURIComponent(foldPlace(typedFrom))}` : fromCoord ? `c${lat.toFixed(3)},${lon.toFixed(3)}` : `s${fromId}`;
   const target = chosen ? (chosen.kind === 'stop' ? `id${chosen.id}` : `c${chosen.lat.toFixed(4)},${chosen.lon.toFixed(4)}`) : to.toLowerCase();
   const cacheKey = new Request(
-    `https://cache.alltiditid.se/plan-v4/${origin}/${encodeURIComponent(target)}/${date || 'idag'}/${time || 'nu'}/${arrive ? 'framme' : 'avgang'}`
+    `https://cache.alltiditid.se/plan-v4/${origin}/${encodeURIComponent(target)}/${date || 'idag'}/${time || 'nu'}/${ticket ? 'biljett' : arrive ? 'framme' : 'avgang'}`
   );
   const cached = await cacheGet(cacheKey);
   if (cached) {
@@ -2102,7 +2110,7 @@ async function handlePlan(request, keys, context) {
   const destPart = dest.kind === 'stop' ? `destId=${dest.id}` : `destCoordLat=${dest.lat}&destCoordLong=${dest.lon}`;
   const originPart = (id) =>
     fromCoord ? `originCoordLat=${lat.toFixed(5)}&originCoordLong=${lon.toFixed(5)}` : `originId=${id}`;
-  const tripFrom = async (id) => mapTrips(await rr(`trip?${originPart(id)}&${destPart}${when}&numF=4&passlist=0`), { clean: (n) => cleanPlaceName(n) || n });
+  const tripFrom = async (id) => mapTrips(await rr(`trip?${originPart(id)}&${destPart}${when}&${ticket ? 'numB=4&numF=1' : 'numF=4'}&passlist=0`), { clean: (n) => cleanPlaceName(n) || n });
 
   let trips = [];
   try {
@@ -2129,7 +2137,7 @@ async function handlePlan(request, keys, context) {
         ? near.stopLocationOrCoordLocation.map((i) => i && i.StopLocation).filter((x) => x && x.extId)
         : [];
       for (const st of list) {
-        const t = mapTrips(await rr(`trip?originId=${st.extId}&${destPart}${when}&numF=4&passlist=0`), { clean: (n) => cleanPlaceName(n) || n });
+        const t = mapTrips(await rr(`trip?originId=${st.extId}&${destPart}${when}&${ticket ? 'numB=4&numF=1' : 'numF=4'}&passlist=0`), { clean: (n) => cleanPlaceName(n) || n });
         if (t.length) {
           trips = t;
           farStart = {

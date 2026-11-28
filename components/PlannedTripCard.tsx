@@ -5,6 +5,8 @@ import { lineLabel, useLang } from '../lib/i18n';
 import { dayLabel, isNear, type PlanLeg, type PlannedTrip } from '../lib/plannedTrip';
 import { nextStep } from '../lib/tripStep.mjs';
 import { LegRow, LineBadge, rideLabel, trackText } from './JourneyPlan';
+import { at, lateMinutes, withAnchorLive, type Anchor } from '../lib/ticket.mjs';
+import type { Flight } from '../lib/types';
 
 type Ride = Extract<PlanLeg, { kind: 'ride' }>;
 
@@ -27,6 +29,65 @@ function storeLuggage(on: boolean) {
 
 type Props = { planned: PlannedTrip; now: number; onRemove: () => void };
 
+type Live = { rtTime?: string; track?: string; cancelled?: boolean; arrRt?: string };
+
+/**
+ * Följer den bokade biljetten: ny tid, spår eller gate, inställd. Tåg från Trafikverket varje
+ * minut, flyg från flygplatsens tavla varannan. Bara de sista fyra timmarna före avgång.
+ */
+function useAnchorLive(anchor: Anchor | undefined, now: number): Live | null {
+  const [live, setLive] = useState<Live | null>(null);
+  const dep = anchor ? at(anchor.date, anchor.dep) : 0;
+  const watch = Boolean(anchor && !anchor.manual && dep - now < 4 * 3600_000 && now - dep < 3 * 3600_000);
+  useEffect(() => {
+    if (!anchor || !watch) return;
+    let active = true;
+    async function load() {
+      if (!anchor) return;
+      try {
+        if (anchor.kind === 'train') {
+          const res = await fetch(`/api/trafik?action=train&number=${encodeURIComponent(anchor.number)}&date=${anchor.date}`);
+          if (!res.ok) return;
+          const data = await res.json();
+          type S = { name: string; track?: string; cancelled?: boolean; departure?: { scheduled: string; estimated?: string; actual?: string }; arrival?: { scheduled: string; estimated?: string; actual?: string } };
+          const stops: S[] = Array.isArray(data.stops) ? data.stops : [];
+          const from = stops.find((x) => x.name === anchor.from);
+          const to = stops.find((x) => x.name === anchor.to);
+          if (!from || !active) return;
+          setLive({
+            rtTime: from.departure?.actual || from.departure?.estimated || '',
+            track: from.track || '',
+            cancelled: Boolean(from.cancelled),
+            arrRt: to?.arrival?.actual || to?.arrival?.estimated || '',
+          });
+        } else if (anchor.airport) {
+          const res = await fetch(`/api/trafik?action=flights&airport=${anchor.airport}&direction=departures`);
+          if (!res.ok) return;
+          const data = await res.json();
+          const f = Array.isArray(data.flights)
+            ? (data.flights as Flight[]).find((x) => x.flightId === anchor.number && (!anchor.scheduledAt || x.scheduledAt === anchor.scheduledAt))
+            : null;
+          if (!f || !active) return;
+          const parts = [f.terminal ? `terminal ${f.terminal}` : '', f.gate ? `gate ${f.gate}` : ''].filter(Boolean);
+          setLive({ rtTime: f.newTime || (f.expectedAt ? f.expectedAt.slice(11, 16) : ''), track: parts.join(', '), cancelled: f.status === 'cancelled' });
+        }
+      } catch {
+        // Nästa försök om en stund.
+      }
+    }
+    load();
+    const timer = setInterval(() => {
+      if (!document.hidden) load();
+    }, anchor.kind === 'train' ? 60_000 : 120_000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anchor?.number, anchor?.date, anchor?.from, watch]);
+  return live;
+}
+
 /**
  * En planerad resa överst, med nästa steg i fokus: när du ska gå, exakt vilken linje och åt
  * vilket håll, från vilket läge eller spår. Under resan går kortet vidare: kliv av, byt.
@@ -34,7 +95,10 @@ type Props = { planned: PlannedTrip; now: number; onRemove: () => void };
 export default function PlannedTripCard({ planned, now, onRemove }: Props) {
   const { t, lang } = useLang();
   const [open, setOpen] = useState(false);
-  const { trip } = planned;
+  const { anchor } = planned;
+  const live = useAnchorLive(anchor, now);
+  // Biljettens tid och spår följs live. Förbindelsen dit ligger kvar: en försening kan krympa.
+  const trip = anchor ? withAnchorLive(planned.trip, live) : planned.trip;
   const day = dayLabel(trip.depDate, now, lang);
   const today = day === t('i dag', 'today');
   const [luggage, setLuggage] = useState(loadLuggage);
@@ -72,6 +136,7 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
         </span>
         <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.875rem' }}>
           {t('till', 'to')} {planned.to}
+          {anchor ? ` · ${anchor.label} ${anchor.dep}` : ''}
         </span>
         <span aria-hidden="true" style={{ fontSize: '0.875rem', color: colors.textDim }}>
           →
@@ -103,6 +168,8 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
       hurry = true;
       sub = t(`Bråttom: den går om ${step.departsIn} min`, `Hurry: it leaves in ${step.departsIn} min`);
     }
+  } else if (step.kind === 'riding' && step.ride.anchor && step.ride.mode === 'flight') {
+    big = t('Trevlig resa', 'Have a good flight');
   } else if (step.kind === 'riding') {
     big = step.offIn <= 1 ? t('Kliv av nu', 'Get off now') : t(`Kliv av om ${step.offIn} min`, `Get off in ${step.offIn} min`);
   } else if (step.kind === 'change') {
@@ -112,7 +179,25 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
     big = t('Framme', 'Arrived');
   }
 
-  const ride = step.kind === 'done' ? null : step.ride;
+  const ride = step.kind === 'done' || (step.kind === 'riding' && step.ride.anchor && step.ride.mode === 'flight') ? null : step.ride;
+
+  // Biljetten: vad allt det här är till för, och om den är sen eller inställd.
+  const anchorRide = anchor ? (trip.legs.find((l) => l.kind === 'ride' && l.anchor) as Ride | undefined) : undefined;
+  const onAnchor = Boolean(anchorRide && step.kind !== 'done' && step.ride === anchorRide);
+  const anchorTrack = anchorRide?.from.track
+    ? anchorRide.mode === 'flight'
+      ? anchorRide.from.track
+      : trackText('train', anchorRide.from.track, t)
+    : '';
+  const late = anchorRide ? lateMinutes(anchorRide.from.time, anchorRide.from.rtTime) : 0;
+  const anchorFor =
+    anchor && anchorRide && !onAnchor && step.kind !== 'done'
+      ? t(
+          `för att hinna ${anchor.label}${anchorTrack ? `, ${anchorTrack}` : ''}, ${anchorRide.from.rtTime || anchorRide.from.time}`,
+          `to make ${anchor.label}${anchorTrack ? `, ${anchorTrack}` : ''}, ${anchorRide.from.rtTime || anchorRide.from.time}`
+        )
+      : '';
+  const backup = planned.backup && step.kind === 'before' && at(trip.depDate, planned.backup.dep) > now ? planned.backup : null;
   const later = step.kind === 'done' ? [] : step.later;
   const time = (p: { time: string; rtTime: string }) => p.rtTime || p.time;
   const trackOf = (l: Ride, p: { track: string }) => (p.track ? capital(trackText(l.mode, p.track, t)) : '');
@@ -138,7 +223,7 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
           {today ? '' : ` · ${day}`}
         </span>
         <span style={label}>
-          {t('Framme', 'Arrive')} {trip.arr}
+          {anchor?.kind === 'flight' ? `${t('Flyget', 'Flight')} ${anchorRide?.from.rtTime || anchor.dep}` : `${t('Framme', 'Arrive')} ${anchorRide?.to.rtTime || trip.arr}`}
         </span>
       </div>
 
@@ -157,8 +242,31 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
       >
         {big}
       </div>
+      {anchorFor ? <p style={{ margin: '6px 0 0', fontSize: '1rem', fontWeight: 700, lineHeight: 1.3 }}>{anchorFor}</p> : null}
       {sub ? (
         <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: hurry ? colors.amber : colors.textDim, fontWeight: hurry ? 700 : 400 }}>{sub}</p>
+      ) : null}
+      {anchor && anchorRide?.cancelled ? (
+        <p style={{ margin: '6px 0 0', fontSize: '0.875rem', color: colors.amber, fontWeight: 700 }}>
+          {t(
+            `${anchor.label} är inställt. Kolla med ${anchor.kind === 'flight' ? 'flygbolaget' : 'tågbolaget'} vilken avgång du får ta i stället.`,
+            `${anchor.label} is cancelled. Check with the ${anchor.kind === 'flight' ? 'airline' : 'train company'} which departure to take instead.`
+          )}
+        </p>
+      ) : anchor && late > 0 && step.kind !== 'done' ? (
+        <p style={{ margin: '6px 0 0', fontSize: '0.875rem', color: colors.amber, fontWeight: 700 }}>
+          {onAnchor
+            ? t(`${anchor.label} är ${late} min sen.`, `${anchor.label} is ${late} min late.`)
+            : t(
+                `${anchor.label} är ${late} min sen. Håll tiden ändå: förseningar kan krympa.`,
+                `${anchor.label} is ${late} min late. Keep to the plan anyway: delays can shrink.`
+              )}
+        </p>
+      ) : null}
+      {backup ? (
+        <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: colors.textDim }}>
+          {t(`Missar du den här, ta ${backup.line} ${backup.dep} från ${backup.from}.`, `If you miss it, take ${backup.line} at ${backup.dep} from ${backup.from}.`)}
+        </p>
       ) : null}
 
       {ride ? (
@@ -249,10 +357,15 @@ export default function PlannedTripCard({ planned, now, onRemove }: Props) {
         </>
       ) : null}
       <p style={{ margin: '14px 0 0', fontSize: '0.75rem', color: colors.textDim }}>
-        {t(
-          'Tiderna är från när du sparade resan. Kolla avgångarna under Avgångar innan du går.',
-          'Times are from when you saved the trip. Check the board under Departures before you leave.'
-        )}
+        {anchor && !anchor.manual
+          ? t(
+              `${anchor.label} följs live. Övriga tider är från när du sparade resan, så kolla under Avgångar innan du går.`,
+              `${anchor.label} is tracked live. Other times are from when you saved the trip, so check Departures before you leave.`
+            )
+          : t(
+              'Tiderna är från när du sparade resan. Kolla avgångarna under Avgångar innan du går.',
+              'Times are from when you saved the trip. Check the board under Departures before you leave.'
+            )}
       </p>
     </section>
   );
